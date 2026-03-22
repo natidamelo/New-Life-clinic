@@ -80,16 +80,4 @@
   "engines": {
     "node": "20.x"
   },
-  "overrides": {
-    "@mui/icons-material": {
-      "main": "./index.js",
-      "module": "./index.js"
-    }
-  },
-  "resolutions": {
-    "@mui/icons-material": {
-      "main": "./index.js",
-      "module": "./index.js"
-    }
-  }
 }

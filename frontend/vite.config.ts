@@ -41,6 +41,9 @@ export default defineConfig({
     minify: isVercel ? false : 'esbuild',
     sourcemap: false,
     rollupOptions: {
+      // Skipping dead-code elimination on Vercel saves the RAM spike of reading 4000+ MUI icon files.
+      // Bundle is slightly larger but CDN gzips it; local builds still tree-shake.
+      treeshake: isVercel ? false : undefined,
       output: {
         // Never emit .map files (saves RAM/disk on Vercel; maps were still appearing without this)
         sourcemap: false,
@@ -121,7 +124,6 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@mui/icons-material': path.resolve(__dirname, 'node_modules/@mui/icons-material/esm'),
       '@mui/material': path.resolve(__dirname, 'node_modules/@mui/material'),
     },
     extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json']
