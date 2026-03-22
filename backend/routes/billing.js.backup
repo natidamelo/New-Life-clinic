@@ -1,0 +1,2785 @@
+const express = require('express');
+const router = express.Router();
+const mongoose = require('mongoose');
+const { auth, checkRole, checkPermission } = require('../middleware/auth');
+const { body, validationResult } = require('express-validator');
+const MedicalInvoice = require('../models/MedicalInvoice');
+const LabOrder = require('../models/LabOrder');
+const Notification = require('../models/Notification');
+const billingController = require('../controllers/billingController');
+const billingService = require('../services/billingService');
+const MultiMedicationPaymentProcessor = require('../multi-medication-payment-processor');
+
+// Process patient registration payment
+router.post('/process-registration-payment', auth, [
+  body('patientId').notEmpty().withMessage('Patient ID is required'),
+  body('invoiceId').notEmpty().withMessage('Invoice ID is required'),
+  body('paymentMethod').isIn(['cash', 'credit_card', 'debit_card', 'insurance', 'bank_transfer']).withMessage('Invalid payment method'),
+  body('amountPaid').isFloat({ min: 0 }).withMessage('Amount paid must be a positive number')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { patientId, invoiceId, paymentMethod, amountPaid, notes } = req.body;
+
+    // Get the invoice
+    const invoice = await MedicalInvoice.findById(invoiceId);
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    // Verify the payment amount matches the invoice total
+    console.log(`Payment validation - Amount paid: ${amountPaid}, Invoice total: ${invoice.total}`);
+    if (Math.abs(amountPaid - invoice.total) > 0.01) { // Allow for small rounding differences
+      return res.status(400).json({ 
+        message: 'Payment amount does not match invoice total',
+        amountPaid,
+        invoiceTotal: invoice.total
+      });
+    }
+
+    // Update the invoice as paid
+    invoice.amountPaid = amountPaid;
+    invoice.balance = 0;
+    invoice.status = 'paid';
+    invoice.payments = [{
+      amount: amountPaid,
+      method: paymentMethod,
+      date: new Date(),
+      reference: `REG-PAY-${Date.now()}`,
+      notes: notes || 'Registration payment',
+      processedBy: req.user._id
+    }];
+    await invoice.save();
+
+    // Update patient status to move them to the queue
+    const Patient = require('../models/Patient');
+    const patient = await Patient.findById(patientId);
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found' });
+    }
+
+    patient.status = 'Waiting'; // Move to patient queue
+    patient.lastUpdated = new Date();
+    await patient.save();
+
+    // Create patient card if card was selected
+    const invoiceData = invoice.toObject();
+    const cardItem = invoiceData.items.find(item => item.description.includes('Card'));
+    if (cardItem) {
+      // Extract card type from notification data
+      const Notification = require('../models/Notification');
+      const notification = await Notification.findOne({
+        'data.patientId': patientId,
+        'data.invoiceId': invoiceId,
+        type: 'payment_required'
+      });
+
+      if (notification && notification.data.cardTypeId) {
+        const PatientCard = require('../models/PatientCard');
+        const CardType = require('../models/CardType');
+        
+        const cardType = await CardType.findById(notification.data.cardTypeId);
+        if (cardType) {
+          // Generate card number
+          const cardCount = await PatientCard.countDocuments();
+          const cardNumber = `CARD${String(cardCount + 1).padStart(6, '0')}`;
+
+          const newCard = new PatientCard({
+            patient: patientId,
+            cardNumber,
+            type: cardType.name,
+            status: 'Active',
+            issuedDate: new Date(),
+            expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+            amountPaid: cardItem.unitPrice,
+            benefits: cardType.benefits || {},
+            createdBy: req.user._id
+          });
+
+          await newCard.save();
+          console.log(`Patient card ${cardNumber} created for patient ${patientId}`);
+        }
+      }
+    }
+
+    // Update the notification as resolved
+    const Notification = require('../models/Notification');
+    await Notification.findOneAndUpdate(
+      {
+        'data.patientId': patientId,
+        'data.invoiceId': invoiceId,
+        type: 'payment_required'
+      },
+      {
+        read: true,
+        'data.paymentStatus': 'paid',
+        'data.paidAt': new Date()
+      }
+    );
+
+    // Create success notification
+    const successNotification = new Notification({
+      title: 'Payment Processed Successfully',
+      message: `Payment of $${amountPaid} processed for ${patient.firstName} ${patient.lastName}. Patient moved to queue.`,
+      type: 'info',
+      senderId: req.user._id.toString(),
+      senderRole: 'reception',
+      recipientRole: 'reception',
+      priority: 'medium',
+      data: {
+        patientId: patientId,
+        patientName: `${patient.firstName} ${patient.lastName}`,
+        amountPaid: amountPaid,
+        paymentMethod: paymentMethod
+      }
+    });
+
+    await successNotification.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment processed successfully. Patient moved to queue.',
+      data: {
+        invoice: invoice,
+        patient: patient,
+        notification: successNotification
+      }
+    });
+
+  } catch (error) {
+    console.error('Error processing registration payment:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to process payment',
+      error: error.message 
+    });
+  }
+});
+
+// Process lab test payment
+router.post('/process-lab-payment', auth, [
+  body('paymentMethod').optional().isIn(['cash', 'credit_card', 'debit_card', 'insurance', 'bank_transfer', 'card']).withMessage('Invalid payment method'),
+  body('amountPaid').isFloat({ min: 0 }).withMessage('Amount paid must be a positive number'),
+  body('labOrderIds').optional().isArray().withMessage('Lab order IDs must be an array')
+], async (req, res) => {
+  try {
+    console.log('🔍 Lab Payment Request Debug:');
+    console.log('- User:', req.user);
+    console.log('- Body:', JSON.stringify(req.body, null, 2));
+    console.log('- Headers:', req.headers.authorization ? 'Present' : 'Missing');
+    
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
+      console.log('📥 Request body:', JSON.stringify(req.body, null, 2));
+      return res.status(400).json({ 
+        errors: errors.array(),
+        requestBody: req.body 
+      });
+    }
+
+    const { labOrderId, labOrderIds, invoiceId, paymentMethod, amountPaid, notes, directPayment, notificationId, notificationData } = req.body;
+
+    let invoice = null;
+    let totalAmount = 0;
+
+    // Handle both invoice-based and direct payments
+    if (invoiceId && !directPayment) {
+      // Get the invoice for invoice-based payments
+      invoice = await MedicalInvoice.findById(invoiceId);
+      if (!invoice) {
+        return res.status(404).json({ message: 'Invoice not found' });
+      }
+
+      // Allow partial payments - amount paid should not exceed invoice total
+      console.log(`Payment validation - Amount paid: ${amountPaid}, Invoice total: ${invoice.total}`);
+      if (amountPaid > invoice.total + 0.01) { // Allow for small rounding differences
+        return res.status(400).json({ 
+          message: 'Payment amount exceeds invoice total',
+          amountPaid,
+          invoiceTotal: invoice.total
+        });
+      }
+
+      // Update the invoice payment status
+      invoice.amountPaid = (invoice.amountPaid || 0) + amountPaid;
+      invoice.balance = Math.max(0, invoice.total - invoice.amountPaid);
+      invoice.status = invoice.balance === 0 ? 'paid' : 'partial';
+      
+      // Add payment to payments array instead of replacing
+      if (!invoice.payments) {
+        invoice.payments = [];
+      }
+      invoice.payments.push({
+        amount: amountPaid,
+        method: paymentMethod,
+        date: new Date(),
+        reference: `LAB-PAY-${Date.now()}`,
+        notes: notes || 'Lab test payment',
+        processedBy: req.user._id
+      });
+      
+      await invoice.save();
+      totalAmount = invoice.total;
+    } else {
+      // Direct payment without invoice - calculate total from lab orders or notification data
+      const LabOrder = require('../models/LabOrder');
+      const orderIds = labOrderIds || (labOrderId ? [labOrderId] : []);
+      
+      if (orderIds.length === 0) {
+        // No lab order IDs provided, try to use notification data
+        if (notificationData && notificationData.totalAmount) {
+          totalAmount = notificationData.totalAmount;
+          console.log(`Using notification data total: ${totalAmount} ETB`);
+        } else if (notificationData && notificationData.amount) {
+          totalAmount = notificationData.amount;
+          console.log(`Using notification data amount: ${totalAmount} ETB`);
+        } else {
+          return res.status(400).json({ 
+            message: 'No lab order IDs provided and no valid notification data found',
+            suggestion: 'Please provide labOrderIds or valid notification data'
+          });
+        }
+      } else {
+        // Calculate total from lab orders
+        for (const orderId of orderIds) {
+          const labOrder = await LabOrder.findById(orderId);
+          if (labOrder) {
+            totalAmount += labOrder.totalPrice || labOrder.servicePrice || 0;
+          }
+        }
+      }
+
+      // Allow partial payments for direct payments too
+      console.log(`Direct payment validation - Amount paid: ${amountPaid}, Lab orders total: ${totalAmount}`);
+      if (amountPaid > totalAmount + 0.01) {
+        return res.status(400).json({ 
+          message: 'Payment amount exceeds lab orders total',
+          amountPaid,
+          labOrdersTotal: totalAmount
+        });
+      }
+    }
+
+    // Handle both single and multiple lab orders
+    const orderIds = labOrderIds || (labOrderId ? [labOrderId] : []);
+    
+    // If no lab order IDs, we can still process the payment using notification data
+    if (orderIds.length === 0) {
+      console.log('No lab order IDs provided, processing payment with notification data only');
+      
+      // Try to get patient from notification data
+      let patient = null;
+      if (notificationData && notificationData.patientId) {
+        patient = await Patient.findById(notificationData.patientId);
+      }
+      
+      if (!patient) {
+        return res.status(400).json({ 
+          message: 'No lab order IDs provided and no patient information found in notification data',
+          suggestion: 'Please provide labOrderIds or valid notification data with patient information'
+        });
+      }
+      
+      // Mark notification as read
+      if (notificationId) {
+        try {
+          await Notification.findByIdAndUpdate(notificationId, {
+            read: true,
+            'data.paymentStatus': 'paid',
+            'data.paidAt': new Date()
+          });
+          console.log(`✅ Updated notification: ${notificationId}`);
+        } catch (notificationError) {
+          console.warn('⚠️ Could not update notification:', notificationError.message);
+        }
+      }
+      
+      // Create a simple invoice for the payment
+      const invoiceNumber = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      const actualBalance = Math.max(0, totalAmount - amountPaid);
+      const invoiceStatus = actualBalance === 0 ? 'paid' : 'partial';
+      
+      medicalInvoice = new MedicalInvoice({
+        patientId: patient.patientId || patient._id,
+        patientName: notificationData.patientName || `${patient.firstName} ${patient.lastName}`,
+        patient: patient._id,
+        createdBy: req.user._id,
+        invoiceNumber: invoiceNumber,
+        items: [{
+          itemType: 'lab',
+          category: 'lab',
+          serviceName: 'Lab Tests',
+          description: notificationData.testNames ? notificationData.testNames.join(', ') : 'Lab tests',
+          quantity: 1,
+          unitPrice: totalAmount,
+          totalPrice: totalAmount,
+          total: totalAmount
+        }],
+        subtotal: totalAmount,
+        total: totalAmount,
+        balance: actualBalance,
+        amountPaid: amountPaid,
+        status: invoiceStatus,
+        issueDate: new Date(),
+        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        payments: [{
+          amount: amountPaid,
+          method: paymentMethod,
+          date: new Date(),
+          reference: `LAB-PAY-${Date.now()}`,
+          notes: notes || 'Lab test payment',
+          processedBy: req.user._id
+        }],
+        type: 'consolidated',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      await medicalInvoice.save();
+      console.log(`✅ Created invoice ${invoiceNumber} for lab payment with status: ${invoiceStatus}`);
+      
+      return res.json({
+        success: true,
+        message: 'Lab payment processed successfully',
+        data: {
+          invoice: medicalInvoice,
+          paymentAmount: amountPaid,
+          totalAmount: totalAmount,
+          balance: actualBalance
+        }
+      });
+    }
+
+    const updatedLabOrders = [];
+    let patient = null;
+
+    // Update all lab orders status to allow processing
+    for (const orderId of orderIds) {
+      try {
+        const labOrder = await LabOrder.findById(orderId);
+        if (!labOrder) {
+          console.warn(`Lab order not found: ${orderId}`);
+          continue;
+        }
+
+        labOrder.status = 'Ordered'; // Now ready for lab processing
+        
+        // Update payment status based on whether this is a full or partial payment
+        const orderTotal = labOrder.totalPrice || labOrder.servicePrice || 0;
+        if (amountPaid >= orderTotal) {
+          labOrder.paymentStatus = 'paid';
+        } else {
+          labOrder.paymentStatus = 'partially_paid';
+        }
+        
+        labOrder.paidAt = new Date();
+        // Note: medicalInvoice will be created later and linked if needed
+        await labOrder.save();
+        updatedLabOrders.push(labOrder);
+
+        // Get patient details (same for all orders)
+        if (!patient) {
+          // Try to find patient by patientId (string) or _id (ObjectId)
+          patient = await Patient.findOne({
+            $or: [
+              { patientId: labOrder.patientId },
+              { _id: labOrder.patientId }
+            ]
+          });
+        }
+      } catch (orderError) {
+        console.warn(`⚠️ Error updating lab order ${orderId}:`, orderError.message);
+        // Continue with other orders even if one fails
+      }
+    }
+
+    // Update the notification as resolved
+    
+    // Try to find and update notifications for these lab orders
+    try {
+      await Notification.updateMany(
+        {
+          type: 'lab_payment_required',
+          $or: [
+            { 'data.labOrderIds': { $in: orderIds } },
+            { 'data.labOrderId': { $in: orderIds } }
+          ]
+        },
+        {
+          read: true,
+          'data.paymentStatus': 'paid',
+          'data.paidAt': new Date()
+        }
+      );
+      console.log(`✅ Updated notifications for lab orders: ${orderIds.join(', ')}`);
+    } catch (notificationError) {
+      console.warn('⚠️ Could not update notifications:', notificationError.message);
+      // Don't fail the payment if notification update fails
+    }
+
+    // Create or update MedicalInvoice for the lab payment
+    let medicalInvoice = null;
+    if (updatedLabOrders.length > 0 && patient) {
+      try {
+        // Check if there's an existing invoice for this patient that's not fully paid
+        // Always use the first invoice created for the patient (lowest invoice number)
+        const existingInvoice = await MedicalInvoice.findOne({
+          patientId: patient.patientId || patient._id,
+          status: { $in: ['pending', 'partial'] }
+        }).sort({ invoiceNumber: 1 }); // Sort by invoice number to get the first one
+
+        if (existingInvoice) {
+          // Add lab items to existing invoice
+          console.log(`📝 Adding lab items to existing invoice: ${existingInvoice.invoiceNumber}`);
+          
+          const labItems = updatedLabOrders.map(order => ({
+            itemType: 'lab',
+            category: 'lab',
+            serviceName: order.testName,
+            description: `Lab test: ${order.testName}`,
+            quantity: 1,
+            unitPrice: order.totalPrice || order.servicePrice || 0,
+            totalPrice: order.totalPrice || order.servicePrice || 0,
+            total: order.totalPrice || order.servicePrice || 0
+          }));
+
+          // Add new items to existing invoice
+          existingInvoice.items.push(...labItems);
+          
+          // Recalculate totals
+          const newTotal = existingInvoice.items.reduce((sum, item) => sum + (item.total || 0), 0);
+          existingInvoice.total = newTotal;
+          existingInvoice.subtotal = newTotal;
+          
+          // Update balance and status
+          existingInvoice.amountPaid = (existingInvoice.amountPaid || 0) + amountPaid;
+          existingInvoice.balance = Math.max(0, newTotal - existingInvoice.amountPaid);
+          existingInvoice.status = existingInvoice.balance === 0 ? 'paid' : 'partial';
+          
+          // Add payment to payments array
+          if (!existingInvoice.payments) {
+            existingInvoice.payments = [];
+          }
+          existingInvoice.payments.push({
+            amount: amountPaid,
+            method: paymentMethod,
+            date: new Date(),
+            reference: `LAB-PAY-${Date.now()}`,
+            notes: notes || 'Lab test payment',
+            processedBy: req.user._id
+          });
+
+          await existingInvoice.save();
+          medicalInvoice = existingInvoice;
+          console.log(`✅ Updated existing invoice ${existingInvoice.invoiceNumber} with lab items. New total: ${newTotal}, Balance: ${existingInvoice.balance}`);
+        } else {
+               // Check if there's any existing invoice for this patient (even if paid)
+               const anyExistingInvoice = await MedicalInvoice.findOne({
+                 patientId: patient.patientId || patient._id
+               }).sort({ invoiceNumber: 1 }); // Get the first invoice
+               
+               if (anyExistingInvoice) {
+                 // Add lab items to the existing invoice (even if it was paid)
+                 console.log(`📝 Adding lab items to existing invoice: ${anyExistingInvoice.invoiceNumber}`);
+                 
+                 const labItems = updatedLabOrders.map(order => ({
+                   itemType: 'lab',
+                   category: 'lab',
+                   serviceName: order.testName,
+                   description: `Lab test: ${order.testName}`,
+                   quantity: 1,
+                   unitPrice: order.totalPrice || order.servicePrice || 0,
+                   totalPrice: order.totalPrice || order.servicePrice || 0,
+                   total: order.totalPrice || order.servicePrice || 0
+                 }));
+                 
+                 anyExistingInvoice.items.push(...labItems);
+                 
+                 const newTotal = anyExistingInvoice.items.reduce((sum, item) => sum + (item.total || 0), 0);
+                 anyExistingInvoice.total = newTotal;
+                 anyExistingInvoice.subtotal = newTotal;
+                 
+                 anyExistingInvoice.amountPaid = (anyExistingInvoice.amountPaid || 0) + amountPaid;
+                 anyExistingInvoice.balance = Math.max(0, newTotal - anyExistingInvoice.amountPaid);
+                 anyExistingInvoice.status = anyExistingInvoice.balance === 0 ? 'paid' : 'partial';
+                 anyExistingInvoice.type = 'consolidated'; // Mark as consolidated
+                 
+                 if (!anyExistingInvoice.payments) {
+                   anyExistingInvoice.payments = [];
+                 }
+                 anyExistingInvoice.payments.push({
+                   amount: amountPaid,
+                   method: paymentMethod,
+                   date: new Date(),
+                   reference: `LAB-PAY-${Date.now()}`,
+                   notes: notes || 'Lab test payment',
+                   processedBy: req.user._id
+                 });
+                 
+                 await anyExistingInvoice.save();
+                 medicalInvoice = anyExistingInvoice;
+                 console.log(`✅ Updated existing invoice ${anyExistingInvoice.invoiceNumber} with lab items. New total: ${newTotal}, Balance: ${anyExistingInvoice.balance}`);
+               } else {
+                 // Create new invoice only if no existing invoice exists
+                 const invoiceNumber = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+          
+          // Calculate the actual balance based on amount paid
+          const actualBalance = Math.max(0, totalAmount - amountPaid);
+          const invoiceStatus = actualBalance === 0 ? 'paid' : 'partial';
+          
+          medicalInvoice = new MedicalInvoice({
+            patientId: patient.patientId || patient._id,
+            patientName: `${patient.firstName} ${patient.lastName}`,
+            patient: patient._id,
+            createdBy: req.user._id,
+            invoiceNumber: invoiceNumber,
+            items: updatedLabOrders.map(order => ({
+              itemType: 'lab',
+              category: 'lab',
+              serviceName: order.testName,
+              description: `Lab test: ${order.testName}`,
+              quantity: 1,
+              unitPrice: order.totalPrice || order.servicePrice || 0,
+              totalPrice: order.totalPrice || order.servicePrice || 0,
+              total: order.totalPrice || order.servicePrice || 0
+            })),
+            subtotal: totalAmount,
+            total: totalAmount,
+            balance: actualBalance,
+            amountPaid: amountPaid,
+            status: invoiceStatus,
+            issueDate: new Date(),
+            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            payments: [{
+              amount: amountPaid,
+              method: paymentMethod,
+              date: new Date(),
+              reference: `LAB-PAY-${Date.now()}`,
+              notes: notes || 'Lab test payment',
+              processedBy: req.user._id
+            }],
+            type: 'consolidated',
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+
+          await medicalInvoice.save();
+          console.log(`✅ Created consolidated invoice ${invoiceNumber} for lab payment with status: ${invoiceStatus}, balance: ${actualBalance}`);
+        }
+        
+        // Link the medicalInvoice back to the lab orders
+        for (const labOrder of updatedLabOrders) {
+          labOrder.serviceRequestId = medicalInvoice._id;
+          await labOrder.save();
+        }
+      } catch (invoiceError) {
+        console.warn('⚠️ Could not create/update MedicalInvoice:', invoiceError.message);
+        // Don't fail the payment if invoice creation fails
+      }
+    }
+    }
+
+    // Create individual notifications for lab technician for each test
+    const labNotifications = [];
+    console.log('🔍 Creating lab notifications...');
+    
+    if (!req.user || !req.user._id) {
+      console.log('⚠️ User information missing, using fallback ID');
+    }
+    
+    for (const labOrder of updatedLabOrders) {
+      const labNotification = new Notification({
+        title: 'Lab Test Ready for Processing',
+        message: `Lab test "${labOrder.testName}" for ${patient?.firstName} ${patient?.lastName} is paid and ready for processing.`,
+        type: 'lab_result_ready',
+        senderId: req.user?._id?.toString() || '507f1f77bcf86cd799439011', // Fallback ID
+        senderRole: 'reception',
+        recipientRole: 'lab',
+        priority: 'medium',
+        data: {
+          patientId: labOrder.patientId,
+          patientName: `${patient?.firstName} ${patient?.lastName}`,
+          labOrderId: labOrder._id,
+          testName: labOrder.testName,
+          amountPaid: labOrder.totalPrice,
+          invoiceId: medicalInvoice?._id // Add invoice reference
+        }
+      });
+
+      await labNotification.save();
+      labNotifications.push(labNotification);
+    }
+
+    console.log(`✅ Created ${labNotifications.length} lab notifications`);
+
+    res.status(200).json({
+      success: true,
+      message: `Lab test payment processed successfully. ${updatedLabOrders.length} tests ready for processing.`,
+      data: {
+        invoice: invoice || medicalInvoice,
+        labOrders: updatedLabOrders,
+        notifications: labNotifications,
+        invoiceCreated: !!medicalInvoice
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error processing lab payment:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('📥 Request body:', JSON.stringify(req.body, null, 2));
+    console.error('👤 User:', req.user);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to process lab payment',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Process medication payment with partial payment authorization
+const EnhancedMedicationPaymentProcessor = require('../enhanced-medication-payment-processor');
+
+router.post('/process-medication-payment', auth, [
+  body('prescriptionId').notEmpty().withMessage('Prescription ID is required'),
+  body('invoiceId').notEmpty().withMessage('Invoice ID is required'),
+  body('paymentMethod').isIn(['cash', 'credit_card', 'debit_card', 'insurance', 'bank_transfer']).withMessage('Invalid payment method'),
+  body('amountPaid').isFloat({ min: 0 }).withMessage('Amount paid must be a positive number'),
+  body('sendToNurse').isBoolean().withMessage('Invalid sendToNurse format')
+], async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { prescriptionId, invoiceId, paymentMethod, amountPaid, notes, sendToNurse } = req.body;
+
+    // Get the invoice
+    const invoice = await MedicalInvoice.findById(invoiceId).session(session);
+    if (!invoice) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    // Allow partial payment: amountPaid must be <= outstanding balance
+    if (amountPaid > invoice.balance) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ message: 'Payment amount exceeds outstanding balance' });
+    }
+
+    // Get prescription for enhanced processing
+    const Prescription = require('../models/Prescription');
+    const prescription = await Prescription.findById(prescriptionId).session(session);
+    if (!prescription) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: 'Prescription not found' });
+    }
+
+    // Process payment with enhanced authorization
+    const enhancedResult = await EnhancedMedicationPaymentProcessor.processPaymentWithAuthorization({
+      prescriptionId,
+      invoiceId,
+      paymentMethod,
+      amountPaid,
+      notes,
+      sendToNurse,
+      prescription,
+      invoice
+    });
+
+    // Append payment to invoice and recalculate via pre-save hook
+    invoice.payments.push({
+      amount: amountPaid,
+      method: paymentMethod,
+      date: new Date(),
+      reference: `MED-PAY-${Date.now()}`,
+      notes: notes || 'Medication payment'
+    });
+    // pre-save hook will update amountPaid, balance, and status (paid/partial)
+
+    // Update prescription with payment authorization details
+    prescription.status = 'Active'; // Now ready for dispensing
+    prescription.paymentStatus = enhancedResult.authorizationSummary.paidDays >= enhancedResult.authorizationSummary.totalDays ? 'paid' : 'partial';
+    prescription.paidAt = new Date();
+    
+    // Store payment authorization details
+    prescription.paymentAuthorization = {
+      paidDays: enhancedResult.authorizationSummary.paidDays,
+      totalDays: enhancedResult.authorizationSummary.totalDays,
+      authorizedDoses: enhancedResult.authorizationSummary.authorizedDoses,
+      paymentPlan: enhancedResult.paymentPlan,
+      lastUpdated: new Date()
+    };
+    
+    // Set sendToNurse flag if provided in request
+    if (sendToNurse !== undefined) {
+      prescription.sendToNurse = sendToNurse;
+    }
+    
+    await prescription.save({ session });
+
+    // Update the notification as resolved
+    const Notification = require('../models/Notification');
+    await Notification.findOneAndUpdate(
+      {
+        'data.prescriptionId': prescriptionId,
+        'data.invoiceId': invoiceId,
+        type: 'medication_payment_required'
+      },
+      {
+        read: true,
+        'data.paymentStatus': 'paid',
+        'data.paidAt': new Date()
+      },
+      { session }
+    );
+
+    // Get patient details for notifications
+    const Patient = require('../models/Patient');
+    const patient = await Patient.findById(prescription.patient).session(session);
+    
+    // Automatically dispense medications from inventory if they are inventory items
+    const dispensedMedications = [];
+    const inventoryItems = prescription.medications.filter(med => med.inventoryItemId);
+    
+    if (inventoryItems.length > 0) {
+      const InventoryItem = require('../models/InventoryItem');
+      const InventoryTransaction = require('../models/InventoryTransaction');
+      
+      for (const med of inventoryItems) {
+        const inventoryItem = await InventoryItem.findById(med.inventoryItemId).session(session);
+        if (inventoryItem && inventoryItem.quantity >= (med.quantity || 1)) {
+          // INVENTORY DEDUCTION DISABLED - medications are deducted when actually administered by nurses
+          // const previousQuantity = inventoryItem.quantity;
+          // inventoryItem.quantity -= (med.quantity || 1);
+          // inventoryItem.updatedBy = req.user.id;
+          // await inventoryItem.save({ session });
+          const previousQuantity = inventoryItem.quantity;
+          
+          // TRANSACTION RECORD DISABLED - transactions are created when medications are actually administered
+          // const transaction = new InventoryTransaction({
+          //   item: inventoryItem._id,
+          //   transactionType: 'medical-use',
+          //   quantity: -(med.quantity || 1),
+          //   previousQuantity,
+          //   newQuantity: inventoryItem.quantity,
+          //   reason: 'Medication dispensed after payment',
+          //   documentReference: prescriptionId,
+          //   performedBy: req.user.id,
+          //   status: 'completed',
+          //   patientId: prescription.patient
+          // });
+          // 
+          // await transaction.save({ session });
+          
+          dispensedMedications.push({
+            name: med.name,
+            quantity: med.quantity || 1,
+            dispensed: true,
+            note: 'Payment processed - inventory will be deducted when administered'
+          });
+        } else {
+          dispensedMedications.push({
+            name: med.name,
+            quantity: med.quantity || 1,
+            dispensed: false,
+            reason: 'Insufficient stock'
+          });
+        }
+      }
+    }
+
+    // Create nurse task if sendToNurse is true
+    if (sendToNurse) {
+      const NurseTask = require('../models/NurseTask');
+      
+      // Try to find the patient's assigned nurse
+      let assignedNurseId = null;
+      if (patient && patient.assignedNurseId) {
+        const User = require('../models/User');
+        const nurse = await User.findById(patient.assignedNurseId).session(session);
+        if (nurse) {
+          assignedNurseId = nurse._id;
+        }
+      }
+      
+      // Create enhanced nurse tasks for each medication with payment authorization
+      for (const med of prescription.medications) {
+        const baseTaskData = {
+          taskType: 'MEDICATION',
+          title: `Administer ${med.name}`,
+          description: `${med.name} - ${med.dosage || 'As prescribed'} - ${med.frequency || 'As prescribed'}`,
+          priority: 'MEDIUM',
+          status: 'PENDING',
+          patientId: prescription.patient,
+          patientName: `${patient.firstName} ${patient.lastName}`,
+          assignedTo: assignedNurseId,
+          assignedBy: req.user.id,
+          createdBy: req.user.id,
+          dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Due in 24 hours
+          medicationDetails: {
+            medicationName: med.name,
+            dosage: med.dosage || 'As prescribed',
+            frequency: med.frequency || 'As prescribed',
+            route: med.route || 'Oral',
+            instructions: med.instructions || prescription.nurseInstructions || 'Follow prescription',
+            duration: enhancedResult.authorizationSummary.totalDays,
+            startDate: new Date()
+          },
+          prescriptionId: prescription._id,
+          notes: `Payment completed. Ready for administration.`
+        };
+
+        // Enhance task with payment authorization
+        const enhancedTask = EnhancedMedicationPaymentProcessor.createAuthorizedNurseTask(
+          baseTaskData, 
+          enhancedResult.paymentPlan
+        );
+        
+        const nurseTask = new NurseTask(enhancedTask);
+        await nurseTask.save({ session });
+      }
+      
+      // Create notification for nurses
+      const nurseNotification = new Notification({
+        title: 'Medication Ready for Administration',
+        message: `Medications for ${patient.firstName} ${patient.lastName} have been paid for and are ready for administration.`,
+        type: 'medication_ready',
+        senderId: req.user.id,
+        senderRole: 'reception',
+        recipientRole: 'nurse',
+        priority: 'high',
+        data: {
+          patientId: prescription.patient,
+          patientName: `${patient.firstName} ${patient.lastName}`,
+          prescriptionId: prescription._id,
+          medications: prescription.medications,
+          dispensedMedications: dispensedMedications,
+          paymentCompleted: true
+        }
+      });
+      
+      await nurseNotification.save({ session });
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({
+      success: true,
+      message: 'Payment processed successfully',
+      data: {
+        invoice: invoice,
+        prescription: prescription,
+        dispensedMedications: dispensedMedications,
+        nurseTasksCreated: sendToNurse,
+        paymentReference: `MED-PAY-${Date.now()}`,
+        // Enhanced payment authorization details
+        paymentAuthorization: enhancedResult.authorizationSummary,
+        medicationSchedule: enhancedResult.medicationSchedule,
+        paymentReminder: enhancedResult.paymentReminder
+      }
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error('Error processing medication payment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process payment',
+      error: error.message
+    });
+  }
+});
+
+// Process multi-medication payment with individual authorization
+router.post('/process-multi-medication-payment', auth, [
+  body('prescriptionId').notEmpty().withMessage('Prescription ID is required'),
+  body('invoiceId').notEmpty().withMessage('Invoice ID is required'),
+  body('paymentMethod').isIn(['cash', 'credit_card', 'debit_card', 'insurance', 'bank_transfer']).withMessage('Invalid payment method'),
+  body('amountPaid').isFloat({ min: 0 }).withMessage('Amount paid must be a positive number'),
+  body('sendToNurse').isBoolean().withMessage('Invalid sendToNurse format'),
+  body('medicationPaymentBreakdown').optional().isArray().withMessage('Medication payment breakdown must be an array')
+], async (req, res) => {
+  const mongoose = require('mongoose');
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { 
+      prescriptionId, 
+      invoiceId, 
+      paymentMethod, 
+      amountPaid, 
+      notes, 
+      sendToNurse,
+      medicationPaymentBreakdown 
+    } = req.body;
+
+    // Get prescription and invoice
+    const Prescription = require('../models/Prescription');
+    const MedicalInvoice = require('../models/MedicalInvoice');
+    
+    const prescription = await Prescription.findById(prescriptionId).session(session);
+    const invoice = await MedicalInvoice.findById(invoiceId).session(session);
+    
+    if (!prescription) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: 'Prescription not found' });
+    }
+
+    if (!invoice) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    // Process payment with multi-medication authorization
+    const enhancedResult = await MultiMedicationPaymentProcessor.processMultiMedicationPayment({
+      prescriptionId,
+      invoiceId,
+      paymentMethod,
+      amountPaid,
+      notes,
+      sendToNurse,
+      prescription,
+      invoice,
+      medicationPaymentBreakdown
+    });
+
+    // Update the invoice with payment details
+    invoice.amountPaid = (invoice.amountPaid || 0) + amountPaid;
+    invoice.balance = Math.max(0, invoice.total - invoice.amountPaid);
+    invoice.status = invoice.balance === 0 ? 'paid' : 'partial';
+    
+    if (!invoice.payments) {
+      invoice.payments = [];
+    }
+    
+    invoice.payments.push({
+      amount: amountPaid,
+      method: paymentMethod,
+      date: new Date(),
+      reference: `MULTI-MED-PAY-${Date.now()}`,
+      notes: notes || 'Multi-medication payment',
+      medicationBreakdown: enhancedResult.paymentDistribution,
+      processedBy: req.user._id
+    });
+
+    await invoice.save({ session });
+
+    // Update prescription with payment authorization details
+    prescription.paymentAuthorization = {
+      totalPaid: amountPaid,
+      lastPaymentDate: new Date(),
+      medicationPaymentPlans: enhancedResult.medicationPaymentPlans,
+      overallSummary: enhancedResult.overallSummary
+    };
+
+    await prescription.save({ session });
+
+    // Create or update nurse tasks if sendToNurse is true
+    if (sendToNurse) {
+      const NurseTask = require('../models/NurseTask');
+      
+      // Create tasks for each medication with payment authorization
+      for (const medicationPlan of enhancedResult.medicationPaymentPlans) {
+        const existingTask = await NurseTask.findOne({
+          'medicationDetails.prescriptionId': prescriptionId,
+          'medicationDetails.medicationName': medicationPlan.medicationName
+        }).session(session);
+
+        if (existingTask) {
+          // Update existing task with new payment authorization
+          existingTask.paymentAuthorization = {
+            paidDays: medicationPlan.paidDays,
+            totalDays: medicationPlan.totalDays,
+            paymentStatus: medicationPlan.paymentStatus,
+            canAdminister: medicationPlan.paidDays > 0,
+            restrictionMessage: medicationPlan.paidDays < medicationPlan.totalDays 
+              ? `Payment covers only ${medicationPlan.paidDays} of ${medicationPlan.totalDays} days`
+              : 'Fully paid - no restrictions',
+            authorizedDoses: medicationPlan.paidDoses,
+            unauthorizedDoses: medicationPlan.unpaidDoses,
+            outstandingAmount: medicationPlan.outstandingAmount
+          };
+
+          await existingTask.save({ session });
+        } else {
+          // Create new task with payment authorization
+          const newTask = new NurseTask({
+            patient: prescription.patient,
+            taskType: 'medication_administration',
+            priority: 'medium',
+            status: 'pending',
+            assignedTo: null, // Will be assigned by nurse supervisor
+            medicationDetails: {
+              prescriptionId: prescriptionId,
+              medicationName: medicationPlan.medicationName,
+              dosage: prescription.medications.find(m => m.name === medicationPlan.medicationName)?.dosage || 'As prescribed',
+              frequency: medicationPlan.frequency,
+              duration: `${medicationPlan.totalDays} days`,
+              instructions: medicationPlan.instructions || 'Follow prescription instructions'
+            },
+            paymentAuthorization: {
+              paidDays: medicationPlan.paidDays,
+              totalDays: medicationPlan.totalDays,
+              paymentStatus: medicationPlan.paymentStatus,
+              canAdminister: medicationPlan.paidDays > 0,
+              restrictionMessage: medicationPlan.paidDays < medicationPlan.totalDays 
+                ? `Payment covers only ${medicationPlan.paidDays} of ${medicationPlan.totalDays} days`
+                : 'Fully paid - no restrictions',
+              authorizedDoses: medicationPlan.paidDoses,
+              unauthorizedDoses: medicationPlan.unpaidDoses,
+              outstandingAmount: medicationPlan.outstandingAmount
+            },
+            createdBy: req.user._id,
+            dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000) // Due in 24 hours
+          });
+
+          await newTask.save({ session });
+        }
+      }
+    }
+
+    // Create notifications for payment reminders if needed
+    if (enhancedResult.paymentReminders.length > 0) {
+      const Notification = require('../models/Notification');
+      
+      for (const reminder of enhancedResult.paymentReminders) {
+        const notification = new Notification({
+          title: 'Medication Payment Reminder',
+          message: reminder.message,
+          type: 'medication_payment_required',
+          senderId: req.user._id.toString(),
+          senderRole: 'billing',
+          recipientRole: 'reception',
+          priority: 'high',
+          data: {
+            prescriptionId: prescriptionId,
+            medicationName: reminder.medicationName,
+            unpaidDays: reminder.unpaidDays,
+            outstandingAmount: reminder.outstandingAmount,
+            nextDueDate: reminder.nextDueDate,
+            patientId: prescription.patient.toString(),
+            invoiceId: invoiceId
+          }
+        });
+
+        await notification.save({ session });
+      }
+    }
+
+    // Update existing payment notifications
+    const Notification = require('../models/Notification');
+    await Notification.updateMany(
+      {
+        'data.prescriptionId': prescriptionId,
+        'data.invoiceId': invoiceId,
+        type: 'medication_payment_required',
+        read: false
+      },
+      {
+        read: enhancedResult.overallSummary.overallStatus === 'fully_paid',
+        'data.paymentStatus': enhancedResult.overallSummary.overallStatus,
+        'data.paidAt': new Date(),
+        'data.paymentSummary': enhancedResult.overallSummary
+      },
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({
+      success: true,
+      message: 'Multi-medication payment processed successfully',
+      data: {
+        invoice,
+        prescription,
+        paymentAuthorization: enhancedResult.overallSummary,
+        medicationPaymentPlans: enhancedResult.medicationPaymentPlans,
+        paymentDistribution: enhancedResult.paymentDistribution,
+        paymentReminders: enhancedResult.paymentReminders
+      }
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error('Error processing multi-medication payment:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Multi-medication payment processing failed', 
+      error: error.message 
+    });
+  }
+});
+
+// Get payment authorization status for multiple medications
+router.get('/medication-payment-status/:prescriptionId', auth, async (req, res) => {
+  try {
+    const { prescriptionId } = req.params;
+
+    const Prescription = require('../models/Prescription');
+    const prescription = await Prescription.findById(prescriptionId);
+    
+    if (!prescription) {
+      return res.status(404).json({ message: 'Prescription not found' });
+    }
+
+    // If prescription has payment authorization data, return it
+    if (prescription.paymentAuthorization) {
+      return res.json({
+        success: true,
+        data: prescription.paymentAuthorization
+      });
+    }
+
+    // Otherwise, calculate current status based on invoices
+    const MedicalInvoice = require('../models/MedicalInvoice');
+    const invoices = await MedicalInvoice.find({
+      'items.prescriptionId': prescriptionId
+    });
+
+    const totalPaid = invoices.reduce((sum, invoice) => sum + (invoice.amountPaid || 0), 0);
+    const totalCost = invoices.reduce((sum, invoice) => sum + invoice.total, 0);
+
+    // Create basic payment status
+    const basicStatus = {
+      totalPaid,
+      totalCost,
+      outstandingAmount: totalCost - totalPaid,
+      paymentPercentage: totalCost > 0 ? (totalPaid / totalCost) * 100 : 0,
+      overallStatus: totalPaid >= totalCost ? 'fully_paid' : totalPaid > 0 ? 'partial' : 'unpaid'
+    };
+
+    res.json({
+      success: true,
+      data: basicStatus
+    });
+
+  } catch (error) {
+    console.error('Error getting medication payment status:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to get payment status', 
+      error: error.message 
+    });
+  }
+});
+
+// Process additional payment for specific medication
+router.post('/process-additional-medication-payment', auth, [
+  body('prescriptionId').notEmpty().withMessage('Prescription ID is required'),
+  body('medicationName').notEmpty().withMessage('Medication name is required'),
+  body('additionalAmount').isFloat({ min: 0 }).withMessage('Additional amount must be a positive number'),
+  body('paymentMethod').isIn(['cash', 'credit_card', 'debit_card', 'insurance', 'bank_transfer']).withMessage('Invalid payment method')
+], async (req, res) => {
+  const mongoose = require('mongoose');
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { prescriptionId, medicationName, additionalAmount, paymentMethod, notes } = req.body;
+
+    const Prescription = require('../models/Prescription');
+    const prescription = await Prescription.findById(prescriptionId).session(session);
+    
+    if (!prescription) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: 'Prescription not found' });
+    }
+
+    if (!prescription.paymentAuthorization) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ message: 'No existing payment authorization found' });
+    }
+
+    // Process additional payment
+    const additionalPayments = [{ medicationName, amount: additionalAmount }];
+    const updatedResult = await MultiMedicationPaymentProcessor.processAdditionalPaymentForMedications(
+      prescriptionId,
+      additionalPayments,
+      prescription.paymentAuthorization.medicationPaymentPlans
+    );
+
+    // Update prescription with new payment authorization
+    prescription.paymentAuthorization.medicationPaymentPlans = updatedResult.updatedPlans;
+    prescription.paymentAuthorization.overallSummary = updatedResult.overallSummary;
+    prescription.paymentAuthorization.totalPaid += additionalAmount;
+    prescription.paymentAuthorization.lastPaymentDate = new Date();
+
+    await prescription.save({ session });
+
+    // Update related invoice
+    const MedicalInvoice = require('../models/MedicalInvoice');
+    const invoice = await MedicalInvoice.findOne({
+      'items.prescriptionId': prescriptionId
+    }).session(session);
+
+    if (invoice) {
+      invoice.amountPaid = (invoice.amountPaid || 0) + additionalAmount;
+      invoice.balance = Math.max(0, invoice.total - invoice.amountPaid);
+      invoice.status = invoice.balance === 0 ? 'paid' : 'partial';
+      
+      if (!invoice.payments) {
+        invoice.payments = [];
+      }
+      
+      invoice.payments.push({
+        amount: additionalAmount,
+        method: paymentMethod,
+        date: new Date(),
+        reference: `ADD-MED-PAY-${Date.now()}`,
+        notes: notes || `Additional payment for ${medicationName}`,
+        medicationName,
+        processedBy: req.user._id
+      });
+
+      await invoice.save({ session });
+    }
+
+    // Update nurse tasks with new authorization
+    const NurseTask = require('../models/NurseTask');
+    const updatedPlan = updatedResult.updatedPlans.find(p => p.medicationName === medicationName);
+    
+    if (updatedPlan) {
+      await NurseTask.updateMany(
+        {
+          'medicationDetails.prescriptionId': prescriptionId,
+          'medicationDetails.medicationName': medicationName
+        },
+        {
+          $set: {
+            'paymentAuthorization.paidDays': updatedPlan.paidDays,
+            'paymentAuthorization.paymentStatus': updatedPlan.paymentStatus,
+            'paymentAuthorization.canAdminister': updatedPlan.paidDays > 0,
+            'paymentAuthorization.restrictionMessage': updatedPlan.paidDays < updatedPlan.totalDays 
+              ? `Payment covers only ${updatedPlan.paidDays} of ${updatedPlan.totalDays} days`
+              : 'Fully paid - no restrictions',
+            'paymentAuthorization.authorizedDoses': updatedPlan.paidDoses,
+            'paymentAuthorization.unauthorizedDoses': updatedPlan.unpaidDoses,
+            'paymentAuthorization.outstandingAmount': updatedPlan.outstandingAmount
+          }
+        },
+        { session }
+      );
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({
+      success: true,
+      message: `Additional payment processed for ${medicationName}`,
+      data: {
+        updatedPlans: updatedResult.updatedPlans,
+        overallSummary: updatedResult.overallSummary,
+        additionalAmount,
+        medicationName
+      }
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error('Error processing additional medication payment:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Additional payment processing failed', 
+      error: error.message
+    });
+  }
+});
+
+// Process partial payment for an invoice
+router.post('/process-partial-payment', auth, [
+  body('invoiceId').notEmpty().withMessage('Invoice ID is required'),
+  body('paymentMethod').isIn(['cash', 'credit_card', 'debit_card', 'insurance', 'bank_transfer']).withMessage('Invalid payment method'),
+  body('amountPaid').isFloat({ min: 0 }).withMessage('Amount paid must be a positive number')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { invoiceId, amountPaid, paymentMethod, notes } = req.body;
+
+    // Get the invoice
+    const invoice = await MedicalInvoice.findById(invoiceId);
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    // Validate payment amount doesn't exceed balance
+    if (amountPaid > invoice.balance) {
+      return res.status(400).json({ 
+        message: 'Payment amount exceeds outstanding balance',
+        amountPaid,
+        invoiceBalance: invoice.balance
+      });
+    }
+
+    // Add payment to invoice
+    const payment = {
+      amount: amountPaid,
+      method: paymentMethod,
+      reference: `PARTIAL-PAY-${Date.now()}`,
+      date: new Date(),
+      notes: notes || 'Partial payment',
+      processedBy: req.user._id
+    };
+
+    invoice.payments.push(payment);
+    invoice.amountPaid = (invoice.amountPaid || 0) + amountPaid;
+    invoice.balance = Math.max(0, invoice.total - invoice.amountPaid);
+    invoice.status = invoice.balance === 0 ? 'paid' : 'partial';
+    
+    await invoice.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Partial payment processed successfully',
+      data: {
+        invoice: invoice,
+        payment: payment
+      }
+    });
+
+  } catch (error) {
+    console.error('Error processing partial payment:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to process partial payment',
+      error: error.message 
+    });
+  }
+});
+
+// Process consolidated payment for multiple services
+router.post('/process-consolidated-payment', auth, [
+  body('patientId').notEmpty().withMessage('Patient ID is required'),
+  body('invoiceId').notEmpty().withMessage('Invoice ID is required'),
+  body('paymentMethod').isIn(['cash', 'credit_card', 'debit_card', 'insurance', 'bank_transfer']).withMessage('Invalid payment method'),
+  body('amountPaid').isFloat({ min: 0 }).withMessage('Amount paid must be a positive number')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { patientId, invoiceId, paymentMethod, amountPaid, notes, serviceTypes } = req.body;
+
+    // Get the invoice
+    const invoice = await MedicalInvoice.findById(invoiceId);
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    // Validate payment amount
+    if (amountPaid > invoice.balance) {
+      return res.status(400).json({ 
+        message: 'Payment amount exceeds outstanding balance',
+        amountPaid,
+        invoiceBalance: invoice.balance
+      });
+    }
+
+    // Add payment to invoice
+    const payment = {
+      amount: amountPaid,
+      method: paymentMethod,
+      reference: `CONSOLIDATED-PAY-${Date.now()}`,
+      date: new Date(),
+      notes: notes || `Consolidated payment for ${serviceTypes?.join(', ') || 'multiple services'}`,
+      processedBy: req.user._id
+    };
+
+    invoice.payments.push(payment);
+    invoice.amountPaid = (invoice.amountPaid || 0) + amountPaid;
+    invoice.balance = Math.max(0, invoice.total - invoice.amountPaid);
+    invoice.status = invoice.balance === 0 ? 'paid' : 'partial';
+    
+    await invoice.save();
+
+    // If fully paid, activate any pending services
+    if (invoice.status === 'paid' && serviceTypes && serviceTypes.length > 0) {
+      // Here you could add logic to activate specific services
+      console.log(`Activating services for patient ${patientId}: ${serviceTypes.join(', ')}`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Consolidated payment processed successfully',
+      data: {
+        invoice: invoice,
+        payment: payment,
+        activatedServices: serviceTypes || []
+      }
+    });
+
+  } catch (error) {
+    console.error('Error processing consolidated payment:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to process consolidated payment',
+      error: error.message 
+    });
+  }
+});
+
+// Add payment to a specific invoice
+router.post('/invoices/:id/payments', auth, async (req, res) => {
+  try {
+    const invoiceId = req.params.id;
+    const { amount, method, reference, notes } = req.body;
+    if (!amount || !method) {
+      return res.status(400).json({ message: 'Amount and method are required.' });
+    }
+    
+    // Use the centralized payment processing method
+    const billingController = require('../controllers/billingController');
+    
+    // Prepare the request object for the controller
+    req.params.invoiceId = invoiceId;
+    req.body.amount = amount;
+    req.body.paymentMethod = method;
+    req.body.transactionId = reference;
+    req.body.notes = notes;
+    
+    // Call the centralized payment processing method
+    await billingController.addPaymentToInvoice(req, res);
+    
+  } catch (error) {
+    console.error('Error adding payment to invoice:', error);
+    res.status(500).json({ message: 'Failed to add payment', error: error.message });
+  }
+});
+
+// Get all invoices with optional filters
+router.get('/invoices', auth, async (req, res) => {
+  try {
+    const { status, patientId, startDate, endDate } = req.query;
+    const filter = {};
+    
+    // Apply filters if provided
+    if (status) filter.status = status;
+    if (patientId) filter.patient = patientId;
+    if (startDate || endDate) {
+      // Handle both dateIssued and issueDate fields
+      filter.$or = [
+        {
+          dateIssued: {
+            ...(startDate && { $gte: new Date(startDate) }),
+            ...(endDate && { $lte: new Date(endDate) })
+          }
+        },
+        {
+          issueDate: {
+            ...(startDate && { $gte: new Date(startDate) }),
+            ...(endDate && { $lte: new Date(endDate) })
+          }
+        }
+      ];
+    }
+    
+    // Fetch invoices with filters
+    const invoices = await MedicalInvoice.find(filter)
+      .populate('patient', 'firstName lastName patientId')
+      .populate('createdBy', 'firstName lastName')
+      .sort({ issueDate: -1, dateIssued: -1, createdAt: -1 });
+    
+    res.json({ data: invoices });
+  } catch (error) {
+    console.error('Error fetching invoices:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get detailed unpaid invoices for a specific patient
+router.get('/unpaid-invoices/detailed', auth, async (req, res) => {
+  try {
+    const { patientId } = req.query;
+    
+    if (!patientId) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Patient ID is required' 
+      });
+    }
+    
+    // Check if valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid patient ID format'
+      });
+    }
+    
+    // Find all unpaid invoices for this patient with detailed info (excluding partial payments)
+    const unpaidInvoices = await MedicalInvoice.find({
+      patient: patientId,
+      status: { $in: ['pending', 'overdue'] }
+    })
+    .populate('patient', 'firstName lastName patientId email contactNumber')
+    .populate('createdBy', 'firstName lastName')
+    .populate('provider', 'firstName lastName')
+    .sort({ dateIssued: -1 });
+    
+    // Calculate total amounts
+    const totalUnpaid = unpaidInvoices.reduce((sum, invoice) => sum + (invoice.balance || invoice.total || 0), 0);
+    
+    res.status(200).json({
+      success: true,
+      count: unpaidInvoices.length,
+      totalUnpaid: totalUnpaid,
+      data: unpaidInvoices
+    });
+  } catch (error) {
+    console.error('Error fetching detailed unpaid invoices:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to fetch detailed unpaid invoices',
+      error: error.message
+    });
+  }
+});
+
+// Get unpaid invoices for a specific patient
+router.get('/unpaid-invoices', auth, async (req, res) => {
+  try {
+    const { patientId } = req.query;
+    
+    if (!patientId) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Patient ID is required' 
+      });
+    }
+    
+    // Check if valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid patient ID format'
+      });
+    }
+    
+    // Find all unpaid invoices for this patient (excluding partial payments)
+    const unpaidInvoices = await MedicalInvoice.find({
+      patient: patientId,
+      status: { $in: ['pending', 'overdue'] }
+    })
+    .populate('patient', 'firstName lastName patientId')
+    .sort({ dateIssued: -1 });
+    
+    res.status(200).json({
+      success: true,
+      count: unpaidInvoices.length,
+      data: unpaidInvoices
+    });
+  } catch (error) {
+    console.error('Error fetching unpaid invoices:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to fetch unpaid invoices',
+      error: error.message
+    });
+  }
+});
+
+// Get unpaid invoices for multiple patients (batch endpoint)
+router.get('/unpaid-invoices-batch', auth, async (req, res) => {
+  try {
+    const { patientIds } = req.query;
+    
+    if (!patientIds) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Patient IDs are required' 
+      });
+    }
+    
+    // Parse patient IDs - can be comma-separated string or array
+    let patientIdArray;
+    if (typeof patientIds === 'string') {
+      patientIdArray = patientIds.split(',').map(id => id.trim());
+    } else if (Array.isArray(patientIds)) {
+      patientIdArray = patientIds;
+    } else {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid patient IDs format' 
+      });
+    }
+    
+    // Validate all ObjectIds
+    const validPatientIds = patientIdArray.filter(id => mongoose.Types.ObjectId.isValid(id));
+    
+    if (validPatientIds.length === 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'No valid patient IDs provided' 
+      });
+    }
+    
+    // Find all unpaid invoices for these patients (excluding partial payments)
+    const unpaidInvoices = await MedicalInvoice.find({
+      patient: { $in: validPatientIds },
+      status: { $in: ['pending', 'overdue'] }
+    })
+    .populate('patient', 'firstName lastName patientId')
+    .sort({ dateIssued: -1 });
+    
+    // Group invoices by patient
+    const invoicesByPatient = {};
+    unpaidInvoices.forEach(invoice => {
+      const patientId = invoice.patient._id.toString();
+      if (!invoicesByPatient[patientId]) {
+        invoicesByPatient[patientId] = [];
+      }
+      invoicesByPatient[patientId].push(invoice);
+    });
+    
+    res.status(200).json({
+      success: true,
+      count: unpaidInvoices.length,
+      data: invoicesByPatient,
+      summary: Object.keys(invoicesByPatient).map(patientId => ({
+        patientId,
+        invoiceCount: invoicesByPatient[patientId].length,
+        totalAmount: invoicesByPatient[patientId].reduce((sum, invoice) => sum + (invoice.balance || invoice.total || 0), 0)
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching batch unpaid invoices:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to fetch unpaid invoices',
+      error: error.message
+    });
+  }
+});
+
+// Get unpaid card payments (placeholder endpoint)
+router.get('/unpaid-card-payments', auth, async (req, res) => {
+  try {
+    // For now, return empty array since this endpoint is not critical
+    // The frontend already handles this gracefully with "falling back to batch check"
+    res.status(200).json({ data: [] });
+  } catch (error) {
+    console.error('Error fetching unpaid card payments:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to fetch unpaid card payments',
+      error: error.message 
+    });
+  }
+});
+
+// Get invoices for a specific patient
+router.get('/patient/:patientId', auth, async (req, res) => {
+  try {
+    const patientId = req.params.patientId;
+    
+    // Check if valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({ message: 'Invalid patient ID' });
+    }
+    
+    const invoices = await MedicalInvoice.find({ patient: patientId })
+      .populate('createdBy', 'firstName lastName')
+      .sort({ dateIssued: -1 });
+    
+    res.json(invoices);
+  } catch (error) {
+    console.error('Error fetching patient invoices:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get a specific invoice by ID
+router.get('/invoices/:id', auth, async (req, res) => {
+  try {
+    const invoiceId = req.params.id;
+    
+    // Check if valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(invoiceId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid invoice ID format' 
+      });
+    }
+    
+    const invoice = await MedicalInvoice.findById(invoiceId)
+      .populate('patient', 'firstName lastName patientId email contactNumber')
+      .populate('createdBy', 'firstName lastName')
+      .populate('provider', 'firstName lastName');
+    
+    if (!invoice) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Invoice not found' 
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: invoice
+    });
+  } catch (error) {
+    console.error('Error fetching invoice:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error', 
+      error: error.message 
+    });
+  }
+});
+
+// Generate billing report (CSV/PDF/Excel) - TODO: Implement this method
+// router.get('/reports', protect, billingController.generateBillingReport);
+
+// Get billing statistics
+router.get('/stats', auth, async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    // Default to last year if no dates provided
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+    
+    console.log('🔧 Billing stats query with date range:', { start, end });
+    
+    // Get total revenue from paid invoices
+    const totalRevenueResult = await MedicalInvoice.aggregate([
+      {
+        $match: {
+          status: 'paid',
+          issueDate: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$total' }
+        }
+      }
+    ]);
+    
+    // Get outstanding amount from pending/partial invoices
+    const outstandingResult = await MedicalInvoice.aggregate([
+      {
+        $match: {
+          status: { $in: ['pending', 'overdue'] },
+          issueDate: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$balance' }
+        }
+      }
+    ]);
+    
+    // Get invoice counts by status
+    const invoiceCounts = await MedicalInvoice.aggregate([
+      {
+        $match: {
+          issueDate: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Get monthly revenue for the last 12 months
+    const monthlyRevenue = await MedicalInvoice.aggregate([
+      {
+        $match: {
+          status: 'paid',
+          issueDate: { 
+            $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+            $lte: new Date()
+          }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$issueDate' },
+            month: { $month: '$issueDate' }
+          },
+          revenue: { $sum: '$total' }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 }
+      }
+    ]);
+    
+    // Debug: Check total invoices in database
+    const totalInvoicesInDB = await MedicalInvoice.countDocuments({});
+    console.log('🔧 Total invoices in database:', totalInvoicesInDB);
+    console.log('🔧 Invoices in date range:', invoiceCounts.reduce((sum, item) => sum + item.count, 0));
+    
+    // Format the response
+    const totalRevenue = totalRevenueResult[0]?.total || 0;
+    const outstandingAmount = outstandingResult[0]?.total || 0;
+    
+    const invoicesCount = {
+      paid: 0,
+      pending: 0,
+      partial: 0,
+      overdue: 0,
+      cancelled: 0
+    };
+    
+    invoiceCounts.forEach(item => {
+      if (item._id) {
+        invoicesCount[item._id] = item.count;
+      }
+    });
+    
+    // Create 12-month revenue array
+    const monthlyRevenueArray = new Array(12).fill(0);
+    const currentDate = new Date();
+    
+    monthlyRevenue.forEach(item => {
+      const monthIndex = (item._id.year - currentDate.getFullYear()) * 12 + (item._id.month - currentDate.getMonth() - 1);
+      if (monthIndex >= -11 && monthIndex <= 0) {
+        monthlyRevenueArray[11 + monthIndex] = item.revenue;
+      }
+    });
+    
+    console.log('🔧 Billing stats calculated:', {
+      totalRevenue,
+      outstandingAmount,
+      invoicesCount,
+      monthlyRevenueArray
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        totalRevenue,
+        outstandingAmount,
+        invoicesCount,
+        monthlyRevenue: monthlyRevenueArray
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching billing stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch billing statistics',
+      error: error.message 
+    });
+  }
+});
+
+// @route   GET /api/billing/reports/standard-financial
+// @desc    Generate standard financial report
+// @access  Private (Admin, Finance)
+router.get('/reports/standard-financial', auth, checkRole('admin', 'finance'), async (req, res) => {
+  try {
+    const { startDate, endDate, format = 'json' } = req.query;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Start date and end date are required'
+      });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // Set end date to end of day (23:59:59.999) to include all invoices from that day
+    end.setHours(23, 59, 59, 999);
+    
+    console.log('📊 Generating Standard Financial Report for date range:', { startDate, endDate });
+    
+    // Get financial data from invoices
+    const invoiceStats = await MedicalInvoice.aggregate([
+      {
+        $match: {
+          issueDate: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$total' },
+          totalPaid: { $sum: '$amountPaid' },
+          totalOutstanding: { $sum: { $subtract: ['$total', '$amountPaid'] } },
+          invoiceCount: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Get operating expenses (using billing service)
+    const billingService = require('../services/billingService');
+    const financialSummary = await billingService.getFinancialSummary(start, end);
+    
+    // Calculate actual revenue (use paid amount as actual revenue)
+    const stats = invoiceStats[0] || {};
+    const actualRevenue = stats.totalPaid || 0;
+    const totalExpenses = financialSummary.operatingExpenses || 265000; // Default operating expenses
+    const netIncome = actualRevenue - totalExpenses;
+    
+    console.log('📈 Standard Financial Report calculated:', {
+      actualRevenue,
+      totalExpenses,
+      netIncome,
+      invoiceCount: stats.invoiceCount || 0
+    });
+    
+    // Generate report data
+    const reportData = {
+      reportTitle: 'Standard Financial Report',
+      generatedAt: new Date().toISOString(),
+      period: {
+        startDate: start.toISOString(),
+        endDate: end.toISOString()
+      },
+      summary: {
+        totalRevenue: actualRevenue,
+        totalExpenses: totalExpenses,
+        netIncome: netIncome,
+        invoiceCount: stats.invoiceCount || 0,
+        totalOutstanding: stats.totalOutstanding || 0
+      },
+      message: 'Report generated successfully'
+    };
+
+    if (format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="financial-report.csv"');
+      const csvData = 'Report Title,Period Start,Period End,Total Revenue,Total Expenses,Net Income,Invoice Count,Total Outstanding\n';
+      res.send(csvData + `"${reportData.reportTitle}","${startDate}","${endDate}",${actualRevenue},${totalExpenses},${netIncome},${stats.invoiceCount || 0},${stats.totalOutstanding || 0}`);
+    } else {
+      res.json({
+        success: true,
+        data: reportData
+      });
+    }
+  } catch (error) {
+    console.error('Error generating standard financial report:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate financial report',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/billing/reports
+// @desc    Generate general billing reports
+// @access  Private (Admin, Finance)
+router.get('/reports', auth, checkRole('admin', 'finance'), async (req, res) => {
+  try {
+    const { startDate, endDate, format = 'json' } = req.query;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Start date and end date are required'
+      });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // Set end date to end of day (23:59:59.999) to include all invoices from that day
+    end.setHours(23, 59, 59, 999);
+    
+    console.log('📊 Generating General Billing Report for date range:', { startDate, endDate });
+    
+    // Get billing data from invoices
+    const invoiceStats = await MedicalInvoice.aggregate([
+      {
+        $match: {
+          issueDate: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: '$total' },
+          totalPaid: { $sum: '$amountPaid' },
+          totalOutstanding: { $sum: { $subtract: ['$total', '$amountPaid'] } },
+          recordCount: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Get invoices by status
+    const statusCounts = await MedicalInvoice.aggregate([
+      {
+        $match: {
+          issueDate: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Get recent invoices for the report
+    const recentInvoices = await MedicalInvoice.aggregate([
+      {
+        $match: {
+          issueDate: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $sort: { issueDate: -1 }
+      },
+      {
+        $limit: 10
+      },
+      {
+        $lookup: {
+          from: 'patients',
+          localField: 'patient',
+          foreignField: '_id',
+          as: 'patientData'
+        }
+      },
+      {
+        $unwind: { path: '$patientData', preserveNullAndEmptyArrays: true }
+      },
+      {
+        $project: {
+          _id: 1,
+          invoiceNumber: 1,
+          issueDate: 1,
+          total: 1,
+          amountPaid: 1,
+          status: 1,
+          patientName: { $concat: ['$patientData.firstName', ' ', '$patientData.lastName'] }
+        }
+      }
+    ]);
+    
+    const stats = invoiceStats[0] || {};
+    const statusBreakdown = statusCounts.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {});
+    
+    console.log('📈 General Billing Report calculated:', {
+      totalAmount: stats.totalAmount || 0,
+      recordCount: stats.recordCount || 0,
+      statusBreakdown
+    });
+    
+    // Generate basic report
+    const reportData = {
+      reportTitle: 'Billing Report',
+      generatedAt: new Date().toISOString(),
+      period: {
+        startDate: start.toISOString(),
+        endDate: end.toISOString()
+      },
+      data: recentInvoices,
+      summary: {
+        totalAmount: stats.totalAmount || 0,
+        totalPaid: stats.totalPaid || 0,
+        totalOutstanding: stats.totalOutstanding || 0,
+        recordCount: stats.recordCount || 0,
+        statusBreakdown
+      }
+    };
+
+    if (format === 'pdf') {
+      // For PDF format, return a simple response indicating PDF generation
+      res.json({
+        success: true,
+        message: 'PDF report generation initiated',
+        data: reportData
+      });
+    } else if (format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="billing-report.csv"');
+      const csvData = 'Report Title,Period Start,Period End,Total Amount,Total Paid,Total Outstanding,Invoice Count\n';
+      res.send(csvData + `"${reportData.reportTitle}","${startDate}","${endDate}",${stats.totalAmount || 0},${stats.totalPaid || 0},${stats.totalOutstanding || 0},${stats.recordCount || 0}`);
+    } else {
+      res.json({
+        success: true,
+        data: reportData
+      });
+    }
+  } catch (error) {
+    console.error('Error generating billing report:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate billing report',
+      error: error.message
+    });
+  }
+});
+
+// Missing Financial Endpoints that frontend is calling
+// @route   GET /api/billing/financial-summary
+// @desc    Get financial summary data
+router.get('/financial-summary', auth, checkRole('admin', 'finance'), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    console.log('📊 Getting financial summary for date range:', { startDate, endDate });
+    
+    // Use the billing service to get proper financial summary with real operating expenses
+    const startDateObj = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), 0, 1); // Start of year if no date
+    const endDateObj = endDate ? new Date(endDate) : new Date(); // Today if no date
+    
+    const summary = await billingService.getFinancialSummary(startDateObj, endDateObj);
+    
+    console.log('📈 Financial summary calculated with real operating expenses:', summary);
+
+    res.json({
+      success: true,
+      data: summary
+    });
+  } catch (error) {
+    console.error('Error getting financial summary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get financial summary',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/billing/aging-report
+// @desc    Get accounts receivable aging report
+router.get('/aging-report', auth, checkRole('admin', 'finance'), async (req, res) => {
+  try {
+    console.log('📊 Getting aging report...');
+    
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+    const result = await MedicalInvoice.aggregate([
+      { 
+        $match: { 
+          $expr: { $gt: [{ $subtract: ['$total', '$amountPaid'] }, 0] } // Only unpaid balances
+        } 
+      },
+      {
+        $addFields: {
+          outstanding: { $subtract: ['$total', '$amountPaid'] },
+          daysOverdue: {
+            $divide: [
+              { $subtract: [now, '$dueDate'] },
+              1000 * 60 * 60 * 24
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          current: {
+            $sum: {
+              $cond: [{ $lte: ['$daysOverdue', 0] }, '$outstanding', 0]
+            }
+          },
+          days30: {
+            $sum: {
+              $cond: [
+                { $and: [{ $gt: ['$daysOverdue', 0] }, { $lte: ['$daysOverdue', 30] }] },
+                '$outstanding',
+                0
+              ]
+            }
+          },
+          days60: {
+            $sum: {
+              $cond: [
+                { $and: [{ $gt: ['$daysOverdue', 30] }, { $lte: ['$daysOverdue', 60] }] },
+                '$outstanding',
+                0
+              ]
+            }
+          },
+          days90: {
+            $sum: {
+              $cond: [
+                { $and: [{ $gt: ['$daysOverdue', 60] }, { $lte: ['$daysOverdue', 90] }] },
+                '$outstanding',
+                0
+              ]
+            }
+          },
+          over90: {
+            $sum: {
+              $cond: [{ $gt: ['$daysOverdue', 90] }, '$outstanding', 0]
+            }
+          }
+        }
+      }
+    ]);
+
+    const agingData = result[0] || {
+      current: 0,
+      days30: 0,
+      days60: 0,
+      days90: 0,
+      over90: 0
+    };
+
+    console.log('📈 Aging report calculated:', agingData);
+
+    res.json({
+      success: true,
+      data: agingData
+    });
+  } catch (error) {
+    console.error('Error getting aging report:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get aging report',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/billing/monthly-data
+// @desc    Get monthly financial data
+router.get('/monthly-data', auth, checkRole('admin', 'finance'), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    console.log('📊 Getting monthly financial data for date range:', { startDate, endDate });
+    
+    // Build date filter
+    const matchStage = {};
+    if (startDate || endDate) {
+      const dateFilter = {};
+      if (startDate) dateFilter.$gte = new Date(startDate);
+      if (endDate) dateFilter.$lte = new Date(endDate);
+      matchStage.issueDate = dateFilter;
+    }
+
+    const result = await MedicalInvoice.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$issueDate' },
+            month: { $month: '$issueDate' }
+          },
+          revenue: { $sum: '$total' },
+          paid: { $sum: '$amountPaid' },
+          outstanding: { $sum: { $subtract: ['$total', '$amountPaid'] } },
+          invoiceCount: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 }
+      }
+    ]);
+
+    const monthlyData = result.map(item => ({
+      year: item._id.year,
+      month: item._id.month,
+      monthName: new Date(item._id.year, item._id.month - 1).toLocaleString('default', { month: 'long' }),
+      revenue: item.revenue,
+      paid: item.paid,
+      outstanding: item.outstanding,
+      invoiceCount: item.invoiceCount
+    }));
+
+    console.log('📈 Monthly data calculated:', monthlyData);
+
+    res.json({
+      success: true,
+      data: monthlyData
+    });
+  } catch (error) {
+    console.error('Error getting monthly data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get monthly data',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/billing/revenue-by-service
+// @desc    Get revenue breakdown by service
+router.get('/revenue-by-service', auth, checkRole('admin', 'finance'), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    console.log('📊 Getting revenue by service for date range:', { startDate, endDate });
+    
+    // Build date filter
+    const matchStage = {};
+    if (startDate || endDate) {
+      const dateFilter = {};
+      if (startDate) dateFilter.$gte = new Date(startDate);
+      if (endDate) dateFilter.$lte = new Date(endDate);
+      matchStage.issueDate = dateFilter;
+    }
+
+    const result = await MedicalInvoice.aggregate([
+      { $match: matchStage },
+      { $unwind: '$items' },
+      {
+        $group: {
+          _id: '$items.description',
+          revenue: { $sum: { $multiply: ['$items.quantity', '$items.unitPrice'] } },
+          quantity: { $sum: '$items.quantity' },
+          averagePrice: { $avg: '$items.unitPrice' }
+        }
+      },
+      { $sort: { revenue: -1 } }
+    ]);
+
+    const serviceData = result.map(item => ({
+      service: item._id,
+      revenue: item.revenue,
+      quantity: item.quantity,
+      averagePrice: item.averagePrice
+    }));
+
+    console.log('📈 Revenue by service calculated:', serviceData);
+
+    res.json({
+      success: true,
+      data: serviceData
+    });
+  } catch (error) {
+    console.error('Error getting revenue by service:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get revenue by service',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/billing/payment-method-breakdown
+// @desc    Get payment method breakdown
+router.get('/payment-method-breakdown', auth, checkRole('admin', 'finance'), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    console.log('📊 Getting payment method breakdown for date range:', { startDate, endDate });
+    
+    // Build date filter
+    const matchStage = {};
+    if (startDate || endDate) {
+      const dateFilter = {};
+      if (startDate) dateFilter.$gte = new Date(startDate);
+      if (endDate) dateFilter.$lte = new Date(endDate);
+      matchStage.issueDate = dateFilter;
+    }
+
+    const result = await MedicalInvoice.aggregate([
+      { $match: matchStage },
+      { $unwind: { path: '$payments', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: '$payments.method',
+          amount: { $sum: '$payments.amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { amount: -1 } }
+    ]);
+
+    const paymentData = result
+      .filter(item => item._id) // Remove null payment methods
+      .map(item => ({
+        method: item._id,
+        amount: item.amount,
+        count: item.count
+      }));
+
+    console.log('📈 Payment method breakdown calculated:', paymentData);
+
+    res.json({
+      success: true,
+      data: paymentData
+    });
+  } catch (error) {
+    console.error('Error getting payment method breakdown:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get payment method breakdown',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/billing/payment-methods
+// @desc    Get payment method breakdown (alias for frontend compatibility)
+router.get('/payment-methods', auth, checkRole('admin', 'finance'), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    console.log('📊 Getting payment methods data for date range:', { startDate, endDate });
+    
+    // Build date filter
+    const matchStage = {};
+    if (startDate || endDate) {
+      const dateFilter = {};
+      if (startDate) dateFilter.$gte = new Date(startDate);
+      if (endDate) dateFilter.$lte = new Date(endDate);
+      matchStage.issueDate = dateFilter;
+    }
+
+    const result = await MedicalInvoice.aggregate([
+      { $match: matchStage },
+      { $unwind: { path: '$payments', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: '$payments.method',
+          amount: { $sum: '$payments.amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { amount: -1 } }
+    ]);
+
+    const paymentData = result
+      .filter(item => item._id) // Remove null payment methods
+      .map(item => ({
+        method: item._id,
+        amount: item.amount,
+        count: item.count
+      }));
+
+    console.log('📈 Payment methods data calculated:', paymentData);
+
+    res.json({
+      success: true,
+      data: paymentData
+    });
+  } catch (error) {
+    console.error('Error getting payment methods data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get payment methods data',
+      error: error.message
+    });
+  }
+});
+
+// Process service payment (consultation, follow-up, etc.)
+router.post('/process-service-payment', auth, [
+  body('invoiceId').notEmpty().withMessage('Invoice ID is required'),
+  body('paymentMethod').isIn(['cash', 'credit_card', 'debit_card', 'insurance', 'bank_transfer']).withMessage('Invalid payment method'),
+  body('amountPaid').isFloat({ min: 0 }).withMessage('Amount paid must be a positive number')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { invoiceId, paymentMethod, amountPaid, notes, sendToNurse = true } = req.body;
+
+    console.log('🔍 Service Payment Request Debug:');
+    console.log('- User:', req.user);
+    console.log('- Body:', JSON.stringify(req.body, null, 2));
+
+    // Get the invoice
+    const invoice = await MedicalInvoice.findById(invoiceId);
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    // Verify the payment amount matches the invoice total
+    console.log(`Payment validation - Amount paid: ${amountPaid}, Invoice total: ${invoice.total}`);
+    if (Math.abs(amountPaid - invoice.total) > 0.01) {
+      return res.status(400).json({ 
+        message: 'Payment amount does not match invoice total',
+        amountPaid,
+        invoiceTotal: invoice.total
+      });
+    }
+
+    // Update the invoice as paid
+    invoice.amountPaid = amountPaid;
+    invoice.balance = 0;
+    invoice.status = 'paid';
+    invoice.payments = [{
+      amount: amountPaid,
+      method: paymentMethod,
+      date: new Date(),
+      reference: `SERVICE-PAY-${Date.now()}`,
+      notes: notes || 'Service payment',
+      processedBy: req.user._id
+    }];
+    await invoice.save();
+
+    // Get patient and service details
+    const Patient = require('../models/Patient');
+    const Service = require('../models/Service');
+    const ServiceRequest = require('../models/ServiceRequest');
+    
+    const patient = await Patient.findById(invoice.patient);
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found' });
+    }
+
+    // Find the service request for this invoice
+    const serviceRequest = await ServiceRequest.findOne({
+      invoice: invoice._id
+    }).populate('service');
+
+    if (!serviceRequest) {
+      return res.status(404).json({ message: 'Service request not found' });
+    }
+
+    // Update service request status
+    serviceRequest.status = 'in-progress';
+    serviceRequest.updatedAt = new Date();
+    await serviceRequest.save();
+
+    // Create nurse task for consultation services
+    if (sendToNurse && serviceRequest.service) {
+      const NurseTask = require('../models/NurseTask');
+      const User = require('../models/User');
+      
+      // Try to find the patient's assigned nurse
+      let assignedNurseId = null;
+      let assignedNurseName = null;
+      if (patient.assignedNurseId) {
+        const nurse = await User.findById(patient.assignedNurseId);
+        if (nurse && nurse.role === 'nurse') {
+          assignedNurseId = nurse._id;
+          assignedNurseName = `${nurse.firstName || ''} ${nurse.lastName || ''}`.trim();
+        }
+      }
+
+      // Determine task type based on service category
+      let taskType = 'OTHER';
+      let shouldCreateNurseTask = true;
+      
+      if (serviceRequest.service.category === 'consultation' || serviceRequest.service.category === 'follow-up') {
+        // Consultation services go directly to doctor - no nurse task needed
+        shouldCreateNurseTask = false;
+        
+        // Update patient status to 'scheduled' to appear in doctor dashboard
+        patient.status = 'scheduled';
+        patient.lastUpdated = new Date();
+        await patient.save();
+        
+        console.log(`✅ Consultation patient ${patient.firstName} ${patient.lastName} sent directly to doctor`);
+      } else if (serviceRequest.service.category === 'injection') {
+        taskType = 'MEDICATION';
+      } else if (serviceRequest.service.category === 'procedure') {
+        taskType = 'PROCEDURE';
+      }
+
+      // Create nurse task only for non-consultation services
+      if (shouldCreateNurseTask) {
+        const nurseTask = new NurseTask({
+          patientId: patient._id,
+          patientName: `${patient.firstName} ${patient.lastName}`,
+          taskType: taskType,
+          description: `Prepare patient for ${serviceRequest.service.name} - ${patient.firstName} ${patient.lastName}`,
+          status: 'PENDING',
+          priority: 'MEDIUM',
+          assignedBy: req.user._id,
+          assignedByName: `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim(),
+          assignedTo: assignedNurseId,
+          assignedToName: assignedNurseName,
+          dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Due in 24 hours
+          notes: `Service payment completed. Patient ready for ${serviceRequest.service.name}.`,
+          relatedServiceRequest: serviceRequest._id,
+          serviceId: serviceRequest.service._id,
+          serviceName: serviceRequest.service.name,
+          servicePrice: serviceRequest.service.price
+        });
+
+        await nurseTask.save();
+        console.log(`✅ Created nurse task for service: ${serviceRequest.service.name}`);
+      }
+
+      // Create notification for assigned staff
+      const Notification = require('../models/Notification');
+      const staffNotification = new Notification({
+        title: 'Service Ready',
+        message: `${serviceRequest.service.name} for ${patient.firstName} ${patient.lastName} is ready. Payment completed.`,
+        type: 'service_ready',
+        senderId: req.user._id,
+        senderRole: req.user.role,
+        recipientRole: (serviceRequest.service.category === 'consultation' || serviceRequest.service.category === 'follow-up') ? 'doctor' : (assignedNurseId ? 'nurse' : 'doctor'),
+        priority: 'medium',
+        data: {
+          patientId: patient._id,
+          patientName: `${patient.firstName} ${patient.lastName}`,
+          serviceRequestId: serviceRequest._id,
+          serviceName: serviceRequest.service.name,
+          serviceCategory: serviceRequest.service.category,
+          assignedNurseId: assignedNurseId,
+          assignedNurseName: assignedNurseName,
+          assignedDoctorId: patient.assignedDoctorId,
+          assignedDoctorName: patient.assignedDoctorId ? 'Assigned Doctor' : null
+        }
+      });
+
+      await staffNotification.save();
+    }
+
+    // Update payment notification as resolved
+    const Notification = require('../models/Notification');
+    await Notification.findOneAndUpdate(
+      {
+        'data.serviceRequestId': serviceRequest._id,
+        'data.invoiceId': invoice._id,
+        type: 'service_payment_required'
+      },
+      {
+        read: true,
+        'data.paymentStatus': 'paid',
+        'data.paidAt': new Date()
+      }
+    );
+
+    res.json({
+      success: true,
+      message: 'Service payment processed successfully',
+      data: {
+        invoice: invoice,
+        serviceRequest: serviceRequest,
+        nurseTaskCreated: sendToNurse,
+        paymentReference: `SERVICE-PAY-${Date.now()}`
+      }
+    });
+
+  } catch (error) {
+    console.error('Error processing service payment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process service payment',
+      error: error.message
+    });
+  }
+});
+
+// Process consolidated payment for multiple services
+router.post('/process-consolidated-payment', auth, [
+  body('patientId').notEmpty().withMessage('Patient ID is required'),
+  body('invoiceId').notEmpty().withMessage('Invoice ID is required'),
+  body('paymentMethod').isIn(['cash', 'credit_card', 'debit_card', 'insurance', 'bank_transfer']).withMessage('Invalid payment method'),
+  body('amountPaid').isFloat({ min: 0 }).withMessage('Amount paid must be a positive number')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { patientId, invoiceId, paymentMethod, amountPaid, notes, serviceTypes } = req.body;
+
+    // Get the invoice
+    const invoice = await MedicalInvoice.findById(invoiceId);
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    // Validate payment amount
+    if (amountPaid > invoice.balance) {
+      return res.status(400).json({ 
+        message: 'Payment amount exceeds outstanding balance',
+        amountPaid,
+        invoiceBalance: invoice.balance
+      });
+    }
+
+    // Add payment to invoice
+    const payment = {
+      amount: amountPaid,
+      method: paymentMethod,
+      reference: `CONSOLIDATED-PAY-${Date.now()}`,
+      date: new Date(),
+      notes: notes || `Consolidated payment for ${serviceTypes?.join(', ') || 'multiple services'}`,
+      processedBy: req.user._id
+    };
+
+    invoice.payments.push(payment);
+    invoice.amountPaid = (invoice.amountPaid || 0) + amountPaid;
+    invoice.balance = Math.max(0, invoice.total - invoice.amountPaid);
+    invoice.status = invoice.balance === 0 ? 'paid' : 'partial';
+    
+    await invoice.save();
+
+    // If fully paid, activate any pending services
+    if (invoice.status === 'paid' && serviceTypes && serviceTypes.length > 0) {
+      // Here you could add logic to activate specific services
+      console.log(`Activating services for patient ${patientId}: ${serviceTypes.join(', ')}`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Consolidated payment processed successfully',
+      data: {
+        invoice: invoice,
+        payment: payment,
+        activatedServices: serviceTypes || []
+      }
+    });
+
+  } catch (error) {
+    console.error('Error processing consolidated payment:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to process consolidated payment',
+      error: error.message 
+    });
+  }
+});
+
+module.exports = router; 

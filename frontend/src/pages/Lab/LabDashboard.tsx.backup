@@ -1,0 +1,2075 @@
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { toast } from 'react-toastify';
+import { 
+  RefreshCw, Search, Beaker, AlertTriangle, CheckCircle, 
+  Filter, ArrowUpDown, Clock, XCircle, Plus, FileText,
+  Droplet, Heart, PieChart, Activity, Zap, ChevronDown, ChevronRight
+} from 'lucide-react';
+import attendanceService from '../../services/attendanceService';
+import labService from '../../services/labService';
+import Modal from '../../components/Modal';
+import patientService from '../../services/patientService';
+import inventoryService, { InventoryItem } from '../../services/inventoryService';
+
+// Simplified LabTest interface aligned with the database structure
+interface LabTest {
+  id: string;
+  testName: string;
+  patientId: string;
+  patientName: string;
+  orderedBy: string;
+  status: string;
+  priority: string;
+  requestDate: string;
+  collectionDate?: string;
+  resultDate?: string;
+  results?: string;
+  normalRange?: string;
+  notes?: string;
+}
+
+// Interface for grouped tests
+interface GroupedLabTest {
+  groupKey: string; // Unique key for the group (e.g., patientId-orderedById-requestDate)
+  patientId: string;
+  patientName: string;
+  orderedBy: string;
+  requestDate: string;
+  tests: LabTest[]; // Array of individual tests in this group
+  overallPriority: string; // Highest priority in the group
+  overallStatus: string; // Consolidated status for the group
+}
+
+const LabDashboard: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  
+  // Core state
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [labTests, setLabTests] = useState<LabTest[]>([]);
+  
+  // UI state
+  const [activeTab, setActiveTab] = useState<'pending' | 'completed' | 'inventory'>('pending');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<string>('requestDate');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  
+  // Selected test for viewing details
+  const [selectedPatient, setSelectedPatient] = useState<{
+    patientName: string;
+    patientId: string;
+    tests: LabTest[];
+  } | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  
+  // New state for results entry
+  const [resultValue, setResultValue] = useState<string>('');
+  const [normalRangeValue, setNormalRangeValue] = useState<string>('');
+  const [resultNotes, setResultNotes] = useState<string>('');
+  const [showResultsModal, setShowResultsModal] = useState(false);
+  
+  // Add new state for batch results entry
+  const [selectedGroup, setSelectedGroup] = useState<GroupedLabTest | null>(null);
+  const [showBatchResultsModal, setShowBatchResultsModal] = useState(false);
+  // Allow dynamic extra fields like stool/urinalysis details
+  const [testResults, setTestResults] = useState<{[testId: string]: any}>({});
+  const [batchNotes, setBatchNotes] = useState<string>('');
+  
+  // Add a state for expanded patients
+  const [expandedPatients, setExpandedPatients] = useState<Set<string>>(new Set());
+
+  // Add new state for tracking which tests have been sent to doctors
+  const [sentToDoctor, setSentToDoctor] = useState<Set<string>>(new Set());
+  const [isSending, setIsSending] = useState<boolean>(false);
+  
+  // Add after other state variables
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // FIRST_EDIT
+  const [labInventory, setLabInventory] = useState<InventoryItem[]>([]);
+  
+  // Automatic attendance status
+  const [attendanceStatus, setAttendanceStatus] = useState<'present' | 'absent' | 'offline' | 'loading'>('loading');
+  const [lastActivity, setLastActivity] = useState<string>('');
+  
+  // Authentication check
+  useEffect(() => {
+    if (!user) {
+      toast.error('Please log in to access the Lab Dashboard');
+      navigate('/login');
+      return;
+    }
+    
+    // Check if user role is allowed (matching ProtectedRoute)
+    const allowedLabRoles = ['admin', 'lab'];
+    if (!user.role || !allowedLabRoles.includes(user.role)) {
+      toast.error('You do not have permission to access the Lab Dashboard');
+      navigate('/unauthorized');
+      return;
+    }
+  }, [user, navigate]);
+
+  // Automatic attendance tracking
+  useEffect(() => {
+    const loadAttendanceStatus = async () => {
+      try {
+        const status = await attendanceService.getMyAttendanceStatus();
+        setAttendanceStatus(status.status);
+        setLastActivity(status.lastActivity || '');
+      } catch (error) {
+        console.error('Error loading attendance status:', error);
+        setAttendanceStatus('absent');
+      }
+    };
+
+    loadAttendanceStatus();
+    
+    // Start automatic activity tracking
+    attendanceService.startActivityTracking();
+    
+    return () => {
+      attendanceService.stopActivityTracking();
+    };
+  }, []);
+  
+  // Fetch lab tests from database
+  const fetchLabTests = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      setIsRefreshing(true);
+      
+      console.log('Fetching lab orders from database...');
+      
+      // Try up to 3 times with backoff
+      let labOrders = [];
+      let attempts = 0;
+      let lastError = null;
+      
+      while (attempts < 3 && labOrders.length === 0) {
+        try {
+          if (attempts > 0) {
+            console.log(`Retry attempt ${attempts} after ${attempts * 500}ms delay`);
+            await new Promise(resolve => setTimeout(resolve, attempts * 500));
+          }
+          
+          // Try to fetch lab orders
+          labOrders = await labService.getAllLabOrders();
+          
+          if (labOrders && labOrders.length > 0) {
+            console.log(`Successfully fetched ${labOrders.length} lab orders on attempt ${attempts + 1}`);
+            // Log first lab order structure to help with debugging
+            console.log('First lab order structure:', JSON.stringify(labOrders[0], null, 2));
+            break;
+          } else {
+            console.warn(`Received empty lab orders array on attempt ${attempts + 1}`);
+          }
+        } catch (attemptError: any) {
+          console.error(`Attempt ${attempts + 1} failed:`, attemptError);
+          lastError = attemptError;
+        }
+        
+        attempts++;
+      }
+      
+      console.log('Raw Lab Orders from DB (via Service):', labOrders.length > 0 
+        ? `${labOrders.length} orders retrieved` 
+        : 'No orders retrieved');
+      
+      if (lastError && labOrders.length === 0) {
+        throw lastError; // If all attempts failed, throw the last error
+      }
+      
+      if (!labOrders || labOrders.length === 0) {
+        setLabTests([]);
+        toast('No lab orders found in the database');
+        return;
+      }
+
+      // Get non-hidden patients to filter lab tests
+      const patientsResponse = await patientService.getAllPatients(false, false);
+      console.log(`Retrieved ${patientsResponse.patients?.length || 0} non-hidden patients`);
+      
+      // Create a map of patient IDs to patient data for easy lookup
+      const patientMap = new Map();
+      patientsResponse.patients.forEach(patient => {
+        const patientId = patient.patientId || patient.id || patient._id;
+        if (patientId) {
+          patientMap.set(String(patientId), patient);
+        }
+      });
+      
+      console.log('Patient map keys:', Array.from(patientMap.keys()));
+      
+      // Filter out lab tests for hidden patients
+      const visibleLabOrders = labOrders.filter(order => {
+        // First, check if the patientId exists
+        if (!order.patientId) {
+          console.log(`Warning: Order ${order._id || 'unknown'} has no patientId, filtering it out`);
+          return false;
+        }
+        
+        const patientId = typeof order.patientId === 'object' 
+          ? (order.patientId._id || order.patientId.id || null) 
+          : order.patientId;
+          
+        // If we couldn't get a valid patientId, filter out this order
+        if (!patientId) {
+          console.log(`Warning: Order has invalid patientId format, filtering it out`);
+          return false;
+        }
+        
+        const isVisible = patientMap.has(String(patientId));
+        if (!isVisible) {
+          console.log(`Filtering out lab order ${order._id} with patientId ${patientId} - patient not in visible list`);
+        }
+          
+        return isVisible;
+      });
+      
+      console.log(`Filtered out ${labOrders.length - visibleLabOrders.length} lab orders for hidden patients`);
+      
+      try {
+        // Map the database records to our LabTest format
+        const formattedLabTests = visibleLabOrders.map(order => {
+          const orderPatientId = typeof order.patientId === 'object' 
+            ? (order.patientId._id || order.patientId.id || null) 
+            : order.patientId;
+          
+          // Look up patient information
+          const patient = patientMap.get(String(orderPatientId));
+          const patientName = patient 
+            ? `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Unknown Patient'
+            : 'Unknown Patient';
+          
+          return {
+            id: order._id,
+            testName: order.testName || 'Unknown Test',
+            patientId: orderPatientId || 'unknown',
+            patientName: patientName,
+            orderedBy: typeof order.orderingDoctorId === 'object' && order.orderingDoctorId
+              ? `Dr. ${order.orderingDoctorId.firstName || ''} ${order.orderingDoctorId.lastName || ''}`.trim() || 'Unknown Doctor'
+              : 'Unknown Doctor',
+            status: order.status || 'Ordered',
+            priority: order.priority || 'Routine',
+            requestDate: order.orderDateTime || new Date().toISOString(),
+            collectionDate: order.collectionDateTime,
+            resultDate: order.resultDateTime,
+            results: order.results,
+            normalRange: order.normalRange,
+            notes: order.notes
+          };
+        });
+        
+        setLabTests(formattedLabTests);
+        console.log('Formatted lab tests:', formattedLabTests.length);
+        
+        if (formattedLabTests.length > 0) {
+          toast.success(`Successfully loaded ${formattedLabTests.length} lab orders`);
+        } else {
+          toast('No lab orders found');
+        }
+      } catch (formatError) {
+        console.error('Error formatting lab tests:', formatError);
+        toast.error('Error processing lab test data. See console for details.');
+        setError('Error processing lab data. The data format might be unexpected.');
+      }
+    } catch (error: any) {
+      console.error('Error fetching lab orders:', error);
+      
+      // More descriptive error handling
+      let errorMessage = 'Failed to fetch lab orders. Please check your connection and try again.';
+      
+      if (error.message) {
+        errorMessage += ` Error: ${error.message}`;
+      }
+      
+      if (error.response) {
+        errorMessage += ` (Server responded with: ${error.response.status})`;
+      } else if (error.request) {
+        errorMessage += ' (No response received from server)';
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+  
+  // Fetch lab inventory from database
+  const fetchLabInventory = async () => {
+    try {
+      const items = await inventoryService.getAllItems({ category: 'laboratory' });
+      setLabInventory(items);
+    } catch (err) {
+      console.error('Error fetching lab inventory items:', err);
+    }
+  };
+  
+  // Load data on component mount
+  useEffect(() => {
+    fetchLabTests();
+    fetchLabInventory();
+  }, []);
+  
+  // Handle loading timeout
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    
+    if (isLoading) {
+      timeout = setTimeout(() => {
+        setIsLoading(false);
+        setError('Loading timed out. Please try again.');
+      }, 15000); // 15 seconds timeout
+    }
+    
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [isLoading]);
+  
+  // Filter and sort tests
+  const getFilteredTests = (): GroupedLabTest[] => { // Return grouped tests
+    const filtered = labTests
+      .filter(test => {
+        // Filter by active tab (pending/completed)
+        if (activeTab === 'pending') {
+          return ['Ordered', 'Scheduled', 'Collected', 'Processing'].includes(test.status);
+        } else {
+          return ['Results Available', 'Cancelled', 'Completed'].includes(test.status);
+        }
+      })
+      .filter(test => {
+        // Filter by search query
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return (
+          test.testName.toLowerCase().includes(query) ||
+          test.patientName.toLowerCase().includes(query) ||
+          test.orderedBy.toLowerCase().includes(query)
+        );
+      })
+      .filter(test => {
+        // Filter by priority
+        if (priorityFilter === 'all') return true;
+        return test.priority.toLowerCase() === priorityFilter.toLowerCase();
+      })
+      .sort((a, b) => {
+        // Handle sorting
+        if (sortBy === 'requestDate') {
+          const dateA = new Date(a.requestDate).getTime();
+          const dateB = new Date(b.requestDate).getTime();
+          return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+        }
+        
+        if (sortBy === 'priority') {
+          const priorityOrder = { 'STAT': 0, 'ASAP': 1, 'Routine': 2 };
+          const orderA = priorityOrder[a.priority as keyof typeof priorityOrder] || 3;
+          const orderB = priorityOrder[b.priority as keyof typeof priorityOrder] || 3;
+          return sortOrder === 'asc' ? orderA - orderB : orderB - orderA;
+        }
+        
+        // Default string comparison for other fields
+        const valA = String(a[sortBy as keyof LabTest] || '').toLowerCase();
+        const valB = String(b[sortBy as keyof LabTest] || '').toLowerCase();
+        return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      });
+      
+    // Group the filtered and sorted tests
+    const grouped = filtered.reduce((acc, test) => {
+      // Use patientId, orderedBy, and the date part of requestDate for grouping
+      const datePart = new Date(test.requestDate).toISOString().split('T')[0];
+      const groupKey = `${test.patientId}-${test.orderedBy}-${datePart}`;
+      
+      if (!acc[groupKey]) {
+        acc[groupKey] = {
+          groupKey: groupKey,
+          patientId: test.patientId,
+          patientName: test.patientName,
+          orderedBy: test.orderedBy,
+          requestDate: test.requestDate, // Use the first test's date as representative
+          tests: [],
+          overallPriority: test.priority, // Initialize with first test's priority
+          overallStatus: test.status, // Initialize with first test's status
+        };
+      }
+      
+      acc[groupKey].tests.push(test);
+      
+      // Determine highest priority for the group
+      const priorityOrder = { 'STAT': 0, 'ASAP': 1, 'Routine': 2 };
+      const currentPriorityVal = priorityOrder[acc[groupKey].overallPriority as keyof typeof priorityOrder] ?? 3;
+      const newPriorityVal = priorityOrder[test.priority as keyof typeof priorityOrder] ?? 3;
+      if (newPriorityVal < currentPriorityVal) {
+        acc[groupKey].overallPriority = test.priority;
+      }
+      
+      // Determine consolidated status (e.g., 'Processing' if any test is processing)
+      // This logic might need refinement based on desired behavior
+      const statusOrder = { 
+        'Processing': 0, 
+        'Collected': 1, 
+        'Scheduled': 2, 
+        'Ordered': 3, 
+        'Results Available': 4, 
+        'Cancelled': 5, 
+        'Completed': 6 
+      };
+      const currentStatusVal = statusOrder[acc[groupKey].overallStatus as keyof typeof statusOrder] ?? 7;
+      const newStatusVal = statusOrder[test.status as keyof typeof statusOrder] ?? 7;
+       if (newStatusVal < currentStatusVal) {
+         acc[groupKey].overallStatus = test.status;
+       } else if (test.status === 'Results Available' && acc[groupKey].tests.every(t => t.status === 'Results Available' || t.status === 'Completed' || t.status === 'Cancelled')) {
+         // If all are done/cancelled, maybe status is 'Results Available' or 'Completed'?
+         // For simplicity, let's stick with the "earliest" active state.
+         // Consider 'Completed' only if ALL tests are 'Completed'.
+       }
+
+      return acc;
+    }, {} as Record<string, GroupedLabTest>);
+    
+    return Object.values(grouped); // Return array of groups
+  };
+  
+  const filteredTestGroups = getFilteredTests(); // Renamed variable
+  
+  // Update test status
+  const updateTestStatus = async (testId: string, newStatus: string) => {
+    try {
+      console.log(`Updating test status for ID ${testId} to ${newStatus}`);
+      const result = await labService.updateLabOrderStatus(testId, newStatus);
+      console.log(`Update result:`, result);
+      toast.success(`Test status updated to ${newStatus}`);
+      await fetchLabTests(); // Refresh the data
+      return true; // Success indicator
+    } catch (error) {
+      console.error('Error updating test status:', error);
+      toast.error('Failed to update test status');
+      return false; // Failure indicator
+    }
+  };
+  
+  // Update test result
+  const updateTestResult = async (testId: string, resultData: { 
+    results: string, 
+    normalRange?: string, 
+    notes?: string 
+  }) => {
+    try {
+      console.log(`Updating test result for ID ${testId}`, resultData);
+      // First update the result data
+      const updatedTest = await labService.updateLabOrderStatus(testId, 'Results Available', resultData);
+      console.log(`Result update success:`, updatedTest);
+      toast.success('Test results saved successfully');
+      await fetchLabTests(); // Refresh the data
+      return true;
+    } catch (error) {
+      console.error('Error updating test results:', error);
+      toast.error('Failed to save test results');
+      return false;
+    }
+  };
+  
+  // Priority badge component
+  const PriorityBadge = ({ priority }: { priority: string }) => {
+    const bgColor = priority === 'STAT' ? 'bg-red-100 text-red-800' : 
+                    priority === 'ASAP' ? 'bg-yellow-100 text-yellow-800' : 
+                    'bg-green-100 text-green-800';
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${bgColor}`}>
+        {priority}
+      </span>
+    );
+  };
+  
+  // Status badge component
+  const StatusBadge = ({ status, className = '' }: { status: string; className?: string }) => {
+    const bgColor = 
+      status === 'Ordered' ? 'bg-blue-100 text-blue-800' :
+      status === 'Scheduled' ? 'bg-purple-100 text-purple-800' :
+      status === 'Collected' ? 'bg-indigo-100 text-indigo-800' :
+      status === 'Processing' ? 'bg-amber-100 text-amber-800' :
+      status === 'Results Available' ? 'bg-green-100 text-green-800' :
+      status === 'Cancelled' ? 'bg-red-100 text-red-800' :
+      'bg-gray-100 text-gray-800';
+    
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${bgColor} ${className}`}>
+        {status}
+      </span>
+    );
+  };
+
+  // Add this new function to categorize tests and assign icons
+  const getTestCategory = (testName: string): { category: string; icon: React.ReactNode } => {
+    const lowerCaseName = testName.toLowerCase();
+    
+    if (lowerCaseName.includes('blood') || 
+        lowerCaseName.includes('hemo') || 
+        lowerCaseName.includes('rbc') || 
+        lowerCaseName.includes('wbc')) {
+      return { 
+        category: 'Hematology', 
+        icon: <Droplet className="h-4 w-4 text-red-500" /> 
+      };
+    }
+    
+    if (lowerCaseName.includes('glucose') || 
+        lowerCaseName.includes('chem') || 
+        lowerCaseName.includes('sodium') || 
+        lowerCaseName.includes('potassium') ||
+        lowerCaseName.includes('urea') ||
+        lowerCaseName.includes('creatinine')) {
+      return { 
+        category: 'Chemistry', 
+        icon: <Beaker className="h-4 w-4 text-purple-500" /> 
+      };
+    }
+    
+    if (lowerCaseName.includes('culture') || 
+        lowerCaseName.includes('stain') || 
+        lowerCaseName.includes('microbiology')) {
+      return { 
+        category: 'Microbiology', 
+        icon: <Zap className="h-4 w-4 text-green-500" /> 
+      };
+    }
+    
+    if (lowerCaseName.includes('cardiac') || 
+        lowerCaseName.includes('troponin') ||
+        lowerCaseName.includes('ecg')) {
+      return { 
+        category: 'Cardiac', 
+        icon: <Heart className="h-4 w-4 text-red-600" /> 
+      };
+    }
+    
+    if (lowerCaseName.includes('protein') || 
+        lowerCaseName.includes('antibody') || 
+        lowerCaseName.includes('hiv')) {
+      return { 
+        category: 'Immunology', 
+        icon: <Activity className="h-4 w-4 text-blue-500" /> 
+      };
+    }
+
+    return { 
+      category: 'Other', 
+      icon: <PieChart className="h-4 w-4 text-gray-500" /> 
+    };
+  };
+
+  // Update function to use WHO standard reference ranges
+  const getSuggestedReferenceRange = (testName: string): string => {
+    const lowerCaseName = testName.toLowerCase();
+    
+    // Hematology tests (WHO standards)
+    if (lowerCaseName.includes('hemoglobin')) {
+      return 'Male: 13.0-17.0 g/dL, Female: 12.0-15.0 g/dL';
+    }
+    if (lowerCaseName.includes('hematocrit')) {
+      return 'Male: 39-49%, Female: 36-46%';
+    }
+    if (lowerCaseName.includes('platelet')) {
+      return '150,000-400,000/μL';
+    }
+    if (lowerCaseName.includes('wbc') || lowerCaseName.includes('white blood cell')) {
+      return '4,000-10,000/μL';
+    }
+    if (lowerCaseName.includes('rbc') || lowerCaseName.includes('red blood cell')) {
+      return 'Male: 4.5-5.9 × 10^6/μL, Female: 4.0-5.2 × 10^6/μL';
+    }
+    if (lowerCaseName.includes('mcv')) {
+      return '80-100 fL';
+    }
+    if (lowerCaseName.includes('mch')) {
+      return '27-33 pg';
+    }
+    if (lowerCaseName.includes('mchc')) {
+      return '32-36 g/dL';
+    }
+    if (lowerCaseName.includes('rdw')) {
+      return '11.5-14.5%';
+    }
+    if (lowerCaseName.includes('neutrophil')) {
+      return '40-70%';
+    }
+    if (lowerCaseName.includes('lymphocyte')) {
+      return '20-40%';
+    }
+    if (lowerCaseName.includes('monocyte')) {
+      return '2-8%';
+    }
+    if (lowerCaseName.includes('eosinophil')) {
+      return '1-4%';
+    }
+    if (lowerCaseName.includes('basophil')) {
+      return '0.5-1%';
+    }
+    
+    // Chemistry tests (WHO standards)
+    if (lowerCaseName.includes('glucose') && lowerCaseName.includes('fast')) {
+      return '70-100 mg/dL';
+    }
+    if (lowerCaseName.includes('glucose') && !lowerCaseName.includes('fast')) {
+      return '70-140 mg/dL';
+    }
+    if (lowerCaseName.includes('hba1c') || lowerCaseName.includes('a1c')) {
+      return '< 6.5%';
+    }
+    if (lowerCaseName.includes('sodium')) {
+      return '135-145 mmol/L';
+    }
+    if (lowerCaseName.includes('potassium')) {
+      return '3.5-5.1 mmol/L';
+    }
+    if (lowerCaseName.includes('chloride')) {
+      return '98-107 mmol/L';
+    }
+    if (lowerCaseName.includes('bicarbonate') || lowerCaseName.includes('co2')) {
+      return '23-29 mmol/L';
+    }
+    if (lowerCaseName.includes('urea') || lowerCaseName.includes('bun')) {
+      return '6-20 mg/dL';
+    }
+    if (lowerCaseName.includes('creatinine')) {
+      return 'Male: 0.7-1.2 mg/dL, Female: 0.5-1.0 mg/dL';
+    }
+    if (lowerCaseName.includes('cholesterol')) {
+      return 'Total: < 200 mg/dL';
+    }
+    if (lowerCaseName.includes('triglyceride')) {
+      return '< 150 mg/dL';
+    }
+    if (lowerCaseName.includes('hdl')) {
+      return 'Male: > 40 mg/dL, Female: > 50 mg/dL';
+    }
+    if (lowerCaseName.includes('ldl')) {
+      return '< 100 mg/dL';
+    }
+    if (lowerCaseName.includes('albumin')) {
+      return '3.5-5.0 g/dL';
+    }
+    if (lowerCaseName.includes('total protein')) {
+      return '6.0-8.3 g/dL';
+    }
+    if (lowerCaseName.includes('uric acid')) {
+      return 'Male: 3.4-7.0 mg/dL, Female: 2.4-6.0 mg/dL';
+    }
+    
+    // Immunology tests (WHO standards)
+    if (lowerCaseName.includes('hiv')) {
+      return 'Non-reactive';
+    }
+    if (lowerCaseName.includes('c-reactive protein') || lowerCaseName.includes('crp')) {
+      return '< 5 mg/L';
+    }
+    if (lowerCaseName.includes('esr') || lowerCaseName.includes('sedimentation rate')) {
+      return 'Male: 0-15 mm/hr, Female: 0-20 mm/hr';
+    }
+    if (lowerCaseName.includes('rheumatoid factor')) {
+      return '< 14 IU/mL';
+    }
+    if (lowerCaseName.includes('antinuclear antibody') || lowerCaseName.includes('ana')) {
+      return 'Negative';
+    }
+    
+    // Liver function tests (WHO standards)
+    if (lowerCaseName.includes('alt') || lowerCaseName.includes('alanine')) {
+      return 'Male: 10-40 U/L, Female: 7-35 U/L';
+    }
+    if (lowerCaseName.includes('ast') || lowerCaseName.includes('aspartate')) {
+      return 'Male: 12-38 U/L, Female: 10-35 U/L';
+    }
+    if (lowerCaseName.includes('alp') || lowerCaseName.includes('alkaline phosphatase')) {
+      return 'Adult: 40-129 U/L';
+    }
+    if (lowerCaseName.includes('ggt') || lowerCaseName.includes('gamma-glutamyl transferase')) {
+      return 'Male: 8-61 U/L, Female: 5-36 U/L';
+    }
+    if (lowerCaseName.includes('bilirubin') && lowerCaseName.includes('total')) {
+      return '0.1-1.2 mg/dL';
+    }
+    if (lowerCaseName.includes('bilirubin') && lowerCaseName.includes('direct')) {
+      return '0.0-0.3 mg/dL';
+    }
+    if (lowerCaseName.includes('bilirubin') && lowerCaseName.includes('indirect')) {
+      return '0.1-0.9 mg/dL';
+    }
+    
+    // Thyroid function tests (WHO standards)
+    if (lowerCaseName.includes('tsh')) {
+      return '0.4-4.0 mIU/L';
+    }
+    if (lowerCaseName.includes('t3') || lowerCaseName.includes('triiodothyronine')) {
+      return '80-200 ng/dL';
+    }
+    if (lowerCaseName.includes('t4') || lowerCaseName.includes('thyroxine')) {
+      return '5.0-12.0 μg/dL';
+    }
+    if (lowerCaseName.includes('free t3')) {
+      return '2.3-4.2 pg/mL';
+    }
+    if (lowerCaseName.includes('free t4')) {
+      return '0.8-1.8 ng/dL';
+    }
+    
+    // Electrolytes (WHO standards)
+    if (lowerCaseName.includes('calcium')) {
+      return '8.5-10.5 mg/dL';
+    }
+    if (lowerCaseName.includes('magnesium')) {
+      return '1.7-2.2 mg/dL';
+    }
+    if (lowerCaseName.includes('phosphorus') || lowerCaseName.includes('phosphate')) {
+      return '2.5-4.5 mg/dL';
+    }
+    if (lowerCaseName.includes('iron')) {
+      return 'Male: 60-170 μg/dL, Female: 50-170 μg/dL';
+    }
+    if (lowerCaseName.includes('ferritin')) {
+      return 'Male: 20-250 ng/mL, Female: 10-120 ng/mL';
+    }
+    if (lowerCaseName.includes('vitamin d') || lowerCaseName.includes('25-oh vitamin d')) {
+      return '30-100 ng/mL';
+    }
+    if (lowerCaseName.includes('vitamin b12')) {
+      return '200-900 pg/mL';
+    }
+    if (lowerCaseName.includes('folate') || lowerCaseName.includes('folic acid')) {
+      return '2.0-20.0 ng/mL';
+    }
+    
+    // Cardiac markers (WHO standards)
+    if (lowerCaseName.includes('troponin')) {
+      return '< 0.04 ng/mL';
+    }
+    if (lowerCaseName.includes('ck-mb')) {
+      return '< 5.0 ng/mL';
+    }
+    if (lowerCaseName.includes('bnp') || lowerCaseName.includes('brain natriuretic peptide')) {
+      return '< 100 pg/mL';
+    }
+    
+    // Kidney function (WHO standards)
+    if (lowerCaseName.includes('egfr') || lowerCaseName.includes('estimated glomerular filtration rate')) {
+      return '> 90 mL/min/1.73m²';
+    }
+    if (lowerCaseName.includes('cystatin c')) {
+      return '0.53-0.95 mg/L';
+    }
+    
+    // Urinalysis (WHO standards)
+    if (lowerCaseName.includes('urinalysis') || lowerCaseName.includes('urine')) {
+      return 'See specific parameters below';
+    }
+    if (lowerCaseName.includes('urine ph')) {
+      return '4.5-8.0';
+    }
+    if (lowerCaseName.includes('specific gravity')) {
+      return '1.005-1.030';
+    }
+    if (lowerCaseName.includes('urine protein')) {
+      return 'Negative';
+    }
+    if (lowerCaseName.includes('urine glucose')) {
+      return 'Negative';
+    }
+    if (lowerCaseName.includes('urine blood')) {
+      return 'Negative';
+    }
+    if (lowerCaseName.includes('urine ketone')) {
+      return 'Negative';
+    }
+    if (lowerCaseName.includes('urine leukocyte')) {
+      return 'Negative';
+    }
+    if (lowerCaseName.includes('urine nitrite')) {
+      return 'Negative';
+    }
+    
+    // Stool tests (WHO standards)
+    if (lowerCaseName.includes('stool') || lowerCaseName.includes('fecal')) {
+      return 'See specific parameters below';
+    }
+    if (lowerCaseName.includes('occult blood')) {
+      return 'Negative';
+    }
+    if (lowerCaseName.includes('ova and parasite')) {
+      return 'Negative';
+    }
+    
+    // Microbiology (WHO standards)
+    if (lowerCaseName.includes('culture') && lowerCaseName.includes('blood')) {
+      return 'No growth';
+    }
+    if (lowerCaseName.includes('culture') && lowerCaseName.includes('urine')) {
+      return '< 10,000 CFU/mL';
+    }
+    if (lowerCaseName.includes('culture') && lowerCaseName.includes('sputum')) {
+      return 'Normal flora';
+    }
+    
+    // Default - return empty string for unknown tests
+    return '';
+  };
+
+  // Single test modal - Auto-populate normal range when showing modal
+  // Update useEffect to set the normal range automatically
+  useEffect(() => {
+    // When the results modal opens, auto-populate normal range with WHO standard
+    if (showResultsModal && selectedPatient) {
+      const standardRange = getSuggestedReferenceRange(selectedPatient.tests[0].testName);
+      if (standardRange) {
+        setNormalRangeValue(standardRange);
+      } else {
+        setNormalRangeValue('');
+      }
+    }
+  }, [showResultsModal, selectedPatient]);
+
+  // Batch results modal - Auto-populate normal range when showing modal
+  useEffect(() => {
+    // When the batch results modal opens, auto-populate normal ranges with WHO standards
+    if (showBatchResultsModal && selectedGroup) {
+      const processingTests = selectedGroup.tests.filter(test => test.status === 'Processing');
+      
+      const initialResults: {[testId: string]: any} = {};
+      processingTests.forEach(test => {
+        const standardRange = getSuggestedReferenceRange(test.testName);
+        initialResults[test.id] = {
+          value: '',
+          normalRange: standardRange || ''
+        };
+      });
+      
+      setTestResults(initialResults);
+    }
+  }, [showBatchResultsModal, selectedGroup]);
+
+  // Function to toggle expanded state of a patient
+  const togglePatientExpanded = (patientId: string) => {
+    setExpandedPatients(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(patientId)) {
+        newSet.delete(patientId);
+      } else {
+        newSet.add(patientId);
+      }
+      return newSet;
+    });
+  };
+
+  // Update function to send all results for a patient at once
+  const sendAllResultsToDoctor = async (patientId: string, patientName: string, tests: LabTest[]) => {
+    try {
+      setIsSending(true);
+      
+      // Get IDs of tests with results to send
+      const testIdsToSend = tests
+        .filter(test => test.results)
+        .map(test => test.id);
+      
+      if (testIdsToSend.length === 0) {
+        toast.warning("No test results available to send");
+        return false;
+      }
+      
+      console.log(`Sending ${testIdsToSend.length} test results for patient ${patientName} to their doctor...`);
+      
+      // Call the lab service to send results to doctor
+      const result = await labService.sendLabResultsToDoctor(testIdsToSend, patientId);
+      
+      if (result.success) {
+        // Update state to mark this patient's tests as sent
+        setSentToDoctor(prev => {
+          const newSet = new Set(prev);
+          newSet.add(patientId);
+          return newSet;
+        });
+        
+        // Mark tests as sent in the local state
+        setLabTests(prev => {
+          return prev.map(test => {
+            if (testIdsToSend.includes(test.id)) {
+              return {
+                ...test,
+                status: 'Results Available',
+                sentToDoctor: true,
+                sentDate: result.sentAt
+              };
+            }
+            return test;
+          });
+        });
+        
+        // Refresh the data to ensure we have the latest from the server
+        setTimeout(() => {
+          fetchLabTests();
+        }, 1000);
+        
+        toast.success(`All test results for ${patientName} successfully sent to doctor`);
+        return true;
+      } else {
+        throw new Error(result.message || "Failed to send results");
+      }
+    } catch (error) {
+      console.error("Error sending results to doctor:", error);
+      toast.error("Failed to send results to doctor. Please try again.");
+      return false;
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Add after other functions
+  const forceRefreshWithStandardFormat = async () => {
+    try {
+      setIsRefreshing(true);
+      setError(null);
+      
+      console.log('Force refreshing lab tests with standardized format...');
+      const labOrders = await labService.getAllLabOrders();
+      
+      if (!labOrders || labOrders.length === 0) {
+        setLabTests([]);
+        toast('No lab orders found in the database');
+        setIsRefreshing(false);
+        return;
+      }
+      
+      // Map the database records to our LabTest format using standardizeLabResult
+      const formattedLabTests = labOrders.map(order => {
+        const standardized = labService.standardizeLabResult(order);
+        return {
+          id: standardized._id,
+          testName: standardized.testName,
+          patientId: standardized.patientId,
+          patientName: standardized.patientName || 'Unknown Patient',
+          orderedBy: standardized.orderedBy,
+          status: standardized.status,
+          priority: standardized.priority || 'Routine',
+          requestDate: standardized.orderDate,
+          collectionDate: order.collectionDateTime,
+          resultDate: standardized.resultDate,
+          results: standardized.results,
+          normalRange: standardized.normalRange,
+          notes: standardized.notes
+        };
+      });
+      
+      setLabTests(formattedLabTests);
+      console.log('Refreshed lab tests with standardized format:', formattedLabTests);
+      
+      if (formattedLabTests.length > 0) {
+        toast.success(`Successfully loaded ${formattedLabTests.length} lab orders with standardized format`);
+      } else {
+        toast('No lab orders found');
+      }
+    } catch (error) {
+      console.error('Error refreshing lab orders:', error);
+      setError('Failed to refresh lab orders. Please check your connection and try again.');
+      toast.error('Error refreshing lab tests');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // FIRST_EDIT
+  const renderInventoryTable = () => (
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Code</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {labInventory.map(item => (
+            <tr key={item._id || item.id}>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.itemCode}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.name}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.quantity}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.unit}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location || '-'}</td>
+            </tr>
+          ))}
+          {labInventory.length === 0 && (
+            <tr>
+              <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
+                No laboratory inventory items available.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
+        <div className="flex flex-col space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Laboratory Dashboard</h1>
+              <p className="mt-1 text-sm text-gray-500">
+                Manage and process laboratory tests
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <button
+                onClick={fetchLabTests}
+                disabled={isLoading}
+                className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
+                {isLoading ? 'Loading...' : 'Refresh'}
+              </button>
+              
+              <button
+                onClick={forceRefreshWithStandardFormat}
+                disabled={isRefreshing}
+                className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 mr-1.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Refreshing...' : 'Refresh With Standard Format'}
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-col items-center justify-center py-12">
+            <RefreshCw className="h-12 w-12 text-blue-500 animate-spin mb-4" />
+            <p className="text-gray-500 text-lg">Loading laboratory tests...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
+        <div className="flex flex-col space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Laboratory Dashboard</h1>
+              <p className="mt-1 text-sm text-gray-500">
+                Manage and process laboratory tests
+              </p>
+          </div>
+            
+            <div className="flex items-center gap-2">
+              <button
+                onClick={fetchLabTests}
+                disabled={isLoading}
+                className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
+                {isLoading ? 'Loading...' : 'Refresh'}
+              </button>
+              
+              <button
+                onClick={forceRefreshWithStandardFormat}
+                disabled={isRefreshing}
+                className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 mr-1.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Refreshing...' : 'Refresh With Standard Format'}
+              </button>
+            </div>
+          </div>
+          <div className="text-center py-12">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-4">
+              <AlertTriangle className="h-8 w-8 text-red-600" />
+            </div>
+            <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Data</h3>
+            <p className="text-red-500 max-w-md mx-auto">{error}</p>
+            <button
+              onClick={fetchLabTests}
+              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700"
+          >
+            Try Again
+          </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
+      <div className="flex flex-col space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Laboratory Dashboard</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Manage and process laboratory tests
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchLabTests}
+              disabled={isLoading}
+              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? 'Loading...' : 'Refresh'}
+            </button>
+            
+            <button
+              onClick={forceRefreshWithStandardFormat}
+              disabled={isRefreshing}
+              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 mr-1.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh With Standard Format'}
+            </button>
+          </div>
+        </div>
+
+        {/* Automatic Attendance Status */}
+        <div className="mb-6">
+          <div className="bg-white shadow rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${
+                    attendanceStatus === 'present' ? 'bg-green-500' :
+                    attendanceStatus === 'offline' ? 'bg-yellow-500' :
+                    attendanceStatus === 'absent' ? 'bg-red-500' :
+                    'bg-gray-400'
+                  }`}></div>
+                  <span className="text-sm font-medium text-gray-700">
+                    {attendanceStatus === 'present' ? 'Present' :
+                     attendanceStatus === 'offline' ? 'Offline' :
+                     attendanceStatus === 'absent' ? 'Absent' :
+                     'Loading...'}
+                  </span>
+                </div>
+                {lastActivity && (
+                  <span className="text-xs text-gray-500">
+                    Last activity: {new Date(lastActivity).toLocaleTimeString()}
+                  </span>
+                )}
+              </div>
+              <div className="text-sm text-gray-500">
+                Automatic attendance tracking enabled
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white shadow rounded-lg">
+          <div className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4">
+              <div className="flex space-x-4 mb-4 sm:mb-0">
+              <button
+                onClick={() => setActiveTab('pending')}
+                  className={`px-4 py-2 text-sm font-medium rounded-md ${
+                  activeTab === 'pending'
+                      ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-500'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                Pending Tests ({labTests.filter(t => 
+                  ['Ordered', 'Scheduled', 'Collected', 'Processing'].includes(t.status)
+                ).length})
+              </button>
+              <button
+                onClick={() => setActiveTab('completed')}
+                  className={`px-4 py-2 text-sm font-medium rounded-md ${
+                  activeTab === 'completed'
+                      ? 'bg-green-50 text-green-700 border-b-2 border-green-500'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                Completed Tests ({labTests.filter(t => 
+                  ['Results Available', 'Cancelled', 'Completed'].includes(t.status)
+                ).length})
+              </button>
+              <button
+                onClick={() => setActiveTab('inventory')}
+                  className={`px-4 py-2 text-sm font-medium rounded-md ${
+                  activeTab === 'inventory'
+                      ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-500'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                Inventory ({labInventory.length})
+              </button>
+        </div>
+        
+              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by patient name, test name..."
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                />
+            </div>
+            
+            <div>
+                <select
+                  value={priorityFilter}
+                  onChange={(e) => setPriorityFilter(e.target.value)}
+                    className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                >
+                  <option value="all">All Priorities</option>
+                  <option value="STAT">STAT</option>
+                  <option value="ASAP">ASAP</option>
+                  <option value="Routine">Routine</option>
+                </select>
+                </div>
+              </div>
+            </div>
+            
+            {activeTab === 'inventory' ? (
+              renderInventoryTable()
+            ) : isLoading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <RefreshCw className="h-12 w-12 text-blue-500 animate-spin mb-4" />
+                <p className="text-gray-500 text-lg">Loading laboratory tests...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-12">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-4">
+                  <AlertTriangle className="h-8 w-8 text-red-600" />
+                </div>
+                <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Data</h3>
+                <p className="text-red-500 max-w-md mx-auto">{error}</p>
+                <button
+                  onClick={fetchLabTests}
+                  className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : filteredTestGroups.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                  <Beaker className="h-8 w-8 text-gray-400" />
+            </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Lab Tests Found</h3>
+                <p className="text-gray-500 max-w-md mx-auto">
+                  {searchQuery || priorityFilter !== 'all' 
+                    ? 'Try adjusting your search or filter criteria.'
+                    : activeTab === 'pending' 
+                    ? 'There are no pending laboratory tests at this time.'
+                    : 'There are no completed laboratory tests to display.'}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => {
+                          if (sortBy === 'patientName') {
+                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setSortBy('patientName');
+                            setSortOrder('asc');
+                          }
+                        }}
+                      >
+                        <div className="flex items-center">
+                          Patient Information
+                          {sortBy === 'patientName' && (
+                            <span className="ml-1">
+                              {sortOrder === 'asc' ? '↑' : '↓'}
+                            </span>
+                          )}
+                        </div>
+                    </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ordered By
+                    </th>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => {
+                          if (sortBy === 'requestDate') {
+                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setSortBy('requestDate');
+                            setSortOrder('asc');
+                          }
+                        }}
+                      >
+                        <div className="flex items-center">
+                          Date
+                          {sortBy === 'requestDate' && (
+                            <span className="ml-1">
+                              {sortOrder === 'asc' ? '↑' : '↓'}
+                            </span>
+                          )}
+                        </div>
+                    </th>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => {
+                          if (sortBy === 'priority') {
+                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setSortBy('priority');
+                            setSortOrder('asc');
+                          }
+                        }}
+                      >
+                        <div className="flex items-center">
+                      Priority
+                          {sortBy === 'priority' && (
+                            <span className="ml-1">
+                              {sortOrder === 'asc' ? '↑' : '↓'}
+                            </span>
+                          )}
+                        </div>
+                    </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredTestGroups.map(group => {
+                      // Determine actions available for the group
+                      const canCollect = group.tests.some(t => t.status === 'Ordered');
+                      const canProcess = group.tests.some(t => t.status === 'Collected');
+                      const canComplete = group.tests.some(t => t.status === 'Processing');
+
+                      const handleGroupAction = async (targetStatus: string) => {
+                        console.log(`Attempting to update tests in group to status: ${targetStatus}`);
+                        
+                        const sourceStatuses: string[] = [];
+                        if (targetStatus === 'Collected') sourceStatuses.push('Ordered');
+                        if (targetStatus === 'Processing') sourceStatuses.push('Collected');
+                        if (targetStatus === 'Results Available') sourceStatuses.push('Processing');
+
+                        const testsToUpdate = group.tests.filter(t => sourceStatuses.includes(t.status));
+                        
+                        if (testsToUpdate.length === 0) {
+                          toast(`No tests in this group are ready for status '${targetStatus}'.`);
+                          return;
+                        }
+
+                        setIsLoading(true); // Indicate loading during batch update
+                        try {
+                          let successCount = 0;
+                          
+                          // Update each test one by one
+                          for (const test of testsToUpdate) {
+                            console.log(`Processing test: ${test.id}, ${test.testName}, current status: ${test.status}`);
+                            try {
+                              // Direct call to service to avoid multiple fetchLabTests calls
+                              const result = await labService.updateLabOrderStatus(test.id, targetStatus);
+                              console.log(`Update result for ${test.id}:`, result);
+                              successCount++;
+                            } catch (testError) {
+                              console.error(`Error updating individual test ${test.id}:`, testError);
+                            }
+                          }
+                          
+                          if (successCount > 0) {
+                            toast.success(`Updated ${successCount} of ${testsToUpdate.length} tests to ${targetStatus}.`);
+                          } else {
+                            toast.error(`Failed to update any tests to ${targetStatus}.`);
+                          }
+                        } catch (groupError) {
+                          console.error(`Group update error:`, groupError);
+                          toast.error(`Error updating tests: ${groupError instanceof Error ? groupError.message : 'Unknown error'}`);
+                        } finally {
+                          // Always refresh data and reset loading state
+                          await fetchLabTests();
+                          setIsLoading(false);
+                        }
+                      };
+                      
+                      // Generate a list of test IDs for this group - helps with debugging
+                      const testIds = group.tests.map(t => t.id).join(', ');
+                      console.log(`Group ${group.groupKey} has test IDs: ${testIds}`);
+
+                      return (
+                        <tr key={group.groupKey} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            {/* Patient name with dropdown toggle */}
+                            <div className="flex items-center cursor-pointer" onClick={() => togglePatientExpanded(group.patientId)}>
+                              {expandedPatients.has(group.patientId) 
+                                ? <ChevronDown className="h-5 w-5 text-gray-500 mr-2" /> 
+                                : <ChevronRight className="h-5 w-5 text-gray-500 mr-2" />
+                              }
+                              <p className="font-medium text-gray-900 text-lg">{group.patientName}</p>
+                              <span className="ml-2 text-sm text-gray-500">({group.tests.length} tests)</span>
+                            </div>
+                            
+                            {/* Collapsible tests section */}
+                            {expandedPatients.has(group.patientId) && (
+                              <div className="mt-3 pl-7 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                {group.tests.map(test => {
+                                  const { category, icon } = getTestCategory(test.testName);
+                                  return (
+                                    <div key={test.id} className="flex items-start p-2 border border-gray-200 rounded-md bg-gray-50">
+                                      <div className="flex-shrink-0 mr-2 mt-0.5">
+                                        {icon}
+                                      </div>
+                                      <div>
+                                        <div className="font-medium text-sm">{test.testName}</div>
+                                        <div className="flex flex-col mt-1 space-y-1">
+                                          <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded inline-block">
+                                            {category}
+                                          </span>
+                                          <StatusBadge status={test.status} />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                      </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 align-top">
+                            {group.orderedBy}
+                      </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 align-top">
+                            {new Date(group.requestDate).toLocaleDateString()}
+                      </td>
+                          <td className="px-6 py-4 whitespace-nowrap align-top">
+                            <PriorityBadge priority={group.overallPriority} />
+                      </td>
+                          <td className="px-6 py-4 whitespace-nowrap align-top">
+                            <StatusBadge status={group.overallStatus} />
+                      </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 align-top">
+                            <div className="flex flex-col space-y-2">
+                              {canComplete && (
+                        <button
+                          onClick={() => {
+                                    setSelectedGroup(group);
+                                    const initialResults: {[testId: string]: any} = {};
+                                    group.tests.filter(t => t.status === 'Processing').forEach(test => {
+                                      const standardRange = getSuggestedReferenceRange(test.testName);
+                                      initialResults[test.id] = {
+                                        value: '',
+                                        normalRange: standardRange || ''
+                                      };
+                                    });
+                                    setTestResults(initialResults);
+                                    setShowBatchResultsModal(true);
+                                  }}
+                                  className="px-3 py-1 bg-green-100 text-green-800 rounded-md text-sm font-medium hover:bg-green-200"
+                                >
+                                  Enter Results
+                        </button>
+                              )}
+                              {canCollect && (
+                              <button
+                                  onClick={() => handleGroupAction('Collected')}
+                                  className="px-3 py-1 bg-purple-100 text-purple-800 rounded-md text-sm font-medium hover:bg-purple-200"
+                              >
+                                Collect
+                              </button>
+                            )}
+                              {canProcess && (
+                              <button
+                                  onClick={() => handleGroupAction('Processing')}
+                                  className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-md text-sm font-medium hover:bg-indigo-200"
+                              >
+                                Process
+                              </button>
+                            )}
+                              {group.tests.some(t => t.results) && (
+                              <button
+                                  onClick={() => {
+                                    setSelectedPatient({
+                                      patientName: group.patientName,
+                                      patientId: group.patientId,
+                                      tests: group.tests.filter(t => t.results) // Only show tests with results
+                                    });
+                                    setShowDetailsModal(true);
+                                  }}
+                                  className="px-3 py-1 bg-blue-100 text-blue-800 rounded-md text-sm font-medium hover:bg-blue-200"
+                                >
+                                  View Results
+                              </button>
+                            )}
+                            </div>
+                      </td>
+                    </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Details Modal */}
+      {selectedPatient && (
+        <Modal
+          isOpen={showDetailsModal}
+          onClose={() => setShowDetailsModal(false)}
+          title={`Test Results: ${selectedPatient.patientName}`}
+          size="xl"
+        >
+          <div className="space-y-6 p-1">
+            <div className="max-h-[70vh] overflow-y-auto space-y-6 pr-2">
+              {selectedPatient.tests.map(test => (
+                <div key={test.id} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                  {/* Test header section */}
+                  <div className="flex items-center p-4 bg-gray-50 border-b border-gray-200">
+                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                      {getTestCategory(test.testName).icon}
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-lg text-gray-900">{test.testName}</h3>
+                      <div className="flex items-center mt-1 space-x-2">
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                          {getTestCategory(test.testName).category}
+                        </span>
+                        <StatusBadge status={test.status} />
+                      </div>
+                    </div>
+            </div>
+            
+                  {/* Test info section */}
+                  <div className="p-4 border-b border-gray-200">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 uppercase">Ordered By</p>
+                        <p className="font-medium text-gray-900 mt-1">{test.orderedBy}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 uppercase">Order Date</p>
+                        <p className="font-medium text-gray-900 mt-1">{new Date(test.requestDate).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 uppercase">Priority</p>
+                        <div className="mt-1"><PriorityBadge priority={test.priority} /></div>
+                      </div>
+                    </div>
+            </div>
+            
+                  {/* Timeline section */}
+                  <div className="p-4 border-b border-gray-200">
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Timeline</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center">
+                        <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                          <CheckCircle className="h-3 w-3 text-blue-600" />
+                        </div>
+                        <span className="text-sm text-gray-700">Ordered on {new Date(test.requestDate).toLocaleString()}</span>
+              </div>
+              
+                      {test.collectionDate && (
+                        <div className="flex items-center">
+                          <div className="h-6 w-6 rounded-full bg-purple-100 flex items-center justify-center mr-3">
+                            <CheckCircle className="h-3 w-3 text-purple-600" />
+              </div>
+                          <span className="text-sm text-gray-700">Collected on {new Date(test.collectionDate).toLocaleString()}</span>
+                        </div>
+                      )}
+                      
+                      {test.resultDate && (
+                        <div className="flex items-center">
+                          <div className="h-6 w-6 rounded-full bg-green-100 flex items-center justify-center mr-3">
+                            <CheckCircle className="h-3 w-3 text-green-600" />
+                          </div>
+                          <span className="text-sm text-gray-700">Results completed on {new Date(test.resultDate).toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+              </div>
+              
+                  {/* Results section */}
+                  {test.results && (
+                    <div className="p-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Results</h4>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        {typeof test.results === 'object' ? (
+                          <div className="space-y-3">
+                            {Object.entries(test.results).map(([key, value]) => (
+                              <div key={key} className="grid grid-cols-2 gap-4">
+                                <div className="flex flex-col">
+                                  <p className="text-xs font-medium text-gray-500 uppercase">{key}</p>
+                                  <p className="font-medium text-gray-900 mt-1">{String(value)}</p>
+              </div>
+                                {test.normalRange && typeof test.normalRange === 'object' && test.normalRange[key] && test.normalRange[key] !== null && (
+                                  <div className="flex flex-col">
+                                    <p className="text-xs font-medium text-gray-500 uppercase">Normal Range</p>
+                                    <p className="font-medium text-gray-900 mt-1">{String((test.normalRange as any)[key])}</p>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col">
+                              <p className="text-xs font-medium text-gray-500 uppercase">Result Value</p>
+                              <p className="font-medium text-gray-900 mt-1">{String(test.results)}</p>
+            </div>
+            
+                            {test.normalRange && (
+                              <div className="flex flex-col">
+                                <p className="text-xs font-medium text-gray-500 uppercase">Normal Range</p>
+                                <p className="font-medium text-gray-900 mt-1">{String(test.normalRange)}</p>
+                              </div>
+                            )}
+              </div>
+            )}
+            
+                        {test.notes && (
+                          <div className="mt-4 pt-3 border-t border-gray-200">
+                            <p className="text-xs font-medium text-gray-500 uppercase mb-1">Notes</p>
+                            <p className="text-sm text-gray-700">{typeof test.notes === 'object' ? JSON.stringify(test.notes) : test.notes}</p>
+              </div>
+            )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            <div className="pt-4 border-t border-gray-200 flex justify-between items-center">
+              {/* Sent status indicator */}
+              {sentToDoctor.has(selectedPatient.patientId) ? (
+                <div className="flex items-center text-green-600">
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  <span className="font-medium">Results sent to doctor</span>
+              </div>
+              ) : (
+                <div>{/* Empty div to maintain flex spacing */}</div>
+              )}
+              
+              <div className="flex space-x-3">
+                {/* Send to Doctor button - only show if not already sent */}
+                {!sentToDoctor.has(selectedPatient.patientId) && (
+                    <button
+                    onClick={() => sendAllResultsToDoctor(
+                      selectedPatient.patientId,
+                      selectedPatient.patientName,
+                      selectedPatient.tests
+                    )}
+                    disabled={isSending}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  >
+                    {isSending ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Sending Results...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Send All Results to Doctor
+                      </>
+                    )}
+                    </button>
+                  )}
+                  
+                    <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md font-medium transition-colors"
+                >
+                  Close
+                    </button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+      
+      {/* Results Entry Modal */}
+      {selectedGroup && (
+        <Modal
+          isOpen={showBatchResultsModal}
+          onClose={() => setShowBatchResultsModal(false)}
+          title={`Enter Results: ${selectedGroup.patientName}`}
+          size="xl"
+        >
+          <div className="space-y-4">
+            {/* WHO Standards Information Banner */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-blue-800">
+                    WHO Standard Reference Ranges
+                  </h3>
+                  <div className="mt-1 text-sm text-blue-700">
+                    <p>Reference ranges are automatically populated with World Health Organization (WHO) standards. These ranges are based on international guidelines and represent normal values for healthy adults.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="border-b border-gray-200 pb-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Patient</p>
+                  <p className="font-medium">{selectedGroup.patientName}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Ordered By</p>
+                  <p className="font-medium">{selectedGroup.orderedBy}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="max-h-96 overflow-y-auto">
+              {selectedGroup.tests.filter(test => test.status === 'Processing').map(test => {
+                const { category, icon } = getTestCategory(test.testName);
+                return (
+                  <div key={test.id} className="mb-6 p-4 border border-gray-200 rounded-lg">
+                    <div className="flex items-center mb-3">
+                      {icon}
+                      <h3 className="font-medium text-lg text-gray-900 ml-2">{test.testName}</h3>
+                      <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                        {category}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 gap-4 mb-4">
+                      <div>
+                        <label htmlFor={`result-${test.id}`} className="block text-sm font-medium text-gray-700 mb-1">
+                          Result Value <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          id={`result-${test.id}`}
+                          value={testResults[test.id]?.value || ''}
+                          onChange={(e) => setTestResults({
+                            ...testResults, 
+                            [test.id]: {...(testResults[test.id] || {}), value: e.target.value}
+                          })}
+                          placeholder="Enter test result value"
+                          className="block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                          required
+                        />
+                      </div>
+                      
+                      {/* Reference Range Input with WHO Standards */}
+                      <div>
+                        <label htmlFor={`normalRange-${test.id}`} className="block text-sm font-medium text-gray-700 mb-1">
+                          Reference Range (WHO Standards) 
+                          <span className="ml-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                            WHO
+                          </span>
+                        </label>
+                        <div className="flex space-x-2">
+                          <input
+                            type="text"
+                            id={`normalRange-${test.id}`}
+                            value={testResults[test.id]?.normalRange || ''}
+                            onChange={(e) => setTestResults({
+                              ...testResults, 
+                              [test.id]: {...(testResults[test.id] || {}), normalRange: e.target.value}
+                            })}
+                            placeholder="Auto-populated with WHO standards"
+                            className="flex-1 p-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            title={`WHO standard reference range for ${test.testName}`}
+                          />
+                          {!testResults[test.id]?.normalRange && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const whoRange = getSuggestedReferenceRange(test.testName);
+                                if (whoRange) {
+                                  setTestResults({
+                                    ...testResults,
+                                    [test.id]: {...(testResults[test.id] || {}), normalRange: whoRange}
+                                  });
+                                  toast.success(`WHO standard reference range set for ${test.testName}`);
+                                } else {
+                                  toast.warning(`No WHO standard available for ${test.testName}`);
+                                }
+                              }}
+                              className="px-3 py-2 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              title="Click to auto-populate WHO standard reference range"
+                            >
+                              WHO
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                          <p className="text-xs text-gray-500">
+                            WHO standard reference range for {test.testName}
+                          </p>
+                          {testResults[test.id]?.normalRange && (
+                            <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                              ✓ Set
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      </div>
+                      
+                    {test.testName.toLowerCase().includes('stool') && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Consistency</label>
+                          <select
+                            value={testResults[test.id]?.consistency || ''}
+                            onChange={(e) => setTestResults({
+                              ...testResults,
+                              [test.id]: {...(testResults[test.id] || {}), consistency: e.target.value}
+                            })}
+                            className="block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                          >
+                            <option value="">Select</option>
+                            <option value="Watery">Watery</option>
+                            <option value="Semi-formed">Semi-formed</option>
+                            <option value="Formed">Formed</option>
+                            <option value="Hard">Hard</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">O/P (Ova/Parasite)</label>
+                          <select
+                            value={testResults[test.id]?.op || ''}
+                            onChange={(e) => setTestResults({
+                              ...testResults,
+                              [test.id]: {...(testResults[test.id] || {}), op: e.target.value}
+                            })}
+                            className="block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                          >
+                            <option value="">Select</option>
+                            <option value="Positive">Positive</option>
+                            <option value="Negative">Negative</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Appearance / Colour</label>
+                        <input
+                          type="text"
+                            value={testResults[test.id]?.appearance || ''}
+                          onChange={(e) => setTestResults({
+                            ...testResults, 
+                              [test.id]: {...(testResults[test.id] || {}), appearance: e.target.value}
+                          })}
+                            placeholder="e.g., Brown"
+                            className="block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                        />
+                      </div>
+                    </div>
+                    )}
+
+                    {test.testName.toLowerCase().includes('urinalysis') && (
+                      (() => {
+                        const urineFields = [
+                          { key: 'colour', label: 'Colour', type: 'select', options: ['Straw', 'Yellow', 'Amber', 'Brown', 'Red'] },
+                          { key: 'appearance', label: 'Appearance', type: 'select', options: ['Clear', 'Slightly cloudy', 'Cloudy', 'Turbid'] },
+                          { key: 'ph', label: 'pH', type: 'text' },
+                          { key: 'sg', label: 'Specific Gravity (SG)', type: 'text' },
+                          { key: 'protein', label: 'Protein', type: 'select', options: ['Negative', 'Trace', '+1', '+2', '+3', '+4'] },
+                          { key: 'leukocyte', label: 'Leukocyte', type: 'select', options: ['Negative', 'Trace', '+', '++', '+++'] },
+                          { key: 'glucose', label: 'Glucose', type: 'select', options: ['Negative', 'Trace', '+1', '+2', '+3', '+4'] },
+                          { key: 'blood', label: 'Blood', type: 'select', options: ['Negative', 'Trace', '+', '++', '+++'] },
+                          { key: 'ketone', label: 'Ketone', type: 'select', options: ['Negative', 'Trace', '+', '++', '+++'] },
+                          { key: 'bilirubin', label: 'Bilirubin', type: 'select', options: ['Negative', '+', '++', '+++'] },
+                          { key: 'urobilinogen', label: 'Urobilinogen', type: 'select', options: ['Normal', '1+', '2+', '3+'] },
+                          { key: 'nitrate', label: 'Nitrate', type: 'select', options: ['Negative', 'Positive'] },
+                          { key: 'wbc', label: 'WBC', type: 'text' },
+                          { key: 'rbc', label: 'RBC', type: 'text' },
+                          { key: 'epithelial', label: 'Epithelial Cells', type: 'text' },
+                          { key: 'cast', label: 'Cast', type: 'text' },
+                          { key: 'bacteria', label: 'Bacteria', type: 'text' },
+                          { key: 'crystal', label: 'Crystal', type: 'text' }
+                        ];
+                        return (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            {urineFields.map((f) => (
+                              <div key={f.key}>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">{f.label}</label>
+                                {f.type === 'select' ? (
+                                  <select
+                                    value={testResults[test.id]?.[f.key] || ''}
+                                    onChange={(e) => setTestResults({
+                                      ...testResults,
+                                      [test.id]: {...(testResults[test.id] || {}), [f.key]: e.target.value}
+                                    })}
+                                    className="block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                                  >
+                                    <option value="">Select</option>
+                                    {f.options.map((opt) => (
+                                      <option key={opt} value={opt}>{opt}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <input
+                                    type="text"
+                                    value={testResults[test.id]?.[f.key] || ''}
+                                    onChange={(e) => setTestResults({
+                                      ...testResults,
+                                      [test.id]: {...(testResults[test.id] || {}), [f.key]: e.target.value}
+                                    })}
+                                    className="block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div>
+              <label htmlFor="batch-notes" className="block text-sm font-medium text-gray-700 mb-1">
+                Notes (applies to all tests)
+              </label>
+              <textarea
+                id="batch-notes"
+                value={batchNotes}
+                onChange={(e) => setBatchNotes(e.target.value)}
+                placeholder="Add any additional notes or observations"
+                rows={3}
+                className="block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+              />
+            </div>
+            
+            {/* Summary Section */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center space-x-4">
+                  <span className="text-gray-600">
+                    Tests with results: <span className="font-medium text-gray-900">
+                      {selectedGroup.tests.filter(test => test.status === 'Processing' && testResults[test.id]?.value?.trim()).length}
+                    </span> / {selectedGroup.tests.filter(test => test.status === 'Processing').length}
+                  </span>
+                  <span className="text-gray-600">
+                    Reference ranges set: <span className="font-medium text-gray-900">
+                      {selectedGroup.tests.filter(test => test.status === 'Processing' && testResults[test.id]?.normalRange?.trim()).length}
+                    </span> / {selectedGroup.tests.filter(test => test.status === 'Processing').length}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500">
+                  WHO standards will be used for missing ranges
+                </div>
+              </div>
+            </div>
+            
+            <div className="pt-4 border-t border-gray-200 flex justify-end space-x-3">
+                    <button
+                onClick={async () => {
+                  // Validate that all required fields are filled
+                  const processingTests = selectedGroup.tests.filter(test => test.status === 'Processing');
+                  const missingValues = processingTests.filter(test => !testResults[test.id]?.value?.trim());
+                  
+                  if (missingValues.length > 0) {
+                    toast.error(`Please enter result values for all tests: ${missingValues.map(t => t.testName).join(', ')}`);
+                    return;
+                  }
+                  
+                  // Check if reference ranges are set (warn if not, but don't block)
+                  const missingRanges = processingTests.filter(test => !testResults[test.id]?.normalRange?.trim());
+                  if (missingRanges.length > 0) {
+                    toast.warning(`Reference ranges not set for: ${missingRanges.map(t => t.testName).join(', ')}. WHO standards will be used.`);
+                  }
+                  
+                  // Save all test results
+                  let successCount = 0;
+                  setIsLoading(true);
+                  
+                  try {
+                    for (const test of processingTests) {
+                      const resultData = {
+                        results: (() => {
+                          let base = testResults[test.id].value;
+                          const lowerName = test.testName.toLowerCase();
+                          if (lowerName.includes('stool')) {
+                            const extra = testResults[test.id];
+                            base = `Result: ${base}; Consistency: ${extra?.consistency || '-'}; O/P: ${extra?.op || '-'}; Appearance: ${extra?.appearance || '-'}`;
+                          } else if (lowerName.includes('urinalysis')) {
+                            const e = testResults[test.id];
+                            base = `Result: ${base}; Colour: ${e?.colour || '-'}; Appearance: ${e?.appearance || '-'}; pH: ${e?.ph || '-'}; SG: ${e?.sg || '-'}; Protein: ${e?.protein || '-'}; Leukocyte: ${e?.leukocyte || '-'}; Glucose: ${e?.glucose || '-'}; Blood: ${e?.blood || '-'}; Ketone: ${e?.ketone || '-'}; Bilirubin: ${e?.bilirubin || '-'}; Urobilinogen: ${e?.urobilinogen || '-'}; Nitrate: ${e?.nitrate || '-'}; WBC: ${e?.wbc || '-'}; RBC: ${e?.rbc || '-'}; Epithelial Cells: ${e?.epithelial || '-'}; Cast: ${e?.cast || '-'}; Bacteria: ${e?.bacteria || '-'}; Crystal: ${e?.crystal || '-'}`;
+                          }
+                          return base;
+                        })(),
+                        normalRange: testResults[test.id]?.normalRange || getSuggestedReferenceRange(test.testName),
+                        notes: batchNotes || undefined
+                      };
+                      
+                      try {
+                        const success = await updateTestResult(test.id, resultData);
+                        if (success) successCount++;
+                      } catch (error) {
+                        console.error(`Error saving result for test ${test.id}:`, error);
+                      }
+                    }
+                    
+                    if (successCount > 0) {
+                      toast.success(`Successfully saved results for ${successCount} of ${processingTests.length} tests`);
+                      setShowBatchResultsModal(false);
+                      // Reset form
+                      setTestResults({});
+                      setBatchNotes('');
+                    } else {
+                      toast.error('Failed to save any test results');
+                    }
+                  } catch (error) {
+                    console.error('Error in batch save:', error);
+                    toast.error('An error occurred while saving test results');
+                  } finally {
+                    setIsLoading(false);
+                  }
+                      }}
+                      className="px-4 py-2 bg-green-600 text-white rounded"
+                    >
+                Save All Results
+                    </button>
+              
+              <button
+                onClick={() => {
+                  setShowBatchResultsModal(false);
+                  setTestResults({});
+                  setBatchNotes('');
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+export default LabDashboard; 

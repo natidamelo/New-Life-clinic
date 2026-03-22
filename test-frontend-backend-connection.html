@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend-Backend Connection Test</title>
+</head>
+<body>
+    <h1>Frontend-Backend Connection Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        async function testConnection() {
+            const results = [];
+            
+            // Test 1: Ping endpoint
+            try {
+                const response = await fetch('http://localhost:5002/ping');
+                const data = await response.json();
+                results.push(`✅ Ping: ${data.message}`);
+            } catch (error) {
+                results.push(`❌ Ping: ${error.message}`);
+            }
+            
+            // Test 2: Lab orders endpoint
+            try {
+                const response = await fetch('http://localhost:5002/api/lab-orders/pending-for-reception');
+                const data = await response.json();
+                results.push(`✅ Lab Orders: Found ${data.length} pending orders`);
+            } catch (error) {
+                results.push(`❌ Lab Orders: ${error.message}`);
+            }
+            
+            // Test 3: Prescriptions endpoint
+            try {
+                const response = await fetch('http://localhost:5002/api/prescriptions/pending-for-reception');
+                const data = await response.json();
+                results.push(`✅ Prescriptions: Found ${data.length} pending prescriptions`);
+            } catch (error) {
+                results.push(`❌ Prescriptions: ${error.message}`);
+            }
+            
+            // Display results
+            resultsDiv.innerHTML = results.map(result => `<p>${result}</p>`).join('');
+        }
+        
+        // Run test when page loads
+        testConnection();
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend-Backend Connection Test</title>
+</head>
+<body>
+    <h1>Frontend-Backend Connection Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        async function testConnection() {
+            const results = [];
+            
+            // Test 1: Ping endpoint
+            try {
+                const response = await fetch('http://localhost:5002/ping');
+                const data = await response.json();
+                results.push(`✅ Ping: ${data.message}`);
+            } catch (error) {
+                results.push(`❌ Ping: ${error.message}`);
+            }
+            
+            // Test 2: Lab orders endpoint
+            try {
+                const response = await fetch('http://localhost:5002/api/lab-orders/pending-for-reception');
+                const data = await response.json();
+                results.push(`✅ Lab Orders: Found ${data.length} pending orders`);
+            } catch (error) {
+                results.push(`❌ Lab Orders: ${error.message}`);
+            }
+            
+            // Test 3: Prescriptions endpoint
+            try {
+                const response = await fetch('http://localhost:5002/api/prescriptions/pending-for-reception');
+                const data = await response.json();
+                results.push(`✅ Prescriptions: Found ${data.length} pending prescriptions`);
+            } catch (error) {
+                results.push(`❌ Prescriptions: ${error.message}`);
+            }
+            
+            // Display results
+            resultsDiv.innerHTML = results.map(result => `<p>${result}</p>`).join('');
+        }
+        
+        // Run test when page loads
+        testConnection();
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 

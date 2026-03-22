@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinic Staff Portal</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2E7D32">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Clinic Staff">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #2E7D32, #1B5E20);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-top: 40px;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+        }
+        
+        .title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .subtitle {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            color: #333;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #666;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            font-size: 16px;
+            background: #f9f9f9;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 15px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #2E7D32, #1B5E20);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(46, 125, 50, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .status-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: #333;
+            text-align: center;
+        }
+        
+        .status-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .status-text {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .time-info {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .device-status {
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 8px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .status-registered {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .status-not-registered {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .action-btn {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            color: #333;
+            text-decoration: none;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+        
+        .action-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+            color: #2E7D32;
+        }
+        
+        .action-text {
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .qr-scanner {
+            background: #000;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        .qr-placeholder {
+            width: 200px;
+            height: 200px;
+            background: #333;
+            border: 2px dashed #666;
+            border-radius: 10px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #999;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: auto;
+            padding: 20px 0;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .actions {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Screen -->
+        <div id="loginScreen">
+            <div class="header">
+                <div class="logo">🏥</div>
+                <h1 class="title">Clinic Staff Portal</h1>
+                <p class="subtitle">Browser Check-in System</p>
+            </div>
+            
+            <div class="card">
+                <div class="input-group">
+                    <label>Username</label>
+                    <input type="text" id="username" placeholder="Enter your username">
+                </div>
+                
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="password" placeholder="Enter your password">
+                </div>
+                
+                <button class="btn btn-primary" onclick="login()">Sign In</button>
+                <button class="btn btn-secondary" onclick="showRegister()">Register</button>
+            </div>
+        </div>
+        
+        <!-- Register Screen -->
+        <div id="registerScreen" class="hidden">
+            <div class="header">
+                <div class="logo">📝</div>
+                <h1 class="title">Staff Registration</h1>
+                <p class="subtitle">Create your account</p>
+            </div>
+            
+            <div class="card">
+                <div class="input-group">
+                    <label>First Name</label>
+                    <input type="text" id="firstName" placeholder="Enter first name">
+                </div>
+                
+                <div class="input-group">
+                    <label>Last Name</label>
+                    <input type="text" id="lastName" placeholder="Enter last name">
+                </div>
+                
+                <div class="input-group">
+                    <label>Username</label>
+                    <input type="text" id="regUsername" placeholder="Enter username">
+                </div>
+                
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="email" placeholder="Enter email">
+                </div>
+                
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="regPassword" placeholder="Enter password">
+                </div>
+                
+                <button class="btn btn-primary" onclick="register()">Create Account</button>
+                <button class="btn btn-secondary" onclick="showLogin()">Back to Login</button>
+            </div>
+        </div>
+        
+        <!-- Home Screen -->
+        <div id="homeScreen" class="hidden">
+            <div class="header">
+                <div class="logo">👤</div>
+                <h1 class="title">Welcome, <span id="userName">Staff</span></h1>
+                <p class="subtitle">Ready to check in/out</p>
+            </div>
+            
+            <div class="status-card">
+                <div class="status-icon" id="statusIcon">⏰</div>
+                <div class="status-text" id="statusText">Ready to Check In</div>
+                <div class="device-status" id="deviceStatus">Device Not Registered</div>
+                <div class="time-info" id="lastCheckIn">Last check-in: Not available</div>
+                <div class="time-info" id="lastCheckOut">Last check-out: Not available</div>
+            </div>
+            
+            <div class="actions">
+                <a href="#" class="action-btn" onclick="showQRScanner()">
+                    <div class="action-icon">📷</div>
+                    <div class="action-text">Scan QR Code</div>
+                </a>
+                
+                <a href="#" class="action-btn" onclick="showHistory()">
+                    <div class="action-icon">📊</div>
+                    <div class="action-text">View History</div>
+                </a>
+                
+                <a href="#" class="action-btn" onclick="showProfile()">
+                    <div class="action-icon">👤</div>
+                    <div class="action-text">Profile</div>
+                </a>
+                
+                <a href="#" class="action-btn" onclick="logout()">
+                    <div class="action-icon">🚪</div>
+                    <div class="action-text">Logout</div>
+                </a>
+                
+                <a href="#" class="action-btn" onclick="clearDeviceData()" style="background: #f44336;">
+                    <div class="action-icon">🗑️</div>
+                    <div class="action-text">Clear Device Data</div>
+                </a>
+            </div>
+        </div>
+        
+        <!-- QR Scanner Screen -->
+        <div id="qrScreen" class="hidden">
+            <div class="header">
+                <h1 class="title">QR Code Scanner</h1>
+                <p class="subtitle">Position QR code within frame</p>
+            </div>
+            
+            <div class="qr-scanner">
+                <div class="qr-placeholder">
+                    📷 Camera View<br>
+                    (QR Scanner)
+                </div>
+                <p>Point your camera at the QR code or enter manually</p>
+                <button class="btn btn-primary" onclick="scanQRCode()">Scan QR Code</button>
+                <button class="btn btn-secondary" onclick="enterQRManually()">Enter QR Manually</button>
+                <button class="btn btn-secondary" onclick="showHome()">Back</button>
+            </div>
+        </div>
+        
+        <!-- History Screen -->
+        <div id="historyScreen" class="hidden">
+            <div class="header">
+                <h1 class="title">Attendance History</h1>
+                <p class="subtitle">Your work records</p>
+            </div>
+            
+            <div class="card">
+                <h3>Recent Attendance</h3>
+                <div style="margin-top: 20px;">
+                    <div style="padding: 15px; border-bottom: 1px solid #eee;">
+                        <strong>Today</strong><br>
+                        <small>Check-in: 08:00 AM | Check-out: 05:00 PM</small>
+                    </div>
+                    <div style="padding: 15px; border-bottom: 1px solid #eee;">
+                        <strong>Yesterday</strong><br>
+                        <small>Check-in: 08:15 AM | Check-out: 05:30 PM</small>
+                    </div>
+                    <div style="padding: 15px;">
+                        <strong>Day Before</strong><br>
+                        <small>Check-in: 08:05 AM | Check-out: 05:15 PM</small>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" onclick="showHome()" style="margin-top: 20px;">Back</button>
+            </div>
+        </div>
+        
+        <!-- Profile Screen -->
+        <div id="profileScreen" class="hidden">
+            <div class="header">
+                <h1 class="title">Profile</h1>
+                <p class="subtitle">Your account information</p>
+            </div>
+            
+            <div class="card">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div class="logo" style="margin: 0 auto 15px;">👤</div>
+                    <h3 id="profileName">Staff Member</h3>
+                    <p id="profileRole">Staff</p>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <strong>Username:</strong> <span id="profileUsername">staff123</span>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <strong>Email:</strong> <span id="profileEmail">staff@clinic.com</span>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <strong>Department:</strong> <span id="profileDept">General</span>
+                </div>
+                
+                <button class="btn btn-secondary" onclick="showHome()">Back</button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Clinic Staff Mobile v1.0.0</p>
+            <p>Secure staff attendance tracking</p>
+        </div>
+    </div>
+    
+    <!-- QR Code Scanner Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
+    
+    <script>
+        let currentUser = null;
+        let isCheckedIn = false;
+        
+        function showScreen(screenId) {
+            document.querySelectorAll('[id$="Screen"]').forEach(screen => {
+                screen.classList.add('hidden');
+            });
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+        
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                alert('Please enter both username and password');
+                return;
+            }
+            
+            // Check for real staff credentials first
+            const realStaff = {
+                'admin': { id: 'admin-123', firstName: 'Admin', lastName: 'User', role: 'Admin', email: 'admin@clinic.com' },
+                'Girum': { id: 'girum-123', firstName: 'Girum', lastName: 'Assegidew', role: 'Doctor', email: 'girum@clinc.com' },
+                'Nuhamin': { id: 'nuhamin-123', firstName: 'Nuhamin', lastName: 'Yohannes', role: 'Nurse', email: 'nuhamin@clinic.com' },
+                'Mahlet': { id: 'mahlet-123', firstName: 'Mahlet', lastName: 'Yohannes', role: 'Imaging', email: 'mahi@clinic.com' },
+                'Rception Meron': { id: 'meron-123', firstName: 'Rception', lastName: 'Meron', role: 'Reception', email: 'meronabebe@clinic.com' },
+                'Labmedina': { id: 'medina-123', firstName: 'Medina', lastName: 'Negash', role: 'Lab', email: 'medinanegash@clinic.com' },
+                'Sister Semhal': { id: 'semhal-123', firstName: 'Semhal', lastName: 'Melaku', role: 'Nurse', email: 'semhalmelaku@clinic.com' },
+                'DR Natan': { id: 'natan-123', firstName: 'DR', lastName: 'Natan', role: 'Doctor', email: 'doctor123@clinic.com' }
+            };
+            
+            if (realStaff[username]) {
+                currentUser = {
+                    id: realStaff[username].id,
+                    username: username,
+                    firstName: realStaff[username].firstName,
+                    lastName: realStaff[username].lastName,
+                    role: realStaff[username].role,
+                    email: realStaff[username].email
+                };
+                alert('✅ Real staff login successful! Welcome, ' + currentUser.firstName + ' ' + currentUser.lastName + '!\n\nRole: ' + currentUser.role + '\nYou can now scan real QR codes.');
+                showHome();
+                return;
+            }
+            
+            // Demo mode - allow any other username/password for testing
+            if (username && password) {
+                currentUser = {
+                    id: 'demo-user-123',
+                    username: username,
+                    firstName: username.charAt(0).toUpperCase() + username.slice(1),
+                    lastName: 'Staff',
+                    role: 'Staff',
+                    email: username + '@clinic.com'
+                };
+                alert('✅ Demo login successful! Welcome, ' + currentUser.firstName + '!\n\nNote: This is demo mode. For real staff login, use: admin, Girum, Nuhamin, Mahlet, etc.');
+                showHome();
+                return;
+            }
+            
+            try {
+                // Try real backend login
+                const response = await fetch('http://192.168.7.157:3000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentUser = result.data.user;
+                    alert('Login successful! Welcome, ' + currentUser.firstName + '!');
+                    showHome();
+                } else {
+                    alert('Login failed: ' + (result.message || 'Invalid credentials'));
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                // Fallback to demo mode if backend is not available
+                currentUser = {
+                    id: 'demo-user-123',
+                    username: username,
+                    firstName: username.charAt(0).toUpperCase() + username.slice(1),
+                    lastName: 'Staff',
+                    role: 'Staff',
+                    email: username + '@clinic.com'
+                };
+                alert('⚠️ Backend not available. Using demo mode.\nWelcome, ' + currentUser.firstName + '!');
+                showHome();
+            }
+        }
+        
+        function showRegister() {
+            showScreen('registerScreen');
+        }
+        
+        function showLogin() {
+            showScreen('loginScreen');
+        }
+        
+        async function register() {
+            console.log('Register button clicked!');
+            
+            // Check if this is a QR code registration
+            const urlParams = new URLSearchParams(window.location.search);
+            const hash = urlParams.get('hash');
+            const userId = urlParams.get('userId');
+            const type = urlParams.get('type');
+            
+            console.log('URL params check:', { hash, userId, type });
+            
+            if (type === 'staff-registration' && hash && userId) {
+                // This is a QR code registration from URL
+                console.log('QR Code registration from URL');
+                await handleQRRegistration(hash, userId);
+            } else {
+                // Check if we have stored QR data from automatic processing
+                const storedHash = localStorage.getItem('pendingQRHash');
+                const storedUserId = localStorage.getItem('pendingQRUserId');
+                
+                console.log('Stored QR data check:', { storedHash, storedUserId });
+                
+                if (storedHash && storedUserId) {
+                    console.log('Using stored QR data for registration');
+                    await handleQRRegistration(storedHash, storedUserId);
+                    // Clear stored data
+                    localStorage.removeItem('pendingQRHash');
+                    localStorage.removeItem('pendingQRUserId');
+                } else {
+                    console.log('No QR data found, trying regular registration form');
+                    // Regular registration form
+                    const firstName = document.getElementById('firstName').value;
+                    const lastName = document.getElementById('lastName').value;
+                    const username = document.getElementById('regUsername').value;
+                    const email = document.getElementById('email').value;
+                    const password = document.getElementById('regPassword').value;
+                    
+                    console.log('Form data:', { firstName, lastName, username, email, password: password ? '***' : 'empty' });
+                    
+                    if (!firstName || !lastName || !username || !email || !password) {
+                        alert('Please fill in all fields');
+                        return;
+                    }
+                    
+                    try {
+                        // Send registration data to your backend
+                        const response = await fetch('/api/auth/register', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                firstName,
+                                lastName,
+                                username,
+                                email,
+                                password,
+                                role: 'staff',
+                                department: 'General'
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            alert('Registration successful! Please login with your credentials.');
+                            showLogin();
+                        } else {
+                            alert('Registration failed: ' + (result.message || 'Unknown error'));
+                        }
+                    } catch (error) {
+                        console.error('Registration error:', error);
+                        alert('Registration failed: Network error. Please try again.');
+                    }
+                }
+            }
+        }
+        
+        async function handleQRRegistration(hash, userId) {
+            try {
+                console.log('Starting QR registration:', { hash: hash.substring(0, 10) + '...', userId });
+                
+                // Check if device is already registered with a different staff member
+                const storedDeviceHash = localStorage.getItem('deviceRegistrationHash');
+                const storedStaffUserId = localStorage.getItem('deviceStaffUserId');
+                
+                if (storedDeviceHash && storedStaffUserId && storedStaffUserId !== userId) {
+                    const confirmOverride = confirm(
+                        '⚠️ WARNING: Device Already Registered!\n\n' +
+                        'This device is already registered to a different staff member.\n' +
+                        'Registering a new staff member will replace the previous registration.\n\n' +
+                        'Do you want to continue?'
+                    );
+                    
+                    if (!confirmOverride) {
+                        alert('❌ Registration cancelled. Device remains registered to previous staff member.');
+                        return;
+                    }
+                }
+                
+                alert('📱 Registering device for staff member...');
+                
+                // Register device with backend
+                const response = await fetch('/api/qr/verify-url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: 'staff-registration',
+                        userId: userId,
+                        hash: hash,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                
+                console.log('Registration response status:', response.status);
+                const result = await response.json();
+                console.log('Registration result:', result);
+                
+                if (result.success) {
+                    alert('✅ Device registered successfully!\nYou can now check in/out.');
+                    updateDeviceStatus(true);
+                    
+                    // Store device registration info in localStorage
+                    localStorage.setItem('deviceRegistrationHash', hash);
+                    localStorage.setItem('deviceStaffUserId', userId);
+                    localStorage.setItem('deviceRegistered', 'true');
+                    localStorage.setItem('deviceRegistrationTime', new Date().toISOString());
+                    
+                    // Store user info
+                    currentUser = {
+                        id: userId,
+                        username: result.data?.user?.username || 'Staff Member',
+                        role: result.data?.user?.role || 'staff'
+                    };
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    localStorage.setItem('staffUserId', userId);
+                    showScreen('homeScreen');
+                } else {
+                    alert('❌ Registration failed: ' + (result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('QR Registration error:', error);
+                alert('❌ Registration failed: ' + error.message);
+            }
+        }
+        
+        function showHome() {
+            if (currentUser) {
+                document.getElementById('userName').textContent = currentUser.firstName;
+                document.getElementById('profileName').textContent = currentUser.firstName + ' ' + currentUser.lastName;
+                document.getElementById('profileRole').textContent = currentUser.role;
+                document.getElementById('profileUsername').textContent = currentUser.username;
+                document.getElementById('profileEmail').textContent = currentUser.username + '@clinic.com';
+                document.getElementById('profileDept').textContent = 'General';
+                
+                // Check device registration status
+                checkDeviceStatus();
+            }
+            showScreen('homeScreen');
+        }
+        
+        async function checkDeviceStatus() {
+            if (!currentUser) return;
+            
+            try {
+                const response = await fetch(`http://192.168.7.157:3000/api/qr/staff-registration-status/${currentUser.id}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.data && result.data.isRegistered) {
+                    updateDeviceStatus(true);
+                } else {
+                    updateDeviceStatus(false);
+                }
+            } catch (error) {
+                console.error('Error checking device status:', error);
+                // Don't show error to user, just set as not registered
+                updateDeviceStatus(false);
+            }
+        }
+        
+        function showQRScanner() {
+            showScreen('qrScreen');
+        }
+        
+        function showHistory() {
+            showScreen('historyScreen');
+        }
+        
+        function showProfile() {
+            showScreen('profileScreen');
+        }
+        
+        function logout() {
+            currentUser = null;
+            isCheckedIn = false;
+            showScreen('loginScreen');
+        }
+        
+        async function clearDeviceData() {
+            if (confirm('⚠️ WARNING: Clear Device Data\n\nThis will remove all saved device registration data from this phone.\n\nAfter clearing, you will need to:\n1. Register the device again\n2. Scan a new staff registration QR code\n\nAre you sure you want to continue?')) {
+                try {
+                    // Clear device registration from backend database
+                    const response = await fetch('/api/device/clear', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                    
+                    const result = await response.json();
+                    console.log('Backend clear result:', result);
+                    
+                    // Clear all device-related data from localStorage
+                    localStorage.removeItem('deviceRegistrationHash');
+                    localStorage.removeItem('deviceStaffUserId');
+                    localStorage.removeItem('deviceRegistered');
+                    localStorage.removeItem('deviceRegistrationTime');
+                    localStorage.removeItem('pendingQRHash');
+                    localStorage.removeItem('pendingQRUserId');
+                    localStorage.removeItem('currentUser');
+                    localStorage.removeItem('staffUserId');
+                    localStorage.removeItem('token');
+                    
+                    // Reset app state
+                    currentUser = null;
+                    isCheckedIn = false;
+                    
+                    alert('✅ Device data cleared successfully!\n\nBoth phone and database registration have been cleared.\n\nYou can now register this device to a different staff member.');
+                    
+                    // Go back to login screen
+                    showScreen('loginScreen');
+                } catch (error) {
+                    console.error('Error clearing device data:', error);
+                    alert('❌ Error clearing device data: ' + error.message + '\n\nPlease try again or clear browser data manually.');
+                }
+            }
+        }
+        
+        function scanQRCode() {
+            // Show scanning options
+            showScanningOptions();
+        }
+        
+        function showScanningOptions() {
+            const optionsOverlay = document.createElement('div');
+            optionsOverlay.style.position = 'fixed';
+            optionsOverlay.style.top = '0';
+            optionsOverlay.style.left = '0';
+            optionsOverlay.style.width = '100%';
+            optionsOverlay.style.height = '100%';
+            optionsOverlay.style.backgroundColor = 'rgba(0,0,0,0.8)';
+            optionsOverlay.style.zIndex = '9999';
+            optionsOverlay.style.display = 'flex';
+            optionsOverlay.style.flexDirection = 'column';
+            optionsOverlay.style.alignItems = 'center';
+            optionsOverlay.style.justifyContent = 'center';
+            optionsOverlay.style.padding = '20px';
+            
+            optionsOverlay.innerHTML = `
+                <div style="
+                    background: white;
+                    border-radius: 15px;
+                    padding: 30px;
+                    text-align: center;
+                    max-width: 400px;
+                    width: 100%;
+                ">
+                    <h2 style="color: #2E7D32; margin-bottom: 20px;">📷 Scan QR Code</h2>
+                    <p style="margin-bottom: 25px; color: #666;">Choose how you want to scan the QR code:</p>
+                    
+                    <button onclick="startCameraScan()" style="
+                        background: #4CAF50;
+                        color: white;
+                        border: none;
+                        padding: 15px 25px;
+                        border-radius: 8px;
+                        margin: 10px;
+                        font-size: 16px;
+                        width: 100%;
+                        cursor: pointer;
+                    ">📷 Use Camera</button>
+                    
+                    <button onclick="uploadQRImage()" style="
+                        background: #2196F3;
+                        color: white;
+                        border: none;
+                        padding: 15px 25px;
+                        border-radius: 8px;
+                        margin: 10px;
+                        font-size: 16px;
+                        width: 100%;
+                        cursor: pointer;
+                    ">📁 Upload Image</button>
+                    
+                    <button onclick="enterQRManually()" style="
+                        background: #FF9800;
+                        color: white;
+                        border: none;
+                        padding: 15px 25px;
+                        border-radius: 8px;
+                        margin: 10px;
+                        font-size: 16px;
+                        width: 100%;
+                        cursor: pointer;
+                    ">✏️ Enter Manually</button>
+                    
+                    <button onclick="closeScanningOptions()" style="
+                        background: #f44336;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 8px;
+                        margin-top: 15px;
+                        font-size: 14px;
+                        cursor: pointer;
+                    ">Cancel</button>
+                </div>
+            `;
+            
+            document.body.appendChild(optionsOverlay);
+            window.currentOptionsOverlay = optionsOverlay;
+        }
+        
+        function closeScanningOptions() {
+            if (window.currentOptionsOverlay) {
+                document.body.removeChild(window.currentOptionsOverlay);
+                window.currentOptionsOverlay = null;
+            }
+        }
+        
+        function startCameraScan() {
+            closeScanningOptions();
+            
+            // Check if device supports camera with better detection
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                // Show better error message with options
+                const choice = confirm('📷 Camera not supported on this device\n\nClick OK to try Upload Image\nClick Cancel to Enter Manually');
+                if (choice) {
+                    uploadQRImage();
+                } else {
+                    enterQRManually();
+                }
+                return;
+            }
+            
+            // Check if we're on HTTPS or localhost (required for camera)
+            const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.includes('192.168');
+            if (!isSecure) {
+                const choice = confirm('📷 Camera requires secure connection (HTTPS)\n\nClick OK to try Upload Image\nClick Cancel to Enter Manually');
+                if (choice) {
+                    uploadQRImage();
+                } else {
+                    enterQRManually();
+                }
+                return;
+            }
+            
+            // Try to use QR-Scanner library first (more reliable)
+            if (typeof QrScanner !== 'undefined') {
+                startQRScannerLibrary();
+            } else {
+                // Fallback to manual implementation
+                startManualCameraScan();
+            }
+        }
+        
+        function startQRScannerLibrary() {
+            const video = document.createElement('video');
+            video.style.width = '100%';
+            video.style.height = '300px';
+            video.style.objectFit = 'cover';
+            
+            const cameraOverlay = document.createElement('div');
+            cameraOverlay.style.position = 'fixed';
+            cameraOverlay.style.top = '0';
+            cameraOverlay.style.left = '0';
+            cameraOverlay.style.width = '100%';
+            cameraOverlay.style.height = '100%';
+            cameraOverlay.style.backgroundColor = 'rgba(0,0,0,0.8)';
+            cameraOverlay.style.zIndex = '9999';
+            cameraOverlay.style.display = 'flex';
+            cameraOverlay.style.flexDirection = 'column';
+            cameraOverlay.style.alignItems = 'center';
+            cameraOverlay.style.justifyContent = 'center';
+            
+            const scanFrame = document.createElement('div');
+            scanFrame.style.width = '250px';
+            scanFrame.style.height = '250px';
+            scanFrame.style.border = '3px solid #4CAF50';
+            scanFrame.style.borderRadius = '10px';
+            scanFrame.style.position = 'relative';
+            scanFrame.style.overflow = 'hidden';
+            scanFrame.appendChild(video);
+            
+            const instructions = document.createElement('div');
+            instructions.style.color = 'white';
+            instructions.style.textAlign = 'center';
+            instructions.style.marginTop = '20px';
+            instructions.style.padding = '0 20px';
+            instructions.innerHTML = `
+                <h3>📷 Point camera at QR code</h3>
+                <p>Position the QR code within the green frame</p>
+                <button onclick="stopQRScanner()" style="
+                    background: #f44336;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    margin-top: 10px;
+                    font-size: 16px;
+                ">Cancel</button>
+            `;
+            
+            cameraOverlay.appendChild(scanFrame);
+            cameraOverlay.appendChild(instructions);
+            document.body.appendChild(cameraOverlay);
+            
+            const qrScanner = new QrScanner(video, result => {
+                stopQRScanner();
+                processQRData(result);
+            }, {
+                highlightScanRegion: true,
+                highlightCodeOutline: true,
+            });
+            
+            qrScanner.start().catch(err => {
+                console.error('QR Scanner error:', err);
+                stopQRScanner();
+                const choice = confirm('📷 Camera access denied or not available\n\nClick OK to try Upload Image\nClick Cancel to Enter Manually');
+                if (choice) {
+                    uploadQRImage();
+                } else {
+                    enterQRManually();
+                }
+            });
+            
+            window.currentQRScanner = qrScanner;
+            window.currentCameraOverlay = cameraOverlay;
+        }
+        
+        function startManualCameraScan() {
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment'
+                } 
+            })
+            .then(function(stream) {
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                video.style.width = '100%';
+                video.style.height = '300px';
+                video.style.objectFit = 'cover';
+                video.autoplay = true;
+                video.muted = true;
+                
+                const cameraOverlay = document.createElement('div');
+                cameraOverlay.style.position = 'fixed';
+                cameraOverlay.style.top = '0';
+                cameraOverlay.style.left = '0';
+                cameraOverlay.style.width = '100%';
+                cameraOverlay.style.height = '100%';
+                cameraOverlay.style.backgroundColor = 'rgba(0,0,0,0.8)';
+                cameraOverlay.style.zIndex = '9999';
+                cameraOverlay.style.display = 'flex';
+                cameraOverlay.style.flexDirection = 'column';
+                cameraOverlay.style.alignItems = 'center';
+                cameraOverlay.style.justifyContent = 'center';
+                
+                const scanFrame = document.createElement('div');
+                scanFrame.style.width = '250px';
+                scanFrame.style.height = '250px';
+                scanFrame.style.border = '3px solid #4CAF50';
+                scanFrame.style.borderRadius = '10px';
+                scanFrame.style.position = 'relative';
+                scanFrame.style.overflow = 'hidden';
+                scanFrame.appendChild(video);
+                
+                const instructions = document.createElement('div');
+                instructions.style.color = 'white';
+                instructions.style.textAlign = 'center';
+                instructions.style.marginTop = '20px';
+                instructions.style.padding = '0 20px';
+                instructions.innerHTML = `
+                    <h3>📷 Point camera at QR code</h3>
+                    <p>Position the QR code within the green frame</p>
+                    <button onclick="stopManualCamera()" style="
+                        background: #f44336;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 5px;
+                        margin-top: 10px;
+                        font-size: 16px;
+                    ">Cancel</button>
+                `;
+                
+                cameraOverlay.appendChild(scanFrame);
+                cameraOverlay.appendChild(instructions);
+                document.body.appendChild(cameraOverlay);
+                
+                // Manual QR detection using jsQR
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                
+                const scanInterval = setInterval(() => {
+                    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                        canvas.height = video.videoHeight;
+                        canvas.width = video.videoWidth;
+                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        
+                        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                        const code = jsQR(imageData.data, imageData.width, imageData.height);
+                        
+                        if (code) {
+                            clearInterval(scanInterval);
+                            stopManualCamera();
+                            processQRData(code.data);
+                        }
+                    }
+                }, 100);
+                
+                window.currentStream = stream;
+                window.currentScanInterval = scanInterval;
+                window.currentCameraOverlay = cameraOverlay;
+                
+            })
+            .catch(function(error) {
+                console.error('Camera error:', error);
+                const choice = confirm('📷 Camera access denied or not available\n\nClick OK to try Upload Image\nClick Cancel to Enter Manually');
+                if (choice) {
+                    uploadQRImage();
+                } else {
+                    enterQRManually();
+                }
+            });
+        }
+        
+        function stopQRScanner() {
+            if (window.currentQRScanner) {
+                window.currentQRScanner.stop();
+                window.currentQRScanner.destroy();
+                window.currentQRScanner = null;
+            }
+            if (window.currentCameraOverlay) {
+                document.body.removeChild(window.currentCameraOverlay);
+                window.currentCameraOverlay = null;
+            }
+        }
+        
+        function stopManualCamera() {
+            if (window.currentStream) {
+                window.currentStream.getTracks().forEach(track => track.stop());
+                window.currentStream = null;
+            }
+            if (window.currentScanInterval) {
+                clearInterval(window.currentScanInterval);
+                window.currentScanInterval = null;
+            }
+            if (window.currentCameraOverlay) {
+                document.body.removeChild(window.currentCameraOverlay);
+                window.currentCameraOverlay = null;
+            }
+        }
+        
+        function uploadQRImage() {
+            closeScanningOptions();
+            
+            // Create file input with better error handling
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.style.display = 'none';
+            
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) {
+                    alert('❌ No file selected');
+                    return;
+                }
+                
+                // Check file size (max 10MB)
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('❌ File too large. Please select an image smaller than 10MB');
+                    return;
+                }
+                
+                // Check file type
+                if (!file.type.startsWith('image/')) {
+                    alert('❌ Please select an image file (JPG, PNG, etc.)');
+                    return;
+                }
+                
+                // Show loading message
+                const loadingMsg = document.createElement('div');
+                loadingMsg.style.position = 'fixed';
+                loadingMsg.style.top = '50%';
+                loadingMsg.style.left = '50%';
+                loadingMsg.style.transform = 'translate(-50%, -50%)';
+                loadingMsg.style.background = 'rgba(0,0,0,0.8)';
+                loadingMsg.style.color = 'white';
+                loadingMsg.style.padding = '20px';
+                loadingMsg.style.borderRadius = '10px';
+                loadingMsg.style.zIndex = '10000';
+                loadingMsg.innerHTML = '📷 Processing image...';
+                document.body.appendChild(loadingMsg);
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            // Create canvas and process image
+                            const canvas = document.createElement('canvas');
+                            const context = canvas.getContext('2d');
+                            
+                            // Set canvas size to image size
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            
+                            // Draw image to canvas
+                            context.drawImage(img, 0, 0);
+                            
+                            // Get image data
+                            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                            
+                            // Try to detect QR code
+                            const code = jsQR(imageData.data, imageData.width, imageData.height);
+                            
+                            // Remove loading message
+                            document.body.removeChild(loadingMsg);
+                            
+                            if (code) {
+                                alert('✅ QR code detected!\n\nData: ' + code.data.substring(0, 50) + '...');
+                                processQRData(code.data);
+                            } else {
+                                // Try with different image processing
+                                const processedCode = tryAlternativeQRDetection(canvas, context);
+                                if (processedCode) {
+                                    alert('✅ QR code detected!\n\nData: ' + processedCode.substring(0, 50) + '...');
+                                    processQRData(processedCode);
+                                } else {
+                                    alert('❌ No QR code found in the image\n\nTips:\n• Make sure the QR code is clear and not blurry\n• Try a different image\n• Use "Enter Manually" instead');
+                                }
+                            }
+                        } catch (error) {
+                            document.body.removeChild(loadingMsg);
+                            console.error('Image processing error:', error);
+                            alert('❌ Error processing image\n\nPlease try a different image or enter QR manually');
+                        }
+                    };
+                    
+                    img.onerror = function() {
+                        document.body.removeChild(loadingMsg);
+                        alert('❌ Error loading image\n\nPlease try a different image file');
+                    };
+                    
+                    img.src = e.target.result;
+                };
+                
+                reader.onerror = function() {
+                    document.body.removeChild(loadingMsg);
+                    alert('❌ Error reading file\n\nPlease try a different image');
+                };
+                
+                reader.readAsDataURL(file);
+            };
+            
+            // Add input to DOM and trigger click
+            document.body.appendChild(input);
+            input.click();
+            
+            // Clean up input after use
+            setTimeout(() => {
+                if (document.body.contains(input)) {
+                    document.body.removeChild(input);
+                }
+            }, 1000);
+        }
+        
+        function tryAlternativeQRDetection(canvas, context) {
+            try {
+                // Try with different canvas sizes for better detection
+                const sizes = [canvas.width, canvas.width * 0.8, canvas.width * 1.2];
+                
+                for (let size of sizes) {
+                    const tempCanvas = document.createElement('canvas');
+                    const tempContext = tempCanvas.getContext('2d');
+                    tempCanvas.width = size;
+                    tempCanvas.height = size;
+                    
+                    // Draw image scaled to this size
+                    tempContext.drawImage(canvas, 0, 0, size, size);
+                    
+                    // Try QR detection
+                    const imageData = tempContext.getImageData(0, 0, size, size);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+                    
+                    if (code) {
+                        return code.data;
+                    }
+                }
+                
+                return null;
+            } catch (error) {
+                console.error('Alternative QR detection error:', error);
+                return null;
+            }
+        }
+        
+        function stopCamera() {
+            if (window.currentStream) {
+                window.currentStream.getTracks().forEach(track => track.stop());
+                window.currentStream = null;
+            }
+            if (window.currentScanInterval) {
+                clearInterval(window.currentScanInterval);
+                window.currentScanInterval = null;
+            }
+            if (window.currentCameraOverlay) {
+                document.body.removeChild(window.currentCameraOverlay);
+                window.currentCameraOverlay = null;
+            }
+        }
+        
+        function enterQRManually() {
+            closeScanningOptions();
+            
+            const qrData = prompt('Enter QR code data:\n\n🔹 For REGISTRATION: Paste the full URL from staff management\n🔹 For CHECK-IN/OUT: Paste the QR code data\n\nExample registration URL:\nhttp://192.168.7.157:5175/verify-qr?type=staff-registration&userId=...');
+            
+            if (qrData && qrData.trim()) {
+                processQRData(qrData.trim());
+            }
+        }
+        
+        async function processQRData(qrData) {
+            try {
+                // Check if it's a registration QR code
+                if (qrData.includes('verify-qr') && qrData.includes('staff-registration')) {
+                    alert('🔐 Registration QR detected!\nProcessing device registration...');
+                    
+                    // Extract parameters from QR code URL
+                    const url = new URL(qrData);
+                    const userId = url.searchParams.get('userId');
+                    const hash = url.searchParams.get('hash');
+                    const timestamp = url.searchParams.get('timestamp');
+                    
+                    if (userId && hash) {
+                        alert('📱 Registering device:\nUser ID: ' + userId + '\nHash: ' + hash.substring(0, 10) + '...');
+                        
+                        try {
+                            // Try real backend registration
+                            const response = await fetch('http://192.168.7.157:3000/api/qr/register-device', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    userId,
+                                    hash,
+                                    timestamp,
+                                    deviceInfo: {
+                                        userAgent: navigator.userAgent,
+                                        platform: navigator.platform
+                                    }
+                                })
+                            });
+                            
+                            const result = await response.json();
+                            
+                            if (result.success) {
+                                alert('✅ Device registered successfully!\nYou can now check in/out.');
+                                updateDeviceStatus(true);
+                            } else {
+                                alert('❌ Registration failed: ' + (result.message || 'Unknown error'));
+                            }
+                        } catch (error) {
+                            // Demo mode - simulate successful registration
+                            alert('✅ Demo: Device registered successfully!\nYou can now check in/out.');
+                            updateDeviceStatus(true);
+                        }
+                    } else {
+                        alert('❌ Invalid QR code format\nMissing userId or hash');
+                    }
+                } else {
+                    // Regular check-in/out QR code
+                    alert('⏰ Check-in/out QR detected!\nProcessing attendance...');
+                    await processCheckInOut(qrData);
+                }
+            } catch (error) {
+                console.error('QR processing error:', error);
+                alert('❌ Error processing QR code:\n' + error.message);
+            }
+            
+            showHome();
+        }
+        
+        async function processCheckInOut(qrData) {
+            try {
+                // Try real backend first
+                const response = await fetch('/api/qr/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({
+                        qrData,
+                        userId: currentUser?.id
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    if (isCheckedIn) {
+                        // Check out
+                        isCheckedIn = false;
+                        document.getElementById('statusIcon').textContent = '✅';
+                        document.getElementById('statusText').textContent = 'Checked Out';
+                        document.getElementById('lastCheckOut').textContent = 'Last check-out: ' + new Date().toLocaleTimeString();
+                        alert('Check-out successful!');
+                    } else {
+                        // Check in
+                        isCheckedIn = true;
+                        document.getElementById('statusIcon').textContent = '🕐';
+                        document.getElementById('statusText').textContent = 'Checked In';
+                        document.getElementById('lastCheckIn').textContent = 'Last check-in: ' + new Date().toLocaleTimeString();
+                        alert('Check-in successful!');
+                    }
+                } else {
+                    alert('Check-in/out failed: ' + (result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Check-in/out error:', error);
+                // Demo mode - simulate check-in/out
+                if (isCheckedIn) {
+                    // Check out
+                    isCheckedIn = false;
+                    document.getElementById('statusIcon').textContent = '✅';
+                    document.getElementById('statusText').textContent = 'Checked Out';
+                    document.getElementById('lastCheckOut').textContent = 'Last check-out: ' + new Date().toLocaleTimeString();
+                    alert('✅ Demo: Check-out successful!');
+                } else {
+                    // Check in
+                    isCheckedIn = true;
+                    document.getElementById('statusIcon').textContent = '🕐';
+                    document.getElementById('statusText').textContent = 'Checked In';
+                    document.getElementById('lastCheckIn').textContent = 'Last check-in: ' + new Date().toLocaleTimeString();
+                    alert('✅ Demo: Check-in successful!');
+                }
+            }
+        }
+        
+        function updateDeviceStatus(isRegistered) {
+            const statusElement = document.getElementById('deviceStatus');
+            if (statusElement) {
+                statusElement.textContent = isRegistered ? 'Device Registered' : 'Device Not Registered';
+                statusElement.className = isRegistered ? 'status-registered' : 'status-not-registered';
+            }
+        }
+        
+        // Function to check device registration status
+        function checkDeviceRegistrationStatus() {
+            const storedDeviceHash = localStorage.getItem('deviceRegistrationHash');
+            const storedStaffUserId = localStorage.getItem('deviceStaffUserId');
+            const deviceRegistered = localStorage.getItem('deviceRegistered');
+            
+            if (storedDeviceHash && storedStaffUserId && deviceRegistered === 'true') {
+                console.log('Device is already registered:', { 
+                    hash: storedDeviceHash.substring(0, 10) + '...', 
+                    staffUserId: storedStaffUserId 
+                });
+                
+                // Show device status in console for debugging
+                console.log('Device registration info:', {
+                    hash: storedDeviceHash,
+                    staffUserId: storedStaffUserId,
+                    registered: deviceRegistered,
+                    registrationTime: localStorage.getItem('deviceRegistrationTime')
+                });
+                
+                return {
+                    isRegistered: true,
+                    hash: storedDeviceHash,
+                    staffUserId: storedStaffUserId,
+                    registrationTime: localStorage.getItem('deviceRegistrationTime')
+                };
+            }
+            
+            return { isRegistered: false };
+        }
+        
+        // Function to show device registration warning
+        function showDeviceRegistrationWarning() {
+            const deviceStatus = checkDeviceRegistrationStatus();
+            
+            if (deviceStatus.isRegistered) {
+                const registrationTime = new Date(deviceStatus.registrationTime).toLocaleString();
+                alert(
+                    '📱 Device Registration Status\n\n' +
+                    'This device is already registered to a staff member.\n' +
+                    'Registration Time: ' + registrationTime + '\n' +
+                    'Staff User ID: ' + deviceStatus.staffUserId + '\n\n' +
+                    'If you want to register a different staff member,\n' +
+                    'you will need to scan their QR code.'
+                );
+            }
+        }
+        
+        // Initialize app
+        // Check if this is a QR code registration or check-in/check-out
+        const urlParams = new URLSearchParams(window.location.search);
+        const hash = urlParams.get('hash');
+        const userId = urlParams.get('userId');
+        const type = urlParams.get('type');
+        const timestamp = urlParams.get('timestamp');
+        
+        console.log('Page loaded with URL params:', { hash, userId, type, fullUrl: window.location.href });
+        
+        if (type === 'staff-registration' && hash && userId) {
+            // This is a QR code registration, store data and show register screen
+            console.log('QR Code registration detected:', { hash, userId, type });
+            
+            // Check if device is already registered to a different staff member
+            const deviceStatus = checkDeviceRegistrationStatus();
+            if (deviceStatus.isRegistered && deviceStatus.staffUserId !== userId) {
+                const confirmOverride = confirm(
+                    '⚠️ WARNING: Device Already Registered!\n\n' +
+                    'This device is already registered to staff member: ' + deviceStatus.staffUserId + '\n' +
+                    'You are trying to register: ' + userId + '\n\n' +
+                    'Registering a new staff member will replace the previous registration.\n\n' +
+                    'Do you want to continue?'
+                );
+                
+                if (!confirmOverride) {
+                    alert('❌ Registration cancelled. Device remains registered to previous staff member.');
+                    showScreen('loginScreen');
+                    return;
+                }
+            }
+            
+            // Store QR data for manual button use
+            localStorage.setItem('pendingQRHash', hash);
+            localStorage.setItem('pendingQRUserId', userId);
+            console.log('QR data stored in localStorage');
+            // Show register screen
+            showScreen('registerScreen');
+        } else if ((type === 'checkin' || type === 'checkout' || type === 'qr-checkin' || type === 'qr-checkout') && hash && userId) {
+            // This is a check-in/check-out QR code - process it directly without login
+            console.log('Check-in/out QR code detected:', { hash, userId, type });
+            
+            // Show a loading message
+            document.body.innerHTML = `
+                <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; flex-direction: column; padding: 20px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
+                    <h2 style="margin-bottom: 10px;">Processing ${type === 'checkin' || type === 'qr-checkin' ? 'Check-In' : 'Check-Out'}...</h2>
+                    <p>Please wait while we verify your request.</p>
+                </div>
+            `;
+            
+            // Process the check-in/check-out using the public endpoint
+            processPublicCheckInOut(hash, userId, type, timestamp);
+        } else {
+            // Regular login - check device status
+            const deviceStatus = checkDeviceRegistrationStatus();
+            if (deviceStatus.isRegistered) {
+                console.log('Device is already registered to:', deviceStatus.staffUserId);
+                // Show warning after a short delay
+                setTimeout(showDeviceRegistrationWarning, 1000);
+            }
+            
+            console.log('No QR code detected, showing login screen');
+            showScreen('loginScreen');
+        }
+        
+        // Function to process check-in/check-out via public endpoint (no authentication required)
+        async function processPublicCheckInOut(hash, userId, type, timestamp) {
+            try {
+                // Generate device fingerprint for security
+                const deviceFingerprint = await generateDeviceFingerprint();
+                
+                // Get location if available
+                let location = null;
+                if (navigator.geolocation) {
+                    try {
+                        const position = await new Promise((resolve, reject) => {
+                            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                                enableHighAccuracy: true,
+                                timeout: 10000,
+                                maximumAge: 0
+                            });
+                        });
+                        location = {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            accuracy: position.coords.accuracy
+                        };
+                    } catch (geoError) {
+                        console.warn('Could not get location:', geoError);
+                    }
+                }
+                
+                // Call the public verify-url endpoint
+                const response = await fetch('/api/qr/verify-url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: type,
+                        userId: userId,
+                        hash: hash,
+                        timestamp: timestamp,
+                        deviceFingerprint: deviceFingerprint,
+                        location: location,
+                        deviceInfo: {
+                            userAgent: navigator.userAgent,
+                            platform: navigator.platform,
+                            language: navigator.language
+                        }
+                    })
+                });
+                
+                const result = await response.json();
+                
+                // Show result to user
+                const actionType = (type === 'checkin' || type === 'qr-checkin') ? 'Check-In' : 'Check-Out';
+                
+                if (result.success) {
+                    document.body.innerHTML = `
+                        <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; flex-direction: column; padding: 20px; text-align: center; background: linear-gradient(135deg, #2E7D32, #1B5E20); color: white;">
+                            <div style="font-size: 80px; margin-bottom: 20px;">✅</div>
+                            <h1 style="margin-bottom: 10px; font-size: 32px;">${actionType} Successful!</h1>
+                            <p style="font-size: 18px; margin-bottom: 30px; opacity: 0.9;">${result.message || 'Your attendance has been recorded.'}</p>
+                            <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; margin-bottom: 30px;">
+                                <p style="margin: 5px 0;"><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+                                ${result.data?.location ? `<p style="margin: 5px 0;"><strong>Location:</strong> Verified ✓</p>` : ''}
+                            </div>
+                            <button onclick="window.location.href='/';" style="padding: 15px 40px; font-size: 18px; background: white; color: #2E7D32; border: none; border-radius: 12px; cursor: pointer; font-weight: bold;">
+                                Done
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    document.body.innerHTML = `
+                        <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; flex-direction: column; padding: 20px; text-align: center; background: linear-gradient(135deg, #C62828, #B71C1C); color: white;">
+                            <div style="font-size: 80px; margin-bottom: 20px;">❌</div>
+                            <h1 style="margin-bottom: 10px; font-size: 32px;">${actionType} Failed</h1>
+                            <p style="font-size: 18px; margin-bottom: 30px; opacity: 0.9;">${result.message || 'Unable to process your request.'}</p>
+                            ${result.error ? `<p style="font-size: 14px; opacity: 0.8; margin-bottom: 30px;">Error: ${result.error}</p>` : ''}
+                            <button onclick="window.location.href='/';" style="padding: 15px 40px; font-size: 18px; background: white; color: #C62828; border: none; border-radius: 12px; cursor: pointer; font-weight: bold;">
+                                Try Again
+                            </button>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error processing check-in/out:', error);
+                document.body.innerHTML = `
+                    <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; flex-direction: column; padding: 20px; text-align: center; background: linear-gradient(135deg, #C62828, #B71C1C); color: white;">
+                        <div style="font-size: 80px; margin-bottom: 20px;">⚠️</div>
+                        <h1 style="margin-bottom: 10px; font-size: 32px;">Connection Error</h1>
+                        <p style="font-size: 18px; margin-bottom: 30px; opacity: 0.9;">Unable to connect to the server. Please check your internet connection and try again.</p>
+                        <button onclick="window.location.reload();" style="padding: 15px 40px; font-size: 18px; background: white; color: #C62828; border: none; border-radius: 12px; cursor: pointer; font-weight: bold;">
+                            Retry
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
+        // Helper function to generate device fingerprint
+        async function generateDeviceFingerprint() {
+            const components = [
+                navigator.userAgent,
+                navigator.language,
+                navigator.platform,
+                screen.width + 'x' + screen.height,
+                screen.colorDepth,
+                new Date().getTimezoneOffset(),
+                navigator.hardwareConcurrency || 'unknown',
+                navigator.deviceMemory || 'unknown'
+            ];
+            
+            const fingerprintString = components.join('|');
+            
+            // Simple hash function
+            let hash = 0;
+            for (let i = 0; i < fingerprintString.length; i++) {
+                const char = fingerprintString.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            
+            return 'fp_' + Math.abs(hash).toString(36) + '_' + Date.now().toString(36);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,665 @@
+const InventoryItem = require('../models/InventoryItem');
+const atomicDeduction = require('./atomicInventoryDeduction');
+const InventoryTransaction = require('../models/InventoryTransaction');
+const Service = require('../models/Service');
+const labTestInventoryMap = require('../config/labTestInventoryMap');
+
+/**
+ * Comprehensive service for inventory deduction across all departments
+ */
+const inventoryDeductionService = {
+  /**
+   * Deduct inventory for lab tests using the lab test mapping
+   * @param {Object} labOrder - Lab order object
+   * @param {String} userId - User ID performing the action
+   * @returns {Promise<Object|null>} - Inventory transaction result or null
+   */
+  async deductLabInventory(labOrder, userId) {
+    try {
+      console.log(`🔬 [INVENTORY] ========== STARTING LAB INVENTORY DEDUCTION ==========`);
+
+      // ATOMIC LOCK: Try to claim the deduction by setting inventoryDeducted = true
+      // This prevents race conditions from multiple simultaneous calls
+      const LabOrder = require('../models/LabOrder');
+      const lockedOrder = await LabOrder.findOneAndUpdate(
+        { 
+          _id: labOrder._id,
+          inventoryDeducted: { $ne: true } // Only update if NOT already deducted
+        },
+        { 
+          $set: { 
+            inventoryDeducted: true,
+            inventoryDeductedAt: new Date(),
+            inventoryDeductedBy: userId
+          }
+        },
+        { new: true }
+      );
+
+      // If lockedOrder is null, it means another process already claimed the deduction
+      if (!lockedOrder) {
+        console.log(`🔬 [INVENTORY] ⏭️  SKIPPED - Inventory already deducted for lab order ${labOrder._id} (prevented race condition)`);
+        return null;
+      }
+
+      console.log(`🔬 [INVENTORY] ✅ Deduction lock acquired for lab order ${labOrder._id}`);
+      console.log(`🔬 [INVENTORY] Lab Order ID: ${labOrder._id}`);
+      console.log(`🔬 [INVENTORY] Test Name: ${labOrder.testName}`);
+      console.log(`🔬 [INVENTORY] User ID: ${userId}`);
+      console.log(`🔬 [INVENTORY] Processing lab inventory consumption for: ${labOrder.testName}`);
+
+      // Use the lab test inventory mapping to find the correct inventory item
+      const testMapping = labTestInventoryMap[labOrder.testName];
+
+      if (!testMapping) {
+        console.log(`⚠️ [INVENTORY] No inventory mapping found for lab test: ${labOrder.testName}`);
+        console.log(`🔬 [INVENTORY] Available mappings:`, Object.keys(labTestInventoryMap).filter(k => k.toLowerCase().includes('glucose')));
+        return null;
+      }
+
+      console.log(`🔬 [INVENTORY] Found mapping: ${testMapping.itemName}, quantity: ${testMapping.quantity}`);
+      
+      // Find the inventory item by name
+      console.log(`🔬 [INVENTORY] Looking for inventory item: ${testMapping.itemName}`);
+
+      // ✅ UNIFIED INVENTORY: All orders use the same inventory item
+      // For Glucose Test Strips, always use 'service' category where the actual inventory exists
+      let preferredCategory = 'service'; // Default to service category
+      
+      // Override with mapping category if explicitly specified
+      if (testMapping.category) {
+        preferredCategory = testMapping.category;
+        console.log(`🔬 [INVENTORY] Using mapping category '${preferredCategory}'`);
+      } else {
+        console.log(`🔬 [INVENTORY] Using default 'service' category for unified inventory`);
+      }
+
+      console.log(`🔬 [INVENTORY] Preferred category: ${preferredCategory}`);
+
+      // First try to find the preferred category item
+      let inventoryItem = await InventoryItem.findOne({
+        name: { $regex: new RegExp(testMapping.itemName, 'i') },
+        category: preferredCategory,
+        isActive: true
+      });
+
+      // If no preferred category item found, try other categories
+      if (!inventoryItem) {
+        const fallbackCategories = ['laboratory', 'medication', 'service', 'other'].filter(cat => cat !== preferredCategory);
+
+        for (const category of fallbackCategories) {
+          inventoryItem = await InventoryItem.findOne({
+            name: { $regex: new RegExp(testMapping.itemName, 'i') },
+            category: category,
+            isActive: true
+          });
+
+          if (inventoryItem) {
+            console.log(`🔬 [INVENTORY] Found item in fallback category: ${category}`);
+            break;
+          }
+        }
+      }
+
+      // If still no item found, try general search
+      if (!inventoryItem) {
+        inventoryItem = await InventoryItem.findOne({
+          name: { $regex: new RegExp(testMapping.itemName, 'i') },
+          isActive: true
+        });
+      }
+
+      if (!inventoryItem) {
+        console.log(`⚠️ [INVENTORY] No inventory item found for: ${testMapping.itemName}`);
+        console.log(`🔬 [INVENTORY] Searching for similar items...`);
+        const similarItems = await InventoryItem.find({
+          name: { $regex: /glucose/i },
+          isActive: true
+        });
+        console.log(`🔬 [INVENTORY] Similar items found:`, similarItems.map(item => `${item.name} (ID: ${item._id})`));
+        return null;
+      }
+
+      console.log(`🔬 [INVENTORY] Found inventory item: ${inventoryItem.name} (ID: ${inventoryItem._id})`);
+      console.log(`🔬 [INVENTORY] Current quantity: ${inventoryItem.quantity}`);
+
+      // Check if there's enough stock
+      const quantityToConsume = testMapping.quantity || 1;
+      console.log(`🔬 [INVENTORY] Required quantity: ${quantityToConsume}`);
+
+      if (inventoryItem.quantity < quantityToConsume) {
+        console.log(`⚠️ [INVENTORY] Insufficient stock for ${inventoryItem.name}. Available: ${inventoryItem.quantity}, Required: ${quantityToConsume}`);
+        return null;
+      }
+
+      // ✅ CRITICAL: Use atomic database operation to prevent race conditions
+      // This ensures only ONE request can mark the lab order as deducted and proceed
+      
+      console.log(`🔬 [INVENTORY] Attempting atomic lock for lab order:`, {
+        labOrderId: labOrder._id,
+        testName: labOrder.testName,
+        inventoryDeducted: labOrder.inventoryDeducted
+      });
+      
+      const updatedLabOrder = await LabOrder.findOneAndUpdate(
+        {
+          _id: labOrder._id,
+          inventoryDeducted: { $ne: true } // Only update if NOT already deducted
+        },
+        {
+          $set: {
+            inventoryDeducted: true,
+            inventoryDeductedAt: new Date(),
+            inventoryDeductedBy: userId
+          }
+        },
+        { new: true }
+      );
+
+      if (!updatedLabOrder) {
+        console.log(`🔬 [INVENTORY] Lab order ${labOrder._id} already has inventory deducted, skipping`);
+        return {
+          success: true,
+          skipped: true,
+          reason: 'Already deducted (atomic check)',
+          itemName: inventoryItem.name,
+          labOrderId: labOrder._id
+        };
+      }
+
+      console.log(`🔬 [INVENTORY] ✅ Atomic lock acquired for lab order ${labOrder._id}`);
+
+      // Use atomic operation to update inventory quantity
+      console.log(`🔬 [INVENTORY] Performing atomic inventory update...`);
+      const updatedInventoryItem = await InventoryItem.findOneAndUpdate(
+        { 
+          _id: inventoryItem._id, 
+          quantity: { $gte: quantityToConsume } 
+        },
+        {
+          $inc: { quantity: -quantityToConsume },
+          $set: { updatedBy: userId }
+        },
+        { new: true }
+      );
+
+      if (!updatedInventoryItem) {
+        console.log(`⚠️ [INVENTORY] Insufficient stock or item was modified during update`);
+        return null;
+      }
+
+      // Calculate previousQuantity from the atomic update result
+      const previousQuantity = updatedInventoryItem.quantity + quantityToConsume;
+      console.log(`🔬 [INVENTORY] Inventory updated: ${previousQuantity} → ${updatedInventoryItem.quantity}`);
+
+      // Create inventory transaction with cost tracking
+      const unitCost = inventoryItem.costPrice || inventoryItem.purchasePrice || 0;
+      const totalCost = unitCost * quantityToConsume;
+
+      console.log(`🔬 [INVENTORY] Creating transaction...`);
+      console.log(`🔬 [INVENTORY] Unit cost: $${unitCost}, Total cost: $${totalCost}`);
+
+      const transaction = new InventoryTransaction({
+        transactionType: 'medical-use',
+        item: inventoryItem._id,
+        quantity: -quantityToConsume, // Negative because it's being consumed
+        unitCost: unitCost,
+        totalCost: totalCost,
+        reason: `Lab test completed: ${labOrder.testName}`,
+        performedBy: userId,
+        documentReference: labOrder._id, // ✅ ADD LAB ORDER ID FOR DEDUPLICATION
+        previousQuantity: previousQuantity,
+        newQuantity: updatedInventoryItem.quantity,
+        notes: `COGS: $${totalCost.toFixed(2)} for ${labOrder.testName} service`,
+        status: 'completed'
+      });
+
+      console.log(`🔬 [INVENTORY] Saving transaction...`);
+      await transaction.save();
+      console.log(`🔬 [INVENTORY] Transaction saved with ID: ${transaction._id}`);
+      
+      // ✅ SINGLE DEDUCTION: Only deduct from the actual inventory item
+      // No dual deduction - each lab test deducts from ONE inventory item only
+      
+      console.log(`✅ [INVENTORY] Lab inventory deducted: ${inventoryItem.name}. Quantity consumed: ${quantityToConsume}, New quantity: ${inventoryItem.quantity}`);
+      
+      return {
+        success: true,
+        transactionId: transaction._id,
+        newQuantity: inventoryItem.quantity,
+        itemName: inventoryItem.name,
+        testName: labOrder.testName,
+        quantityConsumed: quantityToConsume
+      };
+      
+    } catch (error) {
+      console.error(`❌ [INVENTORY] ========== ERROR IN LAB INVENTORY DEDUCTION ==========`);
+      console.error(`❌ [INVENTORY] Lab Order ID: ${labOrder._id}`);
+      console.error(`❌ [INVENTORY] Test Name: ${labOrder.testName}`);
+      console.error(`❌ [INVENTORY] Error details:`, error);
+      console.error(`❌ [INVENTORY] Error stack:`, error.stack);
+      console.error(`❌ [INVENTORY] =======================================================`);
+      return null;
+    }
+  },
+
+  /**
+   * Deduct inventory for services that have linked inventory items
+   * @param {String} serviceId - Service ID
+   * @param {Number} quantity - Quantity to deduct
+   * @param {String} userId - User processing the service
+   * @returns {Promise<Object|null>} - Inventory transaction result or null
+   */
+  
+  async deductServiceInventory(serviceId, quantity, userId) {
+    try {
+      console.log(`📦 [ATOMIC] Deducting inventory for service ${serviceId}, quantity: ${quantity}`);
+      
+      const Service = require('../models/Service');
+      const service = await Service.findById(serviceId).populate('linkedInventoryItems');
+      
+      if (!service) {
+        console.log(`⚠️ [ATOMIC] Service ${serviceId} not found`);
+        return null;
+      }
+      
+      if (!service.linkedInventoryItems || service.linkedInventoryItems.length === 0) {
+        console.log(`⚠️ [ATOMIC] Service ${service.name} has no linked inventory items`);
+        return null;
+      }
+      
+      const inventoryItem = service.linkedInventoryItems[0];
+      const reason = `${service.name} administered - Day 1, 09:00`;
+      const documentReference = serviceId;
+      
+      // Use atomic deduction
+      const result = await atomicDeduction.deductInventory(
+        inventoryItem._id,
+        quantity,
+        reason,
+        documentReference,
+        userId
+      );
+      
+      if (result.success && !result.skipped) {
+        console.log(`✅ [ATOMIC] Service inventory deducted successfully`);
+        return {
+          success: true,
+          transactionId: result.transactionId,
+          itemName: inventoryItem.name,
+          serviceName: service.name,
+          newQuantity: result.newQuantity
+        };
+      } else if (result.skipped) {
+        console.log(`⏭️ [ATOMIC] Service inventory deduction skipped: ${result.reason}`);
+        return {
+          success: true,
+          skipped: true,
+          reason: result.reason
+        };
+      } else {
+        console.log(`❌ [ATOMIC] Service inventory deduction failed: ${result.reason}`);
+        return null;
+      }
+      
+    } catch (error) {
+      console.error('❌ [ATOMIC] Error in service inventory deduction:', error);
+      return null;
+    }
+  }, quantity: ${quantity}`);
+      
+      // Find the service and its linked inventory items
+      const service = await Service.findById(serviceId).populate('linkedInventoryItems');
+      if (!service) {
+        console.log(`⚠️ [INVENTORY] Service ${serviceId} not found`);
+        return null;
+      }
+      
+      if (!service.linkedInventoryItems || service.linkedInventoryItems.length === 0) {
+        console.log(`⚠️ [INVENTORY] Service ${service.name} has no linked inventory items`);
+        return null;
+      }
+      
+      const inventoryItem = service.linkedInventoryItems[0];
+      
+      // ✅ DEDUPLICATION CHECK: Check if inventory was already deducted for this exact service instance
+      // Check for recent transactions (within last 10 seconds) to prevent ANY duplicate deductions
+      // This catches both direct service deductions AND lab test sync deductions
+      const existingTransaction = await InventoryTransaction.findOne({
+        item: inventoryItem._id,
+        transactionType: 'medical-use',
+        quantity: -quantity,
+        createdAt: { $gte: new Date(Date.now() - 10000) } // Within last 10 seconds
+      });
+      
+      if (existingTransaction) {
+        console.log(`⏭️ [INVENTORY] Inventory already deducted for service ${serviceId} (duplicate prevention)`);
+        console.log(`   Existing transaction: ${existingTransaction._id}`);
+        console.log(`   Created at: ${existingTransaction.createdAt}`);
+        return {
+          success: true,
+          skipped: true,
+          reason: 'Already deducted',
+          existingTransactionId: existingTransaction._id,
+          itemName: inventoryItem.name,
+          serviceName: service.name
+        };
+      }
+      
+      // Check if there's enough stock
+      if (inventoryItem.quantity < quantity) {
+        console.log(`⚠️ [INVENTORY] Insufficient stock for ${inventoryItem.name}. Available: ${inventoryItem.quantity}, Required: ${quantity}`);
+        return null;
+      }
+      
+      // Use atomic operation to prevent race conditions
+      const updatedItem = await InventoryItem.findOneAndUpdate(
+        { 
+          _id: inventoryItem._id, 
+          quantity: { $gte: quantity } // Only update if sufficient stock
+        },
+        {
+          $inc: { quantity: -quantity },
+          $set: { updatedBy: userId }
+        },
+        { new: true }
+      );
+      
+      if (!updatedItem) {
+        console.log(`⚠️ [INVENTORY] Failed to deduct inventory (concurrent modification or insufficient stock)`);
+        return null;
+      }
+      
+      const previousQuantity = updatedItem.quantity + quantity;
+      
+      // Create inventory transaction
+      const unitCost = inventoryItem.costPrice || inventoryItem.purchasePrice || 0;
+      const totalCost = unitCost * quantity;
+      
+      const transaction = new InventoryTransaction({
+        transactionType: 'medical-use',
+        item: inventoryItem._id,
+        quantity: -quantity, // Negative because it's being consumed
+        unitCost: unitCost,
+        totalCost: totalCost,
+        reason: `Service completed: ${service.name}`,
+        performedBy: userId,
+        documentReference: `Service-${serviceId}`,
+        previousQuantity: previousQuantity,
+        newQuantity: updatedItem.quantity,
+        status: 'completed'
+      });
+      
+      await transaction.save();
+      
+      console.log(`✅ [INVENTORY] Service inventory deducted: ${inventoryItem.name}. Quantity consumed: ${quantity}, New quantity: ${updatedItem.quantity}`);
+      
+      return {
+        success: true,
+        transactionId: transaction._id,
+        newQuantity: updatedItem.quantity,
+        itemName: inventoryItem.name,
+        serviceName: service.name,
+        quantityConsumed: quantity
+      };
+      
+    } catch (error) {
+      console.error(`❌ [INVENTORY] Error consuming service inventory:`, error);
+      return null;
+    }
+  },
+
+  /**
+   * Deduct inventory for medication administration
+   * @param {String} medicationName - Name of the medication
+   * @param {Number} quantity - Quantity to deduct (default: 1)
+   * @param {String} userId - User ID performing the action
+   * @param {String} patientId - Patient ID (optional)
+   * @param {String} reason - Reason for deduction (optional)
+   * @returns {Promise<Object|null>} - Inventory transaction result or null
+   */
+  async deductMedicationInventory(medicationName, quantity = 1, userId, patientId = null, reason = null) {
+    try {
+      console.log(`💊 [INVENTORY] Deducting medication inventory: ${medicationName}, quantity: ${quantity}`);
+      
+      // Find the medication in inventory
+      // First try to find medication category items (for medications)
+      let medicationItem = await InventoryItem.findOne({
+        name: { $regex: new RegExp(medicationName, 'i') },
+        category: 'medication',
+        isActive: true
+      });
+
+      // If no medication item found, fall back to service category
+      if (!medicationItem) {
+        medicationItem = await InventoryItem.findOne({
+          name: { $regex: new RegExp(medicationName, 'i') },
+          category: 'service',
+          isActive: true
+        });
+      }
+
+      // If still no item found, try general search
+      if (!medicationItem) {
+        medicationItem = await InventoryItem.findOne({
+          name: { $regex: new RegExp(medicationName, 'i') },
+          isActive: true
+        });
+      }
+      
+      if (!medicationItem) {
+        console.log(`⚠️ [INVENTORY] No inventory item found for medication: ${medicationName}`);
+        return null;
+      }
+      
+      // Check if there's enough stock
+      if (medicationItem.quantity < quantity) {
+        console.log(`⚠️ [INVENTORY] Insufficient stock for ${medicationItem.name}. Available: ${medicationItem.quantity}, Required: ${quantity}`);
+        return null;
+      }
+      
+      // Create inventory transaction
+      const unitCost = medicationItem.costPrice || medicationItem.purchasePrice || 0;
+      const totalCost = unitCost * quantity;
+      
+      const transaction = new InventoryTransaction({
+        transactionType: 'medical-use',
+        item: medicationItem._id,
+        quantity: -quantity, // Negative because it's being consumed
+        unitCost: unitCost,
+        totalCost: totalCost,
+        reason: reason || `Medication administered: ${medicationName}`,
+        performedBy: userId,
+        previousQuantity: medicationItem.quantity,
+        newQuantity: medicationItem.quantity - quantity,
+        status: 'completed'
+      });
+      
+      // Add patient reference if provided
+      if (patientId) {
+        transaction.patient = patientId;
+      }
+      
+      await transaction.save();
+      
+      // Update inventory quantity
+      medicationItem.quantity -= quantity;
+      medicationItem.updatedBy = userId;
+      await medicationItem.save();
+      
+      console.log(`✅ [INVENTORY] Medication inventory deducted: ${medicationItem.name}. Quantity consumed: ${quantity}, New quantity: ${medicationItem.quantity}`);
+      
+      return {
+        success: true,
+        transactionId: transaction._id,
+        newQuantity: medicationItem.quantity,
+        itemName: medicationItem.name,
+        medicationName: medicationName,
+        quantityConsumed: quantity
+      };
+      
+    } catch (error) {
+      console.error(`❌ [INVENTORY] Error consuming medication inventory:`, error);
+      return null;
+    }
+  },
+
+  /**
+   * Deduct inventory for procedure/consultation services
+   * @param {String} procedureName - Name of the procedure or service
+   * @param {Number} quantity - Quantity to deduct (default: 1)
+   * @param {String} userId - User ID performing the action
+   * @param {String} patientId - Patient ID (optional)
+   * @returns {Promise<Object|null>} - Inventory transaction result or null
+   */
+  async deductProcedureInventory(procedureName, quantity = 1, userId, patientId = null) {
+    try {
+      console.log(`🏥 [INVENTORY] Deducting procedure inventory: ${procedureName}, quantity: ${quantity}`);
+      
+      // Find the procedure service
+      const service = await Service.findOne({ 
+        name: { $regex: new RegExp(procedureName, 'i') },
+        isActive: true 
+      }).populate('linkedInventoryItems');
+      
+      if (!service) {
+        console.log(`⚠️ [INVENTORY] No service found for procedure: ${procedureName}`);
+        return null;
+      }
+      
+      if (!service.linkedInventoryItems || service.linkedInventoryItems.length === 0) {
+        console.log(`⚠️ [INVENTORY] Procedure ${service.name} has no linked inventory items`);
+        return null;
+      }
+      
+      const inventoryItem = service.linkedInventoryItems[0];
+      
+      // Check if there's enough stock
+      if (inventoryItem.quantity < quantity) {
+        console.log(`⚠️ [INVENTORY] Insufficient stock for ${inventoryItem.name}. Available: ${inventoryItem.quantity}, Required: ${quantity}`);
+        return null;
+      }
+      
+      // Create inventory transaction
+      const unitCost = inventoryItem.costPrice || inventoryItem.purchasePrice || 0;
+      const totalCost = unitCost * quantity;
+      
+      const transaction = new InventoryTransaction({
+        transactionType: 'medical-use',
+        item: inventoryItem._id,
+        quantity: -quantity, // Negative because it's being consumed
+        unitCost: unitCost,
+        totalCost: totalCost,
+        reason: `Procedure completed: ${service.name}`,
+        performedBy: userId,
+        previousQuantity: inventoryItem.quantity,
+        newQuantity: inventoryItem.quantity - quantity,
+        status: 'completed'
+      });
+      
+      // Add patient reference if provided
+      if (patientId) {
+        transaction.patient = patientId;
+      }
+      
+      await transaction.save();
+      
+      // Update inventory quantity
+      inventoryItem.quantity -= quantity;
+      inventoryItem.updatedBy = userId;
+      await inventoryItem.save();
+      
+      console.log(`✅ [INVENTORY] Procedure inventory deducted: ${inventoryItem.name}. Quantity consumed: ${quantity}, New quantity: ${inventoryItem.quantity}`);
+      
+      return {
+        success: true,
+        transactionId: transaction._id,
+        newQuantity: inventoryItem.quantity,
+        itemName: inventoryItem.name,
+        procedureName: service.name,
+        quantityConsumed: quantity
+      };
+      
+    } catch (error) {
+      console.error(`❌ [INVENTORY] Error consuming procedure inventory:`, error);
+      return null;
+    }
+  },
+
+  /**
+   * Generic inventory deduction method
+   * @param {String} itemName - Name of the inventory item
+   * @param {Number} quantity - Quantity to deduct
+   * @param {String} userId - User ID performing the action
+   * @param {String} reason - Reason for deduction
+   * @param {String} patientId - Patient ID (optional)
+   * @returns {Promise<Object|null>} - Inventory transaction result or null
+   */
+  async deductGenericInventory(itemName, quantity, userId, reason, patientId = null) {
+    try {
+      console.log(`📦 [INVENTORY] Generic inventory deduction: ${itemName}, quantity: ${quantity}`);
+      
+      // Find the inventory item
+      const inventoryItem = await InventoryItem.findOne({ 
+        name: { $regex: new RegExp(itemName, 'i') },
+        isActive: true 
+      });
+      
+      if (!inventoryItem) {
+        console.log(`⚠️ [INVENTORY] No inventory item found: ${itemName}`);
+        return null;
+      }
+      
+      // Check if there's enough stock
+      if (inventoryItem.quantity < quantity) {
+        console.log(`⚠️ [INVENTORY] Insufficient stock for ${inventoryItem.name}. Available: ${inventoryItem.quantity}, Required: ${quantity}`);
+        return null;
+      }
+      
+      // Create inventory transaction
+      const unitCost = inventoryItem.costPrice || inventoryItem.purchasePrice || 0;
+      const totalCost = unitCost * quantity;
+      
+      const transaction = new InventoryTransaction({
+        transactionType: 'medical-use',
+        item: inventoryItem._id,
+        quantity: -quantity, // Negative because it's being consumed
+        unitCost: unitCost,
+        totalCost: totalCost,
+        reason: reason,
+        performedBy: userId,
+        previousQuantity: inventoryItem.quantity,
+        newQuantity: inventoryItem.quantity - quantity,
+        status: 'completed'
+      });
+      
+      // Add patient reference if provided
+      if (patientId) {
+        transaction.patient = patientId;
+      }
+      
+      await transaction.save();
+      
+      // Update inventory quantity
+      inventoryItem.quantity -= quantity;
+      inventoryItem.updatedBy = userId;
+      await inventoryItem.save();
+      
+      console.log(`✅ [INVENTORY] Generic inventory deducted: ${inventoryItem.name}. Quantity consumed: ${quantity}, New quantity: ${inventoryItem.quantity}`);
+      
+      return {
+        success: true,
+        transactionId: transaction._id,
+        newQuantity: inventoryItem.quantity,
+        itemName: inventoryItem.name,
+        quantityConsumed: quantity
+      };
+      
+    } catch (error) {
+      console.error(`❌ [INVENTORY] Error consuming generic inventory:`, error);
+      return null;
+    }
+  }
+};
+
+module.exports = inventoryDeductionService;

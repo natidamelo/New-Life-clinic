@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix 401 Authentication Error - Clinic CMS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+        .step h3 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #17a2b8;
+            background: #d1ecf1;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .warning {
+            color: #856404;
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.success-btn {
+            background: #28a745;
+        }
+        button.success-btn:hover {
+            background: #1e7e34;
+        }
+        button.danger-btn {
+            background: #dc3545;
+        }
+        button.danger-btn:hover {
+            background: #c82333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .status-box {
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix 401 Authentication Error - Clinic CMS</h1>
+        
+        <div class="step">
+            <h3>Step 1: Check Server Status</h3>
+            <button onclick="checkServer()">Check Backend Server</button>
+            <div id="serverStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Test Authentication</h3>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="text" id="email" value="admin@clinic.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="admin123">
+            </div>
+            <button onclick="testLogin()">Test Login</button>
+            <button onclick="clearAuth()" class="danger-btn">Clear All Auth Data</button>
+            <div id="authStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Test Protected API Endpoints</h3>
+            <button onclick="testBillingAPI()">Test Billing API</button>
+            <button onclick="testPatientsAPI()">Test Patients API</button>
+            <button onclick="testAllAPIs()">Test All APIs</button>
+            <div id="apiStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Fix Frontend Authentication</h3>
+            <button onclick="setAuthToken()" class="success-btn">Set Auth Token for Frontend</button>
+            <button onclick="checkFrontendAuth()">Check Frontend Auth Status</button>
+            <div id="frontendStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 5: Quick Access</h3>
+            <button onclick="openMainApp()">Open Main Application</button>
+            <button onclick="openBackend()">Open Backend</button>
+            <button onclick="reloadMainApp()">Reload Main App</button>
+        </div>
+
+        <div class="step">
+            <h3>Debug Information</h3>
+            <button onclick="showDebugInfo()">Show Debug Info</button>
+            <div id="debugInfo" class="status-box"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5002';
+        let authToken = null;
+        let userData = null;
+
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `status-box ${type}`;
+        }
+
+        async function checkServer() {
+            try {
+                showStatus('serverStatus', 'Checking server connection...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/ping`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showStatus('serverStatus', `✅ Server is running!\nResponse: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('serverStatus', `❌ Server error: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showStatus('serverStatus', `❌ Server connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogin() {
+            try {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                showStatus('authStatus', 'Testing login...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    authToken = data.token;
+                    userData = data.user;
+                    
+                    // Store in localStorage
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('user_data', JSON.stringify(data.user));
+                    
+                    showStatus('authStatus', `✅ Login successful!\nUser: ${data.user.name}\nRole: ${data.user.role}\nToken: ${data.token.substring(0, 20)}...`, 'success');
+                } else {
+                    showStatus('authStatus', `❌ Login failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('authStatus', `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        function clearAuth() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_data');
+            sessionStorage.removeItem('auth_token');
+            sessionStorage.removeItem('user_data');
+            authToken = null;
+            userData = null;
+            showStatus('authStatus', '✅ All authentication data cleared', 'success');
+        }
+
+        async function testBillingAPI() {
+            try {
+                const token = localStorage.getItem('auth_token') || authToken;
+                if (!token) {
+                    showStatus('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showStatus('apiStatus', 'Testing billing API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/billing/unpaid-card-payments`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('apiStatus', `✅ Billing API working!\nStatus: ${response.status}\nData: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('apiStatus', `❌ Billing API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPatientsAPI() {
+            try {
+                const token = localStorage.getItem('auth_token') || authToken;
+                if (!token) {
+                    showStatus('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showStatus('apiStatus', 'Testing patients API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/patients`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('apiStatus', `✅ Patients API working!\nStatus: ${response.status}\nFound ${data.length || 0} patients`, 'success');
+                } else {
+                    showStatus('apiStatus', `❌ Patients API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAllAPIs() {
+            const apis = [
+                { name: 'Billing', url: '/api/billing/unpaid-card-payments' },
+                { name: 'Patients', url: '/api/patients' },
+                { name: 'Appointments', url: '/api/appointments' },
+                { name: 'Users', url: '/api/users' }
+            ];
+
+            const token = localStorage.getItem('auth_token') || authToken;
+            if (!token) {
+                showStatus('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                return;
+            }
+
+            showStatus('apiStatus', 'Testing all APIs...', 'info');
+            
+            let results = [];
+            for (const api of apis) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}${api.url}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        results.push(`✅ ${api.name}: OK (${response.status})`);
+                    } else {
+                        results.push(`❌ ${api.name}: ${response.status} ${response.statusText}`);
+                    }
+                } catch (error) {
+                    results.push(`❌ ${api.name}: ${error.message}`);
+                }
+            }
+
+            showStatus('apiStatus', `API Test Results:\n${results.join('\n')}`, 'success');
+        }
+
+        function setAuthToken() {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                // Set token in all possible locations for frontend
+                localStorage.setItem('AUTH_TOKEN_KEY', token);
+                localStorage.setItem('authToken', token);
+                localStorage.setItem('jwt_token', token);
+                localStorage.setItem('token', token);
+                localStorage.setItem('clinic_auth_token', token);
+                localStorage.setItem('clinic_jwt_token', token);
+                
+                showStatus('frontendStatus', `✅ Auth token set in all locations for frontend\nToken: ${token.substring(0, 20)}...`, 'success');
+            } else {
+                showStatus('frontendStatus', '❌ No auth token found. Please login first.', 'error');
+            }
+        }
+
+        function checkFrontendAuth() {
+            const tokens = {
+                'auth_token': localStorage.getItem('auth_token'),
+                'AUTH_TOKEN_KEY': localStorage.getItem('AUTH_TOKEN_KEY'),
+                'authToken': localStorage.getItem('authToken'),
+                'jwt_token': localStorage.getItem('jwt_token'),
+                'token': localStorage.getItem('token'),
+                'clinic_auth_token': localStorage.getItem('clinic_auth_token'),
+                'clinic_jwt_token': localStorage.getItem('clinic_jwt_token')
+            };
+
+            const userData = localStorage.getItem('user_data');
+            
+            let status = 'Frontend Auth Status:\n';
+            for (const [key, value] of Object.entries(tokens)) {
+                status += `${key}: ${value ? '✅ Found' : '❌ Missing'}\n`;
+            }
+            status += `User Data: ${userData ? '✅ Found' : '❌ Missing'}`;
+            
+            showStatus('frontendStatus', status, userData ? 'success' : 'error');
+        }
+
+        function openMainApp() {
+            window.open('http://localhost:5175', '_blank');
+        }
+
+        function openBackend() {
+            window.open('http://localhost:5002', '_blank');
+        }
+
+        function reloadMainApp() {
+            // Open main app and force reload
+            const mainApp = window.open('http://localhost:5175', '_blank');
+            if (mainApp) {
+                mainApp.location.reload();
+            }
+        }
+
+        function showDebugInfo() {
+            const debugInfo = {
+                'Current URL': window.location.href,
+                'API Base URL': API_BASE_URL,
+                'Local Storage Keys': Object.keys(localStorage),
+                'Session Storage Keys': Object.keys(sessionStorage),
+                'Auth Token Present': !!localStorage.getItem('auth_token'),
+                'User Data Present': !!localStorage.getItem('user_data'),
+                'All Auth Tokens': {
+                    'auth_token': localStorage.getItem('auth_token')?.substring(0, 20) + '...',
+                    'AUTH_TOKEN_KEY': localStorage.getItem('AUTH_TOKEN_KEY')?.substring(0, 20) + '...',
+                    'authToken': localStorage.getItem('authToken')?.substring(0, 20) + '...',
+                    'jwt_token': localStorage.getItem('jwt_token')?.substring(0, 20) + '...',
+                    'token': localStorage.getItem('token')?.substring(0, 20) + '...',
+                    'clinic_auth_token': localStorage.getItem('clinic_auth_token')?.substring(0, 20) + '...',
+                    'clinic_jwt_token': localStorage.getItem('clinic_jwt_token')?.substring(0, 20) + '...'
+                }
+            };
+            
+            showStatus('debugInfo', `Debug Information:\n${JSON.stringify(debugInfo, null, 2)}`, 'info');
+        }
+
+        // Auto-check server on page load
+        window.onload = function() {
+            checkServer();
+        };
+    </script>
+</body>
+</html> 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix 401 Authentication Error - Clinic CMS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+        .step h3 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #17a2b8;
+            background: #d1ecf1;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .warning {
+            color: #856404;
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.success-btn {
+            background: #28a745;
+        }
+        button.success-btn:hover {
+            background: #1e7e34;
+        }
+        button.danger-btn {
+            background: #dc3545;
+        }
+        button.danger-btn:hover {
+            background: #c82333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .status-box {
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix 401 Authentication Error - Clinic CMS</h1>
+        
+        <div class="step">
+            <h3>Step 1: Check Server Status</h3>
+            <button onclick="checkServer()">Check Backend Server</button>
+            <div id="serverStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Test Authentication</h3>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="text" id="email" value="admin@clinic.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="admin123">
+            </div>
+            <button onclick="testLogin()">Test Login</button>
+            <button onclick="clearAuth()" class="danger-btn">Clear All Auth Data</button>
+            <div id="authStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Test Protected API Endpoints</h3>
+            <button onclick="testBillingAPI()">Test Billing API</button>
+            <button onclick="testPatientsAPI()">Test Patients API</button>
+            <button onclick="testAllAPIs()">Test All APIs</button>
+            <div id="apiStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Fix Frontend Authentication</h3>
+            <button onclick="setAuthToken()" class="success-btn">Set Auth Token for Frontend</button>
+            <button onclick="checkFrontendAuth()">Check Frontend Auth Status</button>
+            <div id="frontendStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 5: Quick Access</h3>
+            <button onclick="openMainApp()">Open Main Application</button>
+            <button onclick="openBackend()">Open Backend</button>
+            <button onclick="reloadMainApp()">Reload Main App</button>
+        </div>
+
+        <div class="step">
+            <h3>Debug Information</h3>
+            <button onclick="showDebugInfo()">Show Debug Info</button>
+            <div id="debugInfo" class="status-box"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5002';
+        let authToken = null;
+        let userData = null;
+
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `status-box ${type}`;
+        }
+
+        async function checkServer() {
+            try {
+                showStatus('serverStatus', 'Checking server connection...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/ping`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showStatus('serverStatus', `✅ Server is running!\nResponse: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('serverStatus', `❌ Server error: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showStatus('serverStatus', `❌ Server connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogin() {
+            try {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                showStatus('authStatus', 'Testing login...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    authToken = data.token;
+                    userData = data.user;
+                    
+                    // Store in localStorage
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('user_data', JSON.stringify(data.user));
+                    
+                    showStatus('authStatus', `✅ Login successful!\nUser: ${data.user.name}\nRole: ${data.user.role}\nToken: ${data.token.substring(0, 20)}...`, 'success');
+                } else {
+                    showStatus('authStatus', `❌ Login failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('authStatus', `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        function clearAuth() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_data');
+            sessionStorage.removeItem('auth_token');
+            sessionStorage.removeItem('user_data');
+            authToken = null;
+            userData = null;
+            showStatus('authStatus', '✅ All authentication data cleared', 'success');
+        }
+
+        async function testBillingAPI() {
+            try {
+                const token = localStorage.getItem('auth_token') || authToken;
+                if (!token) {
+                    showStatus('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showStatus('apiStatus', 'Testing billing API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/billing/unpaid-card-payments`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('apiStatus', `✅ Billing API working!\nStatus: ${response.status}\nData: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('apiStatus', `❌ Billing API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPatientsAPI() {
+            try {
+                const token = localStorage.getItem('auth_token') || authToken;
+                if (!token) {
+                    showStatus('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showStatus('apiStatus', 'Testing patients API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/patients`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('apiStatus', `✅ Patients API working!\nStatus: ${response.status}\nFound ${data.length || 0} patients`, 'success');
+                } else {
+                    showStatus('apiStatus', `❌ Patients API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAllAPIs() {
+            const apis = [
+                { name: 'Billing', url: '/api/billing/unpaid-card-payments' },
+                { name: 'Patients', url: '/api/patients' },
+                { name: 'Appointments', url: '/api/appointments' },
+                { name: 'Users', url: '/api/users' }
+            ];
+
+            const token = localStorage.getItem('auth_token') || authToken;
+            if (!token) {
+                showStatus('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                return;
+            }
+
+            showStatus('apiStatus', 'Testing all APIs...', 'info');
+            
+            let results = [];
+            for (const api of apis) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}${api.url}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        results.push(`✅ ${api.name}: OK (${response.status})`);
+                    } else {
+                        results.push(`❌ ${api.name}: ${response.status} ${response.statusText}`);
+                    }
+                } catch (error) {
+                    results.push(`❌ ${api.name}: ${error.message}`);
+                }
+            }
+
+            showStatus('apiStatus', `API Test Results:\n${results.join('\n')}`, 'success');
+        }
+
+        function setAuthToken() {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                // Set token in all possible locations for frontend
+                localStorage.setItem('AUTH_TOKEN_KEY', token);
+                localStorage.setItem('authToken', token);
+                localStorage.setItem('jwt_token', token);
+                localStorage.setItem('token', token);
+                localStorage.setItem('clinic_auth_token', token);
+                localStorage.setItem('clinic_jwt_token', token);
+                
+                showStatus('frontendStatus', `✅ Auth token set in all locations for frontend\nToken: ${token.substring(0, 20)}...`, 'success');
+            } else {
+                showStatus('frontendStatus', '❌ No auth token found. Please login first.', 'error');
+            }
+        }
+
+        function checkFrontendAuth() {
+            const tokens = {
+                'auth_token': localStorage.getItem('auth_token'),
+                'AUTH_TOKEN_KEY': localStorage.getItem('AUTH_TOKEN_KEY'),
+                'authToken': localStorage.getItem('authToken'),
+                'jwt_token': localStorage.getItem('jwt_token'),
+                'token': localStorage.getItem('token'),
+                'clinic_auth_token': localStorage.getItem('clinic_auth_token'),
+                'clinic_jwt_token': localStorage.getItem('clinic_jwt_token')
+            };
+
+            const userData = localStorage.getItem('user_data');
+            
+            let status = 'Frontend Auth Status:\n';
+            for (const [key, value] of Object.entries(tokens)) {
+                status += `${key}: ${value ? '✅ Found' : '❌ Missing'}\n`;
+            }
+            status += `User Data: ${userData ? '✅ Found' : '❌ Missing'}`;
+            
+            showStatus('frontendStatus', status, userData ? 'success' : 'error');
+        }
+
+        function openMainApp() {
+            window.open('http://localhost:5175', '_blank');
+        }
+
+        function openBackend() {
+            window.open('http://localhost:5002', '_blank');
+        }
+
+        function reloadMainApp() {
+            // Open main app and force reload
+            const mainApp = window.open('http://localhost:5175', '_blank');
+            if (mainApp) {
+                mainApp.location.reload();
+            }
+        }
+
+        function showDebugInfo() {
+            const debugInfo = {
+                'Current URL': window.location.href,
+                'API Base URL': API_BASE_URL,
+                'Local Storage Keys': Object.keys(localStorage),
+                'Session Storage Keys': Object.keys(sessionStorage),
+                'Auth Token Present': !!localStorage.getItem('auth_token'),
+                'User Data Present': !!localStorage.getItem('user_data'),
+                'All Auth Tokens': {
+                    'auth_token': localStorage.getItem('auth_token')?.substring(0, 20) + '...',
+                    'AUTH_TOKEN_KEY': localStorage.getItem('AUTH_TOKEN_KEY')?.substring(0, 20) + '...',
+                    'authToken': localStorage.getItem('authToken')?.substring(0, 20) + '...',
+                    'jwt_token': localStorage.getItem('jwt_token')?.substring(0, 20) + '...',
+                    'token': localStorage.getItem('token')?.substring(0, 20) + '...',
+                    'clinic_auth_token': localStorage.getItem('clinic_auth_token')?.substring(0, 20) + '...',
+                    'clinic_jwt_token': localStorage.getItem('clinic_jwt_token')?.substring(0, 20) + '...'
+                }
+            };
+            
+            showStatus('debugInfo', `Debug Information:\n${JSON.stringify(debugInfo, null, 2)}`, 'info');
+        }
+
+        // Auto-check server on page load
+        window.onload = function() {
+            checkServer();
+        };
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix 401 Authentication Error - Clinic CMS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+        .step h3 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #17a2b8;
+            background: #d1ecf1;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .warning {
+            color: #856404;
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.success-btn {
+            background: #28a745;
+        }
+        button.success-btn:hover {
+            background: #1e7e34;
+        }
+        button.danger-btn {
+            background: #dc3545;
+        }
+        button.danger-btn:hover {
+            background: #c82333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .status-box {
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix 401 Authentication Error - Clinic CMS</h1>
+        
+        <div class="step">
+            <h3>Step 1: Check Server Status</h3>
+            <button onclick="checkServer()">Check Backend Server</button>
+            <div id="serverStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Test Authentication</h3>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="text" id="email" value="admin@clinic.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="admin123">
+            </div>
+            <button onclick="testLogin()">Test Login</button>
+            <button onclick="clearAuth()" class="danger-btn">Clear All Auth Data</button>
+            <div id="authStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Test Protected API Endpoints</h3>
+            <button onclick="testBillingAPI()">Test Billing API</button>
+            <button onclick="testPatientsAPI()">Test Patients API</button>
+            <button onclick="testAllAPIs()">Test All APIs</button>
+            <div id="apiStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Fix Frontend Authentication</h3>
+            <button onclick="setAuthToken()" class="success-btn">Set Auth Token for Frontend</button>
+            <button onclick="checkFrontendAuth()">Check Frontend Auth Status</button>
+            <div id="frontendStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 5: Quick Access</h3>
+            <button onclick="openMainApp()">Open Main Application</button>
+            <button onclick="openBackend()">Open Backend</button>
+            <button onclick="reloadMainApp()">Reload Main App</button>
+        </div>
+
+        <div class="step">
+            <h3>Debug Information</h3>
+            <button onclick="showDebugInfo()">Show Debug Info</button>
+            <div id="debugInfo" class="status-box"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5002';
+        let authToken = null;
+        let userData = null;
+
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `status-box ${type}`;
+        }
+
+        async function checkServer() {
+            try {
+                showStatus('serverStatus', 'Checking server connection...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/ping`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showStatus('serverStatus', `✅ Server is running!\nResponse: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('serverStatus', `❌ Server error: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showStatus('serverStatus', `❌ Server connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogin() {
+            try {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                showStatus('authStatus', 'Testing login...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    authToken = data.token;
+                    userData = data.user;
+                    
+                    // Store in localStorage
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('user_data', JSON.stringify(data.user));
+                    
+                    showStatus('authStatus', `✅ Login successful!\nUser: ${data.user.name}\nRole: ${data.user.role}\nToken: ${data.token.substring(0, 20)}...`, 'success');
+                } else {
+                    showStatus('authStatus', `❌ Login failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('authStatus', `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        function clearAuth() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_data');
+            sessionStorage.removeItem('auth_token');
+            sessionStorage.removeItem('user_data');
+            authToken = null;
+            userData = null;
+            showStatus('authStatus', '✅ All authentication data cleared', 'success');
+        }
+
+        async function testBillingAPI() {
+            try {
+                const token = localStorage.getItem('auth_token') || authToken;
+                if (!token) {
+                    showStatus('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showStatus('apiStatus', 'Testing billing API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/billing/unpaid-card-payments`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('apiStatus', `✅ Billing API working!\nStatus: ${response.status}\nData: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('apiStatus', `❌ Billing API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPatientsAPI() {
+            try {
+                const token = localStorage.getItem('auth_token') || authToken;
+                if (!token) {
+                    showStatus('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showStatus('apiStatus', 'Testing patients API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/patients`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('apiStatus', `✅ Patients API working!\nStatus: ${response.status}\nFound ${data.length || 0} patients`, 'success');
+                } else {
+                    showStatus('apiStatus', `❌ Patients API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAllAPIs() {
+            const apis = [
+                { name: 'Billing', url: '/api/billing/unpaid-card-payments' },
+                { name: 'Patients', url: '/api/patients' },
+                { name: 'Appointments', url: '/api/appointments' },
+                { name: 'Users', url: '/api/users' }
+            ];
+
+            const token = localStorage.getItem('auth_token') || authToken;
+            if (!token) {
+                showStatus('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                return;
+            }
+
+            showStatus('apiStatus', 'Testing all APIs...', 'info');
+            
+            let results = [];
+            for (const api of apis) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}${api.url}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        results.push(`✅ ${api.name}: OK (${response.status})`);
+                    } else {
+                        results.push(`❌ ${api.name}: ${response.status} ${response.statusText}`);
+                    }
+                } catch (error) {
+                    results.push(`❌ ${api.name}: ${error.message}`);
+                }
+            }
+
+            showStatus('apiStatus', `API Test Results:\n${results.join('\n')}`, 'success');
+        }
+
+        function setAuthToken() {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                // Set token in all possible locations for frontend
+                localStorage.setItem('AUTH_TOKEN_KEY', token);
+                localStorage.setItem('authToken', token);
+                localStorage.setItem('jwt_token', token);
+                localStorage.setItem('token', token);
+                localStorage.setItem('clinic_auth_token', token);
+                localStorage.setItem('clinic_jwt_token', token);
+                
+                showStatus('frontendStatus', `✅ Auth token set in all locations for frontend\nToken: ${token.substring(0, 20)}...`, 'success');
+            } else {
+                showStatus('frontendStatus', '❌ No auth token found. Please login first.', 'error');
+            }
+        }
+
+        function checkFrontendAuth() {
+            const tokens = {
+                'auth_token': localStorage.getItem('auth_token'),
+                'AUTH_TOKEN_KEY': localStorage.getItem('AUTH_TOKEN_KEY'),
+                'authToken': localStorage.getItem('authToken'),
+                'jwt_token': localStorage.getItem('jwt_token'),
+                'token': localStorage.getItem('token'),
+                'clinic_auth_token': localStorage.getItem('clinic_auth_token'),
+                'clinic_jwt_token': localStorage.getItem('clinic_jwt_token')
+            };
+
+            const userData = localStorage.getItem('user_data');
+            
+            let status = 'Frontend Auth Status:\n';
+            for (const [key, value] of Object.entries(tokens)) {
+                status += `${key}: ${value ? '✅ Found' : '❌ Missing'}\n`;
+            }
+            status += `User Data: ${userData ? '✅ Found' : '❌ Missing'}`;
+            
+            showStatus('frontendStatus', status, userData ? 'success' : 'error');
+        }
+
+        function openMainApp() {
+            window.open('http://localhost:5175', '_blank');
+        }
+
+        function openBackend() {
+            window.open('http://localhost:5002', '_blank');
+        }
+
+        function reloadMainApp() {
+            // Open main app and force reload
+            const mainApp = window.open('http://localhost:5175', '_blank');
+            if (mainApp) {
+                mainApp.location.reload();
+            }
+        }
+
+        function showDebugInfo() {
+            const debugInfo = {
+                'Current URL': window.location.href,
+                'API Base URL': API_BASE_URL,
+                'Local Storage Keys': Object.keys(localStorage),
+                'Session Storage Keys': Object.keys(sessionStorage),
+                'Auth Token Present': !!localStorage.getItem('auth_token'),
+                'User Data Present': !!localStorage.getItem('user_data'),
+                'All Auth Tokens': {
+                    'auth_token': localStorage.getItem('auth_token')?.substring(0, 20) + '...',
+                    'AUTH_TOKEN_KEY': localStorage.getItem('AUTH_TOKEN_KEY')?.substring(0, 20) + '...',
+                    'authToken': localStorage.getItem('authToken')?.substring(0, 20) + '...',
+                    'jwt_token': localStorage.getItem('jwt_token')?.substring(0, 20) + '...',
+                    'token': localStorage.getItem('token')?.substring(0, 20) + '...',
+                    'clinic_auth_token': localStorage.getItem('clinic_auth_token')?.substring(0, 20) + '...',
+                    'clinic_jwt_token': localStorage.getItem('clinic_jwt_token')?.substring(0, 20) + '...'
+                }
+            };
+            
+            showStatus('debugInfo', `Debug Information:\n${JSON.stringify(debugInfo, null, 2)}`, 'info');
+        }
+
+        // Auto-check server on page load
+        window.onload = function() {
+            checkServer();
+        };
+    </script>
+</body>
+</html> 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix 401 Authentication Error - Clinic CMS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+        .step h3 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #17a2b8;
+            background: #d1ecf1;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .warning {
+            color: #856404;
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.success-btn {
+            background: #28a745;
+        }
+        button.success-btn:hover {
+            background: #1e7e34;
+        }
+        button.danger-btn {
+            background: #dc3545;
+        }
+        button.danger-btn:hover {
+            background: #c82333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .status-box {
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix 401 Authentication Error - Clinic CMS</h1>
+        
+        <div class="step">
+            <h3>Step 1: Check Server Status</h3>
+            <button onclick="checkServer()">Check Backend Server</button>
+            <div id="serverStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Test Authentication</h3>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="text" id="email" value="admin@clinic.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="admin123">
+            </div>
+            <button onclick="testLogin()">Test Login</button>
+            <button onclick="clearAuth()" class="danger-btn">Clear All Auth Data</button>
+            <div id="authStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Test Protected API Endpoints</h3>
+            <button onclick="testBillingAPI()">Test Billing API</button>
+            <button onclick="testPatientsAPI()">Test Patients API</button>
+            <button onclick="testAllAPIs()">Test All APIs</button>
+            <div id="apiStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Fix Frontend Authentication</h3>
+            <button onclick="setAuthToken()" class="success-btn">Set Auth Token for Frontend</button>
+            <button onclick="checkFrontendAuth()">Check Frontend Auth Status</button>
+            <div id="frontendStatus" class="status-box"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 5: Quick Access</h3>
+            <button onclick="openMainApp()">Open Main Application</button>
+            <button onclick="openBackend()">Open Backend</button>
+            <button onclick="reloadMainApp()">Reload Main App</button>
+        </div>
+
+        <div class="step">
+            <h3>Debug Information</h3>
+            <button onclick="showDebugInfo()">Show Debug Info</button>
+            <div id="debugInfo" class="status-box"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5002';
+        let authToken = null;
+        let userData = null;
+
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `status-box ${type}`;
+        }
+
+        async function checkServer() {
+            try {
+                showStatus('serverStatus', 'Checking server connection...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/ping`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showStatus('serverStatus', `✅ Server is running!\nResponse: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('serverStatus', `❌ Server error: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showStatus('serverStatus', `❌ Server connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogin() {
+            try {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                showStatus('authStatus', 'Testing login...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    authToken = data.token;
+                    userData = data.user;
+                    
+                    // Store in localStorage
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('user_data', JSON.stringify(data.user));
+                    
+                    showStatus('authStatus', `✅ Login successful!\nUser: ${data.user.name}\nRole: ${data.user.role}\nToken: ${data.token.substring(0, 20)}...`, 'success');
+                } else {
+                    showStatus('authStatus', `❌ Login failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('authStatus', `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        function clearAuth() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_data');
+            sessionStorage.removeItem('auth_token');
+            sessionStorage.removeItem('user_data');
+            authToken = null;
+            userData = null;
+            showStatus('authStatus', '✅ All authentication data cleared', 'success');
+        }
+
+        async function testBillingAPI() {
+            try {
+                const token = localStorage.getItem('auth_token') || authToken;
+                if (!token) {
+                    showStatus('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showStatus('apiStatus', 'Testing billing API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/billing/unpaid-card-payments`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('apiStatus', `✅ Billing API working!\nStatus: ${response.status}\nData: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('apiStatus', `❌ Billing API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPatientsAPI() {
+            try {
+                const token = localStorage.getItem('auth_token') || authToken;
+                if (!token) {
+                    showStatus('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showStatus('apiStatus', 'Testing patients API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/patients`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('apiStatus', `✅ Patients API working!\nStatus: ${response.status}\nFound ${data.length || 0} patients`, 'success');
+                } else {
+                    showStatus('apiStatus', `❌ Patients API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAllAPIs() {
+            const apis = [
+                { name: 'Billing', url: '/api/billing/unpaid-card-payments' },
+                { name: 'Patients', url: '/api/patients' },
+                { name: 'Appointments', url: '/api/appointments' },
+                { name: 'Users', url: '/api/users' }
+            ];
+
+            const token = localStorage.getItem('auth_token') || authToken;
+            if (!token) {
+                showStatus('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                return;
+            }
+
+            showStatus('apiStatus', 'Testing all APIs...', 'info');
+            
+            let results = [];
+            for (const api of apis) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}${api.url}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        results.push(`✅ ${api.name}: OK (${response.status})`);
+                    } else {
+                        results.push(`❌ ${api.name}: ${response.status} ${response.statusText}`);
+                    }
+                } catch (error) {
+                    results.push(`❌ ${api.name}: ${error.message}`);
+                }
+            }
+
+            showStatus('apiStatus', `API Test Results:\n${results.join('\n')}`, 'success');
+        }
+
+        function setAuthToken() {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                // Set token in all possible locations for frontend
+                localStorage.setItem('AUTH_TOKEN_KEY', token);
+                localStorage.setItem('authToken', token);
+                localStorage.setItem('jwt_token', token);
+                localStorage.setItem('token', token);
+                localStorage.setItem('clinic_auth_token', token);
+                localStorage.setItem('clinic_jwt_token', token);
+                
+                showStatus('frontendStatus', `✅ Auth token set in all locations for frontend\nToken: ${token.substring(0, 20)}...`, 'success');
+            } else {
+                showStatus('frontendStatus', '❌ No auth token found. Please login first.', 'error');
+            }
+        }
+
+        function checkFrontendAuth() {
+            const tokens = {
+                'auth_token': localStorage.getItem('auth_token'),
+                'AUTH_TOKEN_KEY': localStorage.getItem('AUTH_TOKEN_KEY'),
+                'authToken': localStorage.getItem('authToken'),
+                'jwt_token': localStorage.getItem('jwt_token'),
+                'token': localStorage.getItem('token'),
+                'clinic_auth_token': localStorage.getItem('clinic_auth_token'),
+                'clinic_jwt_token': localStorage.getItem('clinic_jwt_token')
+            };
+
+            const userData = localStorage.getItem('user_data');
+            
+            let status = 'Frontend Auth Status:\n';
+            for (const [key, value] of Object.entries(tokens)) {
+                status += `${key}: ${value ? '✅ Found' : '❌ Missing'}\n`;
+            }
+            status += `User Data: ${userData ? '✅ Found' : '❌ Missing'}`;
+            
+            showStatus('frontendStatus', status, userData ? 'success' : 'error');
+        }
+
+        function openMainApp() {
+            window.open('http://localhost:5175', '_blank');
+        }
+
+        function openBackend() {
+            window.open('http://localhost:5002', '_blank');
+        }
+
+        function reloadMainApp() {
+            // Open main app and force reload
+            const mainApp = window.open('http://localhost:5175', '_blank');
+            if (mainApp) {
+                mainApp.location.reload();
+            }
+        }
+
+        function showDebugInfo() {
+            const debugInfo = {
+                'Current URL': window.location.href,
+                'API Base URL': API_BASE_URL,
+                'Local Storage Keys': Object.keys(localStorage),
+                'Session Storage Keys': Object.keys(sessionStorage),
+                'Auth Token Present': !!localStorage.getItem('auth_token'),
+                'User Data Present': !!localStorage.getItem('user_data'),
+                'All Auth Tokens': {
+                    'auth_token': localStorage.getItem('auth_token')?.substring(0, 20) + '...',
+                    'AUTH_TOKEN_KEY': localStorage.getItem('AUTH_TOKEN_KEY')?.substring(0, 20) + '...',
+                    'authToken': localStorage.getItem('authToken')?.substring(0, 20) + '...',
+                    'jwt_token': localStorage.getItem('jwt_token')?.substring(0, 20) + '...',
+                    'token': localStorage.getItem('token')?.substring(0, 20) + '...',
+                    'clinic_auth_token': localStorage.getItem('clinic_auth_token')?.substring(0, 20) + '...',
+                    'clinic_jwt_token': localStorage.getItem('clinic_jwt_token')?.substring(0, 20) + '...'
+                }
+            };
+            
+            showStatus('debugInfo', `Debug Information:\n${JSON.stringify(debugInfo, null, 2)}`, 'info');
+        }
+
+        // Auto-check server on page load
+        window.onload = function() {
+            checkServer();
+        };
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 
+ 

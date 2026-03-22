@@ -1,0 +1,245 @@
+/* Import all shadcn themes */
+@import './themes.css';
+/* Import cursor and primary color customizations */
+@import './cursor-and-primary.css';
+/* Import dashboard primary color overrides with high specificity */
+@import './dashboard-primary-overrides.css';
+/* Import enhanced theme system */
+@import './enhanced-themes.css';
+/* Import text visibility fixes */
+@import './text-visibility-fixes.css';
+/* Import comprehensive theme color overrides — must be last to win specificity */
+@import './theme-color-overrides.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== GLOBAL MICRO-INTERACTIONS & POLISH ===== */
+
+/* Smooth page transitions */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Global link & button transitions */
+a, button {
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus ring improvements */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Better global scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+/* Selection color */
+::selection {
+  background: hsl(var(--primary) / 0.2);
+  color: hsl(var(--foreground));
+}
+
+/* Skeleton loading animation */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.skeleton {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  background: hsl(var(--muted));
+  border-radius: var(--radius);
+}
+
+/* Card hover lift effect */
+.card-hover {
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+
+.card-hover:hover {
+  box-shadow: 0 4px 20px hsl(var(--foreground) / 0.08);
+  transform: translateY(-1px);
+}
+
+/* Subtle input focus glow */
+input:focus, textarea:focus, select:focus {
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.15);
+}
+
+/* Doctor Dashboard header search: always dark so "Search patients..." and typed text are visible */
+.doctor-dashboard-search {
+  background-color: rgba(30, 58, 138, 0.55) !important;
+  color: #fff !important;
+  caret-color: #fff;
+}
+.doctor-dashboard-search::placeholder {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+.doctor-dashboard-search:-webkit-autofill,
+.doctor-dashboard-search:-webkit-autofill:hover,
+.doctor-dashboard-search:-webkit-autofill:focus {
+  -webkit-text-fill-color: #fff !important;
+  -webkit-box-shadow: 0 0 0 1000px rgba(30, 58, 138, 0.6) inset !important;
+  box-shadow: 0 0 0 1000px rgba(30, 58, 138, 0.6) inset !important;
+  caret-color: #fff;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Custom scrollbar styles for better visibility on desktop */
+.modal-scroll::-webkit-scrollbar {
+  width: 12px;
+}
+
+.modal-scroll::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 6px;
+}
+
+.modal-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.4);
+  border-radius: 6px;
+  border: 2px solid hsl(var(--muted));
+}
+
+.modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.6);
+}
+
+/* Ensure scrollbars are always visible */
+.modal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.4) hsl(var(--muted));
+}
+
+/* Shadcn UI Base Variables */
+@layer base {
+  /* Theme colors are now defined in themes.css - this file only contains default fallbacks */
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Shadcn UI Animation Utilities */
+@layer utilities {
+  .animate-in {
+    @apply duration-200 ease-out;
+    animation-fill-mode: forwards;
+  }
+  
+  .animate-out {
+    @apply duration-200 ease-in;
+    animation-fill-mode: forwards;
+  }
+  
+  .fade-in-0 {
+    animation: fade-in 150ms ease-out;
+  }
+  
+  .fade-out-0 {
+    animation: fade-out 150ms ease-out;
+  }
+  
+  .slide-in-from-left-2 {
+    animation: slide-in-from-left 200ms ease-out;
+  }
+  
+  .slide-in-from-right-2 {
+    animation: slide-in-from-right 200ms ease-out;
+  }
+  
+  .slide-out-to-left-2 {
+    animation: slide-out-to-left 200ms ease-in;
+  }
+  
+  .slide-out-to-right-2 {
+    animation: slide-out-to-right 200ms ease-in;
+  }
+
+  .zoom-in-95 {
+    animation: zoom-in-95 150ms ease-out;
+  }
+
+  .zoom-out-95 {
+    animation: zoom-out-95 150ms ease-in;
+  }
+}
+
+/* Shadcn UI Keyframes */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes slide-in-from-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slide-in-from-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slide-out-to-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+@keyframes slide-out-to-right {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes zoom-in-95 {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes zoom-out-95 {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(0.95); opacity: 0; }
+}

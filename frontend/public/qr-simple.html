@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Registration - New Life Clinic</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-weight: 500;
+        }
+        
+        .loading {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 2px solid #bbdefb;
+        }
+        
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border: 2px solid #c8e6c9;
+        }
+        
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            border: 2px solid #ffcdd2;
+        }
+        
+        .info {
+            background: #fff3e0;
+            color: #ef6c00;
+            border: 2px solid #ffcc02;
+        }
+        
+        button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .debug {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🏥 New Life Clinic</div>
+        <div class="subtitle">Staff Device Registration</div>
+        
+        <div id="loading" class="status loading">
+            <div class="spinner"></div>
+            <div>Loading registration page...</div>
+        </div>
+        
+        <div id="error" class="status error hidden">
+            <div class="icon">❌</div>
+            <div id="error-message">An error occurred</div>
+        </div>
+        
+        <div id="success" class="status success hidden">
+            <div class="icon">✅</div>
+            <div id="success-message">Registration successful!</div>
+        </div>
+        
+        <div id="registration" class="hidden">
+            <div class="icon">📱</div>
+            <div class="status info">
+                <strong>Device Registration</strong><br>
+                This will register your mobile device for clinic access.
+            </div>
+            <button id="register-btn" onclick="registerDevice()">
+                📱 Register This Device
+            </button>
+        </div>
+        
+        <div id="debug" class="debug hidden">
+            <strong>Debug Information:</strong><br>
+            <div id="debug-content"></div>
+        </div>
+        
+        <button onclick="toggleDebug()" style="background: #666; font-size: 12px; padding: 8px 16px;">
+            🔧 Debug Info
+        </button>
+    </div>
+
+    <script>
+        let urlParams = {};
+        let isRegistering = false;
+        
+        // Parse URL parameters
+        function parseUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            urlParams = {
+                hash: params.get('hash'),
+                type: params.get('type'),
+                userId: params.get('userId'),
+                v: params.get('v')
+            };
+            
+            console.log('URL Parameters:', urlParams);
+            return urlParams;
+        }
+        
+        // Show/hide elements
+        function showElement(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+        
+        function hideElement(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+        
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            hideElement('loading');
+            hideElement('success');
+            hideElement('registration');
+            showElement('error');
+        }
+        
+        function showSuccess(message) {
+            document.getElementById('success-message').textContent = message;
+            hideElement('loading');
+            hideElement('error');
+            hideElement('registration');
+            showElement('success');
+        }
+        
+        function showRegistration() {
+            hideElement('loading');
+            hideElement('error');
+            hideElement('success');
+            showElement('registration');
+        }
+        
+        // Test API connectivity
+        async function testConnectivity() {
+            try {
+                console.log('Testing backend connectivity...');
+                const response = await fetch('http://192.168.165.90:5002/api/qr/test', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 5000
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Backend test successful:', data);
+                    return true;
+                } else {
+                    console.error('Backend test failed:', response.status, response.statusText);
+                    return false;
+                }
+            } catch (error) {
+                console.error('Backend connectivity test failed:', error);
+                return false;
+            }
+        }
+        
+        // Register device
+        async function registerDevice() {
+            if (isRegistering) return;
+            
+            isRegistering = true;
+            const btn = document.getElementById('register-btn');
+            btn.disabled = true;
+            btn.textContent = '🔄 Registering...';
+            
+            try {
+                console.log('Starting device registration...');
+                
+                // Test connectivity first
+                const isConnected = await testConnectivity();
+                if (!isConnected) {
+                    throw new Error('Cannot connect to backend server. Please check your network connection.');
+                }
+                
+                // Make registration request
+                const response = await fetch('http://192.168.165.90:5002/api/qr/verify-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: urlParams.type,
+                        userId: urlParams.userId,
+                        hash: urlParams.hash,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                
+                console.log('Registration response:', response.status, response.statusText);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Registration successful:', result);
+                    
+                    // Store registration data
+                    localStorage.setItem('staffHash', result.data.hash.value);
+                    localStorage.setItem('staffUserId', urlParams.userId);
+                    localStorage.setItem('deviceRegistered', 'true');
+                    localStorage.setItem('registrationTimestamp', new Date().toISOString());
+                    
+                    showSuccess('Device registered successfully! You can now use this device for check-in/check-out.');
+                } else {
+                    const errorText = await response.text();
+                    console.error('Registration failed:', response.status, errorText);
+                    throw new Error(`Registration failed: ${response.status} - ${errorText}`);
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                showError(`Registration failed: ${error.message}`);
+            } finally {
+                isRegistering = false;
+                btn.disabled = false;
+                btn.textContent = '📱 Register This Device';
+            }
+        }
+        
+        // Toggle debug information
+        function toggleDebug() {
+            const debug = document.getElementById('debug');
+            const content = document.getElementById('debug-content');
+            
+            if (debug.classList.contains('hidden')) {
+                content.innerHTML = `
+                    <strong>URL Parameters:</strong><br>
+                    Hash: ${urlParams.hash || 'Missing'}<br>
+                    Type: ${urlParams.type || 'Missing'}<br>
+                    User ID: ${urlParams.userId || 'Missing'}<br>
+                    Version: ${urlParams.v || 'Missing'}<br><br>
+                    
+                    <strong>Device Info:</strong><br>
+                    User Agent: ${navigator.userAgent}<br>
+                    Current URL: ${window.location.href}<br>
+                    Hostname: ${window.location.hostname}<br><br>
+                    
+                    <strong>Local Storage:</strong><br>
+                    Staff Hash: ${localStorage.getItem('staffHash') ? 'Present' : 'Missing'}<br>
+                    Staff User ID: ${localStorage.getItem('staffUserId') || 'Missing'}<br>
+                    Device Registered: ${localStorage.getItem('deviceRegistered') || 'Missing'}
+                `;
+                showElement('debug');
+            } else {
+                hideElement('debug');
+            }
+        }
+        
+        // Initialize page
+        async function init() {
+            try {
+                console.log('Initializing QR registration page...');
+                
+                // Parse URL parameters
+                const params = parseUrlParams();
+                
+                // Validate required parameters
+                if (!params.hash || !params.type || !params.userId) {
+                    throw new Error('Invalid QR code: Missing required parameters');
+                }
+                
+                if (params.type !== 'staff-registration') {
+                    throw new Error('Invalid QR code type: Expected staff-registration');
+                }
+                
+                // Check if device is already registered
+                const existingUserId = localStorage.getItem('staffUserId');
+                const deviceRegistered = localStorage.getItem('deviceRegistered');
+                
+                if (deviceRegistered === 'true' && existingUserId === params.userId) {
+                    showSuccess('Device already registered for this user!');
+                    return;
+                }
+                
+                if (deviceRegistered === 'true' && existingUserId !== params.userId) {
+                    showError('This device is already registered for a different user. Only one user per device is allowed.');
+                    return;
+                }
+                
+                // Test connectivity
+                console.log('Testing connectivity...');
+                const isConnected = await testConnectivity();
+                
+                if (isConnected) {
+                    console.log('Connectivity test passed, showing registration form');
+                    showRegistration();
+                } else {
+                    throw new Error('Cannot connect to backend server. Please check your network connection and try again.');
+                }
+                
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showError(error.message);
+            }
+        }
+        
+        // Start initialization when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

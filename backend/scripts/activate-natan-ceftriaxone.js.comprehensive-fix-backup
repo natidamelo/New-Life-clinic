@@ -1,0 +1,73 @@
+const mongoose = require('mongoose');
+const Prescription = require('../models/Prescription');
+const Patient = require('../models/Patient');
+
+// Connect to the clinic-cms database
+mongoose.connect('mongodb://localhost:27017/clinic', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+});
+
+async function activateNatanCeftriaxone() {
+    try {
+        console.log('🔧 ACTIVATING NATAN\'S CEFTRIAXONE PRESCRIPTION');
+        
+        // Find Natan's patient record
+        const natan = await Patient.findOne({ 
+            $or: [
+                { firstName: { $regex: /natan/i } },
+                { lastName: { $regex: /natan/i } },
+                { fullName: { $regex: /natan/i } }
+            ]
+        });
+        
+        if (!natan) {
+            console.log('❌ Natan not found in database');
+            return;
+        }
+        
+        console.log('✅ Found Natan:', {
+            id: natan._id,
+            name: natan.fullName || `${natan.firstName} ${natan.lastName}`,
+            patientId: natan.patientId
+        });
+        
+        // Find Natan's Ceftriaxone prescription
+        const ceftriaxonePrescription = await Prescription.findOne({
+            patient: natan._id,
+            medicationName: { $regex: /ceftriaxone/i }
+        });
+        
+        if (!ceftriaxonePrescription) {
+            console.log('❌ No Ceftriaxone prescription found for Natan');
+            return;
+        }
+        
+        console.log('✅ Found Ceftriaxone prescription:', {
+            id: ceftriaxonePrescription._id,
+            medicationName: ceftriaxonePrescription.medicationName,
+            status: ceftriaxonePrescription.status,
+            duration: ceftriaxonePrescription.duration
+        });
+        
+        // Activate the prescription
+        ceftriaxonePrescription.status = 'Active';
+        ceftriaxonePrescription.updatedAt = new Date();
+        
+        await ceftriaxonePrescription.save();
+        
+        console.log('✅ Successfully activated Natan\'s Ceftriaxone prescription');
+        console.log('   New status: Active');
+        
+        // Verify the change
+        const updatedPrescription = await Prescription.findById(ceftriaxonePrescription._id);
+        console.log('✅ Verification - Updated prescription status:', updatedPrescription.status);
+        
+    } catch (error) {
+        console.error('❌ Error activating Natan\'s Ceftriaxone prescription:', error);
+    } finally {
+        mongoose.connection.close();
+    }
+}
+
+activateNatanCeftriaxone();

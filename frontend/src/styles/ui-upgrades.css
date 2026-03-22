@@ -1,0 +1,702 @@
+/* =================================
+   MODERN UI UPGRADES
+   Beautiful medication administration interface
+   ================================= */
+
+/* Modern Glassmorphism Effect */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced Gradient Backgrounds */
+.gradient-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-success {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.gradient-warning {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.gradient-info {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+/* Modern Card Designs */
+.modern-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.modern-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #f5576c);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.modern-card:hover::before {
+  /* Hover effects removed */
+}
+
+.modern-card:hover {
+  /* Hover effects removed */
+}
+
+/* Enhanced Medication Day Boxes */
+.enhanced-day-box {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.9) 0%, 
+    rgba(248, 250, 252, 0.9) 100%);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 0.25rem;
+  min-height: 25px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 
+    0 1px 6px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.enhanced-day-box::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, 
+    transparent 40%, 
+    rgba(255, 255, 255, 0.1) 50%, 
+    transparent 60%);
+  transform: rotate(-45deg);
+  transition: transform 0.6s ease;
+  pointer-events: none;
+}
+
+.enhanced-day-box:hover::before {
+  /* Hover effects removed */
+}
+
+.enhanced-day-box:hover {
+  /* Hover effects removed */
+}
+
+/* Enhanced Day Box States */
+.enhanced-day-box.today {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.1) 0%, 
+    rgba(139, 92, 246, 0.1) 100%);
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 
+    0 12px 40px rgba(59, 130, 246, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.enhanced-day-box.extension {
+  background: linear-gradient(135deg, 
+    rgba(249, 115, 22, 0.1) 0%, 
+    rgba(251, 146, 60, 0.1) 100%);
+  border-color: rgba(249, 115, 22, 0.5);
+  box-shadow: 
+    0 12px 40px rgba(249, 115, 22, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.enhanced-day-box.completed {
+  background: linear-gradient(135deg, 
+    rgba(16, 185, 129, 0.1) 0%, 
+    rgba(52, 211, 153, 0.1) 100%);
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 
+    0 12px 40px rgba(16, 185, 129, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.enhanced-day-box.scheduled {
+  background: linear-gradient(135deg, 
+    rgba(107, 114, 128, 0.05) 0%, 
+    rgba(156, 163, 175, 0.05) 100%);
+  border-color: rgba(209, 213, 219, 0.8);
+  box-shadow: 
+    0 4px 16px rgba(107, 114, 128, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  opacity: 0.7;
+}
+
+.enhanced-day-box.restricted {
+  background: linear-gradient(135deg, 
+    rgba(239, 68, 68, 0.1) 0%, 
+    rgba(248, 113, 113, 0.1) 100%);
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 
+    0 8px 24px rgba(239, 68, 68, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* Ultra Modern Dose Buttons */
+.ultra-dose-button {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 
+    0 1px 4px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 7px;
+  color: white;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+}
+
+.ultra-dose-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.4) 0%, 
+    rgba(255, 255, 255, 0.1) 100%);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.ultra-dose-button:hover::before {
+  /* Hover effects removed */
+}
+
+.ultra-dose-button:hover {
+  /* Hover effects removed */
+}
+
+.ultra-dose-button:active {
+  transform: scale(1.05) translateY(-2px);
+}
+
+/* Ultra Button States */
+.ultra-dose-button.administered {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  box-shadow: 
+    0 8px 32px rgba(17, 153, 142, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.ultra-dose-button.available {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 
+    0 8px 32px rgba(102, 126, 234, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.ultra-dose-button.payment-required {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  box-shadow: 
+    0 8px 32px rgba(240, 147, 251, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  animation: pulse-payment 2s infinite;
+}
+
+.ultra-dose-button.future {
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  color: #64748b;
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.ultra-dose-button.processing {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+  cursor: not-allowed;
+  box-shadow: 
+    0 8px 32px rgba(251, 191, 36, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  animation: pulse-processing 1.5s ease-in-out infinite alternate;
+}
+
+.ultra-dose-button.waiting {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  cursor: not-allowed;
+  box-shadow: 
+    0 8px 32px rgba(245, 158, 11, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  animation: pulse-waiting 2s ease-in-out infinite;
+}
+
+.ultra-dose-button.overdue {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  box-shadow: 
+    0 8px 32px rgba(239, 68, 68, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* Modern Progress Indicators */
+.modern-progress {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50px;
+  height: 8px;
+  overflow: hidden;
+  position: relative;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.modern-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #11998e 0%, #38ef7d 100%);
+  border-radius: 50px;
+  transition: width 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.modern-progress-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.4), 
+    transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Enhanced Status Badges */
+.status-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.status-badge.success {
+  background: linear-gradient(135deg, 
+    rgba(17, 153, 142, 0.9) 0%, 
+    rgba(56, 239, 125, 0.9) 100%);
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.status-badge.warning {
+  background: linear-gradient(135deg, 
+    rgba(240, 147, 251, 0.9) 0%, 
+    rgba(245, 87, 108, 0.9) 100%);
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.status-badge.info {
+  background: linear-gradient(135deg, 
+    rgba(79, 172, 254, 0.9) 0%, 
+    rgba(0, 242, 254, 0.9) 100%);
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Modern Tooltips */
+.modern-tooltip {
+  position: relative;
+  cursor: pointer;
+}
+
+.modern-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 1000;
+}
+
+.modern-tooltip:hover::after {
+  opacity: 1;
+}
+
+/* Floating Action Buttons */
+.fab {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  cursor: pointer;
+  box-shadow: 
+    0 8px 32px rgba(102, 126, 234, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 24px;
+  z-index: 1000;
+}
+
+.fab:hover {
+  transform: scale(1.1) translateY(-4px);
+  box-shadow: 
+    0 16px 48px rgba(102, 126, 234, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* Micro Interactions */
+@keyframes pulse-payment {
+  0%, 100% {
+    box-shadow: 
+      0 8px 32px rgba(240, 147, 251, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+  50% {
+    box-shadow: 
+      0 12px 48px rgba(240, 147, 251, 0.6),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.floating {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Modern Loading States */
+.loading-skeleton {
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0.3) 25%, 
+    rgba(255, 255, 255, 0.6) 50%, 
+    rgba(255, 255, 255, 0.3) 75%);
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.5s infinite;
+  border-radius: 12px;
+}
+
+@keyframes loading-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .ultra-dose-button {
+    width: 52px;
+    height: 52px;
+    font-size: 14px;
+  }
+  
+  .enhanced-day-box {
+    min-height: 120px;
+    padding: 1rem;
+  }
+  
+  .fab {
+    bottom: 1rem;
+    right: 1rem;
+    width: 52px;
+    height: 52px;
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ultra-dose-button {
+    width: 48px;
+    height: 48px;
+    font-size: 12px;
+  }
+  
+  .enhanced-day-box {
+    min-height: 100px;
+    padding: 0.75rem;
+  }
+}
+
+@keyframes pulse-processing {
+  0% { 
+    opacity: 0.6; 
+    transform: scale(1);
+  }
+  100% { 
+    opacity: 1; 
+    transform: scale(1.1);
+  }
+}
+
+/* ===== DARK MODE SUPPORT ===== */
+/* Uses .dark class (set by ThemeContext) — NOT @media prefers-color-scheme */
+
+.dark .glass-effect {
+  background: hsl(var(--card) / 0.95);
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .modern-card {
+  background: hsl(var(--card) / 0.95);
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.dark .enhanced-day-box {
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+}
+
+.dark .enhanced-day-box.today {
+  background: hsl(var(--primary) / 0.15);
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+.dark .enhanced-day-box.extension {
+  background: hsl(25 90% 60% / 0.15);
+  border-color: hsl(25 90% 60% / 0.5);
+}
+
+.dark .enhanced-day-box.completed {
+  background: hsl(142 70% 45% / 0.15);
+  border-color: hsl(142 70% 45% / 0.4);
+}
+
+.dark .enhanced-day-box.scheduled {
+  background: hsl(var(--muted) / 0.5);
+  border-color: hsl(var(--border));
+}
+
+.dark .enhanced-day-box.restricted {
+  background: hsl(0 75% 55% / 0.15);
+  border-color: hsl(0 75% 55% / 0.4);
+}
+
+.dark .modern-progress {
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .table-row-enhanced {
+  background: hsl(var(--card));
+}
+
+.dark .table-row-enhanced:hover {
+  background: hsl(var(--accent));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark .enhanced-table-header {
+  background: hsl(var(--muted));
+}
+
+.dark .loading-skeleton {
+  background: linear-gradient(90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--accent)) 50%,
+    hsl(var(--muted)) 75%);
+  background-size: 200% 100%;
+}
+
+.dark .compact-checkbox {
+  background-color: hsl(var(--input));
+  border-color: hsl(var(--border));
+}
+
+.dark .dose-number {
+  color: hsl(var(--muted-foreground));
+}
+
+/* Frequency-based boxes in dark mode */
+.dark .enhanced-day-box.freq-qd {
+  border-color: hsl(var(--border));
+  background: hsl(var(--muted));
+}
+
+.dark .enhanced-day-box.freq-bid {
+  border-color: hsl(217 91% 65% / 0.4);
+  background: hsl(217 91% 65% / 0.1);
+}
+
+.dark .enhanced-day-box.freq-tid {
+  border-color: hsl(262 83% 65% / 0.4);
+  background: hsl(262 83% 65% / 0.1);
+}
+
+.dark .enhanced-day-box.freq-qid {
+  border-color: hsl(0 75% 55% / 0.4);
+  background: hsl(0 75% 55% / 0.1);
+}
+
+/* ===== TABLE VIEW ENHANCEMENTS ===== */
+.compact-checkbox {
+  height: 12px !important;
+  width: 12px !important;
+  border-radius: 3px;
+  border: 1.5px solid #d1d5db;
+  background-color: white;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.compact-checkbox:checked {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='m13.854 3.646-6.5 6.5a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7 9.293l6.146-6.147a.5.5 0 0 1 .708.708z'/%3e%3c/svg%3e");
+  background-size: 8px 8px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.compact-checkbox:hover {
+  border-color: #3b82f6;
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.compact-checkbox:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+.table-row-enhanced {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.9) 100%);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.table-row-enhanced:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(99, 102, 241, 0.05) 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.enhanced-table-header {
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.95) 0%, rgba(219, 234, 254, 0.95) 100%);
+  backdrop-filter: blur(10px);
+}
+
+/* Small checkbox dose indicators */
+.dose-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 120px;
+}
+
+.dose-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.dose-number {
+  font-size: 10px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* ===== FREQUENCY-BASED BOX STYLING ===== */
+/* QD (Once Daily) - Gray/Default */
+.enhanced-day-box.freq-qd {
+  border-color: rgba(107, 114, 128, 0.3);
+  background: linear-gradient(135deg, 
+    rgba(249, 250, 251, 0.95) 0%, 
+    rgba(243, 244, 246, 0.95) 100%);
+}
+
+/* BID (Twice Daily) - Blue */
+.enhanced-day-box.freq-bid {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: linear-gradient(135deg, 
+    rgba(239, 246, 255, 0.95) 0%, 
+    rgba(219, 234, 254, 0.95) 100%);
+}
+
+.enhanced-day-box.freq-bid:hover {
+  /* Hover effects removed */
+}
+
+/* TID (Three Times Daily) - Purple */
+.enhanced-day-box.freq-tid {
+  border-color: rgba(147, 51, 234, 0.4);
+  background: linear-gradient(135deg, 
+    rgba(250, 245, 255, 0.95) 0%, 
+    rgba(237, 233, 254, 0.95) 100%);
+}
+
+.enhanced-day-box.freq-tid:hover {
+  /* Hover effects removed */
+}
+
+/* QID (Four Times Daily) - Red */
+.enhanced-day-box.freq-qid {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: linear-gradient(135deg, 
+    rgba(254, 242, 242, 0.95) 0%, 
+    rgba(254, 226, 226, 0.95) 100%);
+}
+
+.enhanced-day-box.freq-qid:hover {
+  /* Hover effects removed */
+}

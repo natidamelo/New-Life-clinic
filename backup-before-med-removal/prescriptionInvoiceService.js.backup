@@ -1,0 +1,281 @@
+const mongoose = require('mongoose');
+const MedicalInvoice = require('../models/MedicalInvoice');
+const Patient = require('../models/Patient');
+const User = require('../models/User');
+
+/**
+ * Service to automatically create invoices for prescriptions
+ * This prevents the issue where prescriptions exist but no invoices are created
+ */
+class PrescriptionInvoiceService {
+  
+  /**
+   * Create an invoice for a prescription automatically
+   * @param {Object} prescription - The prescription object
+   * @param {Array} medications - Array of medication details
+   * @param {Object} patient - Patient object
+   * @param {Object} doctor - Doctor object
+   * @returns {Promise<Object>} - Created invoice
+   */
+  static async createInvoiceForPrescription(prescription, medications, patient, doctor) {
+    try {
+      console.log('🔧 [PrescriptionInvoiceService] Creating invoice for prescription:', prescription._id);
+      
+      // Check if invoice already exists
+      const existingInvoice = await MedicalInvoice.findOne({
+        'items.metadata.prescriptionId': prescription._id
+      });
+      
+      if (existingInvoice) {
+        console.log('✅ [PrescriptionInvoiceService] Invoice already exists:', existingInvoice._id);
+        return existingInvoice;
+      }
+      
+      // Generate unique invoice number
+      const invoiceNumber = `PRES-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      
+      // Calculate total cost from medications
+      let totalCost = 0;
+      const calculatedMedications = [];
+      
+      for (const med of medications) {
+        // Use centralized medication calculator for proper cost calculation
+        const MedicationCalculator = require('../utils/medicationCalculator');
+        
+        // Calculate cost for this medication
+        const calculation = await MedicationCalculator.calculateMedicationCost({
+          name: med.name,
+          frequency: med.frequency || 'Once daily',
+          duration: med.duration || '5 days',
+          inventoryItemId: med.inventoryItem || med.inventoryItemId
+        });
+        
+        console.log(`📊 [PrescriptionInvoiceService] Medication cost calculation for ${med.name}:`, {
+          frequency: med.frequency,
+          duration: med.duration,
+          costPerDose: calculation.costPerDose,
+          totalDoses: calculation.totalDoses,
+          totalCost: calculation.totalCost
+        });
+        
+        // Store the calculated medication with correct pricing
+        calculatedMedications.push({
+          ...med,
+          totalPrice: calculation.totalCost,
+          costPerDose: calculation.costPerDose,
+          totalDoses: calculation.totalDoses
+        });
+        
+        totalCost += calculation.totalCost;
+      }
+      
+      // Create invoice items using calculated costs with proper dose quantities
+      const invoiceItems = calculatedMedications.map(med => ({
+        itemType: 'medication',
+        category: 'medication',
+        serviceName: med.name,
+        description: `Medication: ${med.name} (${med.totalDoses || 1} doses - ${med.frequency} for ${med.duration})`,
+        quantity: med.totalDoses || 1,
+        unitPrice: med.costPerDose || 0,
+        totalPrice: med.totalPrice || 0,
+        total: med.totalPrice || 0,
+        metadata: {
+          prescriptionId: prescription._id,
+          medicationName: med.name,
+          dosage: med.dosage,
+          frequency: med.frequency,
+          duration: med.duration,
+          totalDoses: med.totalDoses,
+          costPerDose: med.costPerDose,
+          inventoryItemId: med.inventoryItem || med.inventoryItemId
+        }
+      }));
+      
+      // Create the invoice
+      const invoice = new MedicalInvoice({
+        invoiceNumber: invoiceNumber,
+        patient: patient._id,
+        patientId: patient.patientId || patient._id.toString(),
+        patientName: `${patient.firstName} ${patient.lastName}`,
+        dateIssued: new Date(),
+        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        status: 'pending',
+        type: 'prescription',
+        items: invoiceItems,
+        subtotal: totalCost,
+        taxTotal: 0,
+        discountTotal: 0,
+        total: totalCost,
+        amountPaid: 0,
+        balance: totalCost,
+        notes: `Prescription invoice for ${medications.map(m => m.name).join(', ')}`,
+        createdBy: doctor._id,
+        provider: doctor._id,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      // Save the invoice
+      await invoice.save();
+      
+      console.log('✅ [PrescriptionInvoiceService] Invoice created successfully:', invoice._id);
+      console.log('📋 Invoice Number:', invoiceNumber);
+      console.log('💰 Total Amount:', totalCost);
+      
+      // Update the prescription with invoice reference
+      prescription.invoiceId = invoice._id;
+      await prescription.save();
+      
+      console.log('✅ [PrescriptionInvoiceService] Prescription updated with invoice reference');
+      
+      return invoice;
+      
+    } catch (error) {
+      console.error('❌ [PrescriptionInvoiceService] Error creating invoice:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Create invoices for multiple prescriptions
+   * @param {Array} prescriptions - Array of prescription objects
+   * @param {Array} medications - Array of medication details
+   * @param {Object} patient - Patient object
+   * @param {Object} doctor - Doctor object
+   * @returns {Promise<Array>} - Array of created invoices
+   */
+  static async createInvoicesForPrescriptions(prescriptions, medications, patient, doctor) {
+    try {
+      console.log('🔧 [PrescriptionInvoiceService] Creating invoices for multiple prescriptions');
+      
+      const invoices = [];
+      
+      for (const prescription of prescriptions) {
+        // Find medications for this specific prescription
+        const prescriptionMedications = medications.filter(med => 
+          med.prescriptionId && med.prescriptionId.toString() === prescription._id.toString()
+        );
+        
+        if (prescriptionMedications.length > 0) {
+          const invoice = await this.createInvoiceForPrescription(
+            prescription, 
+            prescriptionMedications, 
+            patient, 
+            doctor
+          );
+          invoices.push(invoice);
+        }
+      }
+      
+      return invoices;
+      
+    } catch (error) {
+      console.error('❌ [PrescriptionInvoiceService] Error creating invoices:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Ensure all prescriptions have invoices (fix missing invoices)
+   * @param {string} patientId - Patient ID to check
+   * @returns {Promise<Array>} - Array of created invoices
+   */
+  static async ensureAllPrescriptionsHaveInvoices(patientId) {
+    try {
+      console.log('🔧 [PrescriptionInvoiceService] Checking for prescriptions without invoices for patient:', patientId);
+      
+      const Prescription = require('../models/Prescription');
+      
+      // Find prescriptions without invoices
+      const prescriptionsWithoutInvoices = await Prescription.find({
+        patient: patientId,
+        $or: [
+          { invoiceId: { $exists: false } },
+          { invoiceId: null }
+        ]
+      });
+      
+      if (prescriptionsWithoutInvoices.length === 0) {
+        console.log('✅ [PrescriptionInvoiceService] All prescriptions already have invoices');
+        return [];
+      }
+      
+      console.log(`⚠️ [PrescriptionInvoiceService] Found ${prescriptionsWithoutInvoices.length} prescriptions without invoices`);
+      
+      const patient = await Patient.findById(patientId);
+      if (!patient) {
+        throw new Error('Patient not found');
+      }
+      
+      const createdInvoices = [];
+      
+      for (const prescription of prescriptionsWithoutInvoices) {
+        try {
+          // Create basic medication data for invoice creation
+          const medicationData = [{
+            name: prescription.medicationName,
+            dosage: prescription.dosage,
+            frequency: prescription.frequency,
+            duration: prescription.duration,
+            totalPrice: prescription.totalCost || 0,
+            inventoryItem: prescription.medicationItem,
+            prescriptionId: prescription._id
+          }];
+          
+          // Get doctor info
+          const doctor = await User.findById(prescription.doctor);
+          if (!doctor) {
+            console.warn(`⚠️ [PrescriptionInvoiceService] Doctor not found for prescription ${prescription._id}`);
+            continue;
+          }
+          
+          const invoice = await this.createInvoiceForPrescription(
+            prescription,
+            medicationData,
+            patient,
+            doctor
+          );
+          
+          createdInvoices.push(invoice);
+          
+        } catch (error) {
+          console.error(`❌ [PrescriptionInvoiceService] Error creating invoice for prescription ${prescription._id}:`, error);
+        }
+      }
+      
+      console.log(`✅ [PrescriptionInvoiceService] Created ${createdInvoices.length} invoices for missing prescriptions`);
+      return createdInvoices;
+      
+    } catch (error) {
+      console.error('❌ [PrescriptionInvoiceService] Error ensuring invoices:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Update notification with invoice reference
+   * @param {string} notificationId - Notification ID
+   * @param {string} invoiceId - Invoice ID
+   * @returns {Promise<boolean>} - Success status
+   */
+  static async updateNotificationWithInvoice(notificationId, invoiceId) {
+    try {
+      const Notification = require('../models/Notification');
+      
+      await Notification.findByIdAndUpdate(notificationId, {
+        $set: {
+          'data.invoiceId': invoiceId
+        }
+      });
+      
+      console.log('✅ [PrescriptionInvoiceService] Notification updated with invoice reference');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ [PrescriptionInvoiceService] Error updating notification:', error);
+      return false;
+    }
+  }
+}
+
+module.exports = PrescriptionInvoiceService;

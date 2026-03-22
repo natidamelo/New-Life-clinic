@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Registration Checker - New Life Clinic</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .code {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+        .step {
+            margin: 15px 0;
+            padding: 10px;
+            border-left: 4px solid #007bff;
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 New Life Clinic - Device Registration Checker</h1>
+        <p>This tool helps you check if your device is properly registered for check-in/check-out.</p>
+        
+        <div id="status"></div>
+        
+        <div class="step">
+            <h3>📱 How to Use This Tool:</h3>
+            <ol>
+                <li>Open this page on your phone's browser</li>
+                <li>Click "Check Registration Status" below</li>
+                <li>Follow the instructions based on the results</li>
+            </ol>
+        </div>
+        
+        <button onclick="checkRegistration()">🔍 Check Registration Status</button>
+        <button onclick="clearRegistration()">🗑️ Clear Registration Data</button>
+        <button onclick="showHelp()">❓ Show Help</button>
+        
+        <div id="details" style="display: none;">
+            <h3>📊 Registration Details:</h3>
+            <div id="registrationDetails"></div>
+        </div>
+        
+        <div id="help" style="display: none;">
+            <h3>🆘 Help & Solutions:</h3>
+            <div id="helpContent"></div>
+        </div>
+    </div>
+
+    <script>
+        function checkRegistration() {
+            // Check all possible registration keys
+            const checks = {
+                // Primary keys
+                deviceRegistered: localStorage.getItem('deviceRegistered'),
+                staffUserId: localStorage.getItem('staffUserId'),
+                staffHash: localStorage.getItem('staffHash'),
+                registrationTimestamp: localStorage.getItem('registrationTimestamp'),
+                
+                // Backup keys
+                clinic_deviceRegistered: localStorage.getItem('clinic_deviceRegistered'),
+                clinic_staffUserId: localStorage.getItem('clinic_staffUserId'),
+                clinic_staffHash: localStorage.getItem('clinic_staffHash'),
+                
+                // Session storage
+                session_deviceRegistered: sessionStorage.getItem('deviceRegistered'),
+                session_staffUserId: sessionStorage.getItem('staffUserId'),
+                session_staffHash: sessionStorage.getItem('staffHash'),
+                
+                // Local registration
+                localDeviceRegistered: localStorage.getItem('localDeviceRegistered')
+            };
+            
+            // Determine registration status
+            const isRegistered = checks.deviceRegistered === 'true' && checks.staffUserId && checks.staffHash;
+            const hasBackup = checks.clinic_deviceRegistered === 'true' && checks.clinic_staffUserId && checks.clinic_staffHash;
+            const hasSession = checks.session_deviceRegistered === 'true' && checks.session_staffUserId && checks.session_staffHash;
+            const hasLocal = checks.localDeviceRegistered === 'true';
+            
+            let statusHtml = '';
+            let statusClass = '';
+            let statusMessage = '';
+            
+            if (isRegistered) {
+                statusClass = 'success';
+                statusMessage = '✅ Device is properly registered!';
+                statusHtml = `
+                    <h3>${statusMessage}</h3>
+                    <p><strong>User ID:</strong> ${checks.staffUserId}</p>
+                    <p><strong>Registration Time:</strong> ${checks.registrationTimestamp || 'Unknown'}</p>
+                    <p><strong>Hash:</strong> ${checks.staffHash ? checks.staffHash.substring(0, 20) + '...' : 'None'}</p>
+                    <p>🎉 You should be able to scan check-in QR codes now!</p>
+                `;
+            } else if (hasBackup || hasSession || hasLocal) {
+                statusClass = 'warning';
+                statusMessage = '⚠️ Partial registration detected';
+                statusHtml = `
+                    <h3>${statusMessage}</h3>
+                    <p>Your device has some registration data but may not be fully registered.</p>
+                    <p><strong>Backup Registration:</strong> ${hasBackup ? '✅' : '❌'}</p>
+                    <p><strong>Session Registration:</strong> ${hasSession ? '✅' : '❌'}</p>
+                    <p><strong>Local Registration:</strong> ${hasLocal ? '✅' : '❌'}</p>
+                    <p>Try refreshing the page or contact support.</p>
+                `;
+            } else {
+                statusClass = 'error';
+                statusMessage = '❌ Device is not registered';
+                statusHtml = `
+                    <h3>${statusMessage}</h3>
+                    <p>Your device needs to be registered before you can check in/out.</p>
+                    <div class="step">
+                        <h4>🔧 To Fix This:</h4>
+                        <ol>
+                            <li><strong>Get a Staff Registration QR Code</strong> from your admin</li>
+                            <li><strong>Scan the registration QR code</strong> with your phone</li>
+                            <li><strong>Wait for confirmation</strong> that registration is complete</li>
+                            <li><strong>Then try scanning</strong> the check-in QR code again</li>
+                        </ol>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('status').innerHTML = `
+                <div class="status ${statusClass}">
+                    ${statusHtml}
+                </div>
+            `;
+            
+            // Show detailed information
+            document.getElementById('details').style.display = 'block';
+            document.getElementById('registrationDetails').innerHTML = `
+                <div class="code">
+                    <strong>Primary Registration:</strong><br>
+                    deviceRegistered: ${checks.deviceRegistered || 'null'}<br>
+                    staffUserId: ${checks.staffUserId || 'null'}<br>
+                    staffHash: ${checks.staffHash ? checks.staffHash.substring(0, 30) + '...' : 'null'}<br>
+                    registrationTimestamp: ${checks.registrationTimestamp || 'null'}<br><br>
+                    
+                    <strong>Backup Registration:</strong><br>
+                    clinic_deviceRegistered: ${checks.clinic_deviceRegistered || 'null'}<br>
+                    clinic_staffUserId: ${checks.clinic_staffUserId || 'null'}<br>
+                    clinic_staffHash: ${checks.clinic_staffHash ? checks.clinic_staffHash.substring(0, 30) + '...' : 'null'}<br><br>
+                    
+                    <strong>Session Storage:</strong><br>
+                    session_deviceRegistered: ${checks.session_deviceRegistered || 'null'}<br>
+                    session_staffUserId: ${checks.session_staffUserId || 'null'}<br>
+                    session_staffHash: ${checks.session_staffHash ? checks.session_staffHash.substring(0, 30) + '...' : 'null'}<br><br>
+                    
+                    <strong>Local Registration:</strong><br>
+                    localDeviceRegistered: ${checks.localDeviceRegistered || 'null'}
+                </div>
+            `;
+        }
+        
+        function clearRegistration() {
+            if (confirm('Are you sure you want to clear all registration data? This will require re-registration.')) {
+                // Clear all registration keys
+                const keysToClear = [
+                    'deviceRegistered', 'staffUserId', 'staffHash', 'registrationTimestamp',
+                    'clinic_deviceRegistered', 'clinic_staffUserId', 'clinic_staffHash',
+                    'localDeviceRegistered'
+                ];
+                
+                keysToClear.forEach(key => {
+                    localStorage.removeItem(key);
+                    sessionStorage.removeItem(key);
+                });
+                
+                alert('Registration data cleared. You will need to register your device again.');
+                checkRegistration();
+            }
+        }
+        
+        function showHelp() {
+            const helpContent = document.getElementById('helpContent');
+            const helpDiv = document.getElementById('help');
+            
+            if (helpDiv.style.display === 'none') {
+                helpContent.innerHTML = `
+                    <div class="step">
+                        <h4>🔐 Two-Step Security Process:</h4>
+                        <ol>
+                            <li><strong>Device Registration (One-time):</strong> Scan a Staff Registration QR code</li>
+                            <li><strong>Daily Check-in/out:</strong> Scan daily check-in QR codes</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="step">
+                        <h4>📱 Common Issues & Solutions:</h4>
+                        <ul>
+                            <li><strong>QR code not working:</strong> Device not registered - get registration QR code first</li>
+                            <li><strong>Wrong user error:</strong> Device registered to different user - contact admin</li>
+                            <li><strong>Hash mismatch:</strong> Registration expired - re-register device</li>
+                            <li><strong>Network issues:</strong> Check internet connection and try again</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="step">
+                        <h4>🆘 Emergency Solutions:</h4>
+                        <ul>
+                            <li>Look for "Emergency Fix" button in the app</li>
+                            <li>Contact your system administrator</li>
+                            <li>Try clearing registration data and re-registering</li>
+                        </ul>
+                    </div>
+                `;
+                helpDiv.style.display = 'block';
+            } else {
+                helpDiv.style.display = 'none';
+            }
+        }
+        
+        // Auto-check on page load
+        window.onload = function() {
+            checkRegistration();
+        };
+    </script>
+</body>
+</html>

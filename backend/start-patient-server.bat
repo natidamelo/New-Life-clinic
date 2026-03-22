@@ -1,0 +1,3 @@
+@echo off
+echo Starting Patient Server...
+node patient-server.js 

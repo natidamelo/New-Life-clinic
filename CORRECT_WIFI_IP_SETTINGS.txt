@@ -1,0 +1,52 @@
+================================================================
+    CORRECT IP SETTINGS FOR "NEW LIFE" WIFI
+================================================================
+
+Your WiFi Network: New Life
+Current IP Range: 10.99.120.x
+
+ENTER THESE EXACT VALUES IN WINDOWS SETTINGS:
+================================================================
+
+IP address:        10.99.120.100
+
+Subnet mask:       255.255.255.0
+                   (NOT "24" - use full mask!)
+
+Gateway:           10.99.120.213
+
+Preferred DNS:     8.8.8.8
+
+Alternate DNS:     8.8.4.4
+
+================================================================
+
+AFTER SAVING, YOUR PERMANENT CLINIC URL IS:
+
+    http://10.99.120.100:5175
+
+Share this with all clinic staff on "New Life" WiFi!
+
+================================================================
+IMPORTANT NOTES:
+================================================================
+
+1. IP must be in range: 10.99.120.1 - 10.99.120.254
+   Recommended: 10.99.120.100 (easy to remember)
+
+2. Gateway MUST be: 10.99.120.213 (your WiFi router)
+   (NOT 192.168.1.1!)
+
+3. Subnet mask: 255.255.255.0 (NOT "24")
+
+================================================================
+
+
+
+
+
+
+
+
+
+

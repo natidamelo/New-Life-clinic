@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinic CMS - Authentication Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #17a2b8;
+            background: #d1ecf1;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .status {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 Clinic CMS - Authentication Test</h1>
+        
+        <div class="test-section">
+            <h2>1. Server Connection Test</h2>
+            <button onclick="testServerConnection()">Test Server Connection</button>
+            <div id="serverStatus" class="status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. Authentication</h2>
+            <div class="form-group">
+                <label for="email">Email/Username:</label>
+                <input type="text" id="email" value="admin@clinic.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="admin123">
+            </div>
+            <button onclick="login()">Login</button>
+            <button onclick="logout()">Logout</button>
+            <div id="authStatus" class="status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. API Test</h2>
+            <button onclick="testBillingAPI()">Test Billing API</button>
+            <button onclick="testPatientsAPI()">Test Patients API</button>
+            <div id="apiStatus" class="status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>4. Quick Access</h2>
+            <button onclick="openMainApp()">Open Main Application</button>
+            <button onclick="openBackend()">Open Backend Admin</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5002';
+        
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `status ${type}`;
+        }
+
+        function showResults(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        async function testServerConnection() {
+            try {
+                showResult('serverStatus', 'Testing server connection...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/ping`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('serverStatus', `✅ Server connected! Response: ${JSON.stringify(data)}`, 'success');
+                } else {
+                    showResult('serverStatus', `❌ Server error: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showResult('serverStatus', `❌ Connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function login() {
+            try {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                showResult('authStatus', 'Logging in...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // Store the token
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('user_data', JSON.stringify(data.user));
+                    
+                    showResult('authStatus', `✅ Login successful! Welcome ${data.user.name} (${data.user.role})`, 'success');
+                    showResults(`Login successful for user: ${data.user.name} with role: ${data.user.role}`, 'success');
+                } else {
+                    showResult('authStatus', `❌ Login failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showResult('authStatus', `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_data');
+            showResult('authStatus', '✅ Logged out successfully', 'success');
+        }
+
+        async function testBillingAPI() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    showResult('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showResult('apiStatus', 'Testing billing API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/billing/unpaid-card-payments`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('apiStatus', `✅ Billing API working! Found ${data.data?.length || 0} unpaid payments`, 'success');
+                    showResults(`Billing API Response: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult('apiStatus', `❌ Billing API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showResult('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPatientsAPI() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    showResult('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showResult('apiStatus', 'Testing patients API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/patients`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('apiStatus', `✅ Patients API working! Found ${data.length || 0} patients`, 'success');
+                } else {
+                    showResult('apiStatus', `❌ Patients API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showResult('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        function openMainApp() {
+            window.open('http://localhost:5173', '_blank');
+        }
+
+        function openBackend() {
+            window.open('http://localhost:5002', '_blank');
+        }
+
+        // Auto-test server connection on page load
+        window.onload = function() {
+            testServerConnection();
+        };
+    </script>
+</body>
+</html> 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinic CMS - Authentication Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #17a2b8;
+            background: #d1ecf1;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .status {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 Clinic CMS - Authentication Test</h1>
+        
+        <div class="test-section">
+            <h2>1. Server Connection Test</h2>
+            <button onclick="testServerConnection()">Test Server Connection</button>
+            <div id="serverStatus" class="status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. Authentication</h2>
+            <div class="form-group">
+                <label for="email">Email/Username:</label>
+                <input type="text" id="email" value="admin@clinic.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="admin123">
+            </div>
+            <button onclick="login()">Login</button>
+            <button onclick="logout()">Logout</button>
+            <div id="authStatus" class="status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. API Test</h2>
+            <button onclick="testBillingAPI()">Test Billing API</button>
+            <button onclick="testPatientsAPI()">Test Patients API</button>
+            <div id="apiStatus" class="status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>4. Quick Access</h2>
+            <button onclick="openMainApp()">Open Main Application</button>
+            <button onclick="openBackend()">Open Backend Admin</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5002';
+        
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `status ${type}`;
+        }
+
+        function showResults(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        async function testServerConnection() {
+            try {
+                showResult('serverStatus', 'Testing server connection...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/ping`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('serverStatus', `✅ Server connected! Response: ${JSON.stringify(data)}`, 'success');
+                } else {
+                    showResult('serverStatus', `❌ Server error: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showResult('serverStatus', `❌ Connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function login() {
+            try {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                showResult('authStatus', 'Logging in...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // Store the token
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('user_data', JSON.stringify(data.user));
+                    
+                    showResult('authStatus', `✅ Login successful! Welcome ${data.user.name} (${data.user.role})`, 'success');
+                    showResults(`Login successful for user: ${data.user.name} with role: ${data.user.role}`, 'success');
+                } else {
+                    showResult('authStatus', `❌ Login failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showResult('authStatus', `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_data');
+            showResult('authStatus', '✅ Logged out successfully', 'success');
+        }
+
+        async function testBillingAPI() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    showResult('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showResult('apiStatus', 'Testing billing API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/billing/unpaid-card-payments`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('apiStatus', `✅ Billing API working! Found ${data.data?.length || 0} unpaid payments`, 'success');
+                    showResults(`Billing API Response: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult('apiStatus', `❌ Billing API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showResult('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPatientsAPI() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    showResult('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showResult('apiStatus', 'Testing patients API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/patients`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('apiStatus', `✅ Patients API working! Found ${data.length || 0} patients`, 'success');
+                } else {
+                    showResult('apiStatus', `❌ Patients API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showResult('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        function openMainApp() {
+            window.open('http://localhost:5173', '_blank');
+        }
+
+        function openBackend() {
+            window.open('http://localhost:5002', '_blank');
+        }
+
+        // Auto-test server connection on page load
+        window.onload = function() {
+            testServerConnection();
+        };
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinic CMS - Authentication Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #17a2b8;
+            background: #d1ecf1;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .status {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 Clinic CMS - Authentication Test</h1>
+        
+        <div class="test-section">
+            <h2>1. Server Connection Test</h2>
+            <button onclick="testServerConnection()">Test Server Connection</button>
+            <div id="serverStatus" class="status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. Authentication</h2>
+            <div class="form-group">
+                <label for="email">Email/Username:</label>
+                <input type="text" id="email" value="admin@clinic.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="admin123">
+            </div>
+            <button onclick="login()">Login</button>
+            <button onclick="logout()">Logout</button>
+            <div id="authStatus" class="status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. API Test</h2>
+            <button onclick="testBillingAPI()">Test Billing API</button>
+            <button onclick="testPatientsAPI()">Test Patients API</button>
+            <div id="apiStatus" class="status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>4. Quick Access</h2>
+            <button onclick="openMainApp()">Open Main Application</button>
+            <button onclick="openBackend()">Open Backend Admin</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5002';
+        
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `status ${type}`;
+        }
+
+        function showResults(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        async function testServerConnection() {
+            try {
+                showResult('serverStatus', 'Testing server connection...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/ping`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('serverStatus', `✅ Server connected! Response: ${JSON.stringify(data)}`, 'success');
+                } else {
+                    showResult('serverStatus', `❌ Server error: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showResult('serverStatus', `❌ Connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function login() {
+            try {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                showResult('authStatus', 'Logging in...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // Store the token
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('user_data', JSON.stringify(data.user));
+                    
+                    showResult('authStatus', `✅ Login successful! Welcome ${data.user.name} (${data.user.role})`, 'success');
+                    showResults(`Login successful for user: ${data.user.name} with role: ${data.user.role}`, 'success');
+                } else {
+                    showResult('authStatus', `❌ Login failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showResult('authStatus', `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_data');
+            showResult('authStatus', '✅ Logged out successfully', 'success');
+        }
+
+        async function testBillingAPI() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    showResult('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showResult('apiStatus', 'Testing billing API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/billing/unpaid-card-payments`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('apiStatus', `✅ Billing API working! Found ${data.data?.length || 0} unpaid payments`, 'success');
+                    showResults(`Billing API Response: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult('apiStatus', `❌ Billing API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showResult('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPatientsAPI() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    showResult('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showResult('apiStatus', 'Testing patients API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/patients`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('apiStatus', `✅ Patients API working! Found ${data.length || 0} patients`, 'success');
+                } else {
+                    showResult('apiStatus', `❌ Patients API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showResult('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        function openMainApp() {
+            window.open('http://localhost:5173', '_blank');
+        }
+
+        function openBackend() {
+            window.open('http://localhost:5002', '_blank');
+        }
+
+        // Auto-test server connection on page load
+        window.onload = function() {
+            testServerConnection();
+        };
+    </script>
+</body>
+</html> 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinic CMS - Authentication Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #17a2b8;
+            background: #d1ecf1;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .status {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 Clinic CMS - Authentication Test</h1>
+        
+        <div class="test-section">
+            <h2>1. Server Connection Test</h2>
+            <button onclick="testServerConnection()">Test Server Connection</button>
+            <div id="serverStatus" class="status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. Authentication</h2>
+            <div class="form-group">
+                <label for="email">Email/Username:</label>
+                <input type="text" id="email" value="admin@clinic.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="admin123">
+            </div>
+            <button onclick="login()">Login</button>
+            <button onclick="logout()">Logout</button>
+            <div id="authStatus" class="status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. API Test</h2>
+            <button onclick="testBillingAPI()">Test Billing API</button>
+            <button onclick="testPatientsAPI()">Test Patients API</button>
+            <div id="apiStatus" class="status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>4. Quick Access</h2>
+            <button onclick="openMainApp()">Open Main Application</button>
+            <button onclick="openBackend()">Open Backend Admin</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5002';
+        
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `status ${type}`;
+        }
+
+        function showResults(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        async function testServerConnection() {
+            try {
+                showResult('serverStatus', 'Testing server connection...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/ping`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('serverStatus', `✅ Server connected! Response: ${JSON.stringify(data)}`, 'success');
+                } else {
+                    showResult('serverStatus', `❌ Server error: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showResult('serverStatus', `❌ Connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function login() {
+            try {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                showResult('authStatus', 'Logging in...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // Store the token
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('user_data', JSON.stringify(data.user));
+                    
+                    showResult('authStatus', `✅ Login successful! Welcome ${data.user.name} (${data.user.role})`, 'success');
+                    showResults(`Login successful for user: ${data.user.name} with role: ${data.user.role}`, 'success');
+                } else {
+                    showResult('authStatus', `❌ Login failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showResult('authStatus', `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_data');
+            showResult('authStatus', '✅ Logged out successfully', 'success');
+        }
+
+        async function testBillingAPI() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    showResult('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showResult('apiStatus', 'Testing billing API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/billing/unpaid-card-payments`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('apiStatus', `✅ Billing API working! Found ${data.data?.length || 0} unpaid payments`, 'success');
+                    showResults(`Billing API Response: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult('apiStatus', `❌ Billing API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showResult('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPatientsAPI() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    showResult('apiStatus', '❌ No authentication token found. Please login first.', 'error');
+                    return;
+                }
+
+                showResult('apiStatus', 'Testing patients API...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/patients`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('apiStatus', `✅ Patients API working! Found ${data.length || 0} patients`, 'success');
+                } else {
+                    showResult('apiStatus', `❌ Patients API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showResult('apiStatus', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        function openMainApp() {
+            window.open('http://localhost:5173', '_blank');
+        }
+
+        function openBackend() {
+            window.open('http://localhost:5002', '_blank');
+        }
+
+        // Auto-test server connection on page load
+        window.onload = function() {
+            testServerConnection();
+        };
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 
+ 

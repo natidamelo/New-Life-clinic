@@ -1,0 +1,195 @@
+import React, { useEffect, useState, useMemo, lazy, Suspense } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { Skeleton } from '../../components/ui/skeleton';
+import adminService, { AdminDashboardStats } from '../../services/adminService';
+import { toast } from 'react-hot-toast';
+
+import {
+  Building2,
+  Users,
+  Calendar,
+  ShoppingCart,
+  Camera,
+  DollarSign,
+  Settings,
+  BarChart3
+} from 'lucide-react';
+
+// Import the module configuration with the new extension
+import { adminDashboardModules } from '../../config/dashboardModules.tsx';
+
+// Import the optimized dashboard wrapper
+import OptimizedDashboardWrapper from '../../components/dashboard/OptimizedDashboardWrapper';
+
+interface ModuleCardProps {
+  icon: React.ReactNode;
+  title: string;
+  to: string;
+  color?: string;
+  description?: string;
+}
+
+const ModuleCard: React.FC<ModuleCardProps> = ({ icon, title, to, color = "teal", description }) => {
+  const navigate = useNavigate();
+  
+  const handleClick = () => {
+    console.log('Navigating to:', to); // Debug log
+    navigate(to);
+  };
+  
+  return (
+    <Card 
+      className="p-4 hover:shadow-md transition-shadow duration-200 cursor-pointer h-full bg-white"
+      onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      aria-label={`Navigate to ${title}`}
+    >
+      <div className="flex items-start">
+        <div className="text-teal-600 mr-4">
+          {icon}
+        </div>
+        <div className="flex-1">
+          <h3 className="text-xl font-medium text-gray-800 mb-1">{title}</h3>
+          {description && (
+            <div className="text-gray-600">{description}</div>
+          )}
+        </div>
+        <svg className="h-5 w-5 text-gray-400 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+    </Card>
+  );
+};
+
+interface AdminDashboardProps {}
+
+const AdminDashboard: React.FC<AdminDashboardProps> = () => {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<AdminDashboardStats>({
+    totalPatients: 0,
+    totalAppointments: 0,
+    totalStaff: 0,
+    totalDepartments: 0
+  });
+  const { user } = useAuth();
+
+  // Optimized stats fetching with background loading
+  useEffect(() => {
+    // Show dashboard content immediately - stats loaded by wrapper
+    setLoading(false);
+    
+    // Fetch additional admin-specific stats in background
+    const fetchAdminStats = async () => {
+      try {
+        const dashboardStats = await adminService.getDashboardStats();
+        setStats(dashboardStats);
+      } catch (error) {
+        console.error('Error fetching admin dashboard stats:', error);
+        // Keep default stats if API fails
+        setStats({
+          totalPatients: 0,
+          totalAppointments: 0,
+          totalStaff: 0,
+          totalDepartments: 0
+        });
+      }
+    };
+
+    // Delay additional stats to prioritize main dashboard loading
+    const timer = setTimeout(fetchAdminStats, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Show all admin modules - user should be admin if they reached this page
+  const accessibleModules = useMemo(() => {
+    if (!user?.role) {
+      // Show all modules if user is not loaded yet (they passed auth to get here)
+      return adminDashboardModules.filter(module => 
+        module.requiredRoles.includes('admin')
+      );
+    }
+    return adminDashboardModules.filter(module => 
+      module.requiredRoles.includes(user.role)
+    );
+  }, [user]); 
+
+  // Loading skeleton
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full" />
+          ))}
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-6 w-48" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(9)].map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <OptimizedDashboardWrapper
+      role="admin"
+      customStats={{
+        totalStaff: stats.totalStaff,
+        totalRevenue: stats.totalDepartments * 1000, // Mock calculation
+        totalAppointments: stats.totalAppointments,
+        totalPatients: stats.totalPatients
+      }}
+      onRefresh={() => {
+        // Refresh admin-specific data
+        const timer = setTimeout(() => {
+          setStats({
+            totalPatients: 0,
+            totalAppointments: 0,
+            totalStaff: 0,
+            totalDepartments: 0
+          });
+        }, 500);
+        return () => clearTimeout(timer);
+      }}
+    >
+      {/* Dashboard Modules */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold text-gray-800">
+          Management Modules
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {accessibleModules.map((mod) => (
+            <ModuleCard
+              key={mod.id}
+              icon={mod.icon}
+              title={mod.title}
+              description={mod.description}
+              to={mod.path}
+              color={mod.color}
+            />
+          ))}
+        </div>
+      </div>
+    </OptimizedDashboardWrapper>
+  );
+};
+
+export default AdminDashboard;

@@ -1,0 +1,626 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+import { Badge } from '../../components/ui/badge';
+import { Alert, AlertDescription } from '../../components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { 
+  ChartBarIcon, CreditCardIcon, PlusIcon, ArrowPathIcon, 
+  TrendingUpIcon, ReceiptPercentIcon, WalletIcon, ExclamationTriangleIcon,
+  ArrowUpIcon, ArrowDownIcon, ChartPieIcon,
+  UsersIcon, TrendingDownIcon, CurrencyDollarIcon,
+  DocumentIcon, ClockIcon, CheckCircleIcon, ExclamationCircleIcon,
+  EyeIcon, ChartBarSquareIcon
+} from '@heroicons/react/24/outline';
+import { format } from 'date-fns';
+import billingService, { BillingStats, Invoice, InvoiceStatus } from '../../services/billingService';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import api from '../../config/axios';
+
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  gradient: string;
+  trend?: number;
+  linkTo?: string;
+  subtitle?: string;
+  delay?: number;
+}
+
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon, gradient, trend, linkTo, subtitle, delay = 0 }) => {
+  // Better gradient mapping with more specific checks
+  const gradientClass = 
+    gradient.includes('25, 118, 210') || gradient.includes('#1976d2') ? 'from-blue-500 via-blue-600 to-blue-700' :
+    gradient.includes('156, 39, 176') || gradient.includes('#9c27b0') ? 'from-purple-500 via-purple-600 to-purple-700' :
+    gradient.includes('76, 175, 80') || gradient.includes('#4caf50') ? 'from-green-500 via-green-600 to-green-700' :
+    gradient.includes('255, 152, 0') || gradient.includes('#ff9800') ? 'from-orange-500 via-orange-600 to-orange-700' :
+    'from-blue-500 via-blue-600 to-blue-700';
+
+  const CardWrapper = linkTo ? Link : 'div';
+  const cardProps = linkTo ? { to: linkTo, className: 'no-underline' } : {};
+
+  return (
+    <div className="col-span-12 sm:col-span-6 md:col-span-3">
+      <CardWrapper {...cardProps}>
+        <Card className={`h-full bg-gradient-to-br ${gradientClass} text-white relative overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl border-0 ${linkTo ? 'cursor-pointer hover:shadow-blue-500/25' : ''}`}>
+          {/* Subtle overlay pattern */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10 pointer-events-none" />
+          
+          <CardContent className="p-6 relative z-10">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 rounded-full bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+                {React.cloneElement(icon as React.ReactElement, { className: 'w-7 h-7 text-white' })}
+              </div>
+                {trend !== undefined && (
+                <div className={`flex items-center px-3 py-1.5 rounded-full text-xs font-bold backdrop-blur-md border shadow-lg ${
+                  trend >= 0 
+                    ? 'bg-emerald-500/90 text-white border-emerald-400/50' 
+                    : 'bg-red-500/90 text-white border-red-400/50'
+                }`}>
+                  {trend >= 0 ? <ArrowUpIcon className="w-3 h-3 mr-1" /> : <ArrowDownIcon className="w-3 h-3 mr-1" />}
+                    {Math.abs(trend)}%
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl md:text-3xl font-black tracking-tight text-white drop-shadow-sm">
+                {value}
+              </h3>
+              <p className="text-white/95 font-bold text-sm tracking-wide">
+                {title}
+              </p>
+              {subtitle && (
+                <p className="text-white/80 text-xs font-semibold">
+                  {subtitle}
+                </p>
+              )}
+            </div>
+            </CardContent>
+          </Card>
+        </CardWrapper>
+    </div>
+  );
+};
+
+
+
+const BillingDashboard: React.FC = () => {
+  const today = new Date();
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<Date | null>(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 12);
+    return d;
+  });
+  const [endDate, setEndDate] = useState<Date | null>(today);
+  const [period, setPeriod] = useState<'year' | 'six' | 'month'>('year');
+
+  useEffect(() => {
+    if (endDate && endDate > today) {
+      setEndDate(today);
+      setError('End date cannot be in the future.');
+    }
+  }, []);
+
+  const fetchStats = async (start: Date, end: Date) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (start) params.append('startDate', start.toISOString());
+      if (end) params.append('endDate', end.toISOString());
+      
+      console.log('Fetching billing stats with params:', params.toString());
+      const res = await api.get(`/api/billing/stats?${params.toString()}`);
+      console.log('Billing stats response:', res.data);
+      
+      const data = res.data;
+      if (!data.success) throw new Error(data.message || 'Failed to load billing statistics');
+      
+      // Ensure we have proper data structure
+      const statsData = {
+        totalRevenue: data.data?.totalRevenue || 0,
+        outstandingAmount: data.data?.outstandingAmount || 0,
+        invoicesCount: {
+          paid: data.data?.invoicesCount?.paid || 0,
+          pending: data.data?.invoicesCount?.pending || 0,
+          overdue: data.data?.invoicesCount?.overdue || 0,
+          partial: data.data?.invoicesCount?.partial || 0,
+          cancelled: data.data?.invoicesCount?.cancelled || 0
+        },
+        monthlyRevenue: data.data?.monthlyRevenue || Array(12).fill(0),
+        recentInvoices: data.data?.recentInvoices || []
+      };
+      
+      console.log('Processed stats data:', statsData);
+      setStats(statsData);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error fetching billing stats:', err);
+      setError(err.message || 'Failed to load billing statistics. Please try again later.');
+      
+      // Set default/demo data if API fails
+      setStats({
+        totalRevenue: 125000,
+        outstandingAmount: 25000,
+        invoicesCount: {
+          paid: 45,
+          pending: 12,
+          overdue: 5,
+          partial: 3,
+          cancelled: 2
+        },
+        monthlyRevenue: [8000, 12000, 15000, 18000, 22000, 25000, 28000, 30000, 32000, 35000, 38000, 42000],
+        recentInvoices: []
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (startDate && endDate) {
+      const now = new Date();
+      if (endDate > now) {
+        setEndDate(now);
+        setError('End date cannot be in the future.');
+        return;
+      }
+      fetchStats(startDate, endDate);
+    }
+  }, [startDate, endDate]);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'ETB',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+
+
+  const handleQuickRange = (_: any, value: 'year' | 'six' | 'month' | null) => {
+    if (!value) return;
+    setPeriod(value);
+    const now = new Date();
+    let start: Date;
+    switch (value) {
+      case 'year':
+        start = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        break;
+      case 'six':
+        start = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+        break;
+      case 'month':
+        start = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        break;
+      default:
+        start = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    }
+    setStartDate(start);
+    setEndDate(now);
+  };
+
+  const handleRefresh = () => {
+    if (startDate && endDate) {
+      fetchStats(startDate, endDate);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative">
+      {/* Enhanced background pattern */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-orange-500/5 pointer-events-none" />
+      <div className="absolute inset-0 opacity-30 pointer-events-none" style={{
+        backgroundImage: `radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%), 
+                         radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.1) 0%, transparent 50%),
+                         radial-gradient(circle at 40% 40%, rgba(120, 200, 255, 0.1) 0%, transparent 50%)`
+      }} />
+      <div className="container mx-auto px-4 py-8 relative z-10 max-w-7xl">
+        {/* Header Section */}
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4 tracking-tight">
+              💰 Billing Dashboard
+          </h1>
+          <p className="text-lg md:text-xl text-muted-foreground font-semibold max-w-3xl mx-auto mb-8">
+              Comprehensive overview of your clinic's financial performance and revenue analytics
+          </p>
+            
+                      {/* Action Buttons */}
+          <div className="flex flex-wrap justify-center gap-4 mb-8">
+            <Button
+              variant="outline"
+              asChild
+              className="bg-white/80 backdrop-blur-md border-2 border-blue-200/50 text-blue-700 hover:bg-blue-50 hover:border-blue-400 hover:scale-105 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/25 font-semibold"
+            >
+              <Link to="/app/billing/patient-cards">
+                <CreditCardIcon className="w-4 h-4 mr-2" />
+                💳 Manage Patient Cards
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              asChild
+              className="bg-white/80 backdrop-blur-md border-2 border-emerald-200/50 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-400 hover:scale-105 transition-all duration-300 hover:shadow-xl hover:shadow-emerald-500/25 font-semibold"
+            >
+              <Link to="/app/billing/financial-report">
+                <ChartPieIcon className="w-4 h-4 mr-2" />
+                📊 Standard Financial Report
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              asChild
+              className="bg-white/80 backdrop-blur-md border-2 border-purple-200/50 text-purple-700 hover:bg-purple-50 hover:border-purple-400 hover:scale-105 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/25 font-semibold"
+            >
+              <Link to="/app/billing/reports">
+                <ChartBarSquareIcon className="w-4 h-4 mr-2" />
+                📈 Basic Billing Reports
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              asChild
+              className="bg-white/80 backdrop-blur-md border-2 border-orange-200/50 text-orange-700 hover:bg-orange-50 hover:border-orange-400 hover:scale-105 transition-all duration-300 hover:shadow-xl hover:shadow-orange-500/25 font-semibold"
+            >
+              <Link to="/app/billing/patient-demographics">
+                <UsersIcon className="w-4 h-4 mr-2" />
+                👥 Patient Demographics
+              </Link>
+            </Button>
+            <Button
+              asChild
+              className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-indigo-600 hover:via-blue-600 hover:to-purple-600 hover:scale-105 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/30 font-bold text-white border-0"
+            >
+              <Link to="/app/billing/invoices/new">
+                <PlusIcon className="w-4 h-4 mr-2" />
+                ✨ Create New Invoice
+              </Link>
+            </Button>
+          </div>
+        </div>
+
+                {/* Controls Panel */}
+        <Card className="mb-8 backdrop-blur-md bg-white/90 border-2 border-white/40 shadow-2xl shadow-blue-500/10">
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="startDate" className="text-sm font-bold text-slate-700">Start Date</Label>
+                    <Input
+                      id="startDate"
+                      type="date"
+                      value={startDate ? format(startDate, 'yyyy-MM-dd') : ''}
+                      onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : null)}
+                      className="bg-white border-2 border-blue-200/60 font-semibold focus:border-blue-400 transition-colors"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="endDate" className="text-sm font-bold text-slate-700">End Date</Label>
+                    <Input
+                      id="endDate"
+                      type="date"
+                      value={endDate ? format(endDate, 'yyyy-MM-dd') : ''}
+                      onChange={(e) => setEndDate(e.target.value ? new Date(e.target.value) : null)}
+                      className="bg-white border-2 border-blue-200/60 font-semibold focus:border-blue-400 transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row justify-start md:justify-end items-start sm:items-center gap-4">
+                <div className="flex rounded-xl border-2 border-blue-200/60 bg-white shadow-lg overflow-hidden">
+                  <Button 
+                    variant={period === 'year' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => handleQuickRange(null, 'year')}
+                    className={`rounded-none font-bold border-0 ${period === 'year' ? 'bg-blue-600 text-white' : 'text-blue-700 hover:bg-blue-50'}`}
+                  >
+                    📅 1 Year
+                  </Button>
+                  <Button 
+                    variant={period === 'six' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => handleQuickRange(null, 'six')}
+                    className={`rounded-none font-bold border-0 border-l border-blue-200 ${period === 'six' ? 'bg-blue-600 text-white' : 'text-blue-700 hover:bg-blue-50'}`}
+                  >
+                    📊 6 Months
+                  </Button>
+                  <Button 
+                    variant={period === 'month' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => handleQuickRange(null, 'month')}
+                    className={`rounded-none font-bold border-0 border-l border-blue-200 ${period === 'month' ? 'bg-blue-600 text-white' : 'text-blue-700 hover:bg-blue-50'}`}
+                  >
+                    📈 1 Month
+                  </Button>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  className="bg-white border-2 border-blue-200/60 text-blue-700 hover:bg-blue-50 hover:border-blue-400 hover:scale-110 transition-all duration-300 shadow-lg"
+                >
+                  <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Error Alert */}
+        {error && (
+          <Alert className="mb-6 bg-red-50/80 border-red-200 text-red-800 backdrop-blur-sm">
+            <AlertDescription className="font-semibold">
+              {error}
+            </AlertDescription>
+            </Alert>
+        )}
+
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-blue-600"></div>
+          </div>
+        ) : stats ? (
+          <>
+            {/* Statistics Cards */}
+            <div className="grid grid-cols-12 gap-6 mb-10">
+              <StatCard
+                title="Total Revenue"
+                value={formatCurrency(stats.totalRevenue)}
+                icon={<CurrencyDollarIcon />}
+                gradient="rgba(25, 118, 210, 0.9), rgba(21, 101, 192, 0.8)"
+                trend={12}
+                linkTo="/app/billing/invoices?status=paid"
+                subtitle="All-time earnings"
+                delay={0}
+              />
+              <StatCard
+                title="Outstanding Amount"
+                value={formatCurrency(stats.outstandingAmount)}
+                icon={<ClockIcon />}
+                gradient="rgba(156, 39, 176, 0.9), rgba(142, 36, 170, 0.8)"
+                trend={-5}
+                linkTo="/app/billing/invoices?status=overdue"
+                subtitle="Pending payments"
+                delay={100}
+              />
+              <StatCard
+                title="Paid Invoices"
+                value={stats?.invoicesCount?.paid ?? 'N/A'}
+                icon={<CheckCircleIcon />}
+                gradient="rgba(76, 175, 80, 0.9), rgba(67, 160, 71, 0.8)"
+                trend={8}
+                subtitle="Successfully completed"
+                delay={200}
+              />
+              <StatCard
+                title="Overdue Invoices"
+                value={stats?.invoicesCount?.overdue ?? 'N/A'}
+                icon={<ExclamationCircleIcon />}
+                gradient="rgba(255, 152, 0, 0.9), rgba(245, 124, 0, 0.8)"
+                trend={-2}
+                subtitle="Requires attention"
+                delay={300}
+              />
+            </div>
+
+                        {/* Revenue Chart */}
+            <Card className="mb-10 backdrop-blur-md bg-white/95 border-2 border-white/40 shadow-2xl shadow-blue-500/10">
+              <CardContent className="p-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                  <div className="flex items-center">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg">
+                      <ChartBarSquareIcon className="w-6 h-6" />
+                    </div>
+                    <div className="ml-4">
+                      <h2 className="text-2xl md:text-3xl font-black text-slate-800">
+                        Revenue Analytics
+                      </h2>
+                      <p className="text-slate-600 font-semibold">
+                        Monthly revenue trend analysis
+                      </p>
+                    </div>
+                  </div>
+                  <Badge className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white px-4 py-2 text-sm font-bold shadow-lg">
+                    Last 12 Months
+                  </Badge>
+                </div>
+                <div className="h-96 w-full mt-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={stats.monthlyRevenue.map((revenue: number, index: number) => {
+                          const date = new Date();
+                          date.setMonth(date.getMonth() - (11 - index));
+                          return {
+                            name: date.toLocaleString('default', { month: 'short' }) + ' \'' + date.getFullYear().toString().slice(-2),
+                            Revenue: revenue,
+                          };
+                        })}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                      >
+                        <defs>
+                          <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#1976d2" stopOpacity={0.4}/>
+                            <stop offset="95%" stopColor="#7b1fa2" stopOpacity={0.1}/>
+                          </linearGradient>
+                        </defs>
+                        <XAxis 
+                          dataKey="name" 
+                        stroke="#6b7280"
+                        tick={{ fill: '#6b7280', fontSize: 13, fontWeight: 600 }}
+                        tickLine={{ stroke: '#e5e7eb' }}
+                        />
+                        <YAxis 
+                        stroke="#6b7280"
+                        tick={{ fill: '#6b7280', fontSize: 13, fontWeight: 600 }}
+                        tickLine={{ stroke: '#e5e7eb' }}
+                          tickFormatter={(value) => 
+                            new Intl.NumberFormat('en-US', { 
+                              notation: 'compact',
+                              compactDisplay: 'short',
+                              maximumFractionDigits: 1
+                            }).format(value)
+                          }
+                        />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                        <RechartsTooltip
+                          formatter={(value: number) => [formatCurrency(value), "💰 Revenue"]}
+                        contentStyle={{
+                          background: 'rgba(255,255,255,0.98)',
+                          border: 'none',
+                          borderRadius: '12px',
+                          boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+                          minWidth: '200px',
+                          padding: '16px',
+                          fontSize: '14px',
+                          fontWeight: '600'
+                        }}
+                          labelStyle={{
+                          color: '#111827',
+                            fontWeight: '700',
+                            marginBottom: '8px'
+                          }}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="Revenue" 
+                          stroke="#1976d2" 
+                          fill="url(#colorRevenue)"
+                          strokeWidth={4}
+                          dot={{ fill: '#1976d2', strokeWidth: 3, r: 5 }}
+                          activeDot={{ r: 8, stroke: '#1976d2', strokeWidth: 3, fill: '#fff' }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+                </CardContent>
+              </Card>
+
+                        {/* Recent Invoices */}
+            <Card className="backdrop-blur-md bg-white/95 border-2 border-white/40 shadow-2xl shadow-blue-500/10">
+              <CardContent className="p-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                  <div className="flex items-center">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg">
+                      <DocumentIcon className="w-6 h-6" />
+                    </div>
+                    <div className="ml-4">
+                      <h2 className="text-2xl md:text-3xl font-black text-slate-800">
+                        Recent Invoices
+                      </h2>
+                      <p className="text-slate-600 font-semibold">
+                        Latest billing transactions
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline"
+                    asChild
+                    className="bg-white border-2 border-emerald-200/60 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-400 hover:scale-105 transition-all duration-300 font-semibold shadow-lg"
+                  >
+                    <Link to="/app/billing/invoices">
+                      <EyeIcon className="w-4 h-4 mr-2" />
+                      View All Invoices
+                    </Link>
+                  </Button>
+                </div>
+                                <div className="rounded-xl border-2 border-slate-200/60 overflow-hidden shadow-lg bg-white">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 border-blue-100">
+                        <TableHead className="font-bold text-slate-700 py-4">Invoice #</TableHead>
+                        <TableHead className="font-bold text-slate-700 py-4">Date</TableHead>
+                        <TableHead className="font-bold text-slate-700 py-4">Patient</TableHead>
+                        <TableHead className="font-bold text-slate-700 py-4">Amount</TableHead>
+                        <TableHead className="font-bold text-slate-700 py-4">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                                          <TableBody>
+                      {(stats?.recentInvoices?.length ?? 0) > 0 ? (
+                        stats.recentInvoices.map((invoice: any, index: number) => (
+                          <TableRow 
+                            key={invoice._id} 
+                            className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 even:bg-slate-50/40 border-b border-slate-100"
+                          >
+                                                          <TableCell className="py-4">
+                              <Link 
+                                to={`/app/billing/invoices/${invoice._id}`}
+                                className="text-blue-600 hover:text-blue-800 font-bold text-sm no-underline hover:underline transition-all duration-200"
+                              >
+                                #{invoice.invoiceNumber}
+                              </Link>
+                            </TableCell>
+                            <TableCell className="text-sm text-slate-600 font-semibold py-4">
+                              {(() => {
+                                const rawDate = invoice.issueDate ?? invoice.dateIssued;
+                                if (!rawDate) return 'N/A';
+                                const d = new Date(rawDate);
+                                return isNaN(d.valueOf()) ? 'N/A' : format(d, 'dd MMM yyyy');
+                              })()}
+                            </TableCell>
+                            <TableCell className="text-sm font-semibold text-slate-800 py-4">
+                              {invoice.patientName || `Patient ID: ${invoice.patientId}`}
+                            </TableCell>
+                            <TableCell className="text-sm font-bold text-slate-800 py-4">
+                              {formatCurrency(invoice.total)}
+                            </TableCell>
+                            <TableCell className="py-4">
+                              <Badge 
+                                variant={
+                                  invoice.status === 'paid' ? 'default' :
+                                  invoice.status === 'pending' ? 'secondary' :
+                                  invoice.status === 'overdue' ? 'destructive' :
+                                  'outline'
+                                }
+                                className={`text-xs font-bold capitalize px-3 py-1 ${
+                                  invoice.status === 'paid' ? 'bg-green-100 text-green-800 border-green-200' :
+                                  invoice.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                                  invoice.status === 'overdue' ? 'bg-red-100 text-red-800 border-red-200' :
+                                  'bg-gray-100 text-gray-800 border-gray-200'
+                                }`}
+                              >
+                                {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                              </Badge>
+                            </TableCell>
+                            </TableRow>
+                          ))
+                                              ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-16">
+                            <div className="flex flex-col items-center">
+                              <div className="p-4 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 mb-4">
+                                <DocumentIcon className="w-12 h-12 text-slate-400" />
+                              </div>
+                              <h3 className="text-xl font-bold text-slate-600 mb-2">
+                                No recent invoices found
+                              </h3>
+                              <p className="text-slate-500 font-medium">
+                                Create your first invoice to get started
+                              </p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      </TableBody>
+                    </Table>
+                </div>
+                </CardContent>
+              </Card>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
+export default BillingDashboard; 

@@ -1,0 +1,14 @@
+import React from 'react';
+
+const FinanceDashboard: React.FC = React.memo(() => {
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl font-semibold mb-4">Finance Dashboard</h1>
+      {/* Add navigation to Billing, Reports, etc. here */}
+      <p>Overview of financial KPIs or links to sub-modules.</p>
+      {/* Placeholder for Billing/Reports links or components */}
+    </div>
+  );
+});
+
+export default FinanceDashboard; 

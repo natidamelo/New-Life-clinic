@@ -1,0 +1,23 @@
+{scheduleFormik.touched.patientId && scheduleFormik.errors.patientId && (
+  <p className="mt-1 text-xs text-red-600">{String(scheduleFormik.errors.patientId)}</p>
+)}
+<select
+  id="patientId"
+  name="patientId"
+  value={scheduleFormik.values.patientId}
+  onChange={scheduleFormik.handleChange}
+  onBlur={scheduleFormik.handleBlur}
+  className={`block w-full rounded-lg border ${
+    scheduleFormik.touched.patientId && scheduleFormik.errors.patientId
+      ? 'border-red-300 focus:ring-red-500'
+      : 'border-gray-300 focus:ring-blue-500'
+  } shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`}
+  disabled={isLoadingPatientsForSelect}
+>
+  <option value="" disabled>-- Select Patient --</option>
+  {patientsForSelect.map(patient => (
+    <option key={patient.id} value={patient.id}>
+      {patient.firstName} {patient.lastName}
+    </option>
+  ))}
+</select> 

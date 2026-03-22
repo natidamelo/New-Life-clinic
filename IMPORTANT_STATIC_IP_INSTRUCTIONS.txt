@@ -1,0 +1,71 @@
+================================================================
+    IMPORTANT: How to Set Static IP WITH Internet Access
+================================================================
+
+PROBLEM: When you set static IP manually, you lose internet access.
+
+REASON: You forgot to add DNS servers (they translate website names)
+
+SOLUTION: Use the script that sets BOTH static IP AND DNS together!
+
+================================================================
+STEP-BY-STEP INSTRUCTIONS:
+================================================================
+
+1. FIRST: Connect to your CLINIC WiFi network
+   (The network that uses 10.99.120.x IP range)
+   
+   ✓ You should see in WiFi settings that you're connected
+
+2. THEN: Run this script as Administrator:
+   
+   → Right-click: SET_STATIC_IP_CLINIC_WIFI_ADMIN.bat
+   → Choose: "Run as administrator"
+   → Click "Yes" when Windows asks for permission
+   → Wait for completion
+
+3. DONE! The script will:
+   ✓ Set static IP: 10.99.120.100
+   ✓ Set gateway: 10.99.120.1
+   ✓ Set DNS: 10.99.120.1, 8.8.8.8 (for internet!)
+   ✓ Test internet connection
+
+================================================================
+IF YOU ALREADY SET STATIC IP (and lost internet):
+================================================================
+
+Option 1: Run the script anyway - it will update DNS
+  → SET_STATIC_IP_CLINIC_WIFI_ADMIN.bat
+
+Option 2: Manual fix in Windows Settings:
+  1. Settings → Network & Internet → Wi-Fi
+  2. Click your WiFi network
+  3. Click "Edit" under IP assignment
+  4. Set to "Manual"
+  5. Fill in:
+     - IPv4: 10.99.120.100
+     - Subnet: 255.255.255.0
+     - Gateway: 10.99.120.1
+     - Preferred DNS: 10.99.120.1  ← IMPORTANT!
+     - Alternate DNS: 8.8.8.8      ← IMPORTANT!
+  6. Save
+
+================================================================
+YOUR PERMANENT CLINIC URL:
+================================================================
+
+http://10.99.120.100:5175
+
+This URL will NEVER change - share it with your team!
+
+================================================================
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Payment Fix Test</title>
+</head>
+<body>
+    <h1>Lab Payment Fix Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        async function testLabPaymentFix() {
+            const results = [];
+            
+            // Test 1: Check lab orders endpoint
+            try {
+                console.log('Testing lab orders endpoint...');
+                const response = await fetch('http://localhost:5002/api/lab-orders/pending-for-reception', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.push(`✅ Lab Orders: Found ${data.length} pending lab orders`);
+                    
+                    if (data.length > 0) {
+                        results.push(`📋 Sample lab order: ${JSON.stringify(data[0], null, 2)}`);
+                    }
+                } else {
+                    results.push(`❌ Lab Orders: ${response.status} - ${response.statusText}`);
+                }
+            } catch (error) {
+                results.push(`❌ Lab Orders Error: ${error.message}`);
+            }
+            
+            // Test 2: Check notifications endpoint
+            try {
+                console.log('Testing notifications endpoint...');
+                const response = await fetch('http://localhost:5002/api/notifications?type=lab_payment_required', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.push(`✅ Notifications: Found ${data.length} lab payment notifications`);
+                    
+                    if (data.length > 0) {
+                        results.push(`📋 Sample notification: ${JSON.stringify(data[0], null, 2)}`);
+                    }
+                } else {
+                    results.push(`❌ Notifications: ${response.status} - ${response.statusText}`);
+                }
+            } catch (error) {
+                results.push(`❌ Notifications Error: ${error.message}`);
+            }
+            
+            // Display results
+            resultsDiv.innerHTML = results.map(result => `<p>${result}</p>`).join('');
+        }
+        
+        // Run test when page loads
+        testLabPaymentFix();
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Payment Fix Test</title>
+</head>
+<body>
+    <h1>Lab Payment Fix Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        async function testLabPaymentFix() {
+            const results = [];
+            
+            // Test 1: Check lab orders endpoint
+            try {
+                console.log('Testing lab orders endpoint...');
+                const response = await fetch('http://localhost:5002/api/lab-orders/pending-for-reception', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.push(`✅ Lab Orders: Found ${data.length} pending lab orders`);
+                    
+                    if (data.length > 0) {
+                        results.push(`📋 Sample lab order: ${JSON.stringify(data[0], null, 2)}`);
+                    }
+                } else {
+                    results.push(`❌ Lab Orders: ${response.status} - ${response.statusText}`);
+                }
+            } catch (error) {
+                results.push(`❌ Lab Orders Error: ${error.message}`);
+            }
+            
+            // Test 2: Check notifications endpoint
+            try {
+                console.log('Testing notifications endpoint...');
+                const response = await fetch('http://localhost:5002/api/notifications?type=lab_payment_required', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.push(`✅ Notifications: Found ${data.length} lab payment notifications`);
+                    
+                    if (data.length > 0) {
+                        results.push(`📋 Sample notification: ${JSON.stringify(data[0], null, 2)}`);
+                    }
+                } else {
+                    results.push(`❌ Notifications: ${response.status} - ${response.statusText}`);
+                }
+            } catch (error) {
+                results.push(`❌ Notifications Error: ${error.message}`);
+            }
+            
+            // Display results
+            resultsDiv.innerHTML = results.map(result => `<p>${result}</p>`).join('');
+        }
+        
+        // Run test when page loads
+        testLabPaymentFix();
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 

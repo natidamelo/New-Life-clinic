@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Insurance Invoices</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2563eb;
+            text-align: center;
+        }
+        .button {
+            background: #2563eb;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            display: block;
+            margin: 20px auto;
+            width: 200px;
+        }
+        .button:hover {
+            background: #1d4ed8;
+        }
+        .button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+        .loading {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .info {
+            background: #e0f2fe;
+            color: #0c4a6e;
+            border: 1px solid #7dd3fc;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Insurance Invoices</h1>
+        
+        <div class="info">
+            <strong>What this does:</strong><br>
+            This tool will scan all partially paid invoices and fix any that belong to insurance patients. 
+            Insurance patients with lab tests, medications, or imaging should have their invoices marked as "Paid" regardless of payment amount.
+        </div>
+        
+        <button id="fixButton" class="button" onclick="fixInsuranceInvoices()">
+            🔧 Fix Insurance Invoices
+        </button>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        async function fixInsuranceInvoices() {
+            const button = document.getElementById('fixButton');
+            const result = document.getElementById('result');
+            
+            // Show loading state
+            button.disabled = true;
+            button.textContent = '⏳ Fixing Invoices...';
+            result.className = 'result loading';
+            result.style.display = 'block';
+            result.innerHTML = '🔄 Scanning and fixing insurance invoices...';
+            
+            try {
+                // Get the auth token from localStorage (same as the main app)
+                const token = localStorage.getItem('clinic_auth_token');
+                
+                if (!token) {
+                    throw new Error('No authentication token found. Please log in to the clinic system first.');
+                }
+                
+                const response = await fetch('/api/billing/fix-insurance-invoices', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <strong>✅ Success!</strong><br>
+                        ${data.message}<br><br>
+                        <strong>Details:</strong><br>
+                        • Invoices processed: ${data.processed}<br>
+                        • Invoices fixed: ${data.fixed}
+                    `;
+                } else {
+                    throw new Error(data.message || 'Failed to fix insurance invoices');
+                }
+                
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `
+                    <strong>❌ Error:</strong><br>
+                    ${error.message}
+                `;
+            } finally {
+                button.disabled = false;
+                button.textContent = '🔧 Fix Insurance Invoices';
+            }
+        }
+        
+        // Check if user is logged in
+        window.onload = function() {
+            const token = localStorage.getItem('clinic_auth_token');
+            if (!token) {
+                const result = document.getElementById('result');
+                result.className = 'result error';
+                result.style.display = 'block';
+                result.innerHTML = `
+                    <strong>⚠️ Authentication Required</strong><br>
+                    Please log in to the clinic system first, then refresh this page.
+                `;
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Clinic System Connection Test</h1>
+    
+    <div class="test-section info">
+        <h3>Current Configuration</h3>
+        <p><strong>Frontend Port:</strong> <span id="frontendPort">Checking...</span></p>
+        <p><strong>Backend Port:</strong> <span id="backendPort">Checking...</span></p>
+        <p><strong>Network IP:</strong> <span id="networkIP">Checking...</span></p>
+    </div>
+
+    <div class="test-section">
+        <h3>Connection Tests</h3>
+        <button onclick="testBackendConnection()">Test Backend Connection</button>
+        <button onclick="testViteProxy()">Test Vite Proxy</button>
+        <button onclick="testCORS()">Test CORS</button>
+        <button onclick="testAuth()">Test Authentication</button>
+        <div id="connectionResults"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Device Registration Test</h3>
+        <button onclick="testDeviceRegistration()">Test Device Registration</button>
+        <button onclick="simulateRegistration()">Simulate Registration</button>
+        <div id="registrationResults"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Debug Information</h3>
+        <button onclick="showDebugInfo()">Show Debug Info</button>
+        <div id="debugInfo"></div>
+    </div>
+
+    <script>
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            checkPorts();
+            checkNetworkIP();
+        });
+
+        function checkPorts() {
+            // Check if frontend is running
+            fetch('http://localhost:5175')
+                .then(() => {
+                    document.getElementById('frontendPort').textContent = '5175 ✅';
+                    document.getElementById('frontendPort').style.color = 'green';
+                })
+                .catch(() => {
+                    document.getElementById('frontendPort').textContent = '5175 ❌';
+                    document.getElementById('frontendPort').style.color = 'red';
+                });
+
+            // Check if backend is running
+            fetch('http://localhost:5002/api/ping')
+                .then(() => {
+                    document.getElementById('backendPort').textContent = '5002 ✅';
+                    document.getElementById('backendPort').style.color = 'green';
+                })
+                .catch(() => {
+                    document.getElementById('backendPort').textContent = '5002 ❌';
+                    document.getElementById('backendPort').style.color = 'red';
+                });
+        }
+
+        function checkNetworkIP() {
+            // Try to detect network IP
+            fetch('http://192.168.76.157:5002/api/ping')
+                .then(() => {
+                    document.getElementById('networkIP').textContent = '192.168.76.157 ✅';
+                    document.getElementById('networkIP').style.color = 'green';
+                })
+                .catch(() => {
+                    document.getElementById('networkIP').textContent = '192.168.76.157 ❌';
+                    document.getElementById('networkIP').style.color = 'red';
+                });
+        }
+
+        async function testBackendConnection() {
+            const results = document.getElementById('connectionResults');
+            results.innerHTML = '<p>Testing backend connection...</p>';
+
+            try {
+                const response = await fetch('http://localhost:5002/api/ping');
+                if (response.ok) {
+                    const data = await response.json();
+                    results.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Backend Connection Successful</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    results.innerHTML = `
+                        <div class="error">
+                            <h4>❌ Backend Connection Failed</h4>
+                            <p>Status: ${response.status} ${response.statusText}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Backend Connection Error</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testViteProxy() {
+            const results = document.getElementById('connectionResults');
+            results.innerHTML = '<p>Testing Vite proxy...</p>';
+
+            try {
+                const response = await fetch('/api/ping');
+                if (response.ok) {
+                    const data = await response.json();
+                    results.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Vite Proxy Successful</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    results.innerHTML = `
+                        <div class="error">
+                            <h4>❌ Vite Proxy Failed</h4>
+                            <p>Status: ${response.status} ${response.statusText}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Vite Proxy Error</h4>
+                        <p>Error: ${error.message}</p>
+                        <p>Note: This test only works when running through Vite dev server</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testCORS() {
+            const results = document.getElementById('connectionResults');
+            results.innerHTML = '<p>Testing CORS...</p>';
+
+            try {
+                const response = await fetch('http://192.168.76.157:5002/api/ping', {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    results.innerHTML = `
+                        <div class="success">
+                            <h4>✅ CORS Test Successful</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    results.innerHTML = `
+                        <div class="error">
+                            <h4>❌ CORS Test Failed</h4>
+                            <p>Status: ${response.status} ${response.statusText}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="error">
+                        <h4>❌ CORS Test Error</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testAuth() {
+            const results = document.getElementById('connectionResults');
+            results.innerHTML = '<p>Testing authentication...</p>';
+
+            try {
+                const response = await fetch('http://localhost:5002/api/qr/my-registration-status', {
+                    headers: {
+                        'Authorization': 'Bearer test-token'
+                    }
+                });
+                
+                if (response.status === 401) {
+                    results.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Authentication Test Successful</h4>
+                            <p>Server correctly rejected invalid token</p>
+                            <p>Status: ${response.status} ${response.statusText}</p>
+                        </div>
+                    `;
+                } else {
+                    results.innerHTML = `
+                        <div class="info">
+                            <h4>ℹ️ Authentication Test Result</h4>
+                            <p>Status: ${response.status} ${response.statusText}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Authentication Test Error</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testDeviceRegistration() {
+            const results = document.getElementById('registrationResults');
+            results.innerHTML = '<p>Testing device registration...</p>';
+
+            try {
+                const response = await fetch('http://localhost:5002/api/qr/my-registration-status', {
+                    headers: {
+                        'Authorization': 'Bearer test-token'
+                    }
+                });
+                
+                results.innerHTML = `
+                    <div class="info">
+                        <h4>ℹ️ Device Registration Test</h4>
+                        <p>Status: ${response.status} ${response.statusText}</p>
+                        <p>Note: This endpoint requires valid authentication</p>
+                    </div>
+                `;
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Device Registration Test Error</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function simulateRegistration() {
+            const results = document.getElementById('registrationResults');
+            
+            // Simulate device registration in localStorage
+            const mockUserId = 'test-user-' + Date.now();
+            const mockHash = 'test-hash-' + Date.now();
+            
+            localStorage.setItem('deviceRegistered', 'true');
+            localStorage.setItem('staffUserId', mockUserId);
+            localStorage.setItem('staffHash', mockHash);
+            localStorage.setItem('registrationTimestamp', new Date().toISOString());
+            
+            results.innerHTML = `
+                <div class="success">
+                    <h4>✅ Device Registration Simulated</h4>
+                    <p>Mock data stored in localStorage:</p>
+                    <pre>{
+  "deviceRegistered": "true",
+  "staffUserId": "${mockUserId}",
+  "staffHash": "${mockHash}",
+  "registrationTimestamp": "${new Date().toISOString()}"
+}</pre>
+                </div>
+            `;
+        }
+
+        function showDebugInfo() {
+            const debugInfo = document.getElementById('debugInfo');
+            
+            const info = {
+                userAgent: navigator.userAgent,
+                localStorage: {
+                    deviceRegistered: localStorage.getItem('deviceRegistered'),
+                    staffUserId: localStorage.getItem('staffUserId'),
+                    staffHash: localStorage.getItem('staffHash'),
+                    auth_token: localStorage.getItem('auth_token') ? 'Present' : 'Not found',
+                    token: localStorage.getItem('token') ? 'Present' : 'Not found'
+                },
+                sessionStorage: {
+                    deviceRegistered: sessionStorage.getItem('deviceRegistered'),
+                    staffUserId: sessionStorage.getItem('staffUserId'),
+                    staffHash: sessionStorage.getItem('staffHash')
+                },
+                location: {
+                    href: window.location.href,
+                    hostname: window.location.hostname,
+                    port: window.location.port,
+                    protocol: window.location.protocol
+                }
+            };
+            
+            debugInfo.innerHTML = `
+                <h4>🔍 Debug Information</h4>
+                <pre>${JSON.stringify(info, null, 2)}</pre>
+            `;
+        }
+    </script>
+</body>
+</html>

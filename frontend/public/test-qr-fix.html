@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Fix Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .test-result {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 QR Code Fix Test</h1>
+        
+        <div class="info">
+            <strong>What was fixed:</strong> The QR code verification page was automatically showing "already registered" when just opening the page, without any actual scanning.
+        </div>
+
+        <h2>Test Steps</h2>
+        <ol>
+            <li><strong>Clear device data:</strong> Use the button below to clear any existing registration data</li>
+            <li><strong>Generate new QR code:</strong> Go to Staff Management and generate a new QR code</li>
+            <li><strong>Test the fix:</strong> Open the QR code URL and verify it doesn't show "already registered" immediately</li>
+            <li><strong>Manual registration:</strong> Click the "Register This Device" button to actually register</li>
+        </ol>
+
+        <h2>Actions</h2>
+        <button class="button" onclick="clearDeviceData()">🗑️ Clear Device Data</button>
+        <button class="button" onclick="checkDeviceStatus()">🔍 Check Device Status</button>
+        <button class="button" onclick="testQRUrl()">🧪 Test QR URL</button>
+
+        <div id="testResults"></div>
+
+        <div class="info">
+            <strong>Expected Behavior After Fix:</strong>
+            <ul>
+                <li>✅ Opening QR code URL should NOT show "already registered" immediately</li>
+                <li>✅ Should show "Ready for Registration" status</li>
+                <li>✅ Should display a "Register This Device" button</li>
+                <li>✅ Only shows "already registered" after actually clicking the register button</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const deviceKeys = [
+            'staffHash',
+            'staffUserId', 
+            'deviceRegistered',
+            'registrationTimestamp',
+            'userInfo'
+        ];
+
+        function clearDeviceData() {
+            deviceKeys.forEach(key => {
+                localStorage.removeItem(key);
+            });
+            
+            document.getElementById('testResults').innerHTML = 
+                '<div class="test-result success">✅ Device data cleared successfully!</div>';
+        }
+
+        function checkDeviceStatus() {
+            let status = '';
+            deviceKeys.forEach(key => {
+                const value = localStorage.getItem(key);
+                if (value) {
+                    status += `<div><strong>${key}:</strong> ${value}</div>`;
+                }
+            });
+
+            if (status === '') {
+                status = '<div class="success">✅ No device registration data found</div>';
+            }
+
+            document.getElementById('testResults').innerHTML = 
+                `<div class="test-result"><h4>Device Status:</h4>${status}</div>`;
+        }
+
+        function testQRUrl() {
+            // Create a test QR URL with current IP
+            const testUrl = `http://192.168.118.157:5175/verify-qr?hash=test-hash-123&type=staff-registration&userId=test-user-456`;
+            
+            document.getElementById('testResults').innerHTML = 
+                `<div class="test-result">
+                    <h4>Test QR URL:</h4>
+                    <p><a href="${testUrl}" target="_blank">${testUrl}</a></p>
+                    <p><small>Click the link to test the QR verification page behavior</small></p>
+                </div>`;
+        }
+    </script>
+</body>
+</html>

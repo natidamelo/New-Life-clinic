@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Lab Orders Test</title>
+</head>
+<body>
+    <h1>Lab Orders Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        async function testLabOrders() {
+            try {
+                console.log('Testing lab orders endpoint...');
+                const response = await fetch('http://localhost:5002/api/lab-orders/pending-for-reception', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultsDiv.innerHTML = `
+                        <h2>✅ Lab Orders Found: ${data.length}</h2>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<h2>❌ Error: ${response.status} ${response.statusText}</h2>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<h2>❌ Error: ${error.message}</h2>`;
+            }
+        }
+        
+        testLabOrders();
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Lab Orders Test</title>
+</head>
+<body>
+    <h1>Lab Orders Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        async function testLabOrders() {
+            try {
+                console.log('Testing lab orders endpoint...');
+                const response = await fetch('http://localhost:5002/api/lab-orders/pending-for-reception', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultsDiv.innerHTML = `
+                        <h2>✅ Lab Orders Found: ${data.length}</h2>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<h2>❌ Error: ${response.status} ${response.statusText}</h2>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<h2>❌ Error: ${error.message}</h2>`;
+            }
+        }
+        
+        testLabOrders();
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 

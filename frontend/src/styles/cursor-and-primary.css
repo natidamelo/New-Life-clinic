@@ -1,0 +1,460 @@
+/* Cursor and Primary Color Customizations */
+
+/* ===== CURSOR CUSTOMIZATIONS ===== */
+
+/* Global cursor settings */
+:root {
+  /* Default cursor for the entire application */
+  --default-cursor: default;
+  
+  /* Interactive element cursors */
+  --pointer-cursor: pointer;
+  --text-cursor: text;
+  --not-allowed-cursor: not-allowed;
+  --wait-cursor: wait;
+  --help-cursor: help;
+  --crosshair-cursor: crosshair;
+  --grab-cursor: grab;
+  --grabbing-cursor: grabbing;
+  --move-cursor: move;
+  --resize-cursor: n-resize;
+  --zoom-in-cursor: zoom-in;
+  --zoom-out-cursor: zoom-out;
+}
+
+/* Apply default cursor to body */
+body {
+  cursor: var(--default-cursor);
+}
+
+/* Interactive elements - buttons, links, clickable items */
+button,
+a,
+[role="button"],
+[onclick],
+.cursor-pointer,
+.clickable {
+  cursor: var(--pointer-cursor) !important;
+}
+
+/* Text input areas */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
+textarea,
+[contenteditable="true"],
+.cursor-text {
+  cursor: var(--text-cursor) !important;
+}
+
+/* Disabled elements */
+button:disabled,
+input:disabled,
+textarea:disabled,
+.disabled,
+.cursor-not-allowed {
+  cursor: var(--not-allowed-cursor) !important;
+}
+
+/* Loading states */
+.loading,
+.cursor-wait {
+  cursor: var(--wait-cursor) !important;
+}
+
+/* Help elements */
+[title],
+.help,
+.cursor-help {
+  cursor: var(--help-cursor) !important;
+}
+
+/* Drag and drop elements */
+.draggable,
+.cursor-grab {
+  cursor: var(--grab-cursor) !important;
+}
+
+.dragging,
+.cursor-grabbing {
+  cursor: var(--grabbing-cursor) !important;
+}
+
+/* Resizable elements */
+.resizable,
+.cursor-resize {
+  cursor: var(--resize-cursor) !important;
+}
+
+/* Movable elements */
+.movable,
+.cursor-move {
+  cursor: var(--move-cursor) !important;
+}
+
+/* Zoom elements */
+.zoom-in,
+.cursor-zoom-in {
+  cursor: var(--zoom-in-cursor) !important;
+}
+
+.zoom-out,
+.cursor-zoom-out {
+  cursor: var(--zoom-out-cursor) !important;
+}
+
+/* Custom cursor for specific dashboard areas */
+.dashboard-header {
+  cursor: var(--default-cursor);
+}
+
+.sidebar-item {
+  cursor: var(--pointer-cursor);
+  transition: cursor 0.2s ease;
+}
+
+.sidebar-item:hover {
+  cursor: var(--pointer-cursor);
+}
+
+/* ===== PRIMARY COLOR ENHANCEMENTS ===== */
+
+:root {
+  /* Enhanced primary color system */
+  --primary-color: #3B82F6; /* Default blue */
+  --primary-color-50: #EFF6FF;
+  --primary-color-100: #DBEAFE;
+  --primary-color-200: #BFDBFE;
+  --primary-color-300: #93C5FD;
+  --primary-color-400: #60A5FA;
+  --primary-color-500: #3B82F6;
+  --primary-color-600: #2563EB;
+  --primary-color-700: #1D4ED8;
+  --primary-color-800: #1E40AF;
+  --primary-color-900: #1E3A8A;
+  --primary-color-950: #172554;
+  
+  /* Primary color variations for different states */
+  --primary-hover: var(--primary-color-600);
+  --primary-active: var(--primary-color-700);
+  --primary-focus: var(--primary-color-500);
+  --primary-disabled: var(--primary-color-300);
+  
+  /* Text colors that work with primary */
+  --primary-text: #FFFFFF;
+  --primary-text-muted: #F8FAFC;
+  --primary-text-dark: #1E293B;
+}
+
+/* Apply primary color to common elements */
+.btn-primary,
+.button-primary,
+.primary-button {
+  background-color: var(--primary-color) !important;
+  color: var(--primary-text) !important;
+  border-color: var(--primary-color) !important;
+  cursor: var(--pointer-cursor) !important;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover,
+.button-primary:hover,
+.primary-button:hover {
+  background-color: var(--primary-hover) !important;
+  border-color: var(--primary-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.btn-primary:active,
+.button-primary:active,
+.primary-button:active {
+  background-color: var(--primary-active) !important;
+  border-color: var(--primary-active) !important;
+  transform: translateY(0);
+}
+
+.btn-primary:focus,
+.button-primary:focus,
+.primary-button:focus {
+  outline: 2px solid var(--primary-focus);
+  outline-offset: 2px;
+}
+
+.btn-primary:disabled,
+.button-primary:disabled,
+.primary-button:disabled {
+  background-color: var(--primary-disabled) !important;
+  border-color: var(--primary-disabled) !important;
+  cursor: var(--not-allowed-cursor) !important;
+  opacity: 0.6;
+}
+
+/* Primary color for links */
+a.primary-link,
+.primary-link {
+  color: var(--primary-color) !important;
+  text-decoration: none;
+  cursor: var(--pointer-cursor) !important;
+  transition: color 0.2s ease;
+}
+
+a.primary-link:hover,
+.primary-link:hover {
+  color: var(--primary-hover) !important;
+  text-decoration: underline;
+}
+
+/* Primary color for form elements */
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  accent-color: var(--primary-color);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Primary color for progress bars */
+progress {
+  accent-color: var(--primary-color);
+}
+
+.progress-bar {
+  background-color: var(--primary-color) !important;
+}
+
+/* Primary color for badges and tags */
+.badge-primary,
+.tag-primary {
+  background-color: var(--primary-color-100) !important;
+  color: var(--primary-color-800) !important;
+  border: 1px solid var(--primary-color-200) !important;
+}
+
+/* Primary color for cards and panels */
+.card-primary {
+  border-left: 4px solid var(--primary-color) !important;
+}
+
+.panel-primary {
+  border-top: 3px solid var(--primary-color) !important;
+}
+
+/* Primary color for navigation */
+.nav-primary .nav-link.active {
+  background-color: var(--primary-color) !important;
+  color: var(--primary-text) !important;
+}
+
+.nav-primary .nav-link:hover {
+  background-color: var(--primary-color-100) !important;
+  color: var(--primary-color-800) !important;
+}
+
+/* Primary color for tables */
+.table-primary th {
+  background-color: var(--primary-color) !important;
+  color: var(--primary-text) !important;
+}
+
+.table-primary tbody tr:hover {
+  background-color: var(--primary-color-50) !important;
+}
+
+/* Primary color for modals */
+.modal-primary .modal-header {
+  background-color: var(--primary-color) !important;
+  color: var(--primary-text) !important;
+}
+
+/* Primary color for alerts */
+.alert-primary {
+  background-color: var(--primary-color-100) !important;
+  color: var(--primary-color-800) !important;
+  border: 1px solid var(--primary-color-200) !important;
+}
+
+/* Primary color for tooltips */
+.tooltip-primary {
+  background-color: var(--primary-color) !important;
+  color: var(--primary-text) !important;
+}
+
+/* Primary color for dropdowns */
+.dropdown-primary .dropdown-item:hover {
+  background-color: var(--primary-color-100) !important;
+  color: var(--primary-color-800) !important;
+}
+
+/* Primary color for pagination */
+.pagination-primary .page-item.active .page-link {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+  color: var(--primary-text) !important;
+}
+
+.pagination-primary .page-link:hover {
+  background-color: var(--primary-color-100) !important;
+  color: var(--primary-color-800) !important;
+}
+
+/* ===== DASHBOARD SPECIFIC CUSTOMIZATIONS ===== */
+
+/* Sidebar primary color integration */
+.sidebar {
+  --sidebar-primary: var(--primary-color);
+  --sidebar-primary-hover: var(--primary-hover);
+  --sidebar-primary-active: var(--primary-active);
+}
+
+.sidebar-item.active {
+  background-color: var(--primary-color-100) !important;
+  color: var(--primary-color-800) !important;
+  border-right: 3px solid var(--primary-color) !important;
+}
+
+.sidebar-item:hover {
+  background-color: var(--primary-color-50) !important;
+  color: var(--primary-color-700) !important;
+}
+
+/* Dashboard header with primary color */
+.dashboard-header {
+  border-bottom: 2px solid var(--primary-color-200) !important;
+}
+
+.dashboard-title {
+  color: var(--primary-color-800) !important;
+}
+
+/* Dashboard cards with primary accent */
+.dashboard-card {
+  border: 1px solid var(--primary-color-200) !important;
+  transition: all 0.2s ease;
+}
+
+.dashboard-card:hover {
+  border-color: var(--primary-color-300) !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Dashboard stats with primary color */
+.stat-card {
+  border-left: 4px solid var(--primary-color) !important;
+}
+
+.stat-value {
+  color: var(--primary-color-700) !important;
+}
+
+/* ===== RESPONSIVE CURSOR BEHAVIOR ===== */
+
+/* Mobile devices - adjust cursor behavior */
+@media (max-width: 768px) {
+  /* On mobile, some cursor styles might not be as relevant */
+  .cursor-grab,
+  .cursor-grabbing,
+  .cursor-resize {
+    cursor: var(--pointer-cursor) !important;
+  }
+}
+
+/* Touch devices */
+@media (hover: none) and (pointer: coarse) {
+  /* On touch devices, focus on touch-friendly interactions */
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px; /* Minimum touch target size */
+    min-width: 44px;
+  }
+}
+
+/* ===== ACCESSIBILITY ENHANCEMENTS ===== */
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --primary-color: #0000FF; /* High contrast blue */
+    --primary-hover: #0000CC;
+    --primary-active: #000099;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+/* Cursor utility classes */
+.cursor-auto { cursor: auto !important; }
+.cursor-default { cursor: default !important; }
+.cursor-none { cursor: none !important; }
+.cursor-context-menu { cursor: context-menu !important; }
+.cursor-help { cursor: help !important; }
+.cursor-pointer { cursor: pointer !important; }
+.cursor-progress { cursor: progress !important; }
+.cursor-wait { cursor: wait !important; }
+.cursor-cell { cursor: cell !important; }
+.cursor-crosshair { cursor: crosshair !important; }
+.cursor-text { cursor: text !important; }
+.cursor-vertical-text { cursor: vertical-text !important; }
+.cursor-alias { cursor: alias !important; }
+.cursor-copy { cursor: copy !important; }
+.cursor-move { cursor: move !important; }
+.cursor-no-drop { cursor: no-drop !important; }
+.cursor-not-allowed { cursor: not-allowed !important; }
+.cursor-grab { cursor: grab !important; }
+.cursor-grabbing { cursor: grabbing !important; }
+.cursor-all-scroll { cursor: all-scroll !important; }
+.cursor-col-resize { cursor: col-resize !important; }
+.cursor-row-resize { cursor: row-resize !important; }
+.cursor-n-resize { cursor: n-resize !important; }
+.cursor-e-resize { cursor: e-resize !important; }
+.cursor-s-resize { cursor: s-resize !important; }
+.cursor-w-resize { cursor: w-resize !important; }
+.cursor-ne-resize { cursor: ne-resize !important; }
+.cursor-nw-resize { cursor: nw-resize !important; }
+.cursor-se-resize { cursor: se-resize !important; }
+.cursor-sw-resize { cursor: sw-resize !important; }
+.cursor-ew-resize { cursor: ew-resize !important; }
+.cursor-ns-resize { cursor: ns-resize !important; }
+.cursor-nesw-resize { cursor: nesw-resize !important; }
+.cursor-nwse-resize { cursor: nwse-resize !important; }
+.cursor-zoom-in { cursor: zoom-in !important; }
+.cursor-zoom-out { cursor: zoom-out !important; }
+
+/* Primary color utility classes */
+.text-primary { color: hsl(var(--primary)) !important; }
+.bg-primary { background-color: hsl(var(--primary)) !important; }
+.border-primary { border-color: hsl(var(--primary)) !important; }
+.shadow-primary { box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important; }
+
+/* Primary color state utilities */
+.hover-primary:hover { 
+  background-color: hsl(var(--primary)) !important; 
+  color: hsl(var(--primary-foreground)) !important;
+}
+.focus-primary:focus { 
+  border-color: hsl(var(--primary)) !important; 
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+.active-primary:active { 
+  background-color: hsl(var(--primary)) !important; 
+}
+.disabled-primary:disabled { 
+  background-color: hsl(var(--primary)) !important; 
+  cursor: var(--not-allowed-cursor) !important;
+}

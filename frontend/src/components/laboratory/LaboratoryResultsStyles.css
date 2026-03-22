@@ -1,0 +1,58 @@
+/* Hiding the duplicated Today's Schedule in the Laboratory Results tab */
+.laboratory-results-container .todays-schedule,
+[data-tab="lab-results"] .todays-schedule,
+[value="laboratory-results"] .todays-schedule {
+  display: none !important;
+}
+
+/* Add more space between elements in lab results view */
+.laboratory-results-container {
+  padding-top: 1rem;
+}
+
+/* Make sure lab results don't get cut off */
+.lab-results-content {
+  overflow-y: auto;
+  max-height: 70vh;
+}
+
+/* Force hiding of any Today's Schedule element within history form tabs, especially overlapping ones */
+.history-form-content .todays-schedule {
+  display: none !important; /* Hide any schedule inside the main form */
+  position: static !important; /* Reset any absolute/fixed positioning */
+  z-index: auto !important; /* Reset any high z-index */
+}
+
+/* Ensure specific containers don't allow absolute positioning to break layout */
+.systems-review-container, /* Add specific class if needed */
+.vitals-signs-container {  /* Add specific class if needed */
+  position: relative; /* Contain absolutely positioned children */
+}
+
+/* Adjust spacing if needed */
+.history-form-content > div {
+  margin-bottom: 1rem; /* Ensure sections have spacing */
+}
+
+/* CSS to hide the overlapping Today's Schedule in Systems Review */
+
+/* Target the container for Systems Review */
+.systems-review-container { /* Add this class to the main Systems Review div if it doesn't exist */
+  position: relative; /* Helps contain child elements */
+}
+
+/* Target the specific overlapping schedule element */
+.systems-review-container > .todays-schedule {
+  display: none !important; /* Hide it forcefully */
+}
+
+/* Alternative selector if the above doesn't work */
+.systems-review-container > div > .todays-schedule {
+   display: none !important;
+}
+
+/* Ensure proper spacing for actual review items */
+.systems-review-container > div[class*="mb-"] { /* Target divs with margin */
+  position: relative; /* Prevent overlap from other elements */
+  z-index: 1; /* Keep review items above potential overlaps */
+} 

@@ -1,0 +1,265 @@
+/* Enhanced Theme System - Dynamic Color Variables */
+
+@layer base {
+  /* Light Mode Base Variables */
+  :root {
+    /* Default Shadcn variables - will be overridden by theme */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 221 83% 53%;
+    --radius: 0.5rem;
+
+    /* Sidebar Colors */
+    --sidebar: 0 0% 90%;
+    --sidebar-foreground: 240 10% 3.9%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 90%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 240 5.9% 82%;
+    --sidebar-ring: 240 5.9% 10%;
+  }
+
+  /* Dark Mode Base Variables */
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 217 91% 65%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+
+    /* Sidebar Colors for Dark Mode */
+    --sidebar: 240 10% 6%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 240 10% 6%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 240 4.9% 83.9%;
+  }
+
+  /* Theme Color Overrides - These will be dynamically set by JavaScript */
+  :root {
+    /* Primary color system - will be overridden by theme */
+    --primary-color: #3B82F6;
+    --primary-color-50: #EFF6FF;
+    --primary-color-100: #DBEAFE;
+    --primary-color-200: #BFDBFE;
+    --primary-color-300: #93C5FD;
+    --primary-color-400: #60A5FA;
+    --primary-color-500: #3B82F6;
+    --primary-color-600: #2563EB;
+    --primary-color-700: #1D4ED8;
+    --primary-color-800: #1E40AF;
+    --primary-color-900: #1E3A8A;
+    --primary-color-950: #172554;
+    
+    /* Primary color states */
+    --primary-hover: var(--primary-color-600);
+    --primary-active: var(--primary-color-700);
+    --primary-focus: var(--primary-color-500);
+    --primary-disabled: var(--primary-color-300);
+  }
+
+  /* Dark mode primary color adjustments */
+  .dark {
+    --primary-color: #60A5FA;
+    --primary-color-50: #1E3A8A;
+    --primary-color-100: #1E40AF;
+    --primary-color-200: #1D4ED8;
+    --primary-color-300: #2563EB;
+    --primary-color-400: #3B82F6;
+    --primary-color-500: #60A5FA;
+    --primary-color-600: #93C5FD;
+    --primary-color-700: #BFDBFE;
+    --primary-color-800: #DBEAFE;
+    --primary-color-900: #EFF6FF;
+    --primary-color-950: #F8FAFC;
+  }
+
+  /* Apply theme colors to CSS custom properties */
+  * {
+    /* These will be dynamically updated by the theme context */
+    --theme-primary: var(--primary);
+    --theme-primary-foreground: var(--primary-foreground);
+    --theme-secondary: var(--secondary);
+    --theme-secondary-foreground: var(--secondary-foreground);
+    --theme-accent: var(--accent);
+    --theme-accent-foreground: var(--accent-foreground);
+    --theme-muted: var(--muted);
+    --theme-muted-foreground: var(--muted-foreground);
+    --theme-background: var(--background);
+    --theme-foreground: var(--foreground);
+    --theme-card: var(--card);
+    --theme-card-foreground: var(--card-foreground);
+    --theme-border: var(--border);
+    --theme-input: var(--input);
+    --theme-ring: var(--ring);
+  }
+}
+
+/* Theme transition animations — scoped to avoid interfering with transforms/animations */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+
+/* Disable theme transitions on elements that use their own animations */
+[data-no-theme-transition],
+[data-no-theme-transition] *,
+.animate-spin,
+.animate-pulse,
+.animate-bounce,
+.animate-ping {
+  transition: none !important;
+}
+
+/* Theme-specific utility classes */
+.theme-primary {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.theme-secondary {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+}
+
+.theme-accent {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.theme-muted {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.theme-card {
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border));
+}
+
+/* Theme selector specific styles */
+.theme-color-swatch {
+  @apply w-10 h-10 rounded-full border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+}
+
+.theme-color-swatch.selected {
+  @apply ring-2 ring-primary ring-offset-2;
+}
+
+.theme-mode-option {
+  @apply flex items-center space-x-3 p-3 rounded-lg border transition-colors hover:bg-muted/50;
+}
+
+.theme-mode-option.selected {
+  @apply bg-primary/10 border-primary;
+}
+
+/* Dark mode specific adjustments */
+.dark .theme-mode-option.selected {
+  @apply bg-primary/20;
+}
+
+/* Theme settings page specific styles */
+.theme-settings-container {
+  @apply min-h-screen bg-background;
+}
+
+.theme-settings-header {
+  @apply border-b bg-card;
+}
+
+.theme-settings-content {
+  @apply container mx-auto px-4 py-8;
+}
+
+.theme-settings-grid {
+  @apply max-w-4xl mx-auto space-y-8;
+}
+
+/* Feedback section styling */
+.theme-feedback-card {
+  @apply bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200 dark:border-blue-800;
+}
+
+/* Quick actions grid */
+.theme-quick-actions {
+  @apply grid grid-cols-2 md:grid-cols-4 gap-4;
+}
+
+.theme-quick-action-button {
+  @apply h-auto p-4 flex flex-col items-center gap-2;
+}
+
+/* Color theme grid */
+.theme-color-grid {
+  @apply grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-3;
+}
+
+/* Settings management section */
+.theme-settings-management {
+  @apply flex flex-wrap gap-3;
+}
+
+/* Current settings summary */
+.theme-current-settings {
+  @apply bg-muted/50;
+}
+
+.theme-setting-badge {
+  @apply text-xs;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .theme-color-grid {
+    @apply grid-cols-4;
+  }
+  
+  .theme-quick-actions {
+    @apply grid-cols-2;
+  }
+}
+
+@media (max-width: 480px) {
+  .theme-color-grid {
+    @apply grid-cols-3;
+  }
+}

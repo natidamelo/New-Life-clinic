@@ -1,0 +1,9 @@
+@echo off
+echo Absolute final fix - Creating missing permissionMiddleware.js and starting backend...
+cd /d C:\clinic-new-life\backend
+echo Current directory: %CD%
+echo Copying permissionMiddleware.js file...
+copy "%~dp0permissionMiddleware.js" "middleware\permissionMiddleware.js" /Y
+echo File copied successfully!
+echo Starting backend server...
+npm run dev 

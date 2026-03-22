@@ -1,0 +1,37 @@
+# Windows reserved name (breaks git if present)
+nul
+
+# Editor / IDE
+.cursor/
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Local MongoDB data (do not push)
+data/db/
+
+# Build outputs
+dist/
+build/
+.next/
+
+# Environment files — NEVER commit these
+.env
+.env.local
+.env.production
+backend/.env
+backend/.env.new
+backend/.env.temp
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Vite cache
+.vite/
+frontend/.vite/

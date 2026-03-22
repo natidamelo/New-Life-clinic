@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billing Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Billing System Debug</h1>
+    
+    <div class="test-section">
+        <h3>Test 1: Direct API Call</h3>
+        <button onclick="testDirectAPI()">Test Direct API</button>
+        <div id="direct-api-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test 2: Check Auth Token</h3>
+        <button onclick="checkAuthToken()">Check Auth Token</button>
+        <div id="auth-token-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test 3: Test Billing Service</h3>
+        <button onclick="testBillingService()">Test Billing Service</button>
+        <div id="billing-service-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test 4: Check Services</h3>
+        <button onclick="checkServices()">Check Services</button>
+        <div id="services-result"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            console.log(`[${timestamp}] ${message}`);
+            
+            const resultDiv = document.getElementById(`${type}-result`);
+            if (resultDiv) {
+                resultDiv.innerHTML = `<p class="${type}">[${timestamp}] ${message}</p>`;
+            }
+        }
+
+        async function testDirectAPI() {
+            try {
+                log('Testing direct API call to /api/billing/invoices...', 'direct-api-result');
+                
+                const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+                if (!token) {
+                    throw new Error('No auth token found');
+                }
+                
+                log(`Found token: ${token.substring(0, 20)}...`, 'direct-api-result');
+                
+                const response = await fetch('/api/billing/invoices', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                log(`Response status: ${response.status}`, 'direct-api-result');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                log(`✅ API call successful!`, 'direct-api-result');
+                
+                if (data.data && Array.isArray(data.data)) {
+                    const invoices = data.data;
+                    const extensions = invoices.filter(inv => inv.isExtension);
+                    
+                    log(`📊 Total invoices: ${invoices.length}`, 'direct-api-result');
+                    log(` Extension invoices: ${extensions.length}`, 'direct-api-result');
+                    
+                    // Show first few invoices
+                    const preview = invoices.slice(0, 3).map(inv => ({
+                        id: inv._id,
+                        patient: inv.patientName || inv.patient?.name || 'Unknown',
+                        amount: inv.total,
+                        isExtension: inv.isExtension,
+                        status: inv.status
+                    }));
+                    
+                    log(`📋 Sample invoices: ${JSON.stringify(preview, null, 2)}`, 'direct-api-result');
+                } else {
+                    log(`❌ Unexpected data format: ${JSON.stringify(data, null, 2)}`, 'direct-api-result');
+                }
+                
+            } catch (error) {
+                log(`❌ API call failed: ${error.message}`, 'direct-api-result');
+                console.error('Full error:', error);
+            }
+        }
+
+        function checkAuthToken() {
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            const userData = localStorage.getItem('user_data');
+            
+            if (token) {
+                log(`✅ Auth token found: ${token.substring(0, 20)}...`, 'auth-token-result');
+            } else {
+                log(`❌ No auth token found`, 'auth-token-result');
+            }
+            
+            if (userData) {
+                try {
+                    const user = JSON.parse(userData);
+                    log(`✅ User data: ${user.username} (${user.role})`, 'auth-token-result');
+                } catch (e) {
+                    log(`❌ Invalid user data: ${e.message}`, 'auth-token-result');
+                }
+            } else {
+                log(`❌ No user data found`, 'auth-token-result');
+            }
+        }
+
+        function testBillingService() {
+            if (window.billingService) {
+                log(`✅ Billing service found: ${typeof window.billingService}`, 'billing-service-result');
+                
+                // Test the service
+                window.billingService.getAllInvoices()
+                    .then(response => {
+                        log(`✅ Billing service test successful!`, 'billing-service-result');
+                        if (response.data) {
+                            const invoices = response.data;
+                            const extensions = invoices.filter(inv => inv.isExtension);
+                            log(`📊 Service returned ${invoices.length} invoices (${extensions.length} extensions)`, 'billing-service-result');
+                        }
+                    })
+                    .catch(error => {
+                        log(`❌ Billing service test failed: ${error.message}`, 'billing-service-result');
+                    });
+            } else {
+                log(`❌ Billing service not found on window object`, 'billing-service-result');
+            }
+        }
+
+        function checkServices() {
+            const services = {
+                billingService: !!window.billingService,
+                notificationService: !!window.notificationService,
+                prescriptionService: !!window.prescriptionService,
+                patientService: !!window.patientService,
+                apiService: !!window.apiService
+            };
+            
+            log(`🔍 Services available:`, 'services-result');
+            Object.entries(services).forEach(([name, available]) => {
+                log(`${available ? '✅' : '❌'} ${name}: ${available ? 'Available' : 'Not found'}`, 'services-result');
+            });
+            
+            if (window.services) {
+                log(`✅ Services object found with keys: ${Object.keys(window.services).join(', ')}`, 'services-result');
+            } else {
+                log(`❌ Services object not found`, 'services-result');
+            }
+        }
+
+        // Auto-run some checks on page load
+        window.addEventListener('load', () => {
+            log('🔧 Billing Debug Page Loaded', 'direct-api-result');
+            setTimeout(() => {
+                checkAuthToken();
+                checkServices();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

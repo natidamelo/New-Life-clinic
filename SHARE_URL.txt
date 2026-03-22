@@ -1,0 +1,34 @@
+================================================================
+    CLINIC MANAGEMENT SYSTEM - NETWORK ACCESS
+================================================================
+
+WiFi Network: "New Life"
+
+Current Network IP: 10.99.120.158 (changes on restart)
+
+Access from other PCs on "New Life" WiFi:
+http://10.99.120.158:5175
+
+Access from your PC:
+http://localhost:5175
+
+================================================================
+RECOMMENDED: SET STATIC IP
+================================================================
+
+For permanent access, set static IP to: 10.99.120.100
+
+Then permanent URL will be:
+http://10.99.120.100:5175
+
+See: CORRECT_WIFI_IP_SETTINGS.txt for exact values to use!
+
+================================================================
+
+How to find new IP after restart (if not using static):
+1. Look at frontend terminal when you run "npm run dev"
+2. Find line that says: "➜  Network: http://YOUR-IP:5175/"
+3. Share that URL with your team
+
+================================================================
+

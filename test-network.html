@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Network Test</title>
+</head>
+<body>
+    <h1>Network Connectivity Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testConnection() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing connections...</p>';
+            
+            const tests = [
+                { name: 'Backend API', url: 'http://192.168.108.157:5002/ping' },
+                { name: 'Frontend', url: 'http://192.168.108.157:5175' }
+            ];
+            
+            for (const test of tests) {
+                try {
+                    const response = await fetch(test.url);
+                    if (response.ok) {
+                        results.innerHTML += `<p style="color: green;">✅ ${test.name}: Connected</p>`;
+                    } else {
+                        results.innerHTML += `<p style="color: red;">❌ ${test.name}: HTTP ${response.status}</p>`;
+                    }
+                } catch (error) {
+                    results.innerHTML += `<p style="color: red;">❌ ${test.name}: ${error.message}</p>`;
+                }
+            }
+        }
+        
+        // Run test when page loads
+        window.onload = testConnection;
+    </script>
+</body>
+</html>

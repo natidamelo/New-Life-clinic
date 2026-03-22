@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth Token Test</title>
+</head>
+<body>
+    <h1>Authentication Token Test</h1>
+    <div id="status">Testing...</div>
+    
+    <script>
+        async function testAuth() {
+            const statusDiv = document.getElementById('status');
+            
+            // Check for auth token
+            const possibleKeys = [
+                'AUTH_TOKEN_KEY',
+                'authToken',
+                'auth_token',
+                'jwt_token',
+                'token',
+                'clinic_auth_token',
+                'clinic_jwt_token'
+            ];
+            
+            let token = null;
+            for (const key of possibleKeys) {
+                token = localStorage.getItem(key) || sessionStorage.getItem(key);
+                if (token) {
+                    statusDiv.innerHTML += `<p>✅ Found token in ${key}</p>`;
+                    break;
+                }
+            }
+            
+            if (!token) {
+                statusDiv.innerHTML += '<p style="color: red;">❌ No auth token found</p>';
+                return;
+            }
+            
+            // Test payment with token
+            try {
+                const response = await fetch('http://localhost:5002/api/billing/process-lab-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        labOrderIds: ['687e44bb1ead184135c9618b'],
+                        paymentMethod: 'cash',
+                        amountPaid: 200,
+                        notes: 'test payment',
+                        directPayment: true
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    statusDiv.innerHTML += `<p style="color: green;">✅ Payment successful: ${JSON.stringify(data)}</p>`;
+                } else {
+                    const errorData = await response.json();
+                    statusDiv.innerHTML += `<p style="color: orange;">⚠️ Payment failed: ${response.status} - ${JSON.stringify(errorData)}</p>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML += `<p style="color: red;">❌ Payment error: ${error.message}</p>`;
+            }
+        }
+        
+        testAuth();
+    </script>
+</body>
+</html> 
+<html>
+<head>
+    <title>Auth Token Test</title>
+</head>
+<body>
+    <h1>Authentication Token Test</h1>
+    <div id="status">Testing...</div>
+    
+    <script>
+        async function testAuth() {
+            const statusDiv = document.getElementById('status');
+            
+            // Check for auth token
+            const possibleKeys = [
+                'AUTH_TOKEN_KEY',
+                'authToken',
+                'auth_token',
+                'jwt_token',
+                'token',
+                'clinic_auth_token',
+                'clinic_jwt_token'
+            ];
+            
+            let token = null;
+            for (const key of possibleKeys) {
+                token = localStorage.getItem(key) || sessionStorage.getItem(key);
+                if (token) {
+                    statusDiv.innerHTML += `<p>✅ Found token in ${key}</p>`;
+                    break;
+                }
+            }
+            
+            if (!token) {
+                statusDiv.innerHTML += '<p style="color: red;">❌ No auth token found</p>';
+                return;
+            }
+            
+            // Test payment with token
+            try {
+                const response = await fetch('http://localhost:5002/api/billing/process-lab-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        labOrderIds: ['687e44bb1ead184135c9618b'],
+                        paymentMethod: 'cash',
+                        amountPaid: 200,
+                        notes: 'test payment',
+                        directPayment: true
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    statusDiv.innerHTML += `<p style="color: green;">✅ Payment successful: ${JSON.stringify(data)}</p>`;
+                } else {
+                    const errorData = await response.json();
+                    statusDiv.innerHTML += `<p style="color: orange;">⚠️ Payment failed: ${response.status} - ${JSON.stringify(errorData)}</p>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML += `<p style="color: red;">❌ Payment error: ${error.message}</p>`;
+            }
+        }
+        
+        testAuth();
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 

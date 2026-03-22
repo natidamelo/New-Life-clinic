@@ -1,0 +1,100 @@
+================================================================
+    SET STATIC IP - VISUAL GUIDE (Windows 11/10)
+================================================================
+
+STEP 1: Open Windows Settings
+   Press: Win + I
+   
+STEP 2: Navigate to Network
+   Click: Network & Internet
+   Click: Ethernet (or Wi-Fi if wireless)
+   
+STEP 3: Open Properties
+   Click: Properties (under your connection name)
+   
+STEP 4: Edit IP Assignment
+   Scroll down to: IP assignment
+   You'll see: "Automatic (DHCP)"
+   Click: Edit button
+   
+STEP 5: Change to Manual
+   Dropdown: Change from "Automatic (DHCP)" to "Manual"
+   Toggle ON: IPv4
+   
+STEP 6: Fill in IP Settings
+   ┌─────────────────────────────────────────┐
+   │ IP address:      192.168.1.100         │
+   │ Subnet prefix:   24                    │
+   │ Gateway:         192.168.1.1           │
+   │ Preferred DNS:   8.8.8.8               │
+   │ Alternate DNS:   8.8.4.4               │
+   └─────────────────────────────────────────┘
+   
+STEP 7: Save
+   Click: Save button
+   
+STEP 8: Verify
+   Open Command Prompt
+   Run: ipconfig
+   
+   You should see:
+   IPv4 Address. . . . . . . . . . . : 192.168.1.100
+   
+================================================================
+DONE! ✅
+================================================================
+
+Your clinic system URL is now permanently:
+
+   http://192.168.1.100:5175
+
+Share this with your team! It will NEVER change!
+
+================================================================
+NOTES:
+================================================================
+
+1. IP Address: 192.168.1.100
+   - Choose any number from 100-254
+   - Avoid 1-99 (often used by router DHCP)
+
+2. Subnet: 24 (or 255.255.255.0)
+   - Standard for home/office networks
+
+3. Gateway: 192.168.1.1
+   - This is your router
+   - Might be different - check with: ipconfig /all
+   - Look for "Default Gateway"
+
+4. DNS: 8.8.8.8
+   - Google's public DNS
+   - Makes internet work
+
+================================================================
+TROUBLESHOOTING:
+================================================================
+
+Internet not working?
+→ Check Gateway IP (should be your router's IP)
+→ Run: ipconfig /all
+→ Look for "Default Gateway" and use that instead of 192.168.1.1
+
+Can't save settings?
+→ Make sure you have admin rights
+→ Close other network programs
+
+Want to go back to automatic?
+→ Edit IP assignment
+→ Change back to "Automatic (DHCP)"
+
+================================================================
+
+
+
+
+
+
+
+
+
+

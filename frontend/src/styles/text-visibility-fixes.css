@@ -1,0 +1,150 @@
+/* Text Visibility Fixes - Ensure all text is properly visible in both modes */
+
+/* ===== BODY & ROOT ===== */
+html,
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  min-height: 100%;
+}
+
+/* ===== SEMANTIC TEXT UTILITIES ===== */
+.text-foreground        { color: hsl(var(--foreground)); }
+.text-muted-foreground  { color: hsl(var(--muted-foreground)); }
+.text-card-foreground   { color: hsl(var(--card-foreground)); }
+.text-popover-foreground { color: hsl(var(--popover-foreground)); }
+.text-primary-foreground { color: hsl(var(--primary-foreground)); }
+.text-secondary-foreground { color: hsl(var(--secondary-foreground)); }
+.text-accent-foreground { color: hsl(var(--accent-foreground)); }
+.text-destructive-foreground { color: hsl(var(--destructive-foreground)); }
+
+/* ===== FORM ELEMENTS ===== */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+textarea,
+select {
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--input));
+  border-color: hsl(var(--border));
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
+}
+
+/* Dark mode form elements */
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="number"],
+.dark input[type="search"],
+.dark input[type="tel"],
+.dark input[type="url"],
+.dark input[type="date"],
+.dark input[type="time"],
+.dark input[type="datetime-local"],
+.dark textarea,
+.dark select {
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--input));
+  border-color: hsl(var(--border));
+  color-scheme: dark;
+}
+
+/* Label fixes */
+label {
+  color: hsl(var(--foreground));
+}
+
+/* ===== SCROLLBAR STYLING ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.4);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.6);
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: hsl(240 10% 8%);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(240 5% 35%);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(240 5% 50%);
+}
+
+/* ===== STATUS COLORS ===== */
+.text-destructive,
+.text-red-600 { color: #dc2626; }
+.dark .text-destructive,
+.dark .text-red-600 { color: #f87171; }
+
+.text-green-600 { color: #16a34a; }
+.dark .text-green-600 { color: #4ade80; }
+
+.text-yellow-600 { color: #ca8a04; }
+.dark .text-yellow-600 { color: #facc15; }
+
+/* text-blue-600 is now handled by theme-color-overrides.css via --primary */
+
+/* ===== FORCED COLORS ===== */
+.text-white { color: #ffffff !important; }
+.text-black { color: #000000 !important; }
+
+/* ===== DARK MODE CARD & SURFACE UPGRADES ===== */
+.dark .bg-white {
+  background-color: hsl(var(--card)) !important;
+}
+
+.dark [class*="shadow"] {
+  --tw-shadow-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Table rows in dark mode */
+.dark table {
+  color: hsl(var(--foreground));
+}
+.dark thead {
+  background-color: hsl(var(--muted));
+}
+.dark tbody tr:hover {
+  background-color: hsl(var(--accent));
+}
+
+/* Dialog / Modal backdrop */
+.dark [role="dialog"],
+.dark [data-radix-popper-content-wrapper] {
+  color: hsl(var(--foreground));
+}
+
+/* ===== HIGH CONTRAST MEDIA QUERY ===== */
+@media (prefers-contrast: high) {
+  :root {
+    --foreground: 0 0% 0%;
+    --background: 0 0% 100%;
+  }
+  .dark {
+    --foreground: 0 0% 100%;
+    --background: 0 0% 0%;
+  }
+}

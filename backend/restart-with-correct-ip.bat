@@ -1,0 +1,6 @@
+@echo off
+echo Setting FRONTEND_IP to 169.254.50.151...
+set FRONTEND_IP=169.254.50.151
+
+echo Starting backend server with correct IP...
+npm start

@@ -1,0 +1,1022 @@
+/* Checkbox Medication Administration Styles */
+
+.checkbox-medication-card {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.checkbox-medication-card:hover {
+  /* Hover effects removed */
+}
+
+.medication-day-box {
+  transition: all 0.3s ease;
+  border-radius: 4px;
+  min-height: 22px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+}
+
+.medication-day-box:hover {
+  /* Hover effects removed */
+}
+
+.medication-day-box.today {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: #3b82f6;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+}
+
+.medication-day-box.overdue {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #f59e0b;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2);
+}
+
+.medication-day-box.extension {
+  background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
+  border-color: #f97316;
+  box-shadow: 0 4px 15px rgba(249, 115, 22, 0.2);
+}
+
+.medication-day-box.completed {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: #10b981;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+}
+
+/* Frequency-based styling for classic boxes */
+.medication-day-box.freq-qd {
+  border-color: #d1d5db !important;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%) !important;
+}
+
+.medication-day-box.freq-bid {
+  border-color: #93c5fd !important;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+}
+
+.medication-day-box.freq-tid {
+  border-color: #c4b5fd !important;
+  background: linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%) !important;
+}
+
+.medication-day-box.freq-qid {
+  border-color: #fca5a5 !important;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%) !important;
+}
+
+/* Enhanced dose button styles with better visibility and interaction */
+.dose-button {
+  transition: all 0.3s ease;
+  border-radius: 50%;
+  width: 12px;
+  height: 12px;
+  font-size: 8px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 3px solid transparent;
+  outline: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+  min-width: 52px;
+  min-height: 52px;
+}
+
+/* Modern dose button styles - new interactive design */
+.modern-dose-button {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 12px;
+  width: 60px;
+  height: 70px;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 2px solid transparent;
+  outline: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  color: #475569;
+  margin: 2px;
+}
+
+.modern-dose-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.1) 100%);
+  border-radius: 10px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.modern-dose-button:hover::before {
+  /* Hover effects removed */
+}
+
+.modern-dose-button:hover:not(:disabled) {
+  /* Hover effects removed */
+}
+
+.modern-dose-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.modern-dose-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: scale(0.95);
+}
+
+.modern-dose-button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Modern dose button states */
+.modern-dose-button.administered {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: 2px solid #047857;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+  transition: all 0.3s ease-in-out;
+}
+
+/* Smooth transition when becoming administered */
+.modern-dose-button:not(.administered) {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Ensure clean state transition */
+.modern-dose-button.administered * {
+  transition: all 0.2s ease-in-out;
+}
+
+.modern-dose-button.administering {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+  border: 2px solid #f59e0b;
+  box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);
+  cursor: not-allowed;
+}
+
+.modern-dose-button.today {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: 2px solid #1d4ed8;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+}
+
+.modern-dose-button.overdue {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  color: white;
+  border: 2px solid #c2410c;
+  box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
+}
+
+.modern-dose-button.future {
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  color: #64748b;
+  border: 2px solid #94a3b8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.modern-dose-button.no-inventory {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border: 2px solid #b91c1c;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+  cursor: not-allowed;
+}
+
+.modern-dose-button.blocked {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  color: white;
+  border: 2px solid #c2410c;
+  box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
+  cursor: not-allowed;
+  opacity: 0.9;
+  position: relative;
+}
+
+.modern-dose-button.scheduled {
+  background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 100%);
+  color: #6b7280;
+  border: 2px solid #d1d5db;
+  box-shadow: 0 2px 8px rgba(107, 114, 128, 0.2);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.modern-dose-button.waiting {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #d97706;
+  border: 2px solid #f59e0b;
+  box-shadow: 0 3px 12px rgba(245, 158, 11, 0.3);
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.modern-dose-button.blocked::after {
+  content: '🚫';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 12px;
+  z-index: 10;
+}
+
+/* Animations for modern dose buttons */
+@keyframes pulse-administering {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes bounce-success {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  40%, 43% {
+    transform: translate3d(0, -8px, 0);
+  }
+  70% {
+    transform: translate3d(0, -4px, 0);
+  }
+  90% {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
+.modern-dose-button.administering {
+  animation: pulse-administering 1.5s ease-in-out infinite;
+}
+
+.modern-dose-button.administered {
+  animation: bounce-success 0.6s ease-out;
+}
+
+.dose-button.processing {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+  border-color: #f59e0b;
+  cursor: not-allowed;
+  animation: pulse-processing 1.5s ease-in-out infinite alternate;
+}
+
+.dose-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.dose-button:hover::before {
+  /* Hover effects removed */
+}
+
+.dose-button:hover:not(:disabled) {
+  /* Hover effects removed */
+}
+
+.dose-button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.dose-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: scale(0.9);
+}
+
+.dose-button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Enhanced dose button states with gradients and better contrast */
+.dose-button.administered {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: 3px solid #047857;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+}
+
+.dose-button.disabled {
+  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+  color: #6b7280;
+  border: 3px solid #9ca3af;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dose-button.restricted {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border: 3px solid #b91c1c;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+  cursor: not-allowed;
+  animation: pulse-red 2s infinite;
+}
+
+.dose-button.not-today {
+  background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+  color: white;
+  border: 3px solid #4b5563;
+  box-shadow: 0 4px 15px rgba(156, 163, 175, 0.4);
+  cursor: not-allowed;
+}
+
+.dose-button.payment-required {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  color: white;
+  border: 3px solid #dc2626;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+  animation: pulse-red 2s infinite;
+}
+
+.dose-button.available {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: 3px solid #1d4ed8;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+}
+
+.dose-button.future {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  color: #9ca3af;
+  border: 3px solid #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Special states with unique colors and animations */
+.dose-button.today {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  border: 3px solid #6d28d9;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+  animation: pulse-purple 2s infinite;
+}
+
+.dose-button.waiting {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border: 3px solid #f59e0b;
+  color: white;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+  cursor: not-allowed;
+  animation: pulse-waiting 2s ease-in-out infinite;
+}
+
+.dose-button.overdue {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  border: 3px solid #b45309;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+  animation: pulse-orange 2s infinite;
+}
+
+/* Loading animation for processing state */
+.dose-button.loading-pulse {
+  animation: loading-pulse 1.5s infinite;
+}
+
+/* Pulse animations for different states */
+@keyframes pulse-red {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.6);
+  }
+}
+
+@keyframes pulse-purple {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.6);
+  }
+}
+
+@keyframes pulse-orange {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.6);
+  }
+}
+
+@keyframes loading-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.95);
+  }
+}
+
+/* Enhanced dose label styles */
+.dose-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #374151;
+  margin-top: 6px;
+  text-align: center;
+  line-height: 1.2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  min-height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkbox-button {
+  transition: all 0.2s ease;
+  border-radius: 6px;
+  min-height: 32px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.checkbox-button:hover:not(:disabled) {
+  /* Hover effects removed */
+}
+
+.checkbox-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Status colors */
+.status-administered {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-color: #047857;
+  color: white;
+}
+
+.status-overdue {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border-color: #b91c1c;
+  color: white;
+}
+
+.status-today {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-color: #1d4ed8;
+  color: white;
+}
+
+.status-future {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+
+/* Progress bar animation */
+.progress-bar {
+  transition: width 0.5s ease-in-out;
+}
+
+/* Loading animation */
+.loading-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Responsive grid */
+@media (max-width: 768px) {
+  .medication-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  
+  .medication-day-box {
+    min-height: 120px;
+  }
+  
+  .dose-button {
+    width: 48px;
+    height: 48px;
+    font-size: 16px;
+    min-width: 48px;
+    min-height: 48px;
+  }
+  
+  .dose-label {
+    font-size: 10px;
+    margin-top: 4px;
+  }
+  
+  .checkbox-button {
+    min-height: 28px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .medication-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  
+  .medication-day-box {
+    min-height: 110px;
+    padding: 0.75rem;
+  }
+  
+  .dose-button {
+    width: 44px;
+    height: 44px;
+    font-size: 14px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .dose-label {
+    font-size: 9px;
+    margin-top: 3px;
+  }
+  
+  .checkbox-button {
+    min-height: 24px;
+    font-size: 9px;
+  }
+}
+
+/* Card animations */
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Success animation */
+.success-check {
+  animation: successCheck 0.6s ease-in-out;
+}
+
+@keyframes successCheck {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Warning animation */
+.warning-pulse {
+  animation: warningPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes warningPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+  }
+}
+
+/* Error animation */
+.error-shake {
+  animation: errorShake 0.5s ease-in-out;
+}
+
+@keyframes errorShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+/* Beautiful animations for dose buttons */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes success-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.dose-button {
+  animation: bounce-in 0.6s ease-out;
+}
+
+.dose-button.administered {
+  animation: success-pulse 0.8s ease-in-out;
+}
+
+.dose-button.today {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.dose-button.overdue {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+/* Enhanced hover effects */
+.dose-button:hover:not(:disabled) {
+  /* Hover effects removed */
+}
+
+.dose-button.administered:hover {
+  /* Hover effects removed */
+}
+
+.dose-button.today:hover {
+  /* Hover effects removed */
+}
+
+.dose-button.overdue:hover {
+  /* Hover effects removed */
+}
+
+/* Frequency Selection Interface Styles */
+.frequency-selection-interface {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.frequency-option {
+  transition: all 0.2s ease-in-out;
+}
+
+.frequency-option:hover {
+  /* Hover effects removed */
+}
+
+.frequency-option.selected {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+/* Frequency checkbox styles */
+.frequency-option input[type="checkbox"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.frequency-option input[type="checkbox"]:checked {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  position: relative;
+}
+
+.frequency-option input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+/* Time slot badges */
+.time-slot-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.time-slot-badge.selected {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.time-slot-badge.unselected {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* Frequency guide styles */
+.frequency-guide {
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.frequency-guide-title {
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.frequency-guide-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.frequency-guide-abbreviation {
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.frequency-guide-description {
+  color: #6b7280;
+}
+
+/* Current selection summary */
+.current-selection {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1px solid #10b981;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.current-selection-icon {
+  color: #059669;
+}
+
+.current-selection-label {
+  font-weight: 600;
+  color: #065f46;
+}
+
+.current-selection-value {
+  color: #047857;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .frequency-options {
+    grid-template-columns: 1fr;
+  }
+  
+  .frequency-option {
+    padding: 8px;
+  }
+  
+  .time-slot-badge {
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+}
+
+/* Animation for frequency changes */
+.frequency-change-animation {
+  animation: frequencyChange 0.3s ease-in-out;
+}
+
+@keyframes frequencyChange {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Hover effects for interactive elements */
+.frequency-option:hover .time-slot-badge {
+  /* Hover effects removed */
+}
+
+.frequency-guide-item:hover {
+  /* Hover effects removed */
+}
+
+/* Focus states for accessibility */
+.frequency-option:focus-within {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.frequency-option input[type="checkbox"]:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Loading state for frequency changes */
+.frequency-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.frequency-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid #3b82f6;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse-processing {
+  0% { 
+    opacity: 0.6; 
+    transform: scale(1);
+  }
+  100% { 
+    opacity: 1; 
+    transform: scale(1.1);
+  }
+}
+
+@keyframes pulse-waiting {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.6);
+    transform: scale(1.05);
+  }
+}
+
+/* Nuclear option - hide ALL pill-related elements in administered state */
+.modern-dose-button.administered *[class*="pill"],
+.modern-dose-button.administered *[data-lucide="pill"],
+.modern-dose-button.administered svg[data-lucide="pill"],
+.modern-dose-button.administered .pill-icon,
+.modern-dose-button.administered [class*="Pill"],
+.modern-dose-button.administered [class*="PILL"],
+.modern-dose-button.administered .pill-beautiful {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+}
+
+/* Ensure ONLY checkmark content shows in administered state */
+.modern-dose-button.administered .administered-content {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Force hide any other content in administered buttons */
+.modern-dose-button.administered > *:not(.administered-content) {
+  display: none !important;
+}
+
+/* Ensure green checkmark is visible in administered state */
+.modern-dose-button.administered .check-icon,
+.modern-dose-button.administered svg[data-lucide="check-circle"],
+.modern-dose-button.administered [data-lucide="check-circle"] {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #10b981 !important; /* Green color for better visibility */
+}
+
+/* Ensure checkmark text is white in administered state */
+.modern-dose-button.administered .administered-content span {
+  color: white !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Ensure checkmark text is green in administered state */
+.modern-dose-button.administered .text-green-500 {
+  color: #10b981 !important;
+}
+
+/* Additional rule to hide pill icons in completed/administered checkboxes */
+input[type="checkbox"]:checked + * .pill-icon,
+input[type="checkbox"]:checked ~ * .pill-icon,
+.administered .pill-icon,
+.completed .pill-icon {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Beautiful pill icon styling */
+.pill-beautiful {
+  color: #60a5fa !important; /* Beautiful blue color */
+  filter: drop-shadow(0 2px 4px rgba(96, 165, 250, 0.3));
+  transition: all 0.3s ease;
+}
+
+.pill-beautiful:hover {
+  /* Hover effects removed */
+}
+
+/* Enhanced pill icon for pending doses */
+.modern-dose-button:not(.administered):not(.blocked):not(.no-stock) .pill-icon {
+  display: block !important;
+  color: #60a5fa !important; /* Beautiful blue */
+  filter: drop-shadow(0 2px 4px rgba(96, 165, 250, 0.3));
+  transition: all 0.3s ease;
+}
+
+.modern-dose-button:not(.administered):not(.blocked):not(.no-stock):hover .pill-icon {
+  /* Hover effects removed */
+}

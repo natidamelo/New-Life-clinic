@@ -1,0 +1,6 @@
+@import './styles/globals.css';
+@import './styles/button-text-fix.css';
+@import './styles/hardcoded-color-overrides.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities; 

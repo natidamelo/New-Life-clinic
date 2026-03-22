@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Backend Status Test</title>
+</head>
+<body>
+    <h1>Backend Status Test</h1>
+    <div id="status">Testing...</div>
+    
+    <script>
+        async function testBackend() {
+            const statusDiv = document.getElementById('status');
+            
+            try {
+                // Test basic connectivity
+                const response = await fetch('http://localhost:5002/api/ping');
+                if (response.ok) {
+                    statusDiv.innerHTML = '<p style="color: green;">✅ Backend is running on port 5002</p>';
+                    
+                    // Test lab orders endpoint
+                    try {
+                        const labResponse = await fetch('http://localhost:5002/api/lab-orders/pending-for-reception');
+                        if (labResponse.ok) {
+                            const labData = await labResponse.json();
+                            statusDiv.innerHTML += `<p style="color: green;">✅ Lab orders endpoint working - Found ${labData.length} pending orders</p>`;
+                        } else {
+                            statusDiv.innerHTML += `<p style="color: orange;">⚠️ Lab orders endpoint returned ${labResponse.status}</p>`;
+                        }
+                    } catch (labError) {
+                        statusDiv.innerHTML += `<p style="color: red;">❌ Lab orders endpoint error: ${labError.message}</p>`;
+                    }
+                } else {
+                    statusDiv.innerHTML = `<p style="color: red;">❌ Backend responded with ${response.status}</p>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<p style="color: red;">❌ Cannot connect to backend: ${error.message}</p>`;
+            }
+        }
+        
+        testBackend();
+    </script>
+</body>
+</html> 
+<html>
+<head>
+    <title>Backend Status Test</title>
+</head>
+<body>
+    <h1>Backend Status Test</h1>
+    <div id="status">Testing...</div>
+    
+    <script>
+        async function testBackend() {
+            const statusDiv = document.getElementById('status');
+            
+            try {
+                // Test basic connectivity
+                const response = await fetch('http://localhost:5002/api/ping');
+                if (response.ok) {
+                    statusDiv.innerHTML = '<p style="color: green;">✅ Backend is running on port 5002</p>';
+                    
+                    // Test lab orders endpoint
+                    try {
+                        const labResponse = await fetch('http://localhost:5002/api/lab-orders/pending-for-reception');
+                        if (labResponse.ok) {
+                            const labData = await labResponse.json();
+                            statusDiv.innerHTML += `<p style="color: green;">✅ Lab orders endpoint working - Found ${labData.length} pending orders</p>`;
+                        } else {
+                            statusDiv.innerHTML += `<p style="color: orange;">⚠️ Lab orders endpoint returned ${labResponse.status}</p>`;
+                        }
+                    } catch (labError) {
+                        statusDiv.innerHTML += `<p style="color: red;">❌ Lab orders endpoint error: ${labError.message}</p>`;
+                    }
+                } else {
+                    statusDiv.innerHTML = `<p style="color: red;">❌ Backend responded with ${response.status}</p>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<p style="color: red;">❌ Cannot connect to backend: ${error.message}</p>`;
+            }
+        }
+        
+        testBackend();
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 

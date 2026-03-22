@@ -1,0 +1,9 @@
+@echo off
+echo Ultimate fix - Installing date-fns and remaining dependencies...
+cd /d C:\clinic-new-life\backend
+echo Current directory: %CD%
+echo Installing final missing dependencies...
+npm install date-fns uuid lodash moment axios
+echo All dependencies installed!
+echo Starting backend server...
+npm run dev 

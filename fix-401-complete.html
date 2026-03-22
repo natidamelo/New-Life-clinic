@@ -1,0 +1,1619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete 401 Fix - Clinic CMS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        .step h3 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        .step.completed {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .step.failed {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #1e7e34;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        .status {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #007bff;
+            min-height: 60px;
+        }
+        .success-status {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .error-status {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .warning-status {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+        .fix-all-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 20px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+            width: 100%;
+        }
+        .fix-all-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Complete 401 Fix - Clinic CMS</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 30px;">
+            This will fix the 401 Unauthorized error by creating the admin user and setting up authentication.
+        </p>
+        
+        <button class="fix-all-btn" onclick="fixAllSteps()">
+            🚀 Fix All Steps Automatically
+        </button>
+        
+        <div class="step" id="step1">
+            <h3>Step 1: Check Backend Server</h3>
+            <button onclick="checkServer()">Check Server Status</button>
+            <div id="step1Status" class="status">Click the button to check server status...</div>
+        </div>
+        
+        <div class="step" id="step2">
+            <h3>Step 2: Create Admin User</h3>
+            <button onclick="createAdminUser()">Create Admin User</button>
+            <div id="step2Status" class="status">Click the button to create admin user...</div>
+        </div>
+        
+        <div class="step" id="step3">
+            <h3>Step 3: Test Login</h3>
+            <button onclick="testLogin()">Test Login</button>
+            <div id="step3Status" class="status">Click the button to test login...</div>
+        </div>
+        
+        <div class="step" id="step4">
+            <h3>Step 4: Fix Frontend Authentication</h3>
+            <button onclick="fixFrontendAuth()" class="success">Fix Frontend Auth</button>
+            <div id="step4Status" class="status">Click the button to fix frontend authentication...</div>
+        </div>
+        
+        <div class="step" id="step5">
+            <h3>Step 5: Test Billing API</h3>
+            <button onclick="testBillingAPI()">Test Billing API</button>
+            <div id="step5Status" class="status">Click the button to test billing API...</div>
+        </div>
+        
+        <div class="step">
+            <h3>Quick Actions</h3>
+            <button onclick="openMainApp()">Open Main App</button>
+            <button onclick="openBackend()">Open Backend</button>
+            <button onclick="clearAllAuth()" class="danger">Clear All Auth</button>
+        </div>
+    </div>
+
+    <script>
+        let authToken = null;
+        let userData = null;
+
+        function showStatus(stepId, message, type = 'info') {
+            const status = document.getElementById(stepId + 'Status');
+            status.innerHTML = message;
+            status.className = `status ${type === 'success' ? 'success-status' : type === 'error' ? 'error-status' : type === 'warning' ? 'warning-status' : ''}`;
+            
+            const step = document.getElementById(stepId);
+            if (type === 'success') {
+                step.className = 'step completed';
+            } else if (type === 'error') {
+                step.className = 'step failed';
+            } else {
+                step.className = 'step';
+            }
+        }
+
+        async function checkServer() {
+            try {
+                showStatus('step1', 'Checking server connection...', 'info');
+                
+                const response = await fetch('http://localhost:5002/ping', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showStatus('step1', `✅ Server is running!\nResponse: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('step1', `❌ Server error: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showStatus('step1', `❌ Server connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function createAdminUser() {
+            try {
+                showStatus('step2', 'Creating admin user...', 'info');
+                
+                // Try to create admin user using a direct database approach
+                // First, try to login to see if admin exists
+                const loginResponse = await fetch('http://localhost:5002/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@clinic.com',
+                        password: 'admin123'
+                    })
+                });
+
+                const loginData = await loginResponse.json();
+
+                if (loginResponse.ok && loginData.success) {
+                    showStatus('step2', '✅ Admin user already exists and login works!', 'success');
+                    authToken = loginData.token;
+                    userData = loginData.user;
+                } else {
+                    // Admin doesn't exist, try to create it
+                    showStatus('step2', 'Admin user not found. Trying to create...', 'warning');
+                    
+                    // Try registration with username
+                    const registerResponse = await fetch('http://localhost:5002/api/auth/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: 'admin@clinic.com',
+                            password: 'admin123',
+                            username: 'admin',
+                            name: 'Admin User',
+                            role: 'admin',
+                            firstName: 'Admin',
+                            lastName: 'User'
+                        })
+                    });
+
+                    const registerData = await registerResponse.json();
+
+                    if (registerResponse.ok && registerData.success) {
+                        showStatus('step2', '✅ Admin user created successfully!', 'success');
+                        authToken = registerData.token;
+                        userData = registerData.user;
+                    } else {
+                        showStatus('step2', `❌ Failed to create admin user: ${registerData.message || 'Unknown error'}\n\nYou may need to create the admin user manually in the database.`, 'error');
+                    }
+                }
+            } catch (error) {
+                showStatus('step2', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogin() {
+            try {
+                showStatus('step3', 'Testing login...', 'info');
+                
+                const response = await fetch('http://localhost:5002/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@clinic.com',
+                        password: 'admin123'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    authToken = data.token;
+                    userData = data.user;
+                    showStatus('step3', `✅ Login successful!\nUser: ${data.user.name}\nRole: ${data.user.role}\nToken: ${data.token.substring(0, 20)}...`, 'success');
+                } else {
+                    showStatus('step3', `❌ Login failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('step3', `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        function fixFrontendAuth() {
+            if (!authToken) {
+                showStatus('step4', '❌ No authentication token available. Please complete Step 3 first.', 'error');
+                return;
+            }
+
+            try {
+                // Set token in all possible locations
+                localStorage.setItem('auth_token', authToken);
+                localStorage.setItem('AUTH_TOKEN_KEY', authToken);
+                localStorage.setItem('authToken', authToken);
+                localStorage.setItem('jwt_token', authToken);
+                localStorage.setItem('token', authToken);
+                localStorage.setItem('clinic_auth_token', authToken);
+                localStorage.setItem('clinic_jwt_token', authToken);
+                localStorage.setItem('user_data', JSON.stringify(userData));
+                
+                showStatus('step4', `✅ Frontend authentication fixed!\nToken set in all locations: ${authToken.substring(0, 20)}...`, 'success');
+            } catch (error) {
+                showStatus('step4', `❌ Error setting authentication: ${error.message}`, 'error');
+            }
+        }
+
+        async function testBillingAPI() {
+            if (!authToken) {
+                showStatus('step5', '❌ No authentication token available. Please complete Step 3 first.', 'error');
+                return;
+            }
+
+            try {
+                showStatus('step5', 'Testing billing API...', 'info');
+                
+                const response = await fetch('http://localhost:5002/api/billing/unpaid-card-payments', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('step5', `✅ Billing API working!\nStatus: ${response.status}\nData: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('step5', `❌ Billing API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('step5', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function fixAllSteps() {
+            showStatus('step1', '🔄 Starting automatic fix process...', 'info');
+            
+            // Step 1: Check server
+            await checkServer();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 2: Create admin user
+            await createAdminUser();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 3: Test login
+            await testLogin();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 4: Fix frontend auth
+            fixFrontendAuth();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 5: Test billing API
+            await testBillingAPI();
+            
+            showStatus('step1', '🎉 All steps completed! Check each step for results.', 'success');
+        }
+
+        function openMainApp() {
+            window.open('http://localhost:5175', '_blank');
+        }
+
+        function openBackend() {
+            window.open('http://localhost:5002', '_blank');
+        }
+
+        function clearAllAuth() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('AUTH_TOKEN_KEY');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('token');
+            localStorage.removeItem('clinic_auth_token');
+            localStorage.removeItem('clinic_jwt_token');
+            localStorage.removeItem('user_data');
+            authToken = null;
+            userData = null;
+            
+            // Reset all step statuses
+            document.querySelectorAll('.step').forEach(step => {
+                step.className = 'step';
+            });
+            
+            document.querySelectorAll('.status').forEach(status => {
+                status.innerHTML = 'Click the button to proceed...';
+                status.className = 'status';
+            });
+            
+            alert('All authentication data cleared!');
+        }
+
+        // Auto-check server on page load
+        window.onload = function() {
+            checkServer();
+        };
+    </script>
+</body>
+</html> 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete 401 Fix - Clinic CMS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        .step h3 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        .step.completed {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .step.failed {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #1e7e34;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        .status {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #007bff;
+            min-height: 60px;
+        }
+        .success-status {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .error-status {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .warning-status {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+        .fix-all-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 20px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+            width: 100%;
+        }
+        .fix-all-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Complete 401 Fix - Clinic CMS</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 30px;">
+            This will fix the 401 Unauthorized error by creating the admin user and setting up authentication.
+        </p>
+        
+        <button class="fix-all-btn" onclick="fixAllSteps()">
+            🚀 Fix All Steps Automatically
+        </button>
+        
+        <div class="step" id="step1">
+            <h3>Step 1: Check Backend Server</h3>
+            <button onclick="checkServer()">Check Server Status</button>
+            <div id="step1Status" class="status">Click the button to check server status...</div>
+        </div>
+        
+        <div class="step" id="step2">
+            <h3>Step 2: Create Admin User</h3>
+            <button onclick="createAdminUser()">Create Admin User</button>
+            <div id="step2Status" class="status">Click the button to create admin user...</div>
+        </div>
+        
+        <div class="step" id="step3">
+            <h3>Step 3: Test Login</h3>
+            <button onclick="testLogin()">Test Login</button>
+            <div id="step3Status" class="status">Click the button to test login...</div>
+        </div>
+        
+        <div class="step" id="step4">
+            <h3>Step 4: Fix Frontend Authentication</h3>
+            <button onclick="fixFrontendAuth()" class="success">Fix Frontend Auth</button>
+            <div id="step4Status" class="status">Click the button to fix frontend authentication...</div>
+        </div>
+        
+        <div class="step" id="step5">
+            <h3>Step 5: Test Billing API</h3>
+            <button onclick="testBillingAPI()">Test Billing API</button>
+            <div id="step5Status" class="status">Click the button to test billing API...</div>
+        </div>
+        
+        <div class="step">
+            <h3>Quick Actions</h3>
+            <button onclick="openMainApp()">Open Main App</button>
+            <button onclick="openBackend()">Open Backend</button>
+            <button onclick="clearAllAuth()" class="danger">Clear All Auth</button>
+        </div>
+    </div>
+
+    <script>
+        let authToken = null;
+        let userData = null;
+
+        function showStatus(stepId, message, type = 'info') {
+            const status = document.getElementById(stepId + 'Status');
+            status.innerHTML = message;
+            status.className = `status ${type === 'success' ? 'success-status' : type === 'error' ? 'error-status' : type === 'warning' ? 'warning-status' : ''}`;
+            
+            const step = document.getElementById(stepId);
+            if (type === 'success') {
+                step.className = 'step completed';
+            } else if (type === 'error') {
+                step.className = 'step failed';
+            } else {
+                step.className = 'step';
+            }
+        }
+
+        async function checkServer() {
+            try {
+                showStatus('step1', 'Checking server connection...', 'info');
+                
+                const response = await fetch('http://localhost:5002/ping', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showStatus('step1', `✅ Server is running!\nResponse: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('step1', `❌ Server error: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showStatus('step1', `❌ Server connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function createAdminUser() {
+            try {
+                showStatus('step2', 'Creating admin user...', 'info');
+                
+                // Try to create admin user using a direct database approach
+                // First, try to login to see if admin exists
+                const loginResponse = await fetch('http://localhost:5002/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@clinic.com',
+                        password: 'admin123'
+                    })
+                });
+
+                const loginData = await loginResponse.json();
+
+                if (loginResponse.ok && loginData.success) {
+                    showStatus('step2', '✅ Admin user already exists and login works!', 'success');
+                    authToken = loginData.token;
+                    userData = loginData.user;
+                } else {
+                    // Admin doesn't exist, try to create it
+                    showStatus('step2', 'Admin user not found. Trying to create...', 'warning');
+                    
+                    // Try registration with username
+                    const registerResponse = await fetch('http://localhost:5002/api/auth/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: 'admin@clinic.com',
+                            password: 'admin123',
+                            username: 'admin',
+                            name: 'Admin User',
+                            role: 'admin',
+                            firstName: 'Admin',
+                            lastName: 'User'
+                        })
+                    });
+
+                    const registerData = await registerResponse.json();
+
+                    if (registerResponse.ok && registerData.success) {
+                        showStatus('step2', '✅ Admin user created successfully!', 'success');
+                        authToken = registerData.token;
+                        userData = registerData.user;
+                    } else {
+                        showStatus('step2', `❌ Failed to create admin user: ${registerData.message || 'Unknown error'}\n\nYou may need to create the admin user manually in the database.`, 'error');
+                    }
+                }
+            } catch (error) {
+                showStatus('step2', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogin() {
+            try {
+                showStatus('step3', 'Testing login...', 'info');
+                
+                const response = await fetch('http://localhost:5002/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@clinic.com',
+                        password: 'admin123'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    authToken = data.token;
+                    userData = data.user;
+                    showStatus('step3', `✅ Login successful!\nUser: ${data.user.name}\nRole: ${data.user.role}\nToken: ${data.token.substring(0, 20)}...`, 'success');
+                } else {
+                    showStatus('step3', `❌ Login failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('step3', `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        function fixFrontendAuth() {
+            if (!authToken) {
+                showStatus('step4', '❌ No authentication token available. Please complete Step 3 first.', 'error');
+                return;
+            }
+
+            try {
+                // Set token in all possible locations
+                localStorage.setItem('auth_token', authToken);
+                localStorage.setItem('AUTH_TOKEN_KEY', authToken);
+                localStorage.setItem('authToken', authToken);
+                localStorage.setItem('jwt_token', authToken);
+                localStorage.setItem('token', authToken);
+                localStorage.setItem('clinic_auth_token', authToken);
+                localStorage.setItem('clinic_jwt_token', authToken);
+                localStorage.setItem('user_data', JSON.stringify(userData));
+                
+                showStatus('step4', `✅ Frontend authentication fixed!\nToken set in all locations: ${authToken.substring(0, 20)}...`, 'success');
+            } catch (error) {
+                showStatus('step4', `❌ Error setting authentication: ${error.message}`, 'error');
+            }
+        }
+
+        async function testBillingAPI() {
+            if (!authToken) {
+                showStatus('step5', '❌ No authentication token available. Please complete Step 3 first.', 'error');
+                return;
+            }
+
+            try {
+                showStatus('step5', 'Testing billing API...', 'info');
+                
+                const response = await fetch('http://localhost:5002/api/billing/unpaid-card-payments', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('step5', `✅ Billing API working!\nStatus: ${response.status}\nData: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('step5', `❌ Billing API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('step5', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function fixAllSteps() {
+            showStatus('step1', '🔄 Starting automatic fix process...', 'info');
+            
+            // Step 1: Check server
+            await checkServer();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 2: Create admin user
+            await createAdminUser();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 3: Test login
+            await testLogin();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 4: Fix frontend auth
+            fixFrontendAuth();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 5: Test billing API
+            await testBillingAPI();
+            
+            showStatus('step1', '🎉 All steps completed! Check each step for results.', 'success');
+        }
+
+        function openMainApp() {
+            window.open('http://localhost:5175', '_blank');
+        }
+
+        function openBackend() {
+            window.open('http://localhost:5002', '_blank');
+        }
+
+        function clearAllAuth() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('AUTH_TOKEN_KEY');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('token');
+            localStorage.removeItem('clinic_auth_token');
+            localStorage.removeItem('clinic_jwt_token');
+            localStorage.removeItem('user_data');
+            authToken = null;
+            userData = null;
+            
+            // Reset all step statuses
+            document.querySelectorAll('.step').forEach(step => {
+                step.className = 'step';
+            });
+            
+            document.querySelectorAll('.status').forEach(status => {
+                status.innerHTML = 'Click the button to proceed...';
+                status.className = 'status';
+            });
+            
+            alert('All authentication data cleared!');
+        }
+
+        // Auto-check server on page load
+        window.onload = function() {
+            checkServer();
+        };
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete 401 Fix - Clinic CMS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        .step h3 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        .step.completed {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .step.failed {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #1e7e34;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        .status {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #007bff;
+            min-height: 60px;
+        }
+        .success-status {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .error-status {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .warning-status {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+        .fix-all-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 20px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+            width: 100%;
+        }
+        .fix-all-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Complete 401 Fix - Clinic CMS</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 30px;">
+            This will fix the 401 Unauthorized error by creating the admin user and setting up authentication.
+        </p>
+        
+        <button class="fix-all-btn" onclick="fixAllSteps()">
+            🚀 Fix All Steps Automatically
+        </button>
+        
+        <div class="step" id="step1">
+            <h3>Step 1: Check Backend Server</h3>
+            <button onclick="checkServer()">Check Server Status</button>
+            <div id="step1Status" class="status">Click the button to check server status...</div>
+        </div>
+        
+        <div class="step" id="step2">
+            <h3>Step 2: Create Admin User</h3>
+            <button onclick="createAdminUser()">Create Admin User</button>
+            <div id="step2Status" class="status">Click the button to create admin user...</div>
+        </div>
+        
+        <div class="step" id="step3">
+            <h3>Step 3: Test Login</h3>
+            <button onclick="testLogin()">Test Login</button>
+            <div id="step3Status" class="status">Click the button to test login...</div>
+        </div>
+        
+        <div class="step" id="step4">
+            <h3>Step 4: Fix Frontend Authentication</h3>
+            <button onclick="fixFrontendAuth()" class="success">Fix Frontend Auth</button>
+            <div id="step4Status" class="status">Click the button to fix frontend authentication...</div>
+        </div>
+        
+        <div class="step" id="step5">
+            <h3>Step 5: Test Billing API</h3>
+            <button onclick="testBillingAPI()">Test Billing API</button>
+            <div id="step5Status" class="status">Click the button to test billing API...</div>
+        </div>
+        
+        <div class="step">
+            <h3>Quick Actions</h3>
+            <button onclick="openMainApp()">Open Main App</button>
+            <button onclick="openBackend()">Open Backend</button>
+            <button onclick="clearAllAuth()" class="danger">Clear All Auth</button>
+        </div>
+    </div>
+
+    <script>
+        let authToken = null;
+        let userData = null;
+
+        function showStatus(stepId, message, type = 'info') {
+            const status = document.getElementById(stepId + 'Status');
+            status.innerHTML = message;
+            status.className = `status ${type === 'success' ? 'success-status' : type === 'error' ? 'error-status' : type === 'warning' ? 'warning-status' : ''}`;
+            
+            const step = document.getElementById(stepId);
+            if (type === 'success') {
+                step.className = 'step completed';
+            } else if (type === 'error') {
+                step.className = 'step failed';
+            } else {
+                step.className = 'step';
+            }
+        }
+
+        async function checkServer() {
+            try {
+                showStatus('step1', 'Checking server connection...', 'info');
+                
+                const response = await fetch('http://localhost:5002/ping', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showStatus('step1', `✅ Server is running!\nResponse: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('step1', `❌ Server error: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showStatus('step1', `❌ Server connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function createAdminUser() {
+            try {
+                showStatus('step2', 'Creating admin user...', 'info');
+                
+                // Try to create admin user using a direct database approach
+                // First, try to login to see if admin exists
+                const loginResponse = await fetch('http://localhost:5002/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@clinic.com',
+                        password: 'admin123'
+                    })
+                });
+
+                const loginData = await loginResponse.json();
+
+                if (loginResponse.ok && loginData.success) {
+                    showStatus('step2', '✅ Admin user already exists and login works!', 'success');
+                    authToken = loginData.token;
+                    userData = loginData.user;
+                } else {
+                    // Admin doesn't exist, try to create it
+                    showStatus('step2', 'Admin user not found. Trying to create...', 'warning');
+                    
+                    // Try registration with username
+                    const registerResponse = await fetch('http://localhost:5002/api/auth/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: 'admin@clinic.com',
+                            password: 'admin123',
+                            username: 'admin',
+                            name: 'Admin User',
+                            role: 'admin',
+                            firstName: 'Admin',
+                            lastName: 'User'
+                        })
+                    });
+
+                    const registerData = await registerResponse.json();
+
+                    if (registerResponse.ok && registerData.success) {
+                        showStatus('step2', '✅ Admin user created successfully!', 'success');
+                        authToken = registerData.token;
+                        userData = registerData.user;
+                    } else {
+                        showStatus('step2', `❌ Failed to create admin user: ${registerData.message || 'Unknown error'}\n\nYou may need to create the admin user manually in the database.`, 'error');
+                    }
+                }
+            } catch (error) {
+                showStatus('step2', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogin() {
+            try {
+                showStatus('step3', 'Testing login...', 'info');
+                
+                const response = await fetch('http://localhost:5002/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@clinic.com',
+                        password: 'admin123'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    authToken = data.token;
+                    userData = data.user;
+                    showStatus('step3', `✅ Login successful!\nUser: ${data.user.name}\nRole: ${data.user.role}\nToken: ${data.token.substring(0, 20)}...`, 'success');
+                } else {
+                    showStatus('step3', `❌ Login failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('step3', `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        function fixFrontendAuth() {
+            if (!authToken) {
+                showStatus('step4', '❌ No authentication token available. Please complete Step 3 first.', 'error');
+                return;
+            }
+
+            try {
+                // Set token in all possible locations
+                localStorage.setItem('auth_token', authToken);
+                localStorage.setItem('AUTH_TOKEN_KEY', authToken);
+                localStorage.setItem('authToken', authToken);
+                localStorage.setItem('jwt_token', authToken);
+                localStorage.setItem('token', authToken);
+                localStorage.setItem('clinic_auth_token', authToken);
+                localStorage.setItem('clinic_jwt_token', authToken);
+                localStorage.setItem('user_data', JSON.stringify(userData));
+                
+                showStatus('step4', `✅ Frontend authentication fixed!\nToken set in all locations: ${authToken.substring(0, 20)}...`, 'success');
+            } catch (error) {
+                showStatus('step4', `❌ Error setting authentication: ${error.message}`, 'error');
+            }
+        }
+
+        async function testBillingAPI() {
+            if (!authToken) {
+                showStatus('step5', '❌ No authentication token available. Please complete Step 3 first.', 'error');
+                return;
+            }
+
+            try {
+                showStatus('step5', 'Testing billing API...', 'info');
+                
+                const response = await fetch('http://localhost:5002/api/billing/unpaid-card-payments', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('step5', `✅ Billing API working!\nStatus: ${response.status}\nData: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('step5', `❌ Billing API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('step5', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function fixAllSteps() {
+            showStatus('step1', '🔄 Starting automatic fix process...', 'info');
+            
+            // Step 1: Check server
+            await checkServer();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 2: Create admin user
+            await createAdminUser();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 3: Test login
+            await testLogin();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 4: Fix frontend auth
+            fixFrontendAuth();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 5: Test billing API
+            await testBillingAPI();
+            
+            showStatus('step1', '🎉 All steps completed! Check each step for results.', 'success');
+        }
+
+        function openMainApp() {
+            window.open('http://localhost:5175', '_blank');
+        }
+
+        function openBackend() {
+            window.open('http://localhost:5002', '_blank');
+        }
+
+        function clearAllAuth() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('AUTH_TOKEN_KEY');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('token');
+            localStorage.removeItem('clinic_auth_token');
+            localStorage.removeItem('clinic_jwt_token');
+            localStorage.removeItem('user_data');
+            authToken = null;
+            userData = null;
+            
+            // Reset all step statuses
+            document.querySelectorAll('.step').forEach(step => {
+                step.className = 'step';
+            });
+            
+            document.querySelectorAll('.status').forEach(status => {
+                status.innerHTML = 'Click the button to proceed...';
+                status.className = 'status';
+            });
+            
+            alert('All authentication data cleared!');
+        }
+
+        // Auto-check server on page load
+        window.onload = function() {
+            checkServer();
+        };
+    </script>
+</body>
+</html> 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete 401 Fix - Clinic CMS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        .step h3 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        .step.completed {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .step.failed {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #1e7e34;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        .status {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #007bff;
+            min-height: 60px;
+        }
+        .success-status {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .error-status {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .warning-status {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+        .fix-all-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 20px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+            width: 100%;
+        }
+        .fix-all-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Complete 401 Fix - Clinic CMS</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 30px;">
+            This will fix the 401 Unauthorized error by creating the admin user and setting up authentication.
+        </p>
+        
+        <button class="fix-all-btn" onclick="fixAllSteps()">
+            🚀 Fix All Steps Automatically
+        </button>
+        
+        <div class="step" id="step1">
+            <h3>Step 1: Check Backend Server</h3>
+            <button onclick="checkServer()">Check Server Status</button>
+            <div id="step1Status" class="status">Click the button to check server status...</div>
+        </div>
+        
+        <div class="step" id="step2">
+            <h3>Step 2: Create Admin User</h3>
+            <button onclick="createAdminUser()">Create Admin User</button>
+            <div id="step2Status" class="status">Click the button to create admin user...</div>
+        </div>
+        
+        <div class="step" id="step3">
+            <h3>Step 3: Test Login</h3>
+            <button onclick="testLogin()">Test Login</button>
+            <div id="step3Status" class="status">Click the button to test login...</div>
+        </div>
+        
+        <div class="step" id="step4">
+            <h3>Step 4: Fix Frontend Authentication</h3>
+            <button onclick="fixFrontendAuth()" class="success">Fix Frontend Auth</button>
+            <div id="step4Status" class="status">Click the button to fix frontend authentication...</div>
+        </div>
+        
+        <div class="step" id="step5">
+            <h3>Step 5: Test Billing API</h3>
+            <button onclick="testBillingAPI()">Test Billing API</button>
+            <div id="step5Status" class="status">Click the button to test billing API...</div>
+        </div>
+        
+        <div class="step">
+            <h3>Quick Actions</h3>
+            <button onclick="openMainApp()">Open Main App</button>
+            <button onclick="openBackend()">Open Backend</button>
+            <button onclick="clearAllAuth()" class="danger">Clear All Auth</button>
+        </div>
+    </div>
+
+    <script>
+        let authToken = null;
+        let userData = null;
+
+        function showStatus(stepId, message, type = 'info') {
+            const status = document.getElementById(stepId + 'Status');
+            status.innerHTML = message;
+            status.className = `status ${type === 'success' ? 'success-status' : type === 'error' ? 'error-status' : type === 'warning' ? 'warning-status' : ''}`;
+            
+            const step = document.getElementById(stepId);
+            if (type === 'success') {
+                step.className = 'step completed';
+            } else if (type === 'error') {
+                step.className = 'step failed';
+            } else {
+                step.className = 'step';
+            }
+        }
+
+        async function checkServer() {
+            try {
+                showStatus('step1', 'Checking server connection...', 'info');
+                
+                const response = await fetch('http://localhost:5002/ping', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showStatus('step1', `✅ Server is running!\nResponse: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('step1', `❌ Server error: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showStatus('step1', `❌ Server connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function createAdminUser() {
+            try {
+                showStatus('step2', 'Creating admin user...', 'info');
+                
+                // Try to create admin user using a direct database approach
+                // First, try to login to see if admin exists
+                const loginResponse = await fetch('http://localhost:5002/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@clinic.com',
+                        password: 'admin123'
+                    })
+                });
+
+                const loginData = await loginResponse.json();
+
+                if (loginResponse.ok && loginData.success) {
+                    showStatus('step2', '✅ Admin user already exists and login works!', 'success');
+                    authToken = loginData.token;
+                    userData = loginData.user;
+                } else {
+                    // Admin doesn't exist, try to create it
+                    showStatus('step2', 'Admin user not found. Trying to create...', 'warning');
+                    
+                    // Try registration with username
+                    const registerResponse = await fetch('http://localhost:5002/api/auth/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: 'admin@clinic.com',
+                            password: 'admin123',
+                            username: 'admin',
+                            name: 'Admin User',
+                            role: 'admin',
+                            firstName: 'Admin',
+                            lastName: 'User'
+                        })
+                    });
+
+                    const registerData = await registerResponse.json();
+
+                    if (registerResponse.ok && registerData.success) {
+                        showStatus('step2', '✅ Admin user created successfully!', 'success');
+                        authToken = registerData.token;
+                        userData = registerData.user;
+                    } else {
+                        showStatus('step2', `❌ Failed to create admin user: ${registerData.message || 'Unknown error'}\n\nYou may need to create the admin user manually in the database.`, 'error');
+                    }
+                }
+            } catch (error) {
+                showStatus('step2', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogin() {
+            try {
+                showStatus('step3', 'Testing login...', 'info');
+                
+                const response = await fetch('http://localhost:5002/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@clinic.com',
+                        password: 'admin123'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    authToken = data.token;
+                    userData = data.user;
+                    showStatus('step3', `✅ Login successful!\nUser: ${data.user.name}\nRole: ${data.user.role}\nToken: ${data.token.substring(0, 20)}...`, 'success');
+                } else {
+                    showStatus('step3', `❌ Login failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('step3', `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        function fixFrontendAuth() {
+            if (!authToken) {
+                showStatus('step4', '❌ No authentication token available. Please complete Step 3 first.', 'error');
+                return;
+            }
+
+            try {
+                // Set token in all possible locations
+                localStorage.setItem('auth_token', authToken);
+                localStorage.setItem('AUTH_TOKEN_KEY', authToken);
+                localStorage.setItem('authToken', authToken);
+                localStorage.setItem('jwt_token', authToken);
+                localStorage.setItem('token', authToken);
+                localStorage.setItem('clinic_auth_token', authToken);
+                localStorage.setItem('clinic_jwt_token', authToken);
+                localStorage.setItem('user_data', JSON.stringify(userData));
+                
+                showStatus('step4', `✅ Frontend authentication fixed!\nToken set in all locations: ${authToken.substring(0, 20)}...`, 'success');
+            } catch (error) {
+                showStatus('step4', `❌ Error setting authentication: ${error.message}`, 'error');
+            }
+        }
+
+        async function testBillingAPI() {
+            if (!authToken) {
+                showStatus('step5', '❌ No authentication token available. Please complete Step 3 first.', 'error');
+                return;
+            }
+
+            try {
+                showStatus('step5', 'Testing billing API...', 'info');
+                
+                const response = await fetch('http://localhost:5002/api/billing/unpaid-card-payments', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('step5', `✅ Billing API working!\nStatus: ${response.status}\nData: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus('step5', `❌ Billing API error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('step5', `❌ API test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function fixAllSteps() {
+            showStatus('step1', '🔄 Starting automatic fix process...', 'info');
+            
+            // Step 1: Check server
+            await checkServer();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 2: Create admin user
+            await createAdminUser();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 3: Test login
+            await testLogin();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 4: Fix frontend auth
+            fixFrontendAuth();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 5: Test billing API
+            await testBillingAPI();
+            
+            showStatus('step1', '🎉 All steps completed! Check each step for results.', 'success');
+        }
+
+        function openMainApp() {
+            window.open('http://localhost:5175', '_blank');
+        }
+
+        function openBackend() {
+            window.open('http://localhost:5002', '_blank');
+        }
+
+        function clearAllAuth() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('AUTH_TOKEN_KEY');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('token');
+            localStorage.removeItem('clinic_auth_token');
+            localStorage.removeItem('clinic_jwt_token');
+            localStorage.removeItem('user_data');
+            authToken = null;
+            userData = null;
+            
+            // Reset all step statuses
+            document.querySelectorAll('.step').forEach(step => {
+                step.className = 'step';
+            });
+            
+            document.querySelectorAll('.status').forEach(status => {
+                status.innerHTML = 'Click the button to proceed...';
+                status.className = 'status';
+            });
+            
+            alert('All authentication data cleared!');
+        }
+
+        // Auto-check server on page load
+        window.onload = function() {
+            checkServer();
+        };
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 
+ 

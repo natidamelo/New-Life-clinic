@@ -1,0 +1,125 @@
+/**
+ * Activate Natan's Prescription for Extension Testing
+ * 
+ * This script activates Natan's Ceftriaxone prescription
+ * so we can test the prescription extension functionality.
+ */
+
+const mongoose = require('mongoose');
+const Patient = require('../models/Patient');
+const Prescription = require('../models/Prescription');
+
+// Connect to clinic-cms database
+async function connectToClinicCMS() {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/clinic-cms-cms-cms-cms');
+    console.log('✅ Connected to clinic-cms database');
+  } catch (error) {
+    console.error('❌ MongoDB connection error:', error);
+    process.exit(1);
+  }
+}
+
+async function activateNatanPrescription() {
+  try {
+    await connectToClinicCMS();
+    
+    console.log('🔧 ACTIVATING NATAN\'S PRESCRIPTION');
+    console.log('==================================\n');
+    
+    // Find Natan patient
+    console.log('👤 Step 1: Finding Natan patient...');
+    const natan = await Patient.findOne({
+      $or: [
+        { firstName: { $regex: /natan/i } },
+        { lastName: { $regex: /natan/i } },
+        { fullName: { $regex: /natan/i } }
+      ]
+    });
+    
+    if (!natan) {
+      console.log('❌ Natan patient not found');
+      return;
+    }
+    
+    console.log(`✅ Found Natan: ${natan.firstName} ${natan.lastName}`);
+    console.log('');
+    
+    // Find Natan's Ceftriaxone prescription
+    console.log('💊 Step 2: Finding Natan\'s Ceftriaxone prescription...');
+    const ceftriaxonePrescription = await Prescription.findOne({
+      patient: natan._id,
+      medicationName: { $regex: /ceftriaxone/i }
+    });
+    
+    if (!ceftriaxonePrescription) {
+      console.log('❌ Ceftriaxone prescription not found for Natan');
+      return;
+    }
+    
+    console.log(`✅ Found Ceftriaxone prescription: ${ceftriaxonePrescription._id}`);
+    console.log(`   Current Status: ${ceftriaxonePrescription.status}`);
+    console.log(`   Current Duration: ${ceftriaxonePrescription.duration}`);
+    console.log('');
+    
+    // Activate the prescription
+    console.log('🔄 Step 3: Activating prescription...');
+    ceftriaxonePrescription.status = 'Active';
+    ceftriaxonePrescription.datePrescribed = new Date();
+    await ceftriaxonePrescription.save();
+    
+    console.log('✅ Prescription activated successfully!');
+    console.log(`   New Status: ${ceftriaxonePrescription.status}`);
+    console.log(`   Prescribed Date: ${ceftriaxonePrescription.datePrescribed}`);
+    console.log('');
+    
+    // Verify the activation
+    console.log('🔍 Step 4: Verifying activation...');
+    const updatedPrescription = await Prescription.findById(ceftriaxonePrescription._id);
+    console.log(`✅ Verification: Status is now "${updatedPrescription.status}"`);
+    console.log('');
+    
+    // Summary
+    console.log('📊 ACTIVATION SUMMARY:');
+    console.log('=======================');
+    console.log(`✅ Patient: ${natan.firstName} ${natan.lastName}`);
+    console.log(`✅ Medication: ${ceftriaxonePrescription.medicationName}`);
+    console.log(`✅ Prescription ID: ${ceftriaxonePrescription._id}`);
+    console.log(`✅ Previous Status: Pending`);
+    console.log(`✅ New Status: Active`);
+    console.log(`✅ Duration: ${ceftriaxonePrescription.duration}`);
+    console.log('');
+    
+    console.log('🎉 PRESCRIPTION ACTIVATION COMPLETED!');
+    console.log('=====================================');
+    console.log('Natan\'s prescription is now active and ready for extension testing.');
+    console.log('');
+    
+    console.log('📱 NEXT STEPS:');
+    console.log('==============');
+    console.log('1. Run the prescription extension test again');
+    console.log('2. The extension should now work properly');
+    console.log('3. Check the nurse dashboard for updated medication schedule');
+    
+  } catch (error) {
+    console.error('❌ Error activating prescription:', error);
+  } finally {
+    await mongoose.disconnect();
+    console.log('\n✅ Disconnected from clinic-cms database');
+  }
+}
+
+// Run the script
+if (require.main === module) {
+  activateNatanPrescription()
+    .then(() => {
+      console.log('\n🎉 Prescription activation completed successfully');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('❌ Prescription activation failed:', error);
+      process.exit(1);
+    });
+}
+
+module.exports = { activateNatanPrescription };

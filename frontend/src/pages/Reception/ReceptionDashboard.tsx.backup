@@ -1,0 +1,2721 @@
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import { format, differenceInMinutes, parseISO } from 'date-fns';
+import { IoRefreshSharp } from 'react-icons/io5';
+import { LuSearch } from 'react-icons/lu';
+import { FiEye, FiPlus, FiCalendar } from 'react-icons/fi';
+import { RiSendPlane2Line } from 'react-icons/ri';
+// Import Heroicons
+import {
+  UserPlusIcon,
+  ClockIcon,
+  CalendarIcon,
+  UserGroupIcon,
+  IdentificationIcon,
+  MagnifyingGlassIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  ArrowPathIcon,
+  ExclamationCircleIcon
+} from '@heroicons/react/24/outline';
+import { DollarSign } from 'lucide-react';
+import attendanceService from '../../services/attendanceService';
+import * as Yup from 'yup';
+import { useFormik } from 'formik';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { Patient } from '../../services/patientService';
+import userService from '../../services/userService';
+import { extractErrorMessage } from '../../utils/errorUtils';
+import { safeErrorToString } from '../../utils/errorHandler';
+import Modal from 'react-bootstrap/Modal';
+import Badge from '../../components/Badge';
+import Table from '../../components/Table';
+import Pagination from '../../components/Pagination';
+import Spinner from '../../components/Spinner';
+import { Button } from '../../components/ui/button';
+import { Card } from '../../components/ui/card';
+import patientService, { CreatePatientDto } from '../../services/patientService';
+// Import Material UI components
+import Box from '@mui/material/Box';
+import Tooltip from '@mui/material/Tooltip';
+import IconButton from '@mui/material/IconButton';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
+import CardMembershipIcon from '@mui/icons-material/CardMembership';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import EditIcon from '@mui/icons-material/Edit';
+import Form from 'react-bootstrap/Form';
+import Dropdown from 'react-bootstrap/Dropdown';
+// Import the API client properly
+import api, { patientsAPI, appointmentsAPI, usersAPI } from '../../services/api';
+// Import services
+import patientCardService from '../../services/patientCardService';
+import cardTypeService from '../../services/cardTypeService';
+import { useCardTypes, CardType } from '../../context/CardTypeContextNew';
+// Import other required components
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogFooter
+} from '../../components/ui/dialog';
+// import { Resizable } from 're-resizable';
+import NotificationPanel from '../../components/Reception/NotificationPanel';
+import RecordPaymentForm from '../../components/Billing/RecordPaymentForm';
+import PatientCardSettings from '../../pages/Settings/PatientCardSettings';
+import billingService from '../../services/billingService';
+import prescriptionService from '../../services/prescriptionService';
+import { getActiveNotifications } from '../../utils/notificationFilters';
+import receptionService, { ReceptionDashboardStats } from '../../services/receptionService';
+
+// Local storage key for processed payments (should match the one in PaymentNotifications.tsx)
+const PROCESSED_NOTIFICATIONS_KEY = 'clinic_processed_notifications';
+
+// Helper function to get processed payment IDs from local storage
+const getProcessedPaymentIds = (): string[] => {
+  try {
+    const stored = localStorage.getItem(PROCESSED_NOTIFICATIONS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Error reading from local storage:', error);
+    return [];
+  }
+};
+
+// Helper function to add a payment ID to processed list
+const addProcessedPaymentId = (id: string): void => {
+  try {
+    const processedIds = getProcessedPaymentIds();
+    if (!processedIds.includes(id)) {
+      processedIds.push(id);
+      // Keep only the last 100 IDs to prevent local storage from growing too large
+      const limitedIds = processedIds.slice(-100);
+      localStorage.setItem(PROCESSED_NOTIFICATIONS_KEY, JSON.stringify(limitedIds));
+    }
+  } catch (error) {
+    console.error('Error writing to local storage:', error);
+  }
+};
+
+interface QueuePatient extends Patient {
+  department: string;
+  time: string;
+  priority: 'normal' | 'urgent' | 'emergency';
+  waitingTime: string;
+  estimatedTime: string;
+}
+
+interface NewPatientFormValues {
+  firstName: string;
+  lastName: string;
+  age: string;
+  gender: string;
+  contactNumber: string;
+  email: string;
+  address: string;
+  department: string;
+  priority: string;
+  insuranceProvider: string;
+  insuranceNumber: string;
+  medicalHistory: string;
+  allergies: string;
+  notes: string;
+}
+
+interface Doctor {
+  id: string;
+  _id?: string;
+  // When fetched from /api/staff/members we receive a single combined name field
+  name?: string;
+  firstName: string;
+  lastName: string;
+}
+
+type SortableFields = 'firstName' | 'department' | 'time';
+
+const calculateWaitingTime = (lastVisit?: string) => {
+  if (!lastVisit) return '0 mins';
+  
+  const visitTime = new Date(lastVisit).getTime();
+  const now = new Date().getTime();
+  const diffMinutes = Math.floor((now - visitTime) / (1000 * 60));
+  
+  if (diffMinutes < 60) {
+    return `${diffMinutes} mins`;
+  } else {
+    const hours = Math.floor(diffMinutes / 60);
+    const mins = diffMinutes % 60;
+    return `${hours}h ${mins}m`;
+  }
+};
+
+const Icon = ({ icon: Icon, className }: { icon: any; className?: string }) => (
+  <Icon className={className} aria-hidden="true" />
+);
+
+interface Nurse {
+    id: string;
+    _id?: string;
+    firstName: string;
+    lastName: string;
+}
+
+const appointmentTypes = [
+  { value: 'checkup', label: 'Check-up' },
+  { value: 'consultation', label: 'Consultation' },
+  { value: 'follow-up', label: 'Follow-up' },
+  { value: 'emergency', label: 'Emergency' },
+  { value: 'lab-test', label: 'Lab Test Request' },
+  { value: 'imaging', label: 'Imaging Request' },
+  { value: 'procedure', label: 'Procedure' },
+];
+
+// Add missing function definitions at the top of the component
+const handleSort = (field: any) => {};
+const handleQuickView = (patient: any) => {};
+
+const handlePrintPatientCard = (patient: any) => {};
+const handleRenewCard = (patient: any) => {};
+
+const ReceptionDashboard: React.FC = () => {
+  const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
+  const [patientToEdit, setPatientToEdit] = useState<QueuePatient | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Debug function to log search state
+  const handleSearchChange = (value: string) => {
+
+    setSearchQuery(value);
+  };
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortField, setSortField] = useState<SortableFields>('time');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [selectedPatient, setSelectedPatient] = useState<QueuePatient | null>(null);
+  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+
+  const [isRenewCardModalOpen, setIsRenewCardModalOpen] = useState(false);
+  const [patientToRenewCard, setPatientToRenewCard] = useState<QueuePatient | null>(null);
+  const [renewalAmount, setRenewalAmount] = useState<string>('');
+  const [renewalPaymentMethod, setRenewalPaymentMethod] = useState<string>('cash');
+  const [patients, setPatients] = useState<QueuePatient[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConfirmSendNurseDialogOpen, setIsConfirmSendNurseDialogOpen] = useState(false);
+  const [patientToSendToNurse, setPatientToSendToNurse] = useState<QueuePatient | null>(null);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
+  const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
+  const [isLoadingDoctors, setIsLoadingDoctors] = useState(false);
+  const [isLoadingNurses, setIsLoadingNurses] = useState(false);
+  const [nurses, setNurses] = useState<Nurse[]>([]);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState(0);
+
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [patientsForSelect, setPatientsForSelect] = useState<Patient[]>([]);
+  const [doctorsForSelect, setDoctorsForSelect] = useState<Doctor[]>([]);
+  const [isLoadingPatientsForSelect, setIsLoadingPatientsForSelect] = useState(false);
+  const [isLoadingDoctorsForSelect, setIsLoadingDoctorsForSelect] = useState(false);
+  const [patientCardStatuses, setPatientCardStatuses] = useState<{ [key: string]: any }>({});
+  const [selectedCardTypeId, setSelectedCardTypeId] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Patient search state
+  const [filteredPatientsForSelect, setFilteredPatientsForSelect] = useState<Patient[]>([]);
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  
+  // Payment notification modal state
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentNotificationData, setPaymentNotificationData] = useState<{
+    message: string;
+    totalAmount: number;
+    invoices: any[];
+    patientName: string;
+    patientId?: string;
+    canBypass?: boolean;
+    paymentRequirementId?: string;
+  } | null>(null);
+  
+  // Payment form state
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<any>(null);
+
+  // Add state for pending prescriptions
+  const [pendingPrescriptions, setPendingPrescriptions] = useState<any[]>([]);
+  const [pendingLabOrders, setPendingLabOrders] = useState<any[]>([]);
+  const [paymentNotifications, setPaymentNotifications] = useState<any[]>([]);
+  
+  // Automatic attendance status
+  const [attendanceStatus, setAttendanceStatus] = useState<'present' | 'absent' | 'offline' | 'loading'>('loading');
+  const [lastActivity, setLastActivity] = useState<string>('');
+  
+  // Dashboard stats state
+  const [dashboardStats, setDashboardStats] = useState<ReceptionDashboardStats>({
+    waitingPatients: 0,
+    dailyAppointments: 0,
+    activeDepartments: 0,
+    urgentCases: 0,
+    totalPatientsToday: 0,
+    recentAppointments: 0,
+    patientsByDepartment: {}
+  });
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  
+  const location = useLocation();
+  const passedPatientIdFromAppointmentsPage = location.state?.patientId;
+
+  const navigate = useNavigate();
+
+  // Removed step-based form navigation
+
+  const departments = [
+    { value: 'general', label: 'General Medicine' },
+    { value: 'cardiology', label: 'Cardiology' },
+    { value: 'orthopedics', label: 'Orthopedics' },
+    { value: 'pediatrics', label: 'Pediatrics' },
+    { value: 'dental', label: 'Dental' },
+    { value: 'dermatology', label: 'Dermatology' },
+    { value: 'neurology', label: 'Neurology' },
+    { value: 'ophthalmology', label: 'Ophthalmology' },
+  ];
+
+  const priorityOptions = [
+    { value: 'normal', label: 'Normal' },
+    { value: 'urgent', label: 'Urgent' },
+    { value: 'emergency', label: 'Emergency' },
+  ];
+
+  const genderOptions = [
+    { value: 'male', label: 'Male' },
+    { value: 'female', label: 'Female' }
+  ];
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Admitted': return 'bg-blue-100 text-blue-800';
+      case 'Discharged': return 'bg-green-100 text-green-800';
+      case 'Outpatient': return 'bg-yellow-100 text-yellow-800';
+      case 'Emergency': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-100 text-red-800';
+      case 'emergency': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const validationSchema = Yup.object().shape({
+    firstName: Yup.string().required('First name is required'),
+    lastName: Yup.string().required('Last name is required'),
+    age: Yup.number()
+      .required('Age is required')
+      .positive('Age must be positive')
+      .integer('Age must be a whole number')
+      .max(150, 'Age must be less than 150')
+      .typeError('Age must be a number'),
+    contactNumber: Yup.string().required('Contact number is required'),
+    // Optional fields that will be set with defaults
+    gender: Yup.string(),
+    email: Yup.string().email('Invalid email address'),
+    address: Yup.string(),
+    department: Yup.string(),
+    priority: Yup.string(),
+    insuranceProvider: Yup.string(),
+    insuranceNumber: Yup.string(),
+    medicalHistory: Yup.string(),
+    allergies: Yup.string(),
+    notes: Yup.string()
+  });
+
+  const fetchDashboardStats = useCallback(async () => {
+    try {
+      setIsLoadingStats(true);
+      const stats = await receptionService.getDashboardStats();
+      setDashboardStats(stats);
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      toast.error('Failed to load dashboard statistics');
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, []);
+
+  const fetchPatients = useCallback(async (pageNum = 1, pageSize = 50) => {
+      setIsLoading(true);
+    try {
+      // Fetch all patients without search parameter - we'll do client-side filtering
+      let apiUrl = `/api/patients/quick-load?limit=${pageSize}`;
+      
+      // Use the quick-load endpoint for better performance and correct sorting (newest first)
+      const res = await api.get(apiUrl);
+
+      if (res.data && Array.isArray(res.data.patients)) {
+        // The backend now provides payment status directly
+        const patientsWithPaymentStatus = res.data.patients.map((patient: any) => {
+          // Debug logging for patients with unpaid invoices
+          if (patient.hasUnpaidInvoices && patient.unpaidInvoices && patient.unpaidInvoices.length > 0) {
+
+          }
+          
+          return patient;
+        });
+        
+        setPatients(patientsWithPaymentStatus);
+        setCurrentPage(res.data.currentPage || 1);
+        setTotal(res.data.totalPatients || 0);
+      } else {
+        console.warn('Unexpected response structure for patients:', res.data);
+        setPatients(res.data?.data && Array.isArray(res.data.data) ? res.data.data : []);
+        setCurrentPage(res.data?.page || res.data?.currentPage || 1);
+        setTotal(res.data?.total || res.data?.totalItems || 0);
+      }
+    } catch (error) {
+      console.error("Failed to fetch patients:", error);
+      toast.error("Failed to load patients.");
+      setPatients([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []); // Removed searchQuery from dependencies
+
+  useEffect(() => {
+    fetchPatients(currentPage, limit);
+    fetchDashboardStats();
+  }, [currentPage, limit, fetchPatients, fetchDashboardStats]);
+
+  // Filter patients for the queue - show waiting patients by default, but show all patients when searching
+  // IMPORTANT: Patients with unpaid invoices are excluded from the queue to ensure payment is completed first
+  // This prevents patients with "paid" status from appearing in the queue when they still have unpaid invoices
+  const queuePatients = useMemo(() => {
+
+    if (!Array.isArray(patients)) {
+
+      return [];
+    }
+    
+    // Debug: Log all patients we have
+    
+    
+    let filteredPatients = patients;
+    
+    // If no search query, only show 'waiting' patients
+    if (!searchQuery.trim()) {
+
+      filteredPatients = patients.filter(patient => {
+        const status = (patient.status || '').toLowerCase().trim();
+        const waitingStatuses = ['waiting', 'queue', 'in_queue', 'pending'];
+        return waitingStatuses.includes(status);
+      });
+
+      // Filter out patients with pending payments (only when not searching)
+      filteredPatients = filteredPatients.filter(patient => {
+        const patientId = patient._id || patient.id;
+        const patientName = `${patient.firstName} ${patient.lastName}`;
+        
+        // Check if patient has pending payment notifications
+        const hasPaymentNotification = paymentNotifications.some(notification => {
+          const notificationPatientId = notification.data?.patientId;
+          const notificationPatientName = notification.data?.patientName;
+          
+          // Match by patient ID or name
+          return (notificationPatientId && notificationPatientId === patientId) ||
+                 (notificationPatientName && notificationPatientName.toLowerCase() === patientName.toLowerCase());
+        });
+        
+        if (hasPaymentNotification) {
+
+          return false;
+        }
+        
+        // Additional check: If patient has any unpaid invoices, exclude them from queue
+        // This ensures that even if payment notifications are cleared, patients with unpaid invoices don't appear
+        if (patient.hasUnpaidInvoices || (patient.unpaidInvoices && patient.unpaidInvoices.length > 0)) {
+
+          return false;
+        }
+        
+        // Check if patient has any invoices with status 'pending' or 'overdue' (allow 'partial' payments)
+        if (patient.invoices) {
+          const hasUnpaidInvoices = patient.invoices.some((invoice: any) => 
+            ['pending', 'overdue'].includes(invoice.status?.toLowerCase())
+          );
+          if (hasUnpaidInvoices) {
+
+            return false;
+          }
+        }
+        
+        return true;
+      });
+
+        // Log which patients were excluded and why
+        const excludedPatients = patients.filter(patient => {
+          const status = (patient.status || '').toLowerCase().trim();
+          const waitingStatuses = ['waiting', 'queue', 'in_queue', 'pending'];
+          const isWaiting = waitingStatuses.includes(status);
+          
+          if (!isWaiting) return false; // Not waiting, so not excluded from queue
+          
+          const patientId = patient._id || patient.id;
+          const patientName = `${patient.firstName} ${patient.lastName}`;
+          
+          // Check payment notifications
+          const hasPaymentNotification = paymentNotifications.some(notification => {
+            const notificationPatientId = notification.data?.patientId;
+            const notificationPatientName = notification.data?.patientName;
+            return (notificationPatientId && notificationPatientId === patientId) ||
+                   (notificationPatientName && notificationPatientName.toLowerCase() === patientName.toLowerCase());
+          });
+          
+          // Check unpaid invoices
+          const hasUnpaidInvoices = patient.hasUnpaidInvoices || (patient.unpaidInvoices && patient.unpaidInvoices.length > 0);
+          
+          return hasPaymentNotification || hasUnpaidInvoices;
+        });
+        
+        if (excludedPatients.length > 0) {
+
+        }
+      
+      // Log which patients were excluded and why (using the existing excludedPatients variable)
+      if (excludedPatients.length > 0) {
+
+      }
+    } else {
+      // When searching, include ALL patients regardless of status (including scheduled patients)
+      const searchLower = searchQuery.toLowerCase().trim();
+
+      filteredPatients = patients.filter(patient => {
+        const firstName = (patient.firstName || '').toLowerCase();
+        const lastName = (patient.lastName || '').toLowerCase();
+        const fullName = `${firstName} ${lastName}`.trim();
+        const patientId = (patient.patientId || '').toLowerCase();
+        const department = (patient.department || '').toLowerCase();
+        const contactNumber = (patient.contactNumber || '').toLowerCase();
+        
+        const matches = firstName.includes(searchLower) ||
+               lastName.includes(searchLower) ||
+               fullName.includes(searchLower) ||
+               patientId.includes(searchLower) ||
+               department.includes(searchLower) ||
+               contactNumber.includes(searchLower);
+               
+        if (matches) {
+
+        }
+        
+        return matches;
+      });
+
+      // Note: When searching, we do NOT apply payment filters - show all matching patients
+    }
+    
+    return filteredPatients;
+  }, [patients, searchQuery, paymentNotifications]);
+
+  // Expose variables for testing (development only)
+  if (import.meta.env.DEV) {
+    (window as any).queuePatients = queuePatients;
+    (window as any).patients = patients;
+    (window as any).paymentNotifications = paymentNotifications;
+  }
+
+  // Auto-reset page when current page is beyond available queue pages or when search changes
+  useEffect(() => {
+    const queueTotalPages = Math.ceil(queuePatients.length / (limit || 10));
+    if (queuePatients.length > 0 && currentPage > queueTotalPages && queueTotalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [queuePatients.length, currentPage, limit]);
+
+  // Reset to page 1 when search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const handlePatientRegistered = () => {
+      fetchPatients(1, limit); 
+    };
+
+    window.addEventListener('patientRegistered', handlePatientRegistered);
+
+    return () => {
+      window.removeEventListener('patientRegistered', handlePatientRegistered);
+    };
+  }, [fetchPatients, limit]);
+
+  // After fetching patients and setting state, add a warning if patients is empty but API returned data
+  useEffect(() => {
+    // Only show error if: 
+    // 1. Not loading (fetch completed)
+    // 2. Queue patients array is empty (after filtering for 'waiting' status)
+    // 3. We've attempted to fetch at least once
+    const hasAttemptedFetch = !isLoading && patients.length > 0;
+    const noQueuePatients = Array.isArray(patients) && 
+      patients.filter(p => {
+        const status = (p.status || '').toLowerCase().trim();
+        const waitingStatuses = ['waiting', 'queue', 'in_queue', 'pending'];
+        return waitingStatuses.includes(status);
+      }).length === 0;
+    
+    if (hasAttemptedFetch && noQueuePatients) {
+      toast('No patients currently waiting in the queue.', { icon: 'ℹ️' });
+    }
+  }, [isLoading, patients]);
+
+  const fetchDoctors = async () => {
+    setIsLoadingDoctors(true);
+    try {
+      // Use staff members endpoint (backend does not expose /api/users)
+      const response = await api.get('/api/staff/members', { params: { role: 'doctor' } });
+      const rawDoctors = response.data || [];
+      // Normalize to a consistent shape: id, firstName, lastName
+      const doctorsData: Doctor[] = rawDoctors.map((d: any) => ({
+        id: d.id || d._id || d.userId || d?.user?._id || '',
+        _id: d._id || d.id,
+        firstName: d.firstName || d.name?.split(' ')[0] || '',
+        lastName: d.lastName || d.name?.split(' ').slice(1).join(' ') || '',
+        name: d.name || `${d.firstName || ''} ${d.lastName || ''}`.trim(),
+      })).filter((d: Doctor) => Boolean(d.id || d._id));
+      setDoctors(doctorsData);
+    } catch (error: any) {
+      console.error('❌ Error fetching doctors:', error);
+      console.error('❌ Error details:', error.response?.data);
+      toast.error('Failed to load doctors');
+    } finally {
+      setIsLoadingDoctors(false);
+    }
+  };
+
+  const fetchNurses = async () => {
+    setIsLoadingNurses(true);
+    try {
+      const nursesData = await userService.getAllNurses();
+
+      if (nursesData.length === 0) {
+
+        toast.error('No nurses found in the system. Please add nurses from the admin panel.');
+      }
+      
+      setNurses(nursesData as any);
+    } catch (error: any) {
+      console.error("Error fetching nurses:", error.message);
+      toast.error("Failed to load nurses from database. Please check server connection.");
+      setNurses([]);
+    } finally {
+      setIsLoadingNurses(false);
+    }
+  };
+
+  // Add method to fetch pending prescriptions
+  const fetchPendingPrescriptions = async () => {
+    try {
+
+      const prescriptions = await prescriptionService.getPendingPrescriptionsForReception();
+
+      setPendingPrescriptions(prescriptions);
+      
+      if (prescriptions.length > 0) {
+        toast.success(`${prescriptions.length} pending prescriptions found`);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching pending prescriptions:", error);
+      toast.error("Failed to fetch pending prescriptions");
+    }
+  };
+
+  // Add method to fetch pending lab orders
+  const fetchPendingLabOrders = async () => {
+    try {
+
+      const response = await api.get('/api/lab-orders/pending-for-reception');
+      
+      const labOrders = response.data || [];
+
+      setPendingLabOrders(labOrders);
+      
+      if (labOrders.length > 0) {
+        toast.success(`${labOrders.length} pending lab orders found`);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching pending lab orders:", error);
+      toast.error("Failed to fetch pending lab orders");
+    }
+  };
+
+  // Add method to fetch payment notifications
+  const fetchPaymentNotifications = async () => {
+    try {
+
+      const response = await api.get('/api/notifications?type=medication_payment_required,lab_payment_required,service_payment_required,card_payment_required');
+      
+      const notifications = response.data?.data || response.data?.notifications || [];
+      if (Array.isArray(notifications)) {
+        const activeNotifications = getActiveNotifications(notifications);
+        setPaymentNotifications(activeNotifications);
+
+      } else {
+        console.warn("Unexpected response structure from notifications API:", response.data);
+        setPaymentNotifications([]);
+      }
+      
+    } catch (error) {
+      console.error("Error fetching payment notifications:", error);
+      toast.error("Failed to fetch payment notifications");
+    }
+  };
+
+  useEffect(() => {
+    fetchPatients();
+    fetchDoctors();
+    fetchNurses();
+    fetchPendingPrescriptions(); // Add this line
+    fetchPendingLabOrders(); // Add this line
+    fetchPaymentNotifications(); // Add this line
+
+    // Also periodically refresh doctors list in case new doctors were added
+    const refreshDoctorsInterval = setInterval(() => {
+      fetchDoctors();
+    }, 60000);
+
+    // Check for patient updates from admin dashboard every 30 seconds
+    const checkPatientUpdatesInterval = setInterval(() => {
+      // Check if there was a recent update to hidden patients
+      const lastUpdatedAt = localStorage.getItem('patientsLastUpdatedAt');
+      if (lastUpdatedAt && parseInt(lastUpdatedAt) > Date.now() - 60000) { // Only refresh if update was in last 60 seconds
+        fetchPatients();
+      }
+
+      // Always check if any patient IDs are marked as hidden in localStorage
+      const hiddenPatientIds = localStorage.getItem('hiddenPatientIds');
+      if (hiddenPatientIds) {
+        const hiddenIds = JSON.parse(hiddenPatientIds);
+        // Filter out any patients that should be hidden
+        setPatients(prev => prev.filter(patient => !hiddenIds.includes(patient.id)));
+      }
+      
+    }, 30000);
+
+    // Refresh payment notifications every 30 seconds
+    const refreshPaymentNotificationsInterval = setInterval(() => {
+      fetchPaymentNotifications();
+    }, 30000);
+    
+    // Listen for payment processed events to refresh immediately
+    const handlePaymentProcessed = (event: CustomEvent) => {
+
+      fetchPaymentNotifications();
+      fetchPatients(); // Also refresh patients to update payment status
+    };
+    
+    window.addEventListener('paymentProcessed', handlePaymentProcessed as EventListener);
+    
+    return () => {
+      clearInterval(checkPatientUpdatesInterval);
+      clearInterval(refreshDoctorsInterval);
+      clearInterval(refreshPaymentNotificationsInterval);
+      window.removeEventListener('paymentProcessed', handlePaymentProcessed as EventListener);
+    };
+  }, []);
+
+  const handleRefresh = () => {
+    fetchPatients();
+  };
+
+  const handleSendToNurse = (patient: QueuePatient) => {
+
+    setPatientToSendToNurse(patient);
+    setSelectedDoctorId(null);
+    setSelectedNurseId(null);
+    setIsConfirmSendNurseDialogOpen(true);
+  };
+
+  // Helper function to check unpaid invoices for a patient
+  const checkPatientUnpaidInvoices = async (patientId: string) => {
+    try {
+
+      // Use billingService for more robust API call
+      const response = await billingService.getUnpaidInvoicesByPatient(patientId);
+
+      if (!response || !response.invoices || response.invoices.length === 0) {
+        console.warn(`No unpaid invoices found for patient ${patientId}`);
+        return null;
+      }
+      
+      // Calculate total outstanding amount
+      const totalAmount = response.invoices.reduce((total, invoice) => 
+        total + (invoice.outstandingAmount || invoice.totalAmount || 0), 0);
+        
+      // Prepare payment notification data
+      const paymentNotification = {
+        message: `Patient has ${response.invoices.length} unpaid invoice(s)`,
+        totalAmount,
+        invoices: response.invoices,
+        patientName: response.patientName || 'Unknown Patient',
+        patientId: patientId,
+        canBypass: response.invoices.some(invoice => invoice.canBypass),
+        paymentRequirementId: response.paymentRequirementId
+      };
+
+      // Open payment notification modal
+      setPaymentNotificationData(paymentNotification);
+      setIsPaymentModalOpen(true);
+      
+      return paymentNotification;
+    } catch (error) {
+      console.error('❌ Error checking patient unpaid invoices:', error);
+      
+      // More detailed error handling
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          // The request was made and the server responded with a status code
+          toast.error(`Payment Check Failed: ${error.response.data.message || 'Server Error'}`);
+        } else if (error.request) {
+          // The request was made but no response was received
+          toast.error('No response received from server. Check your network connection.');
+        } else {
+          // Something happened in setting up the request
+          toast.error('Error setting up payment check request.');
+      }
+      } else {
+        toast.error('Unexpected error checking payment notifications.');
+      }
+      
+      return null;
+    }
+  };
+
+  const confirmSendToNurse = async () => {
+    if (!patientToSendToNurse) return;
+
+    const patientId = patientToSendToNurse._id || patientToSendToNurse.id;
+    const patientName = `${patientToSendToNurse.firstName} ${patientToSendToNurse.lastName}`;
+
+    // First, check if patient has pending payment notifications
+    const hasPaymentNotification = paymentNotifications.some(notification => {
+      const notificationPatientId = notification.data?.patientId;
+      const notificationPatientName = notification.data?.patientName;
+      
+      // Match by patient ID or name
+      return (notificationPatientId && notificationPatientId === patientId) ||
+             (notificationPatientName && notificationPatientName.toLowerCase() === patientName.toLowerCase());
+    });
+
+    if (hasPaymentNotification) {
+      // Patient has pending payment notifications - show notification
+      const notification = paymentNotifications.find(n => {
+        const notificationPatientId = n.data?.patientId;
+        const notificationPatientName = n.data?.patientName;
+        return (notificationPatientId && notificationPatientId === patientId) ||
+               (notificationPatientName && notificationPatientName.toLowerCase() === patientName.toLowerCase());
+      });
+
+      toast.error(`❌ Payment Required: ${patientName} has pending payment of ETB ${notification?.data?.totalAmount || 0}. Please process payment first.`, {
+        duration: 5000,
+        position: 'top-center',
+        style: {
+          background: '#fee2e2',
+          color: '#dc2626',
+          border: '1px solid #fecaca',
+          fontSize: '14px',
+          fontWeight: '500'
+        }
+      });
+
+      // Close the dialog
+      setIsConfirmSendNurseDialogOpen(false);
+      setPatientToSendToNurse(null);
+      setSelectedNurseId(null);
+      setSelectedDoctorId(null);
+      return;
+    }
+
+    // Check if patient has an active card with 15-day grace period
+    const hasActiveCard = (() => {
+      // Check for cardStatus from backend
+      if (patientToSendToNurse.cardStatus === 'active') {
+        return true;
+      }
+      
+      // Also check cardIssueDate for grace period calculation if cardStatus not available
+      if (patientToSendToNurse.cardIssueDate) {
+      const cardIssueDate = new Date(patientToSendToNurse.cardIssueDate);
+        const gracePeriodEnd = new Date(cardIssueDate);
+        gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 15); // 15 days grace period
+      
+      const now = new Date();
+        return now <= gracePeriodEnd;
+      }
+      
+      return false;
+    })();
+
+    if (hasActiveCard) {
+      // Patient's card is active or within grace period – proceed directly with nurse assignment
+      toast.success(`✅ Active card detected for ${patientName}. Proceeding with nurse assignment.`, {
+        duration: 3000,
+        position: 'top-center',
+        style: {
+          background: '#dcfce7',
+          color: '#15803d',
+          border: '1px solid #bbf7d0',
+          fontSize: '14px',
+          fontWeight: '500'
+        }
+      });
+      
+      await proceedWithNurseAssignment();
+      return;
+    }
+
+    try {
+      // Check if patient has unpaid invoices
+      try {
+        const unpaidInvoicesResult = await checkPatientUnpaidInvoices(patientId);
+        
+        if (unpaidInvoicesResult) {
+          // Generate a unique ID for this payment requirement
+          const paymentRequirementId = `payment_${patientId}_${Date.now()}`;
+          
+          // Check if this payment has already been processed
+          if (processedPaymentIds.includes(paymentRequirementId)) {
+            // Payment already processed, proceed with sending to nurse
+
+            proceedWithNurseAssignment();
+      return;
+    }
+
+          // Show payment required modal
+          setPaymentNotificationData({
+            message: `Payment required! Patient has unpaid invoices totaling $${unpaidInvoicesResult.totalAmount.toFixed(2)}. Please process payment at Reception before assignment.`,
+            totalAmount: unpaidInvoicesResult.totalAmount,
+            invoices: unpaidInvoicesResult.invoices,
+            patientName: patientName,
+            patientId,
+            // Store the payment requirement ID for later reference
+            paymentRequirementId
+          });
+          setIsPaymentModalOpen(true);
+          return;
+        }
+      } catch (error: any) {
+          // For other errors, show an error message and stop
+          toast.error('Failed to check patient payment status');
+          setIsConfirmSendNurseDialogOpen(false);
+          setPatientToSendToNurse(null);
+          setSelectedNurseId(null);
+          setSelectedDoctorId(null);
+          return;
+      }
+      
+      // No unpaid invoices, proceed with nurse assignment
+      proceedWithNurseAssignment();
+      
+    } catch (error) {
+      console.error('Error in confirmSendToNurse:', error);
+      toast.error('Failed to process nurse assignment');
+      setIsConfirmSendNurseDialogOpen(false);
+      setPatientToSendToNurse(null);
+      setSelectedNurseId(null);
+      setSelectedDoctorId(null);
+    }
+  };
+  
+  // Add this helper function to extract the actual nurse assignment logic
+  const proceedWithNurseAssignment = async () => {
+    if (!patientToSendToNurse) return;
+    
+    try {
+      // Require doctor selection
+      if (!selectedDoctorId) {
+        toast.error('Please select a doctor');
+        return;
+      }
+      
+      const nurseId = selectedNurseId;
+      const patientId = patientToSendToNurse._id || patientToSendToNurse.id;
+      
+      if (!nurseId) {
+        toast.error('Please select a nurse');
+        return;
+      }
+      
+      // Doctor selection already validated above
+
+      // Use the general update patient endpoint so both assignments happen in one call
+      const response = await api.put(`/api/patients/${patientId}`, {
+        assignedNurseId: nurseId,
+        assignedDoctorId: selectedDoctorId,
+        status: 'Admitted',
+        vitals: {}, // reset vitals so nurse can record new set
+        forceAssignment: true // bypass payment check for active card holders
+      });
+      
+      if (response.status === 200 || response.data.success) {
+        toast.success(`Patient assigned to nurse successfully`);
+        // Close the dialog and clear selections
+        setIsConfirmSendNurseDialogOpen(false);
+        setPatientToSendToNurse(null);
+        setSelectedNurseId(null);
+        setSelectedDoctorId(null);
+        fetchPatients(); // Refresh patient list
+        fetchPaymentNotifications(); // Refresh payment notifications
+      } else {
+        toast.error(response.data.message || 'Failed to assign patient to nurse');
+        // Close dialog even on failure
+        setIsConfirmSendNurseDialogOpen(false);
+        setPatientToSendToNurse(null);
+        setSelectedNurseId(null);
+        setSelectedDoctorId(null);
+      }
+    } catch (error: any) {
+      console.error('Error assigning patient to nurse:', error);
+      
+      // Check if the error is related to unpaid invoices or expired card
+      if (error.response?.data?.message?.includes('payment') || 
+          error.response?.data?.message?.includes('Card Expired') ||
+          error.response?.status === 402 ||
+          error.message?.includes('payment') ||
+          error.response?.data?.cardExpired) {
+        
+        // Check if error response contains invoice information (for expired cards)
+        if (error.response?.data?.unpaidInvoices && error.response?.data?.totalAmount) {
+          const errorData = error.response.data;
+          const patientId = patientToSendToNurse._id || patientToSendToNurse.id;
+          
+          // Show payment required modal with error data
+          setPaymentNotificationData({
+            message: errorData.message || `Payment required! Patient has unpaid invoices totaling ETB ${errorData.totalAmount.toFixed(2)}.`,
+            totalAmount: errorData.totalAmount,
+            invoices: errorData.unpaidInvoices,
+            patientName: `${patientToSendToNurse.firstName} ${patientToSendToNurse.lastName}`,
+            patientId,
+            paymentRequirementId: `payment_${patientId}_${Date.now()}`,
+            cardExpired: (errorData as any).cardExpired || false,
+            cardInfo: errorData.cardInfo || null
+          });
+          setIsPaymentModalOpen(true);
+          return;
+        }
+        
+        // Try to check for unpaid invoices using the helper function
+        try {
+          const patientId = patientToSendToNurse._id || patientToSendToNurse.id;
+          const unpaidInvoicesResult = await checkPatientUnpaidInvoices(patientId);
+          
+          if (unpaidInvoicesResult) {
+            // Show payment required modal
+        setPaymentNotificationData({
+              message: `Payment required! Patient has unpaid invoices totaling ETB ${unpaidInvoicesResult.totalAmount.toFixed(2)}. Please process payment at Reception before assignment.`,
+              totalAmount: unpaidInvoicesResult.totalAmount,
+              invoices: unpaidInvoicesResult.invoices,
+          patientName: `${patientToSendToNurse.firstName} ${patientToSendToNurse.lastName}`,
+              patientId,
+              paymentRequirementId: `payment_${patientId}_${Date.now()}`
+            });
+        setIsPaymentModalOpen(true);
+            return;
+      } else {
+            // No unpaid invoices found, must be another issue
+            toast.error(error.response?.data?.message || 'Failed to assign patient to nurse');
+            // Close dialog
+            setIsConfirmSendNurseDialogOpen(false);
+            setPatientToSendToNurse(null);
+            setSelectedNurseId(null);
+            setSelectedDoctorId(null);
+          }
+        } catch (checkError) {
+          console.error('Error checking unpaid invoices:', checkError);
+          toast.error('Failed to check patient payment status');
+          // Close dialog on error
+          setIsConfirmSendNurseDialogOpen(false);
+          setPatientToSendToNurse(null);
+          setSelectedNurseId(null);
+          setSelectedDoctorId(null);
+      }
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to assign patient to nurse');
+        // Close dialog on other errors
+        setIsConfirmSendNurseDialogOpen(false);
+        setPatientToSendToNurse(null);
+        setSelectedNurseId(null);
+        setSelectedDoctorId(null);
+      }
+    }
+  };
+
+  const cancelSendToNurse = () => {
+
+    setIsConfirmSendNurseDialogOpen(false);
+    setPatientToSendToNurse(null);
+    setSelectedDoctorId(null);
+    setSelectedNurseId(null);
+  };
+
+  // Add confirmRenewCard function
+  const confirmRenewCard = async () => {
+    if (!patientToRenewCard) {
+      toast.error("No patient selected for card renewal.");
+      return;
+    }
+    if (!renewalAmount || isNaN(Number(renewalAmount)) || Number(renewalAmount) <= 0) {
+      toast.error("Please enter a valid renewal amount.");
+      return;
+    }
+
+    try {
+      const response = await (patientCardService as any).renewCard(patientToRenewCard._id, {
+        amount: parseFloat(renewalAmount),
+        paymentMethod: renewalPaymentMethod
+      });
+      
+      if (response.success) {
+        setIsRenewCardModalOpen(false);
+        setPatientToRenewCard(null);
+        setRenewalAmount('');
+        setRenewalPaymentMethod('cash');
+        toast("Patient card renewed successfully!", { icon: '✅' });
+        fetchPatients(currentPage, limit);
+      } else {
+        toast.error(response.message || 'Failed to renew card');
+      }
+    } catch (error: any) {
+      console.error("Error renewing card:", error);
+      toast.error("Failed to renew card. Please try again.");
+    }
+  };
+
+  const formik = useFormik<NewPatientFormValues>({
+    initialValues: {
+      firstName: '',
+      lastName: '',
+      age: '',
+      contactNumber: '',
+      // Set defaults for fields not shown in simplified form
+      gender: 'male',
+      email: '',
+      address: 'Not provided',
+      department: 'general',
+      priority: 'normal',
+      insuranceProvider: '',
+      insuranceNumber: '',
+      medicalHistory: '',
+      allergies: '',
+      notes: ''
+    },
+    validationSchema,
+    validateOnMount: true,
+    onSubmit: async (values, { setSubmitting, resetForm, setErrors, setStatus }) => {
+      setIsSubmitting(true);
+      try {
+
+        // Create patient object - match backend expectations
+        const newPatientData: CreatePatientDto = {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          age: parseInt(values.age), // Backend expects age as number
+          gender: values.gender,
+          contactNumber: values.contactNumber,
+          email: values.email || undefined,
+          address: values.address || undefined,
+          department: values.department || undefined,
+          priority: values.priority as 'normal' | 'urgent' | 'emergency' || 'normal',
+          medicalHistory: values.medicalHistory || undefined,
+          allergies: values.allergies || undefined,
+          notes: values.notes || undefined,
+          insuranceProvider: values.insuranceProvider || undefined,
+          insuranceNumber: values.insuranceNumber || undefined,
+          selectedCardTypeId: selectedCardTypeId,
+        };
+
+        // Explicitly log data being sent to API
+        
+        
+        // Use patientService to create patient
+        const createdPatient = await patientService.createPatient(newPatientData);
+
+        if (createdPatient) {
+          // Find selected card type details
+          const selectedCardType = selectedCardTypeId ? 
+            cardTypes.find(card => card._id === selectedCardTypeId) : null;
+          
+          // Show success notification
+          toast.success(`Patient ${values.firstName} ${values.lastName} registered successfully!`, {
+            duration: 4000,
+            position: 'top-right',
+          });
+          
+          // Close the dialog immediately
+          setIsNewPatientModalOpen(false);
+          
+          // Reset form
+          resetForm();
+          
+          // Trigger a refresh of the patient list
+          fetchPatients(currentPage, limit);
+          
+          // Create notification message with card payment info if card was selected
+          let notificationMessage = `New patient ${values.firstName} ${values.lastName} has been registered`;
+          if (selectedCardType) {
+            notificationMessage += ` with ${selectedCardType.name} card (ETB ${selectedCardType.price})`;
+          }
+          
+          // Dispatch patient registration event
+          window.dispatchEvent(new CustomEvent('patientRegistered', {
+            detail: {
+              patient: createdPatient,
+              message: notificationMessage,
+              cardType: selectedCardType,
+              hasCardPayment: !!selectedCardType
+            }
+          }));
+          
+          // If patient was registered with a card, create a payment notification
+          if (selectedCardType) {
+            // Create card payment notification
+            window.dispatchEvent(new CustomEvent('cardPaymentRequired', {
+              detail: {
+                patient: createdPatient,
+                cardType: selectedCardType,
+                amount: selectedCardType.price,
+                type: 'card_payment_required',
+                title: 'Card Payment Required',
+                message: `${selectedCardType.name} card payment required for ${values.firstName} ${values.lastName}`,
+                priority: 'high',
+                timestamp: new Date()
+              }
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Error creating patient:', error);
+        
+        // Check if it's a validation error message
+        const errorMessage = extractErrorMessage(error);
+        
+        if (errorMessage.includes('Validation failed:')) {
+          // Parse validation error message and set field errors
+          const validationErrorsText = errorMessage.replace('Validation failed: ', '');
+          const errorPairs = validationErrorsText.split(', ');
+          
+          const formikErrors: Record<string, string> = {};
+          
+          errorPairs.forEach(pair => {
+            const [field, message] = pair.split(': ');
+            formikErrors[field] = message;
+          });
+          
+          setErrors(formikErrors);
+          toast.error('Please fix the validation errors', {
+            duration: 4000,
+            position: 'top-right',
+          });
+        } else {
+          // General error
+          toast.error(`Error: ${errorMessage}`, {
+            duration: 5000,
+            position: 'top-right',
+          });
+        }
+      } finally {
+        setSubmitting(false);
+        setIsSubmitting(false);
+      }
+    },
+  });
+
+  const scheduleFormik = useFormik({
+    initialValues: {
+      patientId: passedPatientIdFromAppointmentsPage || '',
+      doctorId: '',
+      appointmentDate: '',
+      appointmentTime: '',
+      type: '',
+      reason: '',
+      notes: ''
+    },
+    validationSchema: Yup.object().shape({
+      patientId: Yup.string().required('Patient is required'),
+      doctorId: Yup.string().required('Doctor is required'),
+      appointmentDate: Yup.string().required('Date is required'),
+      appointmentTime: Yup.string().required('Time is required'),
+      type: Yup.string().required('Appointment type is required'),
+      reason: Yup.string().required('Reason for appointment is required'),
+      notes: Yup.string()
+    }),
+    onSubmit: async (values, { setSubmitting, resetForm }) => {
+      try {
+        // Format the date and time
+        const appointmentDateTime = new Date(`${values.appointmentDate}T${values.appointmentTime}`);
+        
+        // Create appointment object
+        const appointmentData = {
+          patientId: values.patientId,
+          doctorId: values.doctorId,
+          date: values.appointmentDate,
+          time: values.appointmentTime,
+          duration: 30,
+          service: values.type,
+          notes: values.notes
+        };
+
+        // Call appointments API to schedule
+        await api.post('/api/appointments', appointmentData);
+        
+        setIsScheduleModalOpen(false);
+        toast('Appointment scheduled successfully!', { icon: '✅' });
+        // Optionally refresh data or navigate to appointments page
+      } catch (error) {
+        console.error('Error scheduling appointment:', error);
+        toast.error('Failed to schedule appointment. Please try again.');
+      } finally {
+        setSubmitting(false);
+      }
+    }
+  });
+
+  const filteredPatients = Array.isArray(patients) ? patients.filter(patient => 
+    
+    ((patient?.firstName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (patient?.lastName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (patient?.department || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+     (patient?.status || '').toLowerCase().includes(searchQuery.toLowerCase()))
+  ) : [];
+
+  const sortedPatients = Array.isArray(filteredPatients) ? [...filteredPatients].sort((a: QueuePatient, b: QueuePatient) => {
+    const dateA = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateB - dateA;
+  }) : [];
+
+  const totalPages = Math.max(1, Math.ceil((total || 0) / (limit || 10)));
+
+  const paginatedPatients = Array.isArray(sortedPatients) ? sortedPatients.slice(
+    ((currentPage || 1) - 1) * (limit || 10),
+    (currentPage || 1) * (limit || 10)
+  ) : [];
+
+  // Utility function to calculate age from dateOfBirth
+  function calculateAge(dateOfBirth?: string | Date): string {
+    if (!dateOfBirth) return '-';
+    const dob = new Date(dateOfBirth);
+    if (isNaN(dob.getTime())) return '-';
+    const diffMs = Date.now() - dob.getTime();
+    const ageDate = new Date(diffMs);
+    return Math.abs(ageDate.getUTCFullYear() - 1970).toString();
+  }
+
+  // Get card status color and text
+  const getCardStatusColor = (patient?: any) => {
+    // Handle new backend format: patient.cardStatus, patient.cardType, patient.cardIssueDate
+    if (!patient) return 'bg-gray-100 text-gray-800';
+    
+    // Check if patient has a card
+    if (!patient.cardType && !patient.cardStatus) {
+      return 'bg-gray-100 text-gray-800';
+    }
+    
+    // If patient has cardStatus field (new format)
+    if (patient.cardStatus === 'active') {
+      return 'bg-emerald-100 text-emerald-800 border border-emerald-300 font-semibold';
+    }
+    
+    // Check for grace period even if status is expired
+    if (patient.cardIssueDate) {
+      const issueDate = new Date(patient.cardIssueDate);
+      const graceEnd = new Date(issueDate);
+      graceEnd.setDate(graceEnd.getDate() + 15);
+      const now = new Date();
+      
+      if (now <= graceEnd) {
+        return 'bg-amber-100 text-amber-800 border border-amber-300 font-semibold';
+    }
+    }
+    
+    if (patient.cardStatus === 'expired') {
+      return 'bg-red-100 text-red-800';
+    }
+    
+    // If patient has cardType but no explicit status, assume active
+    if (patient.cardType && !patient.cardStatus) {
+      return 'bg-green-100 text-green-800';
+    }
+    
+    // Legacy format support
+    if (typeof patient === 'object' && patient.hasCard !== undefined) {
+      if (!patient.hasCard) {
+        return 'bg-gray-100 text-gray-800';
+      }
+      if (patient.status === 'Active' && patient.isValid) {
+        return 'bg-green-100 text-green-800';
+      }
+      if (patient.status === 'Grace' && patient.isValid) {
+      return 'bg-yellow-100 text-yellow-800';
+    }
+    return 'bg-red-100 text-red-800';
+    }
+    
+    return 'bg-gray-100 text-gray-800';
+  };
+
+  const getCardStatusText = (patient?: any) => {
+    // Handle new backend format: patient.cardStatus, patient.cardType, patient.cardIssueDate
+    if (!patient) return 'No Card';
+    
+    // Check if patient has a card
+    if (!patient.cardType && !patient.cardStatus) {
+      return 'No Card';
+    }
+    
+    // If patient has cardStatus field (new format)
+    if (patient.cardStatus === 'active') {
+      const daysRemaining = patient.cardDaysRemaining;
+      if (daysRemaining !== undefined && daysRemaining !== null && daysRemaining <= 3 && daysRemaining >= 0) {
+        return `✅ Active (${daysRemaining} days left)`;
+      }
+      return '✅ Active Card - No Payment';
+    }
+    
+    // Check for grace period even if status is expired
+    if (patient.cardIssueDate) {
+      const issueDate = new Date(patient.cardIssueDate);
+      const graceEnd = new Date(issueDate);
+      graceEnd.setDate(graceEnd.getDate() + 15);
+      const now = new Date();
+      
+      if (now <= graceEnd) {
+        const daysLeft = Math.ceil((graceEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return `⏰ Grace Period (${daysLeft} days) - No Payment`;
+      }
+    }
+    
+    if (patient.cardStatus === 'expired') {
+      return 'Expired';
+    }
+    
+    // If patient has cardType but no explicit status, assume active
+    if (patient.cardType && !patient.cardStatus) {
+      return `${patient.cardType.name} Card`;
+    }
+    
+    // Legacy format support
+    if (typeof patient === 'object' && patient.hasCard !== undefined) {
+      if (!patient.hasCard) {
+        return 'No Card';
+      }
+      if (patient.status === 'Active' && patient.isValid) {
+        return 'Active';
+      }
+      if (patient.status === 'Grace' && patient.isValid) {
+        return `Grace (${patient.daysLeftInGrace} days)`;
+    }
+      if (patient.status === 'Grace' || patient.status === 'Expired') {
+      return 'Expired';
+    }
+      return patient.status;
+    }
+    
+    return 'No Card';
+  };
+
+  // Restore handleOpenScheduleModal definition
+  const handleOpenScheduleModal = () => {
+    scheduleFormik.resetForm({ values: { ...scheduleFormik.initialValues, patientId: passedPatientIdFromAppointmentsPage || '' } });
+    setIsScheduleModalOpen(true);
+    // Load data when modal opens
+    fetchPatientsForSelect();
+    fetchDoctorsForSelect();
+  };
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.patient-search-container')) {
+        setShowPatientDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Fetch patients for appointment scheduling
+  const fetchPatientsForSelect = async () => {
+    setIsLoadingPatientsForSelect(true);
+    try {
+      const response = await api.get('/api/patients');
+      const patientsData = response.data?.data || response.data?.patients || [];
+      setPatientsForSelect(patientsData);
+      setFilteredPatientsForSelect(patientsData); // Initialize filtered patients
+    } catch (error) {
+      console.error('Error fetching patients for select:', error);
+      toast.error('Failed to load patients');
+    } finally {
+      setIsLoadingPatientsForSelect(false);
+    }
+  };
+
+  // Fetch doctors for appointment scheduling
+  const fetchDoctorsForSelect = async () => {
+    setIsLoadingDoctorsForSelect(true);
+    try {
+
+      const response = await api.get('/api/users?role=doctor');
+
+      const doctorsData = response.data?.data || response.data?.users || response.data || [];
+
+      setDoctorsForSelect(doctorsData);
+    } catch (error: any) {
+      console.error('❌ Error fetching doctors for select:', error);
+      console.error('❌ Error details:', error.response?.data);
+      toast.error('Failed to load doctors');
+    } finally {
+      setIsLoadingDoctorsForSelect(false);
+    }
+  };
+
+  // Replace Zustand store access with local state
+  const { cardTypes } = useCardTypes();
+
+  // Add effect to load card types
+  useEffect(() => {
+    const loadCardTypes = async () => {
+      try {
+        await cardTypeService.fetchCardTypes();
+      } catch (error) {
+        console.error("Error loading card types:", error);
+      }
+    };
+    
+    loadCardTypes();
+  }, []);
+
+  // Calculate pagination for queue patients (not all patients)
+  const { queueTotalPages, queueCurrentPage, paginatedQueuePatients } = useMemo(() => {
+    const totalPages = Math.ceil(queuePatients.length / (limit || 10));
+    const currentPageClamped = Math.min(currentPage || 1, Math.max(1, totalPages));
+    
+    const paginated = Array.isArray(queuePatients) ? queuePatients.slice(
+      ((currentPageClamped || 1) - 1) * (limit || 10),
+      (currentPageClamped || 1) * (limit || 10)
+    ) : [];
+
+    return {
+      queueTotalPages: totalPages,
+      queueCurrentPage: currentPageClamped,
+      paginatedQueuePatients: paginated
+    };
+  }, [queuePatients, currentPage, limit]);
+
+  // Add this new state
+  const [processedPaymentIds, setProcessedPaymentIds] = useState<string[]>([]);
+  
+  // Load processed payment IDs from local storage on component mount
+  useEffect(() => {
+    setProcessedPaymentIds(getProcessedPaymentIds());
+  }, []);
+
+  // Automatic attendance tracking
+  useEffect(() => {
+    let isUnmounted = false;
+
+    const loadAttendanceStatus = async () => {
+      try {
+        const status = await attendanceService.getMyAttendanceStatus();
+        if (!isUnmounted && status) {
+          setAttendanceStatus(status.status);
+          setLastActivity(status.lastActivity || '');
+        }
+      } catch (error) {
+        console.error('Error loading attendance status:', error);
+        if (!isUnmounted) setAttendanceStatus('absent');
+      }
+    };
+
+    // Start tracking first so backend records presence, then fetch status
+    attendanceService.startActivityTracking();
+
+    // Initial fetch
+    loadAttendanceStatus();
+
+    // Quick follow-up fetch to flip from "absent" to "present" after heartbeat/login-activity
+    const quickRefresh = setTimeout(loadAttendanceStatus, 2000);
+
+    // Periodic refresh to keep UI in sync
+    const refreshInterval = setInterval(loadAttendanceStatus, 30000);
+
+    return () => {
+      isUnmounted = true;
+      clearTimeout(quickRefresh);
+      clearInterval(refreshInterval);
+      attendanceService.stopActivityTracking();
+    };
+  }, []);
+
+  // Add a method to process a pending prescription
+  const processPendingPrescription = async (prescription: any) => {
+    try {
+
+      // Call backend to mark prescription as processed
+      const response = await api.put(`/api/prescriptions/${prescription._id}/process`, {
+        status: 'processing_at_reception'
+      });
+      
+      if (response.status === 200) {
+        toast.success("Prescription processing started");
+        
+        // Remove the processed prescription from the list
+        setPendingPrescriptions(prev => 
+          prev.filter(p => p._id !== prescription._id)
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error processing prescription:", error);
+      toast.error("Failed to process prescription");
+    }
+  };
+
+  if (isLoading && patients.length === 0) { // Show loading only if truly loading and no patients yet
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="text-gray-600">Loading patients...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            Reception Dashboard
+          </h1>
+          <p className="text-gray-500 mt-1">Manage patient flow and appointments</p>
+        </div>
+        <div className="flex space-x-4">
+          <Button
+            onClick={() => {
+                formik.resetForm();
+                setPatientToEdit(null);
+                setIsNewPatientModalOpen(true);
+            }}
+            className="flex items-center bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md"
+            type="button"
+          >
+            <Icon icon={UserPlusIcon} className="w-5 h-5 mr-2" />
+            New Patient
+          </Button>
+          <Button 
+            variant="outline" 
+            className="flex items-center"
+            onClick={handleOpenScheduleModal}
+          >
+            <Icon icon={CalendarIcon} className="w-5 h-5 mr-2" />
+            Schedule
+          </Button>
+          <Link to="/app/reception/service-request">
+            <Button 
+              variant="outline" 
+              className="flex items-center border-purple-200 text-purple-700 hover:bg-purple-50"
+            >
+              <Icon icon={CalendarIcon} className="w-5 h-5 mr-2" />
+              Services
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Automatic Attendance Status */}
+      <div className="mb-6">
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className={`w-3 h-3 rounded-full ${
+                  attendanceStatus === 'present' ? 'bg-green-500' :
+                  attendanceStatus === 'offline' ? 'bg-yellow-500' :
+                  attendanceStatus === 'absent' ? 'bg-red-500' :
+                  'bg-gray-400'
+                }`}></div>
+                <span className="text-sm font-medium text-gray-700">
+                  {attendanceStatus === 'present' ? 'Present' :
+                   attendanceStatus === 'offline' ? 'Offline' :
+                   attendanceStatus === 'absent' ? 'Absent' :
+                   'Loading...'}
+                </span>
+              </div>
+              {lastActivity && (
+                <span className="text-xs text-gray-500">
+                  Last activity: {new Date(lastActivity).toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+            <div className="text-sm text-gray-500">
+              Automatic attendance tracking enabled
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Waiting Patients</p>
+              <h3 className="text-2xl font-bold text-blue-700">
+                {isLoadingStats ? (
+                  <div className="animate-pulse bg-blue-200 h-8 w-12 rounded"></div>
+                ) : (
+                  dashboardStats.waitingPatients
+                )}
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                {patients.filter(patient => patient.status === 'waiting').length - queuePatients.length > 0 && 
+                  `${patients.filter(patient => patient.status === 'waiting').length - queuePatients.length} excluded due to payment`
+                }
+              </p>
+            </div>
+            <div className="bg-blue-100 p-3 rounded-full">
+              <Icon icon={ClockIcon} className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Daily Appointments</p>
+              <h3 className="text-2xl font-bold text-green-700">
+                {isLoadingStats ? (
+                  <div className="animate-pulse bg-green-200 h-8 w-12 rounded"></div>
+                ) : (
+                  dashboardStats.dailyAppointments
+                )}
+              </h3>
+            </div>
+            <div className="bg-green-100 p-3 rounded-full">
+              <Icon icon={CalendarIcon} className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 bg-gradient-to-br from-purple-50 to-purple-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Active Departments</p>
+              <h3 className="text-2xl font-bold text-purple-700">
+                {isLoadingStats ? (
+                  <div className="animate-pulse bg-purple-200 h-8 w-12 rounded"></div>
+                ) : (
+                  dashboardStats.activeDepartments
+                )}
+              </h3>
+            </div>
+            <div className="bg-purple-100 p-3 rounded-full">
+              <Icon icon={UserGroupIcon} className="w-6 h-6 text-purple-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 bg-gradient-to-br from-amber-50 to-amber-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Urgent Cases</p>
+              <h3 className="text-2xl font-bold text-amber-700">
+                {isLoadingStats ? (
+                  <div className="animate-pulse bg-amber-200 h-8 w-12 rounded"></div>
+                ) : (
+                  dashboardStats.urgentCases
+                )}
+              </h3>
+            </div>
+            <div className="bg-amber-100 p-3 rounded-full">
+              <Icon icon={ExclamationCircleIcon} className="w-6 h-6 text-amber-600" />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Notifications Panel - Positioned above Patient Queue */}
+      <div className="mb-6">
+        <NotificationPanel />
+      </div>
+
+      {/* Main Content Area */}
+      <div className="grid grid-cols-1 gap-6">
+        {/* Patient Queue - Takes up full width */}
+        <div>
+          <Card className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl font-semibold">
+                  {searchQuery ? 'Search Results' : 'Patient Queue'}
+                </h2>
+                {searchQuery ? (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Showing results for "{searchQuery}" • {queuePatients.length} patient(s) found (all statuses)
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Showing {queuePatients.length} waiting patients
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search patients..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    className="pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <Icon icon={MagnifyingGlassIcon} className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                </div>
+                <Button variant="outline" size="sm" onClick={() => handleSearchChange('')}>
+                  Clear
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleRefresh}>
+                  <Icon icon={ArrowPathIcon} className="w-4 h-4 mr-1" />
+                  Refresh
+                </Button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-full table-auto">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4">Patient ID</th>
+                    <th className="text-left py-3 px-4 cursor-pointer" onClick={() => handleSort('firstName')}>
+                      <div className="flex items-center">
+                        Patient
+                        {sortField === 'firstName' && (
+                          sortDirection === 'asc' ? <Icon icon={ArrowUpIcon} className="w-4 h-4 ml-1" /> : <Icon icon={ArrowDownIcon} className="w-4 h-4 ml-1" />
+                        )}
+                      </div>
+                    </th>
+                    <th className="text-left py-3 px-4">Age</th>
+                    <th className="text-left py-3 px-4 cursor-pointer" onClick={() => handleSort('department')}>
+                      <div className="flex items-center">
+                        Department
+                        {sortField === 'department' && (
+                          sortDirection === 'asc' ? <Icon icon={ArrowUpIcon} className="w-4 h-4 ml-1" /> : <Icon icon={ArrowDownIcon} className="w-4 h-4 ml-1" />
+                        )}
+                      </div>
+                    </th>
+                    <th className="text-left py-3 px-4">Waiting Time</th>
+                    <th className="text-left py-3 px-4">Priority</th>
+                    <th className="text-left py-3 px-4">Card Status</th>
+                    <th className="text-left py-3 px-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedQueuePatients.length > 0 ? (
+                    paginatedQueuePatients.map((patient) => (
+                      <tr key={patient.id} className="border-b hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm text-gray-500 font-mono">
+                          {patient.patientId || patient.id}
+                        </td>
+                        <td className="py-3 px-4">{patient.firstName} {patient.lastName}</td>
+                        <td className="py-3 px-4">{patient.age || '-'}</td>
+                        <td className="py-3 px-4">{patient.department}</td>
+                        <td className="py-3 px-4">{calculateWaitingTime(patient.createdAt || patient.registrationDate)}</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(patient.priority)}`}>
+                            {patient.priority}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs ${getCardStatusColor(patient)}`}>
+                            {getCardStatusText(patient)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Tooltip title={
+                              patient.cardStatus === 'active' || 
+                              (patient.cardIssueDate && (() => {
+                                const issueDate = new Date(patient.cardIssueDate);
+                                const graceEnd = new Date(issueDate);
+                                graceEnd.setDate(graceEnd.getDate() + 15);
+                                return new Date() <= graceEnd;
+                              })()) 
+                                ? "Send to Department (Active Card - No Payment Required)" 
+                                : "Send to Department"
+                            }>
+                              <IconButton
+                                color="primary"
+                                onClick={() => handleSendToNurse(patient)}
+                                sx={{
+                                  ...(patient.cardStatus === 'active' || 
+                                      (patient.cardIssueDate && (() => {
+                                        const issueDate = new Date(patient.cardIssueDate);
+                                        const graceEnd = new Date(issueDate);
+                                        graceEnd.setDate(graceEnd.getDate() + 15);
+                                        return new Date() <= graceEnd;
+                                      })()) ? {
+                                    background: 'linear-gradient(45deg, #10b981, #059669)',
+                                    color: 'white',
+                                    '&:hover': {
+                                      background: 'linear-gradient(45deg, #059669, #047857)',
+                                    }
+                                  } : {})
+                                }}
+                              >
+                                <ArrowForwardIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center">
+                        <div className="flex flex-col items-center space-y-3">
+                          <Icon icon={ClockIcon} className="w-12 h-12 text-gray-300" />
+                          <div>
+                            <p className="text-gray-500 font-medium">No patients in queue</p>
+                            <p className="text-gray-400 text-sm">
+                              {queuePatients.length === 0 
+                                ? "There are currently no patients waiting to be seen."
+                                : "No patients found on this page. Try going to page 1."
+                              }
+                            </p>
+                          </div>
+                          {queuePatients.length > 0 && queueCurrentPage > 1 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentPage(1)}
+                              className="mt-2"
+                            >
+                              Go to First Page
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-gray-500">
+                Showing {queuePatients.length === 0 ? 0 : (queueCurrentPage - 1) * limit + 1} to {Math.min(queueCurrentPage * limit, queuePatients.length)} of {queuePatients.length} waiting patients
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={queueCurrentPage === 1}
+                >
+                  <Icon icon={ChevronLeftIcon} className="w-4 h-4" />
+                </Button>
+                {queueTotalPages > 0 && Array.from({ length: queueTotalPages }, (_, i) => i + 1).map(p => (
+                  <Button
+                    key={p}
+                    variant={queueCurrentPage === p ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(p)}
+                  >
+                    {p}
+                  </Button>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(queueTotalPages, prev + 1))}
+                  disabled={queueCurrentPage === queueTotalPages || queueTotalPages === 0}
+                >
+                  <Icon icon={ChevronRightIcon} className="w-4 h-4" />
+                </Button>
+                <select value={limit} onChange={e => { setLimit(Number(e.target.value)); setCurrentPage(1); }} className="ml-2 border rounded px-2 py-1">
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      <Dialog
+        open={isQuickViewOpen}
+        onOpenChange={() => setIsQuickViewOpen(false)}
+      >
+        {selectedPatient && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-500">Patient Name</label>
+                <p className="text-lg font-medium">{selectedPatient.firstName} {selectedPatient.lastName}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Department</label>
+                <p className="text-lg font-medium">{selectedPatient.department}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Contact Number</label>
+                <p className="text-lg font-medium">{selectedPatient.contactNumber}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Last Visit</label>
+                <p className="text-lg font-medium">{selectedPatient.lastVisit ? new Date(selectedPatient.lastVisit).toLocaleString() : 'N/A'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Assigned Doctor</label>
+                <p className="text-lg font-medium">{selectedPatient.assignedDoctorName || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Assigned Nurse</label>
+                <p className="text-lg font-medium">{selectedPatient.assignedNurseName || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Current Status</label>
+                <p className={`text-lg font-medium ${getStatusColor(selectedPatient.status)}`}>{selectedPatient.status}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Priority</label>
+                <p className={`text-lg font-medium ${getPriorityColor(selectedPatient.priority)}`}>{selectedPatient.priority}</p>
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 pt-4">
+              <Button variant="outline" onClick={() => setIsQuickViewOpen(false)}>
+                Close
+              </Button>
+
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      <Dialog
+        open={isNewPatientModalOpen}
+        onOpenChange={() => {
+          setIsNewPatientModalOpen(false);
+          formik.resetForm();
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Quick Patient Registration</DialogTitle>
+          </DialogHeader>
+          <div className="p-6">
+            <form onSubmit={formik.handleSubmit} className="space-y-4">
+              {/* Essential fields only */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                  <input
+                    type="text"
+                    id="firstName"
+                    name="firstName"
+                    value={formik.values.firstName}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    className={`block w-full rounded-lg border ${formik.touched.firstName && formik.errors.firstName ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-3 py-2`}
+                    placeholder="Enter first name"
+                  />
+                  {formik.touched.firstName && formik.errors.firstName && (
+                    <p className="mt-1 text-xs text-red-600">{String(formik.errors.firstName)}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+                  <input
+                    type="text"
+                    id="lastName"
+                    name="lastName"
+                    value={formik.values.lastName}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    className={`block w-full rounded-lg border ${formik.touched.lastName && formik.errors.lastName ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-3 py-2`}
+                    placeholder="Enter last name"
+                  />
+                  {formik.touched.lastName && formik.errors.lastName && (
+                    <p className="mt-1 text-xs text-red-600">{String(formik.errors.lastName)}</p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-1">Age *</label>
+                  <input
+                    type="number"
+                    id="age"
+                    name="age"
+                    min="0"
+                    max="150"
+                    value={formik.values.age}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    className={`block w-full rounded-lg border ${formik.touched.age && formik.errors.age ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-3 py-2`}
+                    placeholder="Enter age"
+                  />
+                  {formik.touched.age && formik.errors.age && (
+                    <p className="mt-1 text-xs text-red-600">{String(formik.errors.age)}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
+                  <select
+                    id="gender"
+                    name="gender"
+                    value={formik.values.gender}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    className={`block w-full rounded-lg border ${formik.touched.gender && formik.errors.gender ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-3 py-2`}
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                  {formik.touched.gender && formik.errors.gender && (
+                    <p className="mt-1 text-xs text-red-600">{String(formik.errors.gender)}</p>
+                  )}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number *</label>
+                <input
+                  type="text"
+                  id="contactNumber"
+                  name="contactNumber"
+                  value={formik.values.contactNumber}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  className={`block w-full rounded-lg border ${formik.touched.contactNumber && formik.errors.contactNumber ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-3 py-2`}
+                  placeholder="Enter contact number"
+                />
+                {formik.touched.contactNumber && formik.errors.contactNumber && (
+                  <p className="mt-1 text-xs text-red-600">{String(formik.errors.contactNumber)}</p>
+                )}
+              </div>
+
+              {/* Card Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Patient Card (Optional)</label>
+                <select
+                  value={selectedCardTypeId}
+                  onChange={(e) => setSelectedCardTypeId(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 shadow-sm px-3 py-2"
+                  style={{WebkitAppearance: "menulist-button"}}
+                >
+                  <option value="">No Card</option>
+                  {cardTypes.map(cardType => (
+                    <option key={cardType._id} value={cardType._id}>
+                      {cardType.name} - {cardType.description || `${cardType.name} patient membership with ${cardType.name.toLowerCase()} benefits.`} (ETB {cardType.price})
+                    </option>
+                  ))}
+                </select>
+                {selectedCardTypeId && (
+                  <p className="mt-1 text-xs text-blue-600">
+                    Card fee will be added to registration cost
+                  </p>
+                )}
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsNewPatientModalOpen(false);
+                    formik.resetForm();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Registering...' : 'Register Patient'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog
+        open={isConfirmSendNurseDialogOpen}
+        onOpenChange={cancelSendToNurse}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Assign Patient to Medical Staff</DialogTitle>
+          </DialogHeader>
+          {patientToSendToNurse && (
+            <div className="space-y-4">
+              <p className="text-gray-700">
+                Assign {patientToSendToNurse.firstName} {patientToSendToNurse.lastName} to a nurse and doctor:
+              </p>
+              
+              <div className="space-y-3 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Doctor</label>
+                  <select
+                    className="block w-full rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2"
+                    value={selectedDoctorId || ''}
+                    onChange={(e) => setSelectedDoctorId(e.target.value)}
+                  >
+                    <option key="select-doctor-default" value="" disabled>-- Select Doctor --</option>
+                    {doctors.map(doctor => {
+                      const value = doctor.id || doctor._id as string;
+                      const label = doctor.firstName || doctor.lastName
+                        ? `Dr. ${doctor.firstName || ''} ${doctor.lastName || ''}`.trim()
+                        : (doctor.name ? `Dr. ${doctor.name}` : 'Dr.');
+                      return (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Nurse</label>
+                  <select
+                    className="block w-full rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2"
+                    value={selectedNurseId || ''}
+                    onChange={(e) => setSelectedNurseId(e.target.value)}
+                  >
+                    <option key="select-nurse-default" value="" disabled>-- Select Nurse --</option>
+                    {nurses.map(nurse => (
+                      <option key={nurse.id || nurse._id} value={nurse.id || nurse._id}>
+                        {nurse.firstName} {nurse.lastName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-4 mt-4">
+                <Button variant="outline" onClick={cancelSendToNurse}>
+                  Cancel
+                </Button>
+                <Button onClick={confirmSendToNurse} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  Confirm Assignment
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isScheduleModalOpen} onOpenChange={() => setIsScheduleModalOpen(false)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Schedule Appointment</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={scheduleFormik.handleSubmit} className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Patient</label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsNewPatientModalOpen(true);
+                    setIsScheduleModalOpen(false);
+                  }}
+                  className="ml-2"
+                >
+                  <Icon icon={UserPlusIcon} className="w-4 h-4 mr-1" />
+                  New Patient
+                </Button>
+              </div>
+              <div className="relative patient-search-container">
+                <input
+                  type="text"
+                  placeholder={isLoadingPatientsForSelect ? 'Loading patients...' : 'Search patients...'}
+                  className="block w-full rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 pr-10"
+                  value={patientSearchTerm || (scheduleFormik.values.patientId ? 
+                    patientsForSelect.find(p => (p._id || p.id) === scheduleFormik.values.patientId)?.firstName + ' ' + 
+                    patientsForSelect.find(p => (p._id || p.id) === scheduleFormik.values.patientId)?.lastName + 
+                    ' (' + (patientsForSelect.find(p => (p._id || p.id) === scheduleFormik.values.patientId)?.patientId || 'N/A') + ')' : 
+                    '')}
+                  onChange={(e) => {
+                    const searchTerm = e.target.value.toLowerCase();
+                    const filteredPatients = patientsForSelect.filter(patient => 
+                      patient.firstName?.toLowerCase().includes(searchTerm) ||
+                      patient.lastName?.toLowerCase().includes(searchTerm) ||
+                      patient.patientId?.toLowerCase().includes(searchTerm)
+                    );
+                    setFilteredPatientsForSelect(filteredPatients);
+                    setPatientSearchTerm(searchTerm);
+                  }}
+                  onFocus={() => setShowPatientDropdown(true)}
+                  disabled={isLoadingPatientsForSelect}
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                  {scheduleFormik.values.patientId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        scheduleFormik.setFieldValue('patientId', '');
+                        setPatientSearchTerm('');
+                        setShowPatientDropdown(false);
+                      }}
+                      className="mr-2 text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                  <Icon icon={MagnifyingGlassIcon} className="h-4 w-4 text-gray-400" />
+                </div>
+                
+                {/* Patient Search Dropdown */}
+                {showPatientDropdown && !isLoadingPatientsForSelect && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {filteredPatientsForSelect.length > 0 ? (
+                      filteredPatientsForSelect.map(patient => (
+                        <div
+                          key={patient._id || patient.id}
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          onClick={() => {
+                            scheduleFormik.setFieldValue('patientId', patient._id || patient.id);
+                            setShowPatientDropdown(false);
+                            setPatientSearchTerm('');
+                          }}
+                        >
+                          <div className="font-medium text-gray-900">
+                            {patient.firstName} {patient.lastName}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            ID: {patient.patientId || 'N/A'} • Age: {patient.age || 'N/A'} • {patient.contactNumber || 'No contact'}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="px-4 py-2 text-gray-500 text-sm">
+                        {patientSearchTerm ? 'No patients found' : 'Start typing to search patients...'}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {scheduleFormik.touched.patientId && scheduleFormik.errors.patientId && (
+                <p className="mt-1 text-xs text-red-600">{String(scheduleFormik.errors.patientId)}</p>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Doctor</label>
+                <select
+                  id="doctorId"
+                  name="doctorId"
+                  value={scheduleFormik.values.doctorId}
+                  onChange={scheduleFormik.handleChange}
+                  onBlur={scheduleFormik.handleBlur}
+                  className={`block w-full rounded-lg border ${
+                    scheduleFormik.touched.doctorId && scheduleFormik.errors.doctorId
+                      ? 'border-red-300 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-blue-500'
+                  } shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`}
+                  disabled={isLoadingDoctorsForSelect}
+                >
+                  <option value="">{isLoadingDoctorsForSelect ? 'Loading...' : '-- Select Doctor --'}</option>
+                  {doctorsForSelect.map(doctor => (
+                    <option key={doctor._id || doctor.id} value={doctor._id || doctor.id}>
+                      Dr. {doctor.firstName} {doctor.lastName}
+                    </option>
+                  ))}
+                </select>
+                {scheduleFormik.touched.doctorId && scheduleFormik.errors.doctorId && (
+                  <p className="mt-1 text-xs text-red-600">{String(scheduleFormik.errors.doctorId)}</p>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                  <input
+                    type="date"
+                    id="appointmentDate"
+                    name="appointmentDate"
+                    value={scheduleFormik.values.appointmentDate}
+                    onChange={scheduleFormik.handleChange}
+                    onBlur={scheduleFormik.handleBlur}
+                    className={`block w-full rounded-lg border ${
+                      scheduleFormik.touched.appointmentDate && scheduleFormik.errors.appointmentDate
+                        ? 'border-red-300 focus:ring-red-500'
+                        : 'border-gray-300 focus:ring-blue-500'
+                    } shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`}
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                  {scheduleFormik.touched.appointmentDate && scheduleFormik.errors.appointmentDate && (
+                    <p className="mt-1 text-xs text-red-600">{String(scheduleFormik.errors.appointmentDate)}</p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
+                  <input
+                    type="time"
+                    id="appointmentTime"
+                    name="appointmentTime"
+                    value={scheduleFormik.values.appointmentTime}
+                    onChange={scheduleFormik.handleChange}
+                    onBlur={scheduleFormik.handleBlur}
+                    className={`block w-full rounded-lg border ${
+                      scheduleFormik.touched.appointmentTime && scheduleFormik.errors.appointmentTime
+                        ? 'border-red-300 focus:ring-red-500'
+                        : 'border-gray-300 focus:ring-blue-500'
+                    } shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`}
+                  />
+                  {scheduleFormik.touched.appointmentTime && scheduleFormik.errors.appointmentTime && (
+                    <p className="mt-1 text-xs text-red-600">{String(scheduleFormik.errors.appointmentTime)}</p>
+                  )}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Appointment Type</label>
+                <select
+                  id="type"
+                  name="type"
+                  value={scheduleFormik.values.type}
+                  onChange={scheduleFormik.handleChange}
+                  onBlur={scheduleFormik.handleBlur}
+                  className={`block w-full rounded-lg border ${
+                    scheduleFormik.touched.type && scheduleFormik.errors.type
+                      ? 'border-red-300 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-blue-500'
+                  } shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`}
+                >
+                  <option value="">-- Select Type --</option>
+                  {appointmentTypes.map(type => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))}
+                </select>
+                {scheduleFormik.touched.type && scheduleFormik.errors.type && (
+                  <p className="mt-1 text-xs text-red-600">{String(scheduleFormik.errors.type)}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Reason *</label>
+                <input
+                  type="text"
+                  id="reason"
+                  name="reason"
+                  value={scheduleFormik.values.reason}
+                  onChange={scheduleFormik.handleChange}
+                  onBlur={scheduleFormik.handleBlur}
+                  className={`block w-full rounded-lg border ${
+                    scheduleFormik.touched.reason && scheduleFormik.errors.reason
+                      ? 'border-red-300 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-blue-500'
+                  } shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`}
+                  placeholder="Brief reason for appointment"
+                  required
+                />
+                {scheduleFormik.touched.reason && scheduleFormik.errors.reason && (
+                  <p className="mt-1 text-xs text-red-600">{String(scheduleFormik.errors.reason)}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+                <textarea
+                  id="notes"
+                  name="notes"
+                  value={scheduleFormik.values.notes}
+                  onChange={scheduleFormik.handleChange}
+                  onBlur={scheduleFormik.handleBlur}
+                  rows={2}
+                  className="block w-full rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2"
+                  placeholder="Additional notes or instructions"
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsScheduleModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400"
+                disabled={scheduleFormik.isSubmitting || !scheduleFormik.isValid}
+              >
+                {scheduleFormik.isSubmitting ? 'Scheduling...' : 'Schedule Appointment'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Card Renewal Modal */}
+      <Modal show={isRenewCardModalOpen} onHide={() => setIsRenewCardModalOpen(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Renew Patient Card</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {patientToRenewCard && (
+            <Form>
+              <Form.Group className="mb-3">
+                <Form.Label>Patient</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={`${patientToRenewCard.firstName} ${patientToRenewCard.lastName}`}
+                  disabled
+                />
+              </Form.Group>
+              
+              <Form.Group className="mb-3">
+                <Form.Label>Card Type</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={patientToRenewCard.cardStatus?.cardType || 'Basic'}
+                  disabled
+                />
+                <Form.Text className="text-muted">
+                  {cardTypes.find(card => card.value === patientToRenewCard.cardStatus?.cardType)?.value || 'Basic'}
+                </Form.Text>
+              </Form.Group>
+              
+              <Form.Group className="mb-3">
+                <Form.Label>Renewal Amount</Form.Label>
+                <Form.Control
+                  type="number"
+                  value={renewalAmount}
+                  onChange={(e) => setRenewalAmount(e.target.value)}
+                />
+              </Form.Group>
+              
+              <Form.Group className="mb-3">
+                <Form.Label>Payment Method</Form.Label>
+                <Form.Select
+                  value={renewalPaymentMethod}
+                  onChange={(e) => setRenewalPaymentMethod(e.target.value)}
+                >
+                  <option value="cash">Cash</option>
+                  <option value="card">Credit/Debit Card</option>
+                  <option value="insurance">Insurance</option>
+                  <option value="mobileMoney">Mobile Money</option>
+                  <option value="bankTransfer">Bank Transfer</option>
+                </Form.Select>
+              </Form.Group>
+            </Form>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setIsRenewCardModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="default" onClick={confirmRenewCard}>
+            Renew Card
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Beautiful Payment Required Modal */}
+      {isPaymentModalOpen && paymentNotificationData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-auto transform transition-all duration-300">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-red-500 to-red-600 text-white p-4 rounded-t-xl">
+              <div className="flex items-center space-x-2">
+                <div className="bg-white bg-opacity-20 rounded-full p-1.5">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Payment Required</h3>
+                  <p className="text-red-100 text-xs">Patient: {paymentNotificationData.patientName}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-4 space-y-3">
+              <div className="bg-red-50 border-l-4 border-red-400 p-3 rounded">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-4 w-4 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-2">
+                    <p className="text-xs text-red-700 font-medium">
+                      Cannot assign patient to medical staff
+                    </p>
+                    <p className="text-xs text-red-600 mt-1">
+                      Payment required before assignment
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {paymentNotificationData.invoices.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-gray-900 flex items-center">
+                    <svg className="w-4 h-4 mr-1 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Outstanding Invoices
+                  </h4>
+                  
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                    {paymentNotificationData.invoices.map((invoice: any) => (
+                      <div key={invoice.id} className="flex justify-between items-center py-1.5 px-2 bg-white rounded border border-gray-200">
+                        <div>
+                          <p className="text-xs font-medium text-gray-900">{invoice.invoiceNumber}</p>
+                          <p className="text-xs text-gray-500 capitalize">{invoice.status}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-red-600">${(invoice.balance || invoice.total || 0).toFixed(2)}</p>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <div className="border-t pt-2 mt-2">
+                      <div className="flex justify-between items-center font-bold text-sm">
+                        <span className="text-gray-700">Total Amount Due:</span>
+                        <span className="text-red-600">${paymentNotificationData.totalAmount.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-blue-50 border-l-4 border-blue-400 p-2 rounded">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-4 w-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-2">
+                    <p className="text-xs text-blue-700 font-medium">What to do next:</p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Process payment at Reception before assignment.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-gray-50 px-4 py-3 rounded-b-xl flex justify-between">
+              <button
+                onClick={() => setIsPaymentModalOpen(false)}
+                className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 font-medium transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  // Keep the payment modal open and show the payment form
+                  if (paymentNotificationData && paymentNotificationData.invoices && paymentNotificationData.invoices.length > 0) {
+                    const selectedInvoiceForPayment = paymentNotificationData.invoices[0];
+
+                    // Extract patient ID correctly from multiple possible sources
+                    // Use MongoDB ObjectId (from .patient field) instead of display ID (from .patientId field)
+                    const patientId = selectedInvoiceForPayment.patient || 
+                                     (patientToSendToNurse?._id || patientToSendToNurse?.id) || 
+                                     (paymentNotificationData.patientId) ||
+                                     selectedInvoiceForPayment.patientId;
+
+                    if (!patientId) {
+                      toast.error('Cannot process payment: Missing patient ID');
+                      return;
+                    }
+                    
+                    // Create a new object with all the invoice properties plus the patientId
+                    setSelectedInvoiceForPayment({
+                      ...selectedInvoiceForPayment,
+                      patientId: patientId
+                    });
+                    
+                    setShowPaymentForm(true);
+                  } else {
+                    toast.error('No invoice found for payment');
+                  }
+                }}
+                className="px-4 py-1.5 text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 font-medium transition-all shadow-md"
+              >
+                Process Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Payment Form Modal */}
+      {showPaymentForm && selectedInvoiceForPayment && (
+        <RecordPaymentForm
+            invoiceId={selectedInvoiceForPayment.invoiceNumber || selectedInvoiceForPayment.id || selectedInvoiceForPayment.invoiceId}
+            patientId={selectedInvoiceForPayment.patient || selectedInvoiceForPayment.patientId}
+          currentBalance={selectedInvoiceForPayment.balance || selectedInvoiceForPayment.total || 0}
+          totalAmount={selectedInvoiceForPayment.total || 0}
+          onSuccess={(updatedInvoice) => {
+            setShowPaymentForm(false);
+            setIsPaymentModalOpen(false);
+            
+            // Store the payment ID in local storage if available
+            if (paymentNotificationData && paymentNotificationData.paymentRequirementId) {
+              addProcessedPaymentId(paymentNotificationData.paymentRequirementId);
+              setProcessedPaymentIds(prevIds => [...prevIds, paymentNotificationData.paymentRequirementId as string]);
+            }
+            
+            toast('Payment recorded successfully!', { icon: '✅' });
+            
+            // Refresh patient data to ensure we have the latest status
+            fetchPatients();
+            
+            // Wait a moment for the backend to process the payment
+            setTimeout(() => {
+              // Try to send patient to nurse again
+              if (patientToSendToNurse) {
+                proceedWithNurseAssignment();
+              }
+            }, 1000);
+          }}
+          onClose={() => {
+            setShowPaymentForm(false);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default ReceptionDashboard;

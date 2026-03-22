@@ -1,0 +1,9 @@
+@echo off
+echo Complete fix - Copying corrected appointments.js and starting backend...
+cd /d C:\clinic-new-life\backend
+echo Current directory: %CD%
+echo Copying fixed appointments.js file...
+copy "%~dp0appointments_fixed.js" "routes\appointments.js" /Y
+echo File copied successfully!
+echo Starting backend server...
+npm run dev 

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Request Test</title>
+</head>
+<body>
+    <h1>Payment Request Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        async function testPaymentRequest() {
+            const results = [];
+            
+            // Simulate the payment request that's failing
+            const testData = {
+                labOrderIds: ['test-order-id'],
+                paymentMethod: 'cash',
+                amountPaid: 200,
+                notes: 'Test payment',
+                directPayment: true
+            };
+            
+            results.push(`📤 Sending test data: ${JSON.stringify(testData, null, 2)}`);
+            
+            try {
+                console.log('Testing payment request...');
+                const response = await fetch('http://localhost:5002/api/billing/process-lab-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.push(`✅ Payment request successful: ${JSON.stringify(data, null, 2)}`);
+                } else {
+                    const errorData = await response.json();
+                    results.push(`❌ Payment request failed: ${response.status} - ${response.statusText}`);
+                    results.push(`📥 Error details: ${JSON.stringify(errorData, null, 2)}`);
+                }
+            } catch (error) {
+                results.push(`❌ Payment request error: ${error.message}`);
+            }
+            
+            // Display results
+            resultsDiv.innerHTML = results.map(result => `<p>${result}</p>`).join('');
+        }
+        
+        // Run test when page loads
+        testPaymentRequest();
+    </script>
+</body>
+</html> 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Request Test</title>
+</head>
+<body>
+    <h1>Payment Request Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        async function testPaymentRequest() {
+            const results = [];
+            
+            // Simulate the payment request that's failing
+            const testData = {
+                labOrderIds: ['test-order-id'],
+                paymentMethod: 'cash',
+                amountPaid: 200,
+                notes: 'Test payment',
+                directPayment: true
+            };
+            
+            results.push(`📤 Sending test data: ${JSON.stringify(testData, null, 2)}`);
+            
+            try {
+                console.log('Testing payment request...');
+                const response = await fetch('http://localhost:5002/api/billing/process-lab-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.push(`✅ Payment request successful: ${JSON.stringify(data, null, 2)}`);
+                } else {
+                    const errorData = await response.json();
+                    results.push(`❌ Payment request failed: ${response.status} - ${response.statusText}`);
+                    results.push(`📥 Error details: ${JSON.stringify(errorData, null, 2)}`);
+                }
+            } catch (error) {
+                results.push(`❌ Payment request error: ${error.message}`);
+            }
+            
+            // Display results
+            resultsDiv.innerHTML = results.map(result => `<p>${result}</p>`).join('');
+        }
+        
+        // Run test when page loads
+        testPaymentRequest();
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 

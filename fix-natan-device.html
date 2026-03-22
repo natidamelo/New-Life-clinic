@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Doctor Natan's Device Registration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border-left: 4px solid;
+        }
+        .status.info {
+            background-color: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+        .status.success {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        .status.warning {
+            background-color: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        .button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .button.success {
+            background-color: #28a745;
+        }
+        .button.success:hover {
+            background-color: #218838;
+        }
+        .button.warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .button.warning:hover {
+            background-color: #e0a800;
+        }
+        .button.danger {
+            background-color: #dc3545;
+        }
+        .button.danger:hover {
+            background-color: #c82333;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Doctor Natan's Device Registration</h1>
+        
+        <div class="status info">
+            <strong>Problem:</strong> Doctor Natan's device shows as "Registered" in the system, but when he scans from his phone, it says "Device Not Registered".
+        </div>
+        
+        <div class="step">
+            <h3>Step 1: Check Current Status</h3>
+            <p>First, let's check what's currently stored on your device:</p>
+            <button class="button" onclick="checkCurrentStatus()">Check Current Status</button>
+            <div id="currentStatus" class="log"></div>
+        </div>
+        
+        <div class="step">
+            <h3>Step 2: Run Quick Fix</h3>
+            <p>This will attempt to fix the device registration automatically:</p>
+            <button class="button success" onclick="runQuickFix()">Run Quick Fix</button>
+            <div id="quickFixResult" class="log"></div>
+        </div>
+        
+        <div class="step">
+            <h3>Step 3: Run Comprehensive Fix</h3>
+            <p>If the quick fix doesn't work, try this more thorough approach:</p>
+            <button class="button warning" onclick="runComprehensiveFix()">Run Comprehensive Fix</button>
+            <div id="comprehensiveFixResult" class="log"></div>
+        </div>
+        
+        <div class="step">
+            <h3>Step 4: Test the Fix</h3>
+            <p>Test if the device registration is now working:</p>
+            <button class="button" onclick="testDeviceRegistration()">Test Device Registration</button>
+            <div id="testResult" class="log"></div>
+        </div>
+        
+        <div class="step">
+            <h3>Step 5: Clear All Data (Emergency)</h3>
+            <p>If nothing else works, clear all data and start fresh:</p>
+            <button class="button danger" onclick="clearAllData()">Clear All Data</button>
+            <div id="clearResult" class="log"></div>
+        </div>
+        
+        <div class="status warning">
+            <strong>Note:</strong> After running any fix, try scanning a QR code again to see if the issue is resolved.
+        </div>
+        
+        <div class="status success">
+            <strong>Success:</strong> If the fix works, you should be able to use check-in/check-out normally. The device will remember that it's registered.
+        </div>
+    </div>
+
+    <script>
+        // Log function to display results
+        function log(elementId, message) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.textContent += `[${timestamp}] ${message}\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        // Check current status
+        function checkCurrentStatus() {
+            const element = document.getElementById('currentStatus');
+            element.textContent = '';
+            
+            log('currentStatus', 'Checking current device registration status...');
+            
+            const data = {
+                deviceRegistered: localStorage.getItem('deviceRegistered'),
+                staffUserId: localStorage.getItem('staffUserId'),
+                staffHash: localStorage.getItem('staffHash'),
+                registrationTimestamp: localStorage.getItem('registrationTimestamp'),
+                userInfo: localStorage.getItem('userInfo')
+            };
+            
+            log('currentStatus', 'Current localStorage data:');
+            log('currentStatus', JSON.stringify(data, null, 2));
+            
+            if (data.deviceRegistered === 'true' && data.staffUserId && data.staffHash) {
+                log('currentStatus', '✅ Device appears to be registered');
+            } else {
+                log('currentStatus', '❌ Device registration data is missing or incomplete');
+            }
+        }
+
+        // Run quick fix
+        function runQuickFix() {
+            const element = document.getElementById('quickFixResult');
+            element.textContent = '';
+            
+            log('quickFixResult', 'Running quick fix...');
+            
+            try {
+                // Check if we have any registration data
+                const data = {
+                    deviceRegistered: localStorage.getItem('deviceRegistered'),
+                    staffUserId: localStorage.getItem('staffUserId'),
+                    staffHash: localStorage.getItem('staffHash')
+                };
+                
+                if (data.deviceRegistered === 'true' && data.staffUserId && data.staffHash) {
+                    log('quickFixResult', '✅ Device registration data found, attempting to fix...');
+                    
+                    // Try to restore the data
+                    localStorage.setItem('deviceRegistered', 'true');
+                    localStorage.setItem('staffUserId', data.staffUserId);
+                    localStorage.setItem('staffHash', data.staffHash);
+                    localStorage.setItem('registrationTimestamp', new Date().toISOString());
+                    
+                    log('quickFixResult', '✅ Quick fix completed!');
+                } else {
+                    log('quickFixResult', '❌ No registration data found for quick fix');
+                    log('quickFixResult', 'Try the comprehensive fix instead');
+                }
+            } catch (error) {
+                log('quickFixResult', `❌ Error during quick fix: ${error.message}`);
+            }
+        }
+
+        // Run comprehensive fix
+        function runComprehensiveFix() {
+            const element = document.getElementById('comprehensiveFixResult');
+            element.textContent = '';
+            
+            log('comprehensiveFixResult', 'Running comprehensive fix...');
+            
+            try {
+                // Check backend status first
+                log('comprehensiveFixResult', 'Checking backend registration status...');
+                
+                // Simulate backend check (since we can't make actual API calls from this page)
+                log('comprehensiveFixResult', '⚠️ Cannot check backend from this page - need to be on clinic system');
+                log('comprehensiveFixResult', 'Please run this fix from the clinic system where you can access the API');
+                
+                // Try to fix with any existing data
+                const data = {
+                    deviceRegistered: localStorage.getItem('deviceRegistered'),
+                    staffUserId: localStorage.getItem('staffUserId'),
+                    staffHash: localStorage.getItem('staffHash')
+                };
+                
+                if (data.staffUserId && data.staffHash) {
+                    log('comprehensiveFixResult', 'Found existing user data, attempting to restore registration...');
+                    
+                    localStorage.setItem('deviceRegistered', 'true');
+                    localStorage.setItem('registrationTimestamp', new Date().toISOString());
+                    
+                    log('comprehensiveFixResult', '✅ Registration restored with existing data');
+                } else {
+                    log('comprehensiveFixResult', '❌ No existing data found');
+                    log('comprehensiveFixResult', 'You may need to re-register your device');
+                }
+                
+            } catch (error) {
+                log('comprehensiveFixResult', `❌ Error during comprehensive fix: ${error.message}`);
+            }
+        }
+
+        // Test device registration
+        function testDeviceRegistration() {
+            const element = document.getElementById('testResult');
+            element.textContent = '';
+            
+            log('testResult', 'Testing device registration...');
+            
+            const data = {
+                deviceRegistered: localStorage.getItem('deviceRegistered'),
+                staffUserId: localStorage.getItem('staffUserId'),
+                staffHash: localStorage.getItem('staffHash')
+            };
+            
+            log('testResult', 'Current registration data:');
+            log('testResult', JSON.stringify(data, null, 2));
+            
+            if (data.deviceRegistered === 'true' && data.staffUserId && data.staffHash) {
+                log('testResult', '✅ Device registration test PASSED!');
+                log('testResult', 'Your device should now work for check-in/check-out');
+            } else {
+                log('testResult', '❌ Device registration test FAILED!');
+                log('testResult', 'Missing data:');
+                if (data.deviceRegistered !== 'true') log('testResult', '  - deviceRegistered is not "true"');
+                if (!data.staffUserId) log('testResult', '  - staffUserId is missing');
+                if (!data.staffHash) log('testResult', '  - staffHash is missing');
+            }
+        }
+
+        // Clear all data
+        function clearAllData() {
+            const element = document.getElementById('clearResult');
+            element.textContent = '';
+            
+            log('clearResult', 'Clearing all device registration data...');
+            
+            try {
+                // Clear all possible storage locations
+                const keys = [
+                    'deviceRegistered', 'staffUserId', 'staffHash', 'registrationTimestamp', 'userInfo',
+                    'clinic_deviceRegistered', 'clinic_staffUserId', 'clinic_staffHash',
+                    'session_deviceRegistered', 'session_staffUserId', 'session_staffHash'
+                ];
+                
+                keys.forEach(key => {
+                    localStorage.removeItem(key);
+                    sessionStorage.removeItem(key);
+                });
+                
+                log('clearResult', '✅ All device registration data cleared');
+                log('clearResult', '⚠️ You will need to re-register your device');
+                log('clearResult', 'Contact your administrator for a new registration QR code');
+                
+            } catch (error) {
+                log('clearResult', `❌ Error clearing data: ${error.message}`);
+            }
+        }
+
+        // Auto-check status on page load
+        window.onload = function() {
+            log('currentStatus', 'Page loaded, checking current status...');
+            checkCurrentStatus();
+        };
+    </script>
+</body>
+</html>

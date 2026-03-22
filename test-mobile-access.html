@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mobile Access Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-link { display: block; margin: 10px 0; padding: 10px; background: #f0f0f0; text-decoration: none; color: #333; border-radius: 5px; }
+        .test-link:hover { background: #e0e0e0; }
+    </style>
+</head>
+<body>
+    <h1>Mobile Access Test</h1>
+    <p>Test these links from your phone:</p>
+    
+    <a href="http://192.168.108.157:5002/api/qr/verify-qr?hash=e0a1b77d63dcde00a3376d9af77c0133&type=qr-checkout&userId=6823301cdefc7776bf7537b3" class="test-link">
+        🔗 Direct Backend QR Verification
+    </a>
+    
+    <a href="http://192.168.108.157:5175" class="test-link">
+        🔗 Frontend Server Test
+    </a>
+    
+    <a href="http://192.168.108.157:5175/verify-qr?hash=e0a1b77d63dcde00a3376d9af77c0133&type=qr-checkout&userId=6823301cdefc7776bf7537b3" class="test-link">
+        🔗 Frontend QR Verification
+    </a>
+    
+    <h2>Network Info</h2>
+    <p>Your computer IP: 192.168.108.157</p>
+    <p>Backend port: 5002</p>
+    <p>Frontend port: 5175</p>
+    
+    <h2>Troubleshooting</h2>
+    <ul>
+        <li>Make sure your phone is on the same WiFi network</li>
+        <li>Try the backend link first (port 5002)</li>
+        <li>If backend works, the issue is with the frontend server</li>
+        <li>Check Windows Firewall settings</li>
+    </ul>
+</body>
+</html>

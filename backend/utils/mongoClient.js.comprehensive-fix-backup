@@ -1,0 +1,63 @@
+const { MongoClient } = require('mongodb');
+
+// Connection URI – default to clinic-cms unless overridden
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/clinic';
+
+let clientPromise;
+
+async function getClient () {
+  if (!clientPromise) {
+    const client = new MongoClient(MONGO_URI, {
+      serverSelectionTimeoutMS: 10000
+    });
+    clientPromise = client.connect();
+  }
+  return clientPromise;
+}
+
+module.exports = async function getDb () {
+  const client = await getClient();
+  return client.db(); // Uses DB name embedded in URI (clinic-cms)
+}; 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 

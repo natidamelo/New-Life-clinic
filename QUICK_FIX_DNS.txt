@@ -1,0 +1,60 @@
+================================================================
+    QUICK FIX: Add DNS Servers for Internet Access
+================================================================
+
+PROBLEM: You set static IP but lost internet access.
+
+SOLUTION: Add DNS servers (they translate website names to IPs)
+
+================================================================
+METHOD 1: Quick Script (EASIEST)
+================================================================
+
+1. Right-click: FIX_INTERNET_ACCESS_ADMIN.bat
+2. Choose: "Run as administrator"
+3. Wait for completion
+4. Test internet!
+
+================================================================
+METHOD 2: Manual Windows Settings
+================================================================
+
+1. Open Windows Settings (Win + I)
+2. Go to: Network & Internet > Wi-Fi
+3. Click on your WiFi network name
+4. Scroll down and click: "Edit" under IP assignment
+5. Change to: "Manual"
+6. Set these values:
+
+   IPv4 address: 10.99.120.100
+   Subnet mask: 255.255.255.0
+   Gateway: 10.99.120.1
+   
+   DNS servers (IMPORTANT - this fixes internet!):
+   Preferred DNS: 10.99.120.1
+   Alternate DNS: 8.8.8.8
+
+7. Click "Save"
+8. Test internet!
+
+================================================================
+WHY THIS FIXES IT:
+================================================================
+
+Without DNS servers, your PC can't translate "google.com" 
+to an IP address, so internet doesn't work.
+
+Primary DNS (10.99.120.1) = Your router (local network)
+Secondary DNS (8.8.8.8) = Google DNS (public internet)
+
+================================================================
+
+
+
+
+
+
+
+
+
+

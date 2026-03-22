@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Registration Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .warning { background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        button.danger { background-color: #dc3545; }
+        button.danger:hover { background-color: #c82333; }
+        button.success { background-color: #28a745; }
+        button.success:hover { background-color: #218838; }
+        .debug-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Device Registration Debug Tool</h1>
+    
+    <div class="container">
+        <h2>📱 Current Device Status</h2>
+        <div id="deviceStatus"></div>
+        <button onclick="checkDeviceStatus()">🔄 Refresh Status</button>
+        <button onclick="clearAllData()" class="danger">🗑️ Clear All Data</button>
+    </div>
+
+    <div class="container">
+        <h2>🧪 Test Functions</h2>
+        <button onclick="testLocalStorage()">💾 Test localStorage</button>
+        <button onclick="simulateRegistration()" class="success">📝 Simulate Registration</button>
+        <button onclick="testQRVerification()">🔍 Test QR Verification</button>
+        <button onclick="checkNetworkAccess()">🌐 Check Network Access</button>
+    </div>
+
+    <div class="container">
+        <h2>🐛 Debug Information</h2>
+        <div id="debugInfo" class="debug-info">Click "Refresh Status" to see debug info...</div>
+    </div>
+
+    <div class="container">
+        <h2>📋 Instructions</h2>
+        <ol>
+            <li><strong>Check Device Status</strong> - See what's currently stored on your device</li>
+            <li><strong>Test localStorage</strong> - Verify localStorage is working on your device</li>
+            <li><strong>Simulate Registration</strong> - Create test registration data</li>
+            <li><strong>Test QR Verification</strong> - Test if backend API is accessible</li>
+            <li><strong>Check Network Access</strong> - Verify network connectivity</li>
+        </ol>
+        <p><strong>Note:</strong> This tool helps identify why your device isn't being recognized for check-in/check-out operations.</p>
+    </div>
+
+    <script>
+        // Check device status on page load
+        window.onload = function() {
+            checkDeviceStatus();
+        };
+
+        function checkDeviceStatus() {
+            const deviceRegistered = localStorage.getItem('deviceRegistered');
+            const registeredUserId = localStorage.getItem('staffUserId');
+            const registeredHash = localStorage.getItem('staffHash');
+            const registrationTimestamp = localStorage.getItem('registrationTimestamp');
+            const userInfo = localStorage.getItem('userInfo');
+
+            let statusHtml = '';
+            
+            if (deviceRegistered === 'true' && registeredUserId && registeredHash) {
+                statusHtml = `
+                    <div class="status success">
+                        ✅ <strong>Device is registered!</strong><br>
+                        User ID: ${registeredUserId}<br>
+                        Hash: ${registeredHash}<br>
+                        Registered: ${registrationTimestamp ? new Date(registrationTimestamp).toLocaleString() : 'Unknown'}<br>
+                        User Info: ${userInfo ? JSON.stringify(JSON.parse(userInfo), null, 2) : 'None'}
+                    </div>
+                `;
+            } else {
+                statusHtml = `
+                    <div class="status error">
+                        ❌ <strong>Device is NOT registered!</strong><br>
+                        deviceRegistered: ${deviceRegistered || 'false'}<br>
+                        registeredUserId: ${registeredUserId || 'None'}<br>
+                        registeredHash: ${registeredHash || 'None'}<br>
+                        registrationTimestamp: ${registrationTimestamp || 'None'}<br>
+                        userInfo: ${userInfo || 'None'}
+                    </div>
+                `;
+            }
+
+            document.getElementById('deviceStatus').innerHTML = statusHtml;
+
+            // Update debug info
+            const debugInfo = {
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                localStorage: {
+                    deviceRegistered,
+                    registeredUserId,
+                    registeredHash,
+                    registrationTimestamp,
+                    userInfo: userInfo ? JSON.parse(userInfo) : null
+                },
+                allKeys: Object.keys(localStorage)
+            };
+
+            document.getElementById('debugInfo').textContent = JSON.stringify(debugInfo, null, 2);
+        }
+
+        function clearAllData() {
+            if (confirm('Are you sure you want to clear ALL data? This will remove device registration and any other stored information.')) {
+                localStorage.clear();
+                alert('All data cleared!');
+                checkDeviceStatus();
+            }
+        }
+
+        function testLocalStorage() {
+            try {
+                const testKey = 'test_' + Date.now();
+                const testValue = 'test_value_' + Math.random();
+                
+                localStorage.setItem(testKey, testValue);
+                const retrieved = localStorage.getItem(testKey);
+                localStorage.removeItem(testKey);
+                
+                if (retrieved === testValue) {
+                    alert('✅ localStorage is working correctly!');
+                } else {
+                    alert('❌ localStorage test failed!');
+                }
+            } catch (error) {
+                alert('❌ localStorage error: ' + error.message);
+            }
+        }
+
+        function simulateRegistration() {
+            const testUserId = 'test_user_' + Date.now();
+            const testHash = 'test_hash_' + Math.random().toString(36).substr(2, 9);
+            
+            localStorage.setItem('deviceRegistered', 'true');
+            localStorage.setItem('staffUserId', testUserId);
+            localStorage.setItem('staffHash', testHash);
+            localStorage.setItem('registrationTimestamp', new Date().toISOString());
+            localStorage.setItem('userInfo', JSON.stringify({
+                firstName: 'Test',
+                lastName: 'User',
+                username: 'testuser',
+                email: 'test@example.com',
+                role: 'nurse'
+            }));
+            
+            alert('✅ Test registration data created!');
+            checkDeviceStatus();
+        }
+
+        async function testQRVerification() {
+            try {
+                const response = await fetch('/api/ping');
+                if (response.ok) {
+                    const data = await response.json();
+                    alert(`✅ Backend API is accessible!\nResponse: ${JSON.stringify(data)}`);
+                } else {
+                    alert(`❌ Backend API error: ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                alert('❌ Network error: ' + error.message);
+            }
+        }
+
+        async function checkNetworkAccess() {
+            try {
+                // Test localhost access
+                const localResponse = await fetch('http://localhost:5002/api/ping');
+                const localData = await localResponse.json();
+                
+                // Test network IP access
+                const networkResponse = await fetch('http://192.168.92.157:5002/api/ping');
+                const networkData = await networkResponse.json();
+                
+                alert(`✅ Network access working!\n\nLocalhost: ${JSON.stringify(localData)}\n\nNetwork IP: ${JSON.stringify(networkData)}`);
+            } catch (error) {
+                alert('❌ Network access error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

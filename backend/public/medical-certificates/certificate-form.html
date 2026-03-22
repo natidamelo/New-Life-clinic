@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Certificate Form - New Life Clinic</title>
+    <link rel="stylesheet" href="certificate-styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="clinic-info">
+                <h1>New Life Clinic</h1>
+                <p>Medical Certificate Management System</p>
+            </div>
+            <div class="user-info">
+                <span id="doctorName">Dr. [Doctor Name]</span>
+                <button id="logoutBtn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="form">Create Certificate</button>
+            <button class="nav-tab" data-tab="list">View Certificates</button>
+            <button class="nav-tab" data-tab="stats">Statistics</button>
+        </nav>
+
+        <!-- Form Tab -->
+        <div id="form-tab" class="tab-content active">
+            <div class="form-container">
+                <h2>Medical Certificate Form</h2>
+                
+                <form id="medicalCertificateForm" class="certificate-form">
+                    <!-- Patient Information Section -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-user"></i> Patient Information</h3>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="patientId">Patient ID *</label>
+                                <input type="text" id="patientId" name="patientId" required>
+                                <button type="button" id="searchPatientBtn" class="btn-search">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
+                            </div>
+                            <div class="form-group">
+                                <label for="patientName">Patient Name *</label>
+                                <input type="text" id="patientName" name="patientName" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="patientAge">Age *</label>
+                                <input type="number" id="patientAge" name="patientAge" min="0" max="150" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="patientGender">Gender *</label>
+                                <select id="patientGender" name="patientGender" required>
+                                    <option value="">Select Gender</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="patientAddress">Address *</label>
+                            <textarea id="patientAddress" name="patientAddress" rows="2" required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="patientPhone">Phone Number</label>
+                            <input type="tel" id="patientPhone" name="patientPhone">
+                        </div>
+                    </div>
+
+                    <!-- Medical Information Section -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-stethoscope"></i> Medical Information</h3>
+                        
+                        <div class="form-group">
+                            <label for="certificateType">Certificate Type *</label>
+                            <select id="certificateType" name="certificateType" required>
+                                <option value="Medical Certificate">Medical Certificate</option>
+                                <option value="Sick Leave Certificate">Sick Leave Certificate</option>
+                                <option value="Fitness Certificate">Fitness Certificate</option>
+                                <option value="Treatment Certificate">Treatment Certificate</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="diagnosis">Diagnosis *</label>
+                            <textarea id="diagnosis" name="diagnosis" rows="3" required placeholder="Enter the primary diagnosis..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="symptoms">Symptoms</label>
+                            <textarea id="symptoms" name="symptoms" rows="3" placeholder="Describe the symptoms observed..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="treatment">Treatment Provided</label>
+                            <textarea id="treatment" name="treatment" rows="3" placeholder="Describe the treatment provided..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="prescription">Prescription</label>
+                            <textarea id="prescription" name="prescription" rows="3" placeholder="List prescribed medications..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="recommendations">Recommendations</label>
+                            <textarea id="recommendations" name="recommendations" rows="3" placeholder="Provide any recommendations for the patient..."></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="restPeriod">Rest Period</label>
+                                <input type="text" id="restPeriod" name="restPeriod" placeholder="e.g., 3 days, 1 week">
+                            </div>
+                            <div class="form-group">
+                                <label for="workRestriction">Work Restrictions</label>
+                                <input type="text" id="workRestriction" name="workRestriction" placeholder="e.g., Light duty, No heavy lifting">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="followUpDate">Follow-up Date</label>
+                            <input type="date" id="followUpDate" name="followUpDate">
+                        </div>
+                    </div>
+
+                    <!-- Validity Section -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-calendar"></i> Certificate Validity</h3>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="validFrom">Valid From *</label>
+                                <input type="date" id="validFrom" name="validFrom" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="validUntil">Valid Until *</label>
+                                <input type="date" id="validUntil" name="validUntil" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Clinic Information Section -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-hospital"></i> Clinic Information</h3>
+                        
+                        <div class="form-group">
+                            <label for="clinicName">Clinic Name</label>
+                            <input type="text" id="clinicName" name="clinicName" value="New Life Clinic">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="clinicAddress">Clinic Address</label>
+                            <textarea id="clinicAddress" name="clinicAddress" rows="2">Addis Ababa, Ethiopia</textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="clinicPhone">Clinic Phone</label>
+                                <input type="tel" id="clinicPhone" name="clinicPhone" value="+251-XXX-XXXX">
+                            </div>
+                            <div class="form-group">
+                                <label for="clinicLicense">Clinic License</label>
+                                <input type="text" id="clinicLicense" name="clinicLicense" value="CL-001">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Notes -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-notes-medical"></i> Additional Notes</h3>
+                        
+                        <div class="form-group">
+                            <label for="notes">Notes</label>
+                            <textarea id="notes" name="notes" rows="3" placeholder="Any additional notes or comments..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="form-actions">
+                        <button type="button" id="previewBtn" class="btn-secondary">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        <button type="button" id="saveDraftBtn" class="btn-secondary">
+                            <i class="fas fa-save"></i> Save Draft
+                        </button>
+                        <button type="submit" id="submitBtn" class="btn-primary">
+                            <i class="fas fa-certificate"></i> Issue Certificate
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- List Tab -->
+        <div id="list-tab" class="tab-content">
+            <div class="list-container">
+                <h2>Medical Certificates</h2>
+                
+                <!-- Search and Filter -->
+                <div class="search-filters">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="Search by patient name, certificate number, or diagnosis...">
+                        <button id="searchBtn" class="btn-search">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="filters">
+                        <select id="statusFilter">
+                            <option value="">All Status</option>
+                            <option value="Issued">Issued</option>
+                            <option value="Draft">Draft</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Expired">Expired</option>
+                        </select>
+                        
+                        <select id="typeFilter">
+                            <option value="">All Types</option>
+                            <option value="Medical Certificate">Medical Certificate</option>
+                            <option value="Sick Leave Certificate">Sick Leave Certificate</option>
+                            <option value="Fitness Certificate">Fitness Certificate</option>
+                            <option value="Treatment Certificate">Treatment Certificate</option>
+                        </select>
+                        
+                        <input type="date" id="dateFromFilter" placeholder="From Date">
+                        <input type="date" id="dateToFilter" placeholder="To Date">
+                    </div>
+                </div>
+
+                <!-- Certificates Table -->
+                <div class="table-container">
+                    <table id="certificatesTable" class="certificates-table">
+                        <thead>
+                            <tr>
+                                <th>Certificate #</th>
+                                <th>Patient Name</th>
+                                <th>Type</th>
+                                <th>Diagnosis</th>
+                                <th>Date Issued</th>
+                                <th>Valid Until</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="certificatesTableBody">
+                            <!-- Certificates will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="pagination">
+                    <!-- Pagination will be generated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Tab -->
+        <div id="stats-tab" class="tab-content">
+            <div class="stats-container">
+                <h2>Certificate Statistics</h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-certificate"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="totalCertificates">0</h3>
+                            <p>Total Certificates</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="issuedCertificates">0</h3>
+                            <p>Issued</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-edit"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="draftCertificates">0</h3>
+                            <p>Drafts</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="cancelledCertificates">0</h3>
+                            <p>Cancelled</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Certificates by Type</h3>
+                    <div id="typeChart" class="chart">
+                        <!-- Chart will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Patient Search Modal -->
+    <div id="patientSearchModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Search Patient</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="search-box">
+                    <input type="text" id="patientSearchInput" placeholder="Search by name, ID, or phone...">
+                    <button id="patientSearchBtn" class="btn-primary">Search</button>
+                </div>
+                <div id="patientSearchResults" class="search-results">
+                    <!-- Search results will be displayed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Certificate Preview Modal -->
+    <div id="previewModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3>Certificate Preview</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="certificatePreview" class="certificate-preview">
+                    <!-- Certificate preview will be displayed here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="printPreviewBtn" class="btn-primary">
+                    <i class="fas fa-print"></i> Print
+                </button>
+                <button id="closePreviewBtn" class="btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    <div id="messageContainer" class="message-container"></div>
+
+    <script src="certificate-script.js"></script>
+</body>
+</html>

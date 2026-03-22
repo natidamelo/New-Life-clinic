@@ -1,0 +1,1466 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import axios from 'axios';
+import { 
+  Card, 
+  CardContent, 
+  Typography, 
+  Grid, 
+  Divider, 
+  List, 
+  ListItem, 
+  ListItemText, 
+  Paper, 
+  Collapse, 
+  IconButton, 
+  Button, 
+  Tooltip, 
+  TextField, 
+  InputAdornment, 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions, 
+  Chip, 
+  FormControlLabel, 
+  Switch, 
+  Table, 
+  TableHead, 
+  TableBody, 
+  TableRow, 
+  TableCell,
+  Container,
+  Stack,
+  Box,
+  styled,
+  Rating,
+  Avatar,
+  Badge,
+  Tabs,
+  Tab,
+  Alert,
+  LinearProgress,
+  Breadcrumbs,
+  Link,
+  Fab,
+  Zoom,
+  Fade,
+  Grow,
+  Slide,
+  AppBar,
+  Toolbar,
+  ListItemIcon,
+  Menu,
+  MenuItem,
+  Popover,
+  Popper,
+  Backdrop,
+  CircularProgress,
+  Skeleton,
+  Stepper,
+  Step,
+  StepLabel,
+  StepContent,
+  MobileStepper,
+  Pagination,
+  ToggleButton,
+  ToggleButtonGroup,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  AlertTitle,
+  Snackbar,
+  useTheme,
+  useMediaQuery,
+  alpha,
+  darken,
+  lighten,
+  createTheme,
+  ThemeProvider,
+  responsiveFontSizes,
+  StyledEngineProvider,
+  CssBaseline,
+  GlobalStyles,
+  keyframes,
+  css,
+  experimental_sx as sx
+} from '@mui/material';
+import {
+  MedicalInformation as MedicalIcon,
+  Message as MessageIcon,
+  AccessTime as ClockIcon,
+  History as HistoryIcon,
+  Favorite as HeartIcon,
+  Person as PersonIcon,
+  Medication as MedicationIcon,
+  Warning as WarningIcon,
+  MonitorHeart as MonitorHeartIcon,
+  AssessmentOutlined as AssessmentIcon,
+  EventAvailable as EventIcon,
+  KeyboardArrowDown as ExpandMoreIcon,
+  KeyboardArrowUp as ExpandLessIcon,
+  Print as PrintIcon,
+  Edit as EditIcon,
+  Download as DownloadIcon,
+  Create as CreateIcon,
+  Search as SearchIcon,
+  Save as SaveIcon,
+  Compare as CompareIcon,
+  ArrowUpward,
+  ArrowDownward,
+  Remove as RemoveIcon,
+  ArrowRightAlt as ArrowRightAltIcon,
+  Coronavirus as AllergiesIcon,
+  AssignmentTurnedIn as PlanIcon,
+  NoteAdd as NotesIcon,
+  PictureAsPdf as PdfIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+  Science as LabIcon,
+  HealthAndSafety as HealthAndSafetyIcon,
+  MoreVert as MoreVertIcon
+} from '@mui/icons-material';
+import { Stethoscope as StethoscopeIcon } from 'lucide-react';
+import jsPDF from 'jspdf';
+// @ts-ignore
+import autoTable from 'jspdf-autotable';
+
+// Styled Components
+const StyledCard = styled(Card)(({ theme }) => ({
+  borderRadius: theme.shape.borderRadius * 2,
+  boxShadow: theme.shadows[2],
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    boxShadow: theme.shadows[4],
+  },
+}));
+
+const StyledCardHeader = styled(CardContent)(({ theme }) => ({
+  padding: theme.spacing(2),
+  backgroundColor: theme.palette.primary.main,
+  color: theme.palette.primary.contrastText,
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+}));
+
+const StyledSection = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(3),
+  marginBottom: theme.spacing(3),
+  borderRadius: theme.shape.borderRadius * 2,
+  backgroundColor: theme.palette.background.paper,
+}));
+
+const StyledTable = styled(Table)(({ theme }) => ({
+  '& .MuiTableCell-root': {
+    padding: theme.spacing(1.5),
+    fontSize: '0.875rem',
+  },
+  '& .MuiTableHead-root': {
+    backgroundColor: theme.palette.primary.light,
+    '& .MuiTableCell-root': {
+      color: theme.palette.primary.contrastText,
+      fontWeight: 'bold',
+    },
+  },
+}));
+
+const StyledListItem = styled(ListItem)(({ theme }) => ({
+  marginBottom: theme.spacing(1),
+  borderRadius: theme.shape.borderRadius,
+  backgroundColor: theme.palette.background.default,
+  '&:nth-of-type(odd)': {
+    backgroundColor: theme.palette.action.hover,
+  },
+}));
+
+const StyledDialog = styled(Dialog)(({ theme }) => ({
+  '& .MuiDialog-paper': {
+    borderRadius: theme.shape.borderRadius * 2,
+    padding: theme.spacing(2),
+  },
+}));
+
+const StyledAccordion = styled(Accordion)(({ theme }) => ({
+  marginBottom: theme.spacing(2),
+  borderRadius: theme.shape.borderRadius,
+  '&:before': {
+    display: 'none',
+  },
+  '&.Mui-expanded': {
+    margin: theme.spacing(2, 0),
+  },
+}));
+
+interface MedicalRecordProps {
+  patientId: string;
+}
+
+interface MedicationDialogState {
+  open: boolean;
+  medicationIndex: number | null;
+  medication: Medication;
+}
+
+interface LabDialogState {
+  open: boolean;
+  labIndex: number | null;
+  labResult: LabResult;
+}
+
+interface ChiefComplaint {
+  complaint: string;
+  duration?: string;
+  severity?: string;
+  onsetPattern?: string;
+  progression?: string;
+  aggravatingFactors?: string;
+  relievingFactors?: string;
+}
+
+interface HistoryPresentIllness {
+  description: string;
+  onset: string;
+  location: string;
+  duration: string;
+  characteristics: string;
+  aggravatingFactors: string;
+  relievingFactors: string;
+  timing: string;
+  severity: string;
+  associatedManifestations: string;
+}
+
+interface VitalSigns {
+  temperature?: number;
+  heartRate?: number;
+  respiratoryRate?: number;
+  bloodPressure?: string;
+  systolic?: number;
+  diastolic?: number;
+  oxygenSaturation?: number;
+  height?: number;
+  weight?: number;
+  bmi?: number;
+  painScore?: number;
+  glucoseLevel?: number;
+  recordedAt?: string;
+  capillaryRefill?: string;
+  pulseQuality?: string;
+  respiratoryEffort?: string;
+  consciousness?: string;
+  orientation?: string;
+  pupilReaction?: string;
+}
+
+interface PastMedicalCondition {
+  condition: string;
+  diagnosedDate?: string;
+  status?: string;
+  notes?: string;
+}
+
+interface Allergy {
+  allergen: string;
+  reaction?: string;
+  severity?: string;
+  notes?: string;
+}
+
+interface Medication {
+  name: string;
+  dosage?: string;
+  frequency?: string;
+  route?: string;
+  purpose?: string;
+  startDate?: string;
+  active?: boolean;
+}
+
+interface SocialHistory {
+  smokingStatus?: string;
+  alcoholUse?: string;
+  drugUse?: string;
+  occupation?: string;
+  livingArrangement?: string;
+  exerciseHabits?: string;
+  dietaryHabits?: string;
+  notes?: string;
+}
+
+interface FamilyHistory {
+  condition: string;
+  relation?: string;
+  notes?: string;
+}
+
+interface SystemPart {
+  findings?: string;
+  status?: string;
+}
+
+interface HeentExam {
+  head?: SystemPart;
+  eyes?: SystemPart;
+  ears?: SystemPart;
+  nose?: SystemPart;
+  throat?: SystemPart;
+}
+
+interface FollowUpPlan {
+  timing?: string;
+  instructions?: string;
+}
+
+interface LabResult {
+  id?: string;
+  testName: string;
+  testDate: string;
+  status: 'pending' | 'completed' | 'canceled';
+  result?: string;
+  normalRange?: string;
+  units?: string;
+  notes?: string;
+  flagged?: boolean;
+  orderedBy?: string;
+}
+
+interface PhysicalExam {
+  generalAppearance?: string;
+  heent?: string;
+  neck?: string;
+  cardiovascular?: string;
+  respiratory?: string;
+  gastrointestinal?: string;
+  genitourinary?: string;
+  musculoskeletal?: string;
+  neurological?: string;
+  skin?: string;
+  lymphatic?: string;
+  psychiatric?: string;
+  other?: string;
+}
+
+interface MedicalRecord {
+  _id?: string;
+  chiefComplaint?: ChiefComplaint;
+  historyOfPresentIllness?: string;
+  structuredHPI?: HistoryPresentIllness;
+  pastMedicalHistory?: string;
+  pastMedicalConditions?: PastMedicalCondition[];
+  allergies?: (Allergy | string)[];
+  medications?: (Medication | string)[];
+  socialHistory?: SocialHistory;
+  familyHistory?: FamilyHistory[];
+  vitalSigns?: VitalSigns;
+  vitalSignsHistory?: VitalSigns[];
+  heent?: HeentExam;
+  generalAppearance?: SystemPart;
+  cardiovascular?: SystemPart;
+  respiratory?: SystemPart;
+  gastrointestinal?: SystemPart;
+  neurological?: SystemPart;
+  reviewOfSystems?: ReviewOfSystems;
+  assessment?: string;
+  plan?: string;
+  followUpPlan?: FollowUpPlan;
+  impression?: string;
+  differentialDiagnosis?: string[];
+  recordedAt?: string;
+  createdAt?: string;
+  labResults?: LabResult[];
+  physicalExam?: PhysicalExam;
+}
+
+// Add expandable section component
+interface ExpandableSectionProps {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  defaultExpanded?: boolean;
+}
+
+const ExpandableSection: React.FC<ExpandableSectionProps> = ({ 
+  title, 
+  icon, 
+  children, 
+  defaultExpanded = true 
+}) => {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  return (
+    <Card 
+      sx={{ 
+        borderRadius: 2,
+        boxShadow: 2,
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          boxShadow: 4,
+        },
+      }}
+    >
+      <CardContent 
+        sx={{ 
+          p: 2,
+          bgcolor: 'primary.main',
+          color: 'primary.contrastText',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <Stack direction="row" spacing={2} alignItems="center">
+          {icon}
+          <Typography variant="h6" fontWeight="600">
+            {title}
+          </Typography>
+        </Stack>
+        <IconButton
+          size="small"
+          onClick={() => setExpanded(!expanded)}
+          sx={{ color: 'inherit' }}
+        >
+          {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+        </IconButton>
+      </CardContent>
+      <Collapse in={expanded}>
+        <CardContent>
+          {children}
+        </CardContent>
+      </Collapse>
+    </Card>
+  );
+};
+
+// Add new interface for doctor notes
+interface DoctorNote {
+  id: string;
+  content: string;
+  createdAt: string;
+  doctorId: string;
+  doctorName: string;
+}
+
+// Add Review of Systems interface
+interface ReviewOfSystems {
+  constitutional?: string;
+  eyes?: string;
+  ears?: string;
+  nose?: string;
+  mouth?: string;
+  throat?: string;
+  cardiovascular?: string;
+  respiratory?: string;
+  gastrointestinal?: string;
+  genitourinary?: string;
+  musculoskeletal?: string;
+  integumentary?: string;
+  neurological?: string;
+  psychiatric?: string;
+  endocrine?: string;
+  hematologic?: string;
+  allergic?: string;
+  immunologic?: string;
+}
+
+const HistorySection: React.FC<{ title: string; items: Array<{ date: string; content: string }> }> = ({ title, items }) => (
+  <Box sx={{ mt: 2 }}>
+    <Typography variant="h6" gutterBottom>
+      {title}
+    </Typography>
+    <List>
+      {items.map((item, index) => (
+        <ListItem key={index} divider={index < items.length - 1}>
+          <ListItemText
+            primary={item.content}
+            secondary={item.date}
+          />
+        </ListItem>
+      ))}
+    </List>
+  </Box>
+);
+
+const DisplayMedicalRecord: React.FC<MedicalRecordProps> = ({ patientId }) => {
+  const [medicalRecord, setMedicalRecord] = useState<MedicalRecord | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchResults, setSearchResults] = useState<string[]>([]);
+  const [doctorNotes, setDoctorNotes] = useState<DoctorNote[]>([]);
+  const [noteDialogOpen, setNoteDialogOpen] = useState<boolean>(false);
+  const [newNote, setNewNote] = useState<string>('');
+  const [showTimestamps, setShowTimestamps] = useState<boolean>(true);
+  const [compareMode, setCompareMode] = useState<boolean>(false);
+  const [previousRecord, setPreviousRecord] = useState<MedicalRecord | null>(null);
+  const [hpiDialogOpen, setHpiDialogOpen] = useState<boolean>(false);
+  const [structuredHPI, setStructuredHPI] = useState<HistoryPresentIllness>({
+    description: '',
+    onset: '',
+    location: '',
+    duration: '',
+    characteristics: '',
+    aggravatingFactors: '',
+    relievingFactors: '',
+    timing: '',
+    severity: '',
+    associatedManifestations: ''
+  });
+  const [medicationDialog, setMedicationDialog] = useState<MedicationDialogState>({
+    open: false,
+    medicationIndex: null,
+    medication: {
+      name: '',
+      dosage: '',
+      frequency: '',
+      route: '',
+      purpose: '',
+      active: true
+    }
+  });
+  const [labDialog, setLabDialog] = useState<LabDialogState>({
+    open: false,
+    labIndex: null,
+    labResult: {
+      testName: '',
+      testDate: new Date().toISOString().split('T')[0],
+      status: 'pending',
+    }
+  });
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [activeTab, setActiveTab] = useState(0);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  
+  // Simple print function
+  const handlePrint = () => {
+    // Add print-specific styles
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'visible';
+    
+    // Print the document
+    window.print();
+    
+    // Restore original styles
+    document.body.style.overflow = originalOverflow;
+  };
+
+  // Function to export data as PDF
+  const handleExportPDF = () => {
+    if (!medicalRecord) return;
+    
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Add header
+    doc.setFontSize(20);
+    doc.setTextColor(25, 118, 210);
+    doc.text('Medical Record', pageWidth/2, 20, { align: 'center' });
+    
+    // Add timestamp
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth/2, 27, { align: 'center' });
+    
+    // Add patient ID
+    doc.setFontSize(11);
+    doc.text(`Patient ID: ${patientId}`, 14, 35);
+    
+    let yPos = 45;
+    
+    // Chief complaint
+    if (medicalRecord.chiefComplaint) {
+      doc.setFontSize(14);
+      doc.setTextColor(25, 118, 210);
+      doc.text('Chief Complaint', 14, yPos);
+      
+      yPos += 7;
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text(medicalRecord.chiefComplaint.complaint || 'N/A', 14, yPos);
+      
+      if (medicalRecord.chiefComplaint.duration) {
+        yPos += 6;
+        doc.setFontSize(11);
+        doc.text(`Duration: ${medicalRecord.chiefComplaint.duration}`, 14, yPos);
+      }
+      
+      if (medicalRecord.chiefComplaint.severity) {
+        yPos += 6;
+        doc.text(`Severity: ${medicalRecord.chiefComplaint.severity}`, 14, yPos);
+      }
+      
+      yPos += 10;
+    }
+    
+    // Vital signs
+    if (medicalRecord.vitalSigns) {
+      doc.setFontSize(14);
+      doc.setTextColor(25, 118, 210);
+      doc.text('Vital Signs', 14, yPos);
+      
+      yPos += 7;
+      
+      const vitalsData = [
+        ['Temperature', 'Heart Rate', 'Blood Pressure', 'O₂ Saturation', 'Resp. Rate'],
+        [
+          `${medicalRecord.vitalSigns.temperature || 'N/A'} °C`,
+          `${medicalRecord.vitalSigns.heartRate || 'N/A'} bpm`,
+          `${medicalRecord.vitalSigns.bloodPressure || 'N/A'}`,
+          `${medicalRecord.vitalSigns.oxygenSaturation || 'N/A'} %`,
+          `${medicalRecord.vitalSigns.respiratoryRate || 'N/A'} /min`
+        ]
+      ];
+      
+      autoTable(doc, {
+        startY: yPos,
+        head: [vitalsData[0]],
+        body: [vitalsData[1]],
+        theme: 'grid',
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [25, 118, 210], textColor: 255 }
+      });
+      
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+    }
+    
+    // Assessment & Plan
+    doc.setFontSize(14);
+    doc.setTextColor(25, 118, 210);
+    doc.text('Assessment & Plan', 14, yPos);
+    
+    yPos += 7;
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    
+    const assessmentLines = doc.splitTextToSize(
+      medicalRecord.assessment || 'No assessment recorded',
+      pageWidth - 28
+    );
+    
+    // Check if new page is needed
+    if (yPos + assessmentLines.length * 7 > doc.internal.pageSize.getHeight() - 20) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
+    doc.text(assessmentLines, 14, yPos);
+    yPos += assessmentLines.length * 7 + 7;
+    
+    // Plan
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    
+    const planLines = doc.splitTextToSize(
+      medicalRecord.plan || 'No plan recorded',
+      pageWidth - 28
+    );
+    
+    // Check if new page is needed
+    if (yPos + planLines.length * 7 > doc.internal.pageSize.getHeight() - 20) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
+    doc.text(planLines, 14, yPos);
+    
+    // Medications (if they fit)
+    if (medicalRecord.medications && medicalRecord.medications.length > 0) {
+      yPos += planLines.length * 7 + 10;
+      
+      // Check if new page is needed
+      if (yPos + 20 > doc.internal.pageSize.getHeight() - 20) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.setFontSize(14);
+      doc.setTextColor(25, 118, 210);
+      doc.text('Medications', 14, yPos);
+      
+      yPos += 7;
+      
+      const medicationRows = medicalRecord.medications.map(med => {
+        if (typeof med === 'string') {
+          return [med, '', '', ''];
+        } else {
+          return [
+            med.name,
+            med.dosage || 'N/A',
+            med.frequency || 'N/A',
+            med.active ? 'Active' : 'Inactive'
+          ];
+        }
+      });
+      
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Medication', 'Dosage', 'Frequency', 'Status']],
+        body: medicationRows,
+        theme: 'grid',
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [25, 118, 210], textColor: 255 }
+      });
+    }
+    
+    // Save the PDF
+    doc.save(`Medical_Record_${patientId}_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  // Handle search functionality
+  const handleSearch = () => {
+    if (!searchQuery.trim() || !medicalRecord) {
+      setSearchResults([]);
+      return;
+    }
+    
+    const query = searchQuery.toLowerCase();
+    const results: string[] = [];
+    
+    // Search in chief complaint
+    if (medicalRecord.chiefComplaint?.complaint?.toLowerCase().includes(query)) {
+      results.push('Chief Complaint');
+    }
+    
+    // Search in history of present illness
+    if (medicalRecord.historyOfPresentIllness?.toLowerCase().includes(query)) {
+      results.push('History of Present Illness');
+    }
+    
+    // Search in assessment
+    if (medicalRecord.assessment?.toLowerCase().includes(query)) {
+      results.push('Assessment');
+    }
+    
+    // Search in plan
+    if (medicalRecord.plan?.toLowerCase().includes(query)) {
+      results.push('Plan');
+    }
+    
+    // Search in medications
+    if (medicalRecord.medications?.some(med => {
+      if (typeof med === 'string') {
+        return med.toLowerCase().includes(query);
+      } else {
+        return med.name.toLowerCase().includes(query) || 
+               (med.purpose && med.purpose.toLowerCase().includes(query));
+      }
+    })) {
+      results.push('Medications');
+    }
+    
+    // Search in allergies
+    if (medicalRecord.allergies?.some(allergy => {
+      if (typeof allergy === 'string') {
+        return allergy.toLowerCase().includes(query);
+      } else {
+        return allergy.allergen.toLowerCase().includes(query) || 
+               (allergy.reaction && allergy.reaction.toLowerCase().includes(query));
+      }
+    })) {
+      results.push('Allergies');
+    }
+    
+    setSearchResults(results);
+  };
+  
+  // Handle doctor notes
+  const handleNoteDialogOpen = () => {
+    setNoteDialogOpen(true);
+  };
+  
+  const handleNoteDialogClose = () => {
+    setNoteDialogOpen(false);
+    setNewNote('');
+  };
+  
+  const handleSaveNote = async () => {
+    if (!newNote.trim()) return;
+    
+    try {
+      // In a real app, this would be an API call to save the note
+      // For now we'll simulate it with local state
+      const mockNote: DoctorNote = {
+        id: Date.now().toString(),
+        content: newNote,
+        createdAt: new Date().toISOString(),
+        doctorId: 'current-doctor-id', // This would come from auth context
+        doctorName: 'Dr. Smith' // This would come from auth context
+      };
+      
+      setDoctorNotes(prev => [mockNote, ...prev]);
+      handleNoteDialogClose();
+      
+      // In a real app:
+      // const response = await axios.post(`/api/doctor/patient-notes/${patientId}`, {
+      //   content: newNote
+      // });
+      // setDoctorNotes(prev => [response.data, ...prev]);
+      
+    } catch (err) {
+      console.error('Error saving note:', err);
+    }
+  };
+  
+  // Toggle comparison mode
+  const toggleCompareMode = async () => {
+    if (!compareMode && !previousRecord) {
+      try {
+        // In a real app, this would fetch the previous record
+        // For now we'll just make a copy with some modified values
+        const prevRecord = JSON.parse(JSON.stringify(medicalRecord));
+        if (prevRecord?.vitalSigns) {
+          prevRecord.vitalSigns.temperature = (prevRecord.vitalSigns.temperature || 37) - 0.5;
+          prevRecord.vitalSigns.heartRate = (prevRecord.vitalSigns.heartRate || 75) + 5;
+          prevRecord.recordedAt = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        }
+        setPreviousRecord(prevRecord);
+      } catch (err) {
+        console.error('Error fetching previous record:', err);
+      }
+    }
+    
+    setCompareMode(!compareMode);
+  };
+
+  // Handle medication dialog
+  const handleMedicationDialogOpen = (index?: number) => {
+    if (index !== undefined && medicalRecord?.medications && medicalRecord.medications[index]) {
+      const med = medicalRecord.medications[index];
+      if (typeof med !== 'string') {
+        setMedicationDialog({
+          open: true,
+          medicationIndex: index,
+          medication: { ...med }
+        });
+      } else {
+        setMedicationDialog({
+          open: true,
+          medicationIndex: index,
+          medication: {
+            name: med,
+            active: true
+          }
+        });
+      }
+    } else {
+      setMedicationDialog({
+        open: true,
+        medicationIndex: null,
+        medication: {
+          name: '',
+          dosage: '',
+          frequency: '',
+          route: '',
+          purpose: '',
+          active: true
+        }
+      });
+    }
+  };
+
+  const handleMedicationDialogClose = () => {
+    setMedicationDialog({
+      ...medicationDialog,
+      open: false
+    });
+  };
+
+  const handleMedicationChange = (field: keyof Medication, value: string | boolean) => {
+    setMedicationDialog({
+      ...medicationDialog,
+      medication: {
+        ...medicationDialog.medication,
+        [field]: value
+      }
+    });
+  };
+
+  const handleSaveMedication = async () => {
+    try {
+      if (!medicalRecord) return;
+      
+      const updatedMedications = [...(medicalRecord.medications || [])];
+      
+      // Add or update medication
+      if (medicationDialog.medicationIndex !== null) {
+        updatedMedications[medicationDialog.medicationIndex] = medicationDialog.medication;
+      } else {
+        updatedMedications.push(medicationDialog.medication);
+      }
+      
+      // In a real app, this would update the server
+      // await axios.put(`/api/doctor/patient-medications/${patientId}`, updatedMedications);
+      
+      // Update local state
+      setMedicalRecord({
+        ...medicalRecord,
+        medications: updatedMedications
+      });
+      
+      handleMedicationDialogClose();
+    } catch (err) {
+      console.error('Error saving medication:', err);
+    }
+  };
+
+  const handleDeleteMedication = async (index: number) => {
+    try {
+      if (!medicalRecord?.medications) return;
+      
+      const updatedMedications = [...medicalRecord.medications];
+      updatedMedications.splice(index, 1);
+      
+      // In a real app, this would update the server
+      // await axios.put(`/api/doctor/patient-medications/${patientId}`, updatedMedications);
+      
+      // Update local state
+      setMedicalRecord({
+        ...medicalRecord,
+        medications: updatedMedications
+      });
+    } catch (err) {
+      console.error('Error deleting medication:', err);
+    }
+  };
+
+  // Handle lab results dialog
+  const handleLabDialogOpen = (index?: number) => {
+    if (index !== undefined && medicalRecord?.labResults && medicalRecord.labResults[index]) {
+      setLabDialog({
+        open: true,
+        labIndex: index,
+        labResult: { ...medicalRecord.labResults[index] }
+      });
+    } else {
+      setLabDialog({
+        open: true,
+        labIndex: null,
+        labResult: {
+          testName: '',
+          testDate: new Date().toISOString().split('T')[0],
+          status: 'pending',
+        }
+      });
+    }
+  };
+
+  const handleLabDialogClose = () => {
+    setLabDialog({
+      ...labDialog,
+      open: false
+    });
+  };
+
+  const handleLabChange = (field: keyof LabResult, value: string | boolean) => {
+    setLabDialog({
+      ...labDialog,
+      labResult: {
+        ...labDialog.labResult,
+        [field]: value
+      }
+    });
+  };
+
+  const handleSaveLab = async () => {
+    try {
+      if (!medicalRecord) return;
+      
+      const updatedLabResults = [...(medicalRecord.labResults || [])];
+      
+      // Add or update lab result
+      if (labDialog.labIndex !== null) {
+        updatedLabResults[labDialog.labIndex] = labDialog.labResult;
+      } else {
+        updatedLabResults.push({
+          ...labDialog.labResult,
+          id: `lab-${Date.now()}`
+        });
+      }
+      
+      // In a real app, this would update the server
+      // await axios.put(`/api/doctor/patient-lab-results/${patientId}`, updatedLabResults);
+      
+      // Update local state
+      setMedicalRecord({
+        ...medicalRecord,
+        labResults: updatedLabResults
+      });
+      
+      handleLabDialogClose();
+    } catch (err) {
+      console.error('Error saving lab result:', err);
+    }
+  };
+
+  const handleDeleteLab = async (index: number) => {
+    try {
+      if (!medicalRecord?.labResults) return;
+      
+      const updatedLabResults = [...medicalRecord.labResults];
+      updatedLabResults.splice(index, 1);
+      
+      // In a real app, this would update the server
+      // await axios.put(`/api/doctor/patient-lab-results/${patientId}`, updatedLabResults);
+      
+      // Update local state
+      setMedicalRecord({
+        ...medicalRecord,
+        labResults: updatedLabResults
+      });
+    } catch (err) {
+      console.error('Error deleting lab result:', err);
+    }
+  };
+
+  // HPI dialog handlers
+  const handleHpiDialogOpen = () => {
+    if (medicalRecord?.structuredHPI) {
+      setStructuredHPI(medicalRecord.structuredHPI);
+    }
+    setHpiDialogOpen(true);
+  };
+
+  const handleHpiDialogClose = () => {
+    setHpiDialogOpen(false);
+  };
+
+  const handleHpiChange = (field: keyof HistoryPresentIllness, value: string) => {
+    setStructuredHPI(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSaveHpi = async () => {
+    try {
+      if (!medicalRecord) return;
+      
+      // In a real app, this would update the server
+      // await axios.put(`/api/doctor/patient-hpi/${patientId}`, structuredHPI);
+      
+      // Update local state
+      setMedicalRecord({
+        ...medicalRecord,
+        structuredHPI
+      });
+      
+      setHpiDialogOpen(false);
+    } catch (err) {
+      console.error('Error saving HPI:', err);
+    }
+  };
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
+
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleSnackbarClose = () => {
+    setOpenSnackbar(false);
+  };
+
+  useEffect(() => {
+    // Function to fetch the medical record
+    const fetchMedicalRecord = async () => {
+      try {
+        setLoading(true);
+        // Use the endpoint to get medical records
+        const response = await axios.get(`/api/doctor/patient-history/${patientId}`);
+        setMedicalRecord(response.data);
+        
+        // Fetch doctor notes (in a real app)
+        // const notesResponse = await axios.get(`/api/doctor/patient-notes/${patientId}`);
+        // setDoctorNotes(notesResponse.data);
+        
+        // Mock doctor notes for demo
+        setDoctorNotes([
+          {
+            id: '1',
+            content: 'Patient reported feeling better after the medication change.',
+            createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+            doctorId: 'doctor-1',
+            doctorName: 'Dr. Johnson'
+          },
+          {
+            id: '2',
+            content: 'Follow up on blood work results next visit.',
+            createdAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
+            doctorId: 'doctor-2',
+            doctorName: 'Dr. Smith'
+          }
+        ]);
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching medical record:', err);
+        setError('Failed to load medical record');
+        setLoading(false);
+      }
+    };
+
+    if (patientId) {
+      fetchMedicalRecord();
+    }
+  }, [patientId]);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+        <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
+          <ClockIcon fontSize="small" sx={{ animation: 'spin 2s linear infinite' }} /> Loading medical record...
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 2, bgcolor: '#FEF2F2', borderRadius: 1, color: '#B91C1C' }}>
+        <Typography color="error" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WarningIcon fontSize="small" /> {error}
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (!medicalRecord) {
+    return (
+      <Box sx={{ 
+        p: 3, 
+        bgcolor: '#F3F4F6', 
+        borderRadius: 1, 
+        textAlign: 'center',
+        border: '1px dashed #D1D5DB'
+      }}>
+        <Typography sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+          No medical record found for this patient.
+        </Typography>
+      </Box>
+    );
+  }
+
+  // Format date for display
+  const formatDate = (dateString?: string): string => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  };
+
+  // Format timestamp for last updated
+  const formatTimeAgo = (dateString?: string): string => {
+    if (!dateString) return 'N/A';
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) {
+      return 'just now';
+    } else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60);
+      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    } else if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600);
+      return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    } else {
+      const days = Math.floor(diffInSeconds / 86400);
+      return `${days} day${days > 1 ? 's' : ''} ago`;
+    }
+  };
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <AppBar position="static" color="primary" elevation={0}>
+          <Toolbar>
+            <MedicalIcon sx={{ mr: 2 }} />
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+              Medical Record
+            </Typography>
+            <IconButton color="inherit" onClick={handleMenuClick}>
+              <MoreVertIcon />
+            </IconButton>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+            >
+              <MenuItem onClick={handlePrint}>
+                <ListItemIcon>
+                  <PrintIcon fontSize="small" />
+                </ListItemIcon>
+                Print
+              </MenuItem>
+              <MenuItem onClick={handleExportPDF}>
+                <ListItemIcon>
+                  <DownloadIcon fontSize="small" />
+                </ListItemIcon>
+                Export PDF
+              </MenuItem>
+            </Menu>
+          </Toolbar>
+        </AppBar>
+
+        <Box sx={{ flexGrow: 1, p: 3 }}>
+          <Breadcrumbs sx={{ mb: 3 }}>
+            <Link color="inherit" href="/">
+              Home
+            </Link>
+            <Link color="inherit" href="/patients">
+              Patients
+            </Link>
+            <Typography color="text.primary">Medical Record</Typography>
+          </Breadcrumbs>
+
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{ mb: 3 }}
+          >
+            <Tab label="Overview" />
+            <Tab label="History" />
+            <Tab label="Examination" />
+            <Tab label="Assessment" />
+            <Tab label="Plan" />
+          </Tabs>
+
+          <Box sx={{ display: 'flex', gap: 3 }}>
+            <Box sx={{ flexGrow: 1 }}>
+              {activeTab === 0 && (
+                <Grid container spacing={3}>
+                  <Grid item gridSize={{ xs: 12, md: 6 }}>
+                    <Card>
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom>
+                          Chief Complaint
+                        </Typography>
+                        {medicalRecord?.chiefComplaint ? (
+                          <Stack spacing={2}>
+                            <Alert severity="info" icon={<MessageIcon />}>
+                              {medicalRecord.chiefComplaint.complaint}
+                            </Alert>
+                            <Grid container spacing={2}>
+                              <Grid item gridSize={{ xs: 6 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                  Duration
+                                </Typography>
+                                <Typography variant="body1">
+                                  {medicalRecord.chiefComplaint.duration || 'N/A'}
+                                </Typography>
+                              </Grid>
+                              <Grid item gridSize={{ xs: 6 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                  Severity
+                                </Typography>
+                                <Rating
+                                  value={parseInt(medicalRecord.chiefComplaint.severity || '0')}
+                                  readOnly
+                                  size="small"
+                                />
+                              </Grid>
+                            </Grid>
+                          </Stack>
+                        ) : (
+                          <Alert severity="warning">
+                            No chief complaint recorded
+                          </Alert>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  <Grid item gridSize={{ xs: 12, md: 6 }}>
+                    <Card>
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom>
+                          Vital Signs
+                        </Typography>
+                        <Grid container spacing={2}>
+                          <Grid item gridSize={{ xs: 6, sm: 4 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              Temperature
+                            </Typography>
+                            <Typography variant="h6">
+                              {medicalRecord?.vitalSigns?.temperature || 'N/A'}°C
+                            </Typography>
+                          </Grid>
+                          <Grid item gridSize={{ xs: 6, sm: 4 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              Heart Rate
+                            </Typography>
+                            <Typography variant="h6">
+                              {medicalRecord?.vitalSigns?.heartRate || 'N/A'} bpm
+                            </Typography>
+                          </Grid>
+                          <Grid item gridSize={{ xs: 6, sm: 4 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              Blood Pressure
+                            </Typography>
+                            <Typography variant="h6">
+                              {medicalRecord?.vitalSigns?.bloodPressure || 'N/A'}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+              )}
+
+              {activeTab === 1 && (
+                <HistorySection
+                  title="History"
+                  items={[
+                    {
+                      date: '2024-03-15',
+                      content: 'Initial consultation and assessment',
+                    },
+                    {
+                      date: '2024-03-20',
+                      content: 'Follow-up visit for medication review',
+                    },
+                  ]}
+                />
+              )}
+
+              {activeTab === 2 && (
+                <Grid container spacing={3}>
+                  <Grid item gridSize={{ xs: 12 }}>
+                    <Accordion>
+                      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <Typography>Physical Examination</Typography>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <Grid container spacing={2}>
+                          <Grid item gridSize={{ xs: 12, sm: 6 }}>
+                            <Typography variant="subtitle2" color="text.secondary">
+                              General Appearance
+                            </Typography>
+                            <Typography variant="body1">
+                              {medicalRecord?.physicalExam?.generalAppearance || 'Not documented'}
+                            </Typography>
+                          </Grid>
+                          <Grid item gridSize={{ xs: 12, sm: 6 }}>
+                            <Typography variant="subtitle2" color="text.secondary">
+                              HEENT
+                            </Typography>
+                            <Typography variant="body1">
+                              {medicalRecord?.physicalExam?.heent || 'Not documented'}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                      </AccordionDetails>
+                    </Accordion>
+                  </Grid>
+                </Grid>
+              )}
+
+              {activeTab === 3 && (
+                <Stepper orientation="vertical">
+                  <Step active={true}>
+                    <StepLabel>Primary Diagnosis</StepLabel>
+                    <StepContent>
+                      <Typography>
+                        {medicalRecord?.assessment || 'No assessment recorded'}
+                      </Typography>
+                    </StepContent>
+                  </Step>
+                  <Step active={true}>
+                    <StepLabel>Differential Diagnosis</StepLabel>
+                    <StepContent>
+                      <Typography>
+                        {medicalRecord?.differentialDiagnosis?.join(', ') || 'No differential diagnosis recorded'}
+                      </Typography>
+                    </StepContent>
+                  </Step>
+                </Stepper>
+              )}
+
+              {activeTab === 4 && (
+                <Grid container spacing={3}>
+                  <Grid item gridSize={{ xs: 12 }}>
+                    <Card>
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom>
+                          Treatment Plan
+                        </Typography>
+                        <Typography variant="body1">
+                          {medicalRecord?.plan || 'No plan recorded'}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+              )}
+            </Box>
+
+            {!isMobile && (
+              <Box sx={{ width: 300 }}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Quick Actions
+                    </Typography>
+                    <Stack spacing={2}>
+                      <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={() => handleMedicationDialogOpen()}
+                      >
+                        Add Medication
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        startIcon={<NotesIcon />}
+                        onClick={handleNoteDialogOpen}
+                      >
+                        Add Note
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        startIcon={<LabIcon />}
+                        onClick={() => handleLabDialogOpen()}
+                      >
+                        Add Lab Result
+                      </Button>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Box>
+            )}
+          </Box>
+        </Box>
+
+        <Fab
+          color="primary"
+          sx={{ position: 'fixed', bottom: 16, right: 16 }}
+          onClick={handlePrint}
+        >
+          <PrintIcon />
+        </Fab>
+
+        <Snackbar
+          open={openSnackbar}
+          autoHideDuration={6000}
+          onClose={handleSnackbarClose}
+          message={snackbarMessage}
+        />
+      </Box>
+    </ThemeProvider>
+  );
+};
+
+export default DisplayMedicalRecord; 

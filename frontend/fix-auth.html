@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Authentication</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .success {
+            background: #28a745;
+        }
+        .danger {
+            background: #dc3545;
+        }
+        .info {
+            background: #17a2b8;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Authentication Fix Tool</h1>
+        <p>This tool will restore your user data from existing tokens to fix the logout issue.</p>
+        
+        <div id="status" class="status info">
+            Click "Check Current Status" to see what's stored in localStorage
+        </div>
+        
+        <div>
+            <button class="button info" onclick="checkStatus()">Check Current Status</button>
+            <button class="button success" onclick="restoreUserData()">Restore User Data</button>
+            <button class="button danger" onclick="clearAll()">Clear All Data</button>
+        </div>
+        
+        <div id="output"></div>
+    </div>
+
+    <script>
+        function checkStatus() {
+            const output = document.getElementById('output');
+            const status = document.getElementById('status');
+            
+            const tokenKeys = [
+                'auth_token',
+                'AUTH_TOKEN_KEY', 
+                'authToken',
+                'jwt_token',
+                'token',
+                'clinic_auth_token',
+                'clinic_jwt_token'
+            ];
+            
+            let html = '<h3>Current localStorage Status:</h3>';
+            
+            // Check tokens
+            html += '<h4>🔑 Tokens:</h4>';
+            let tokenFound = false;
+            tokenKeys.forEach(key => {
+                const token = localStorage.getItem(key);
+                if (token) {
+                    tokenFound = true;
+                    html += `<div>✅ ${key}: ${token.substring(0, 30)}...</div>`;
+                } else {
+                    html += `<div>❌ ${key}: Not found</div>`;
+                }
+            });
+            
+            // Check user data
+            html += '<h4>👤 User Data:</h4>';
+            const userData = localStorage.getItem('user_data');
+            if (userData) {
+                html += `<div>✅ user_data: Found</div>`;
+                try {
+                    const parsed = JSON.parse(userData);
+                    html += `<pre>${JSON.stringify(parsed, null, 2)}</pre>`;
+                } catch (e) {
+                    html += `<div>❌ Error parsing user data</div>`;
+                }
+            } else {
+                html += `<div>❌ user_data: Missing (This is the problem!)</div>`;
+            }
+            
+            output.innerHTML = html;
+            
+            if (tokenFound && !userData) {
+                status.className = 'status error';
+                status.textContent = '❌ Tokens found but user_data is missing. Click "Restore User Data" to fix.';
+            } else if (tokenFound && userData) {
+                status.className = 'status success';
+                status.textContent = '✅ Both tokens and user_data are present. Authentication should work.';
+            } else if (!tokenFound) {
+                status.className = 'status error';
+                status.textContent = '❌ No tokens found. You need to log in again.';
+            }
+        }
+        
+        function restoreUserData() {
+            try {
+                // Get the first available token
+                const tokenKeys = [
+                    'auth_token',
+                    'AUTH_TOKEN_KEY', 
+                    'authToken',
+                    'jwt_token',
+                    'token',
+                    'clinic_auth_token',
+                    'clinic_jwt_token'
+                ];
+                
+                let token = null;
+                for (const key of tokenKeys) {
+                    const foundToken = localStorage.getItem(key);
+                    if (foundToken) {
+                        token = foundToken;
+                        break;
+                    }
+                }
+                
+                if (!token) {
+                    alert('No token found to restore user data from');
+                    return;
+                }
+                
+                // Decode the token to get user information
+                const payload = token.split('.')[1];
+                const decoded = JSON.parse(atob(payload));
+                
+                // Ensure default values for required fields if not present in token
+                const userId = decoded.userId || decoded.id || decoded.user_id;
+                const userRole = decoded.role || 'doctor'; // Default role if not in token
+                const userEmail = decoded.email || `${userRole}@clinic.com`; // Dynamic email based on role
+                const userName = decoded.name || `${userRole} User`; // Dynamic name based on role
+                
+                // Create user data from token payload
+                const userData = {
+                    id: userId,
+                    _id: userId, // Ensure _id is also present for compatibility
+                    email: userEmail,
+                    name: userName,
+                    role: userRole,
+                    // Optionally add more fields if known or can be derived
+                    firstName: decoded.firstName || decoded.first_name || (userName.split(' ')[0] || ''),
+                    lastName: decoded.lastName || decoded.last_name || (userName.split(' ')[1] || '')
+                };
+                
+                // Store the user data
+                localStorage.setItem('user_data', JSON.stringify(userData));
+                
+                const status = document.getElementById('status');
+                status.className = 'status success';
+                status.textContent = '✅ User data restored successfully! You can now go back to your app.';
+                
+                checkStatus();
+                
+            } catch (error) {
+                alert('Error restoring user data: ' + error.message);
+            }
+        }
+        
+        function clearAll() {
+            if (confirm('Are you sure you want to clear all authentication data? You will need to log in again.')) {
+                const tokenKeys = [
+                    'auth_token',
+                    'AUTH_TOKEN_KEY', 
+                    'authToken',
+                    'jwt_token',
+                    'token',
+                    'clinic_auth_token',
+                    'clinic_jwt_token'
+                ];
+                
+                tokenKeys.forEach(key => {
+                    localStorage.removeItem(key);
+                });
+                
+                localStorage.removeItem('user_data');
+                
+                const status = document.getElementById('status');
+                status.className = 'status info';
+                status.textContent = '🗑️ All authentication data cleared. You need to log in again.';
+                
+                checkStatus();
+            }
+        }
+        
+        // Auto-check status on page load
+        window.onload = function() {
+            checkStatus();
+        };
+    </script>
+</body>
+</html> 

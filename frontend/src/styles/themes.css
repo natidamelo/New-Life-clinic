@@ -1,0 +1,329 @@
+/* Comprehensive Theme System with Semantic Color Tokens */
+
+@layer base {
+  /* Light Mode - Enhanced Theme System */
+  :root {
+    /* Base Colors */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 221 83% 53%;
+    --radius: 0.5rem;
+
+    /* Enhanced Primary Color System */
+    --primary-color: #3B82F6; /* Default blue - can be overridden by user settings */
+    --primary-color-50: #EFF6FF;
+    --primary-color-100: #DBEAFE;
+    --primary-color-200: #BFDBFE;
+    --primary-color-300: #93C5FD;
+    --primary-color-400: #60A5FA;
+    --primary-color-500: #3B82F6;
+    --primary-color-600: #2563EB;
+    --primary-color-700: #1D4ED8;
+    --primary-color-800: #1E40AF;
+    --primary-color-900: #1E3A8A;
+    --primary-color-950: #172554;
+    
+    /* Primary color states */
+    --primary-hover: var(--primary-color-600);
+    --primary-active: var(--primary-color-700);
+    --primary-focus: var(--primary-color-500);
+    --primary-disabled: var(--primary-color-300);
+
+    /* Semantic Status Colors */
+    --status-success: 142 76% 36%;
+    --status-success-foreground: 0 0% 98%;
+    --status-success-bg: 142 76% 36% / 0.1;
+    --status-success-border: 142 76% 36% / 0.3;
+    
+    --status-warning: 38 92% 50%;
+    --status-warning-foreground: 0 0% 98%;
+    --status-warning-bg: 38 92% 50% / 0.1;
+    --status-warning-border: 38 92% 50% / 0.3;
+    
+    --status-error: 0 84% 60%;
+    --status-error-foreground: 0 0% 98%;
+    --status-error-bg: 0 84% 60% / 0.1;
+    --status-error-border: 0 84% 60% / 0.3;
+    
+    --status-info: 217 91% 60%;
+    --status-info-foreground: 0 0% 98%;
+    --status-info-bg: 217 91% 60% / 0.1;
+    --status-info-border: 217 91% 60% / 0.3;
+
+    /* Priority Colors */
+    --priority-urgent: 0 84% 60%;
+    --priority-urgent-foreground: 0 0% 98%;
+    --priority-urgent-bg: 0 84% 60% / 0.1;
+    --priority-urgent-border: 0 84% 60% / 0.3;
+    
+    --priority-high: 25 95% 53%;
+    --priority-high-foreground: 0 0% 98%;
+    --priority-high-bg: 25 95% 53% / 0.1;
+    --priority-high-border: 25 95% 53% / 0.3;
+    
+    --priority-medium: 45 93% 47%;
+    --priority-medium-foreground: 0 0% 98%;
+    --priority-medium-bg: 45 93% 47% / 0.1;
+    --priority-medium-border: 45 93% 47% / 0.3;
+    
+    --priority-low: 142 76% 36%;
+    --priority-low-foreground: 0 0% 98%;
+    --priority-low-bg: 142 76% 36% / 0.1;
+    --priority-low-border: 142 76% 36% / 0.3;
+
+    /* Task Status Colors */
+    --task-completed: 142 76% 36%;
+    --task-completed-foreground: 0 0% 98%;
+    --task-completed-bg: 142 76% 36% / 0.1;
+    --task-completed-border: 142 76% 36% / 0.3;
+    
+    --task-in-progress: 217 91% 60%;
+    --task-in-progress-foreground: 0 0% 98%;
+    --task-in-progress-bg: 217 91% 60% / 0.1;
+    --task-in-progress-border: 217 91% 60% / 0.3;
+    
+    --task-pending: 45 93% 47%;
+    --task-pending-foreground: 0 0% 98%;
+    --task-pending-bg: 45 93% 47% / 0.1;
+    --task-pending-border: 45 93% 47% / 0.3;
+    
+    --task-cancelled: 0 84% 60%;
+    --task-cancelled-foreground: 0 0% 98%;
+    --task-cancelled-bg: 0 84% 60% / 0.1;
+    --task-cancelled-border: 0 84% 60% / 0.3;
+
+    /* Patient Status Colors */
+    --patient-admitted: 262 83% 58%;
+    --patient-admitted-foreground: 0 0% 98%;
+    --patient-admitted-bg: 262 83% 58% / 0.1;
+    --patient-admitted-border: 262 83% 58% / 0.3;
+    
+    --patient-discharged: 142 76% 36%;
+    --patient-discharged-foreground: 0 0% 98%;
+    --patient-discharged-bg: 142 76% 36% / 0.1;
+    --patient-discharged-border: 142 76% 36% / 0.3;
+    
+    --patient-outpatient: 217 91% 60%;
+    --patient-outpatient-foreground: 0 0% 98%;
+    --patient-outpatient-bg: 217 91% 60% / 0.1;
+    --patient-outpatient-border: 217 91% 60% / 0.3;
+    
+    --patient-emergency: 0 84% 60%;
+    --patient-emergency-foreground: 0 0% 98%;
+    --patient-emergency-bg: 0 84% 60% / 0.1;
+    --patient-emergency-border: 0 84% 60% / 0.3;
+
+    /* Department Colors */
+    --dept-nurse: 217 91% 60%;
+    --dept-nurse-foreground: 0 0% 98%;
+    --dept-nurse-bg: 217 91% 60% / 0.1;
+    --dept-nurse-border: 217 91% 60% / 0.3;
+    
+    --dept-doctor: 262 83% 58%;
+    --dept-doctor-foreground: 0 0% 98%;
+    --dept-doctor-bg: 262 83% 58% / 0.1;
+    --dept-doctor-border: 262 83% 58% / 0.3;
+    
+    --dept-lab: 25 95% 53%;
+    --dept-lab-foreground: 0 0% 98%;
+    --dept-lab-bg: 25 95% 53% / 0.1;
+    --dept-lab-border: 25 95% 53% / 0.3;
+    
+    --dept-imaging: 45 93% 47%;
+    --dept-imaging-foreground: 0 0% 98%;
+    --dept-imaging-bg: 45 93% 47% / 0.1;
+    --dept-imaging-border: 45 93% 47% / 0.3;
+
+    /* Cursor system */
+    --default-cursor: default;
+    --pointer-cursor: pointer;
+    --text-cursor: text;
+    --not-allowed-cursor: not-allowed;
+    --wait-cursor: wait;
+    --help-cursor: help;
+
+    /* Sidebar Colors - Neutral 200 */
+    --sidebar: 0 0% 90%;
+    --sidebar-foreground: 240 10% 3.9%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 90%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 240 5.9% 82%;
+    --sidebar-ring: 240 5.9% 10%;
+  }
+
+  /* Dark Mode - Enhanced Theme System */
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 6%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 6%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 217 91% 65%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 217 91% 65%;
+
+    /* Enhanced Primary Color System for Dark Mode */
+    --primary-color: #60A5FA; /* Lighter blue for dark mode */
+    --primary-color-50: #1E3A8A;
+    --primary-color-100: #1E40AF;
+    --primary-color-200: #1D4ED8;
+    --primary-color-300: #2563EB;
+    --primary-color-400: #3B82F6;
+    --primary-color-500: #60A5FA;
+    --primary-color-600: #93C5FD;
+    --primary-color-700: #BFDBFE;
+    --primary-color-800: #DBEAFE;
+    --primary-color-900: #EFF6FF;
+    --primary-color-950: #F8FAFC;
+    
+    /* Primary color states for dark mode */
+    --primary-hover: var(--primary-color-600);
+    --primary-active: var(--primary-color-700);
+    --primary-focus: var(--primary-color-500);
+    --primary-disabled: var(--primary-color-300);
+
+    /* Semantic Status Colors - Dark Mode */
+    --status-success: 142 70% 45%;
+    --status-success-foreground: 0 0% 98%;
+    --status-success-bg: 142 70% 45% / 0.15;
+    --status-success-border: 142 70% 45% / 0.4;
+    
+    --status-warning: 38 90% 55%;
+    --status-warning-foreground: 0 0% 98%;
+    --status-warning-bg: 38 90% 55% / 0.15;
+    --status-warning-border: 38 90% 55% / 0.4;
+    
+    --status-error: 0 75% 55%;
+    --status-error-foreground: 0 0% 98%;
+    --status-error-bg: 0 75% 55% / 0.15;
+    --status-error-border: 0 75% 55% / 0.4;
+    
+    --status-info: 217 90% 65%;
+    --status-info-foreground: 0 0% 98%;
+    --status-info-bg: 217 90% 65% / 0.15;
+    --status-info-border: 217 90% 65% / 0.4;
+
+    /* Priority Colors - Dark Mode */
+    --priority-urgent: 0 75% 55%;
+    --priority-urgent-foreground: 0 0% 98%;
+    --priority-urgent-bg: 0 75% 55% / 0.15;
+    --priority-urgent-border: 0 75% 55% / 0.4;
+    
+    --priority-high: 25 90% 60%;
+    --priority-high-foreground: 0 0% 98%;
+    --priority-high-bg: 25 90% 60% / 0.15;
+    --priority-high-border: 25 90% 60% / 0.4;
+    
+    --priority-medium: 45 90% 55%;
+    --priority-medium-foreground: 0 0% 98%;
+    --priority-medium-bg: 45 90% 55% / 0.15;
+    --priority-medium-border: 45 90% 55% / 0.4;
+    
+    --priority-low: 142 70% 45%;
+    --priority-low-foreground: 0 0% 98%;
+    --priority-low-bg: 142 70% 45% / 0.15;
+    --priority-low-border: 142 70% 45% / 0.4;
+
+    /* Task Status Colors - Dark Mode */
+    --task-completed: 142 70% 45%;
+    --task-completed-foreground: 0 0% 98%;
+    --task-completed-bg: 142 70% 45% / 0.15;
+    --task-completed-border: 142 70% 45% / 0.4;
+    
+    --task-in-progress: 217 90% 65%;
+    --task-in-progress-foreground: 0 0% 98%;
+    --task-in-progress-bg: 217 90% 65% / 0.15;
+    --task-in-progress-border: 217 90% 65% / 0.4;
+    
+    --task-pending: 45 90% 55%;
+    --task-pending-foreground: 0 0% 98%;
+    --task-pending-bg: 45 90% 55% / 0.15;
+    --task-pending-border: 45 90% 55% / 0.4;
+    
+    --task-cancelled: 0 75% 55%;
+    --task-cancelled-foreground: 0 0% 98%;
+    --task-cancelled-bg: 0 75% 55% / 0.15;
+    --task-cancelled-border: 0 75% 55% / 0.4;
+
+    /* Patient Status Colors - Dark Mode */
+    --patient-admitted: 262 80% 65%;
+    --patient-admitted-foreground: 0 0% 98%;
+    --patient-admitted-bg: 262 80% 65% / 0.15;
+    --patient-admitted-border: 262 80% 65% / 0.4;
+    
+    --patient-discharged: 142 70% 45%;
+    --patient-discharged-foreground: 0 0% 98%;
+    --patient-discharged-bg: 142 70% 45% / 0.15;
+    --patient-discharged-border: 142 70% 45% / 0.4;
+    
+    --patient-outpatient: 217 90% 65%;
+    --patient-outpatient-foreground: 0 0% 98%;
+    --patient-outpatient-bg: 217 90% 65% / 0.15;
+    --patient-outpatient-border: 217 90% 65% / 0.4;
+    
+    --patient-emergency: 0 75% 55%;
+    --patient-emergency-foreground: 0 0% 98%;
+    --patient-emergency-bg: 0 75% 55% / 0.15;
+    --patient-emergency-border: 0 75% 55% / 0.4;
+
+    /* Department Colors - Dark Mode */
+    --dept-nurse: 217 90% 65%;
+    --dept-nurse-foreground: 0 0% 98%;
+    --dept-nurse-bg: 217 90% 65% / 0.15;
+    --dept-nurse-border: 217 90% 65% / 0.4;
+    
+    --dept-doctor: 262 80% 65%;
+    --dept-doctor-foreground: 0 0% 98%;
+    --dept-doctor-bg: 262 80% 65% / 0.15;
+    --dept-doctor-border: 262 80% 65% / 0.4;
+    
+    --dept-lab: 25 90% 60%;
+    --dept-lab-foreground: 0 0% 98%;
+    --dept-lab-bg: 25 90% 60% / 0.15;
+    --dept-lab-border: 25 90% 60% / 0.4;
+    
+    --dept-imaging: 45 90% 55%;
+    --dept-imaging-foreground: 0 0% 98%;
+    --dept-imaging-bg: 45 90% 55% / 0.15;
+    --dept-imaging-border: 45 90% 55% / 0.4;
+
+    /* Sidebar Colors - Dark */
+    --sidebar: 240 10% 6%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 240 10% 6%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 240 4.9% 83.9%;
+  }
+}

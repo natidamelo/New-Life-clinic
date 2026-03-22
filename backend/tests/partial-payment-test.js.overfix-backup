@@ -1,0 +1,213 @@
+const mongoose = require('mongoose');
+const request = require('supertest');
+const app = require('../server'); // Adjust path as needed
+const MedicalInvoice = require('../models/MedicalInvoice');
+const Patient = require('../models/Patient');
+const User = require('../models/User');
+
+describe('Partial Payment Functionality', () => {
+  let testPatient;
+  let testInvoice;
+  let testUser;
+  let authToken;
+
+  beforeAll(async () => {
+    // Connect to test database
+    await mongoose.connect(process.env.MONGODB_URI_TEST || 'mongodb://localhost:27017/clinic-cms-cms_test');
+    
+    // Create test user
+    testUser = await User.create({
+      firstName: 'Test',
+      lastName: 'Reception',
+      email: 'reception@test.com',
+      password: 'password123',
+      role: 'reception'
+    });
+
+    // Create test patient
+    testPatient = await Patient.create({
+      firstName: 'John',
+      lastName: 'Doe',
+      patientId: 'TEST001',
+      age: 30,
+      gender: 'male',
+      contactNumber: '1234567890'
+    });
+
+    // Create test invoice with $100 total
+    testInvoice = await MedicalInvoice.create({
+      invoiceNumber: 'INV-TEST-001',
+      patient: testPatient._id,
+      total: 100,
+      balance: 100,
+      amountPaid: 0,
+      status: 'pending',
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+      items: [{
+        description: 'Test Service',
+        quantity: 1,
+        unitPrice: 100,
+        total: 100
+      }],
+      createdBy: testUser._id
+    });
+  });
+
+  afterAll(async () => {
+    // Clean up test data
+    await MedicalInvoice.deleteMany({});
+    await Patient.deleteMany({});
+    await User.deleteMany({});
+    await mongoose.connection.close();
+  });
+
+  beforeEach(async () => {
+    // Reset invoice to initial state before each test
+    await MedicalInvoice.findByIdAndUpdate(testInvoice._id, {
+      balance: 100,
+      amountPaid: 0,
+      status: 'pending',
+      payments: []
+    });
+  });
+
+  test('should process partial payment correctly', async () => {
+    const partialAmount = 30;
+    
+    const response = await request(app)
+      .post('/api/billing/process-payment')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        patientId: testPatient._id,
+        invoiceNumber: testInvoice.invoiceNumber,
+        paymentMethod: 'cash',
+        amountPaid: partialAmount,
+        notes: 'Partial payment test'
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    
+    // Check invoice was updated correctly
+    const updatedInvoice = await MedicalInvoice.findById(testInvoice._id);
+    expect(updatedInvoice.amountPaid).toBe(partialAmount);
+    expect(updatedInvoice.balance).toBe(70); // 100 - 30
+    expect(updatedInvoice.status).toBe('partial');
+    expect(updatedInvoice.payments).toHaveLength(1);
+    expect(updatedInvoice.payments[0].amount).toBe(partialAmount);
+  });
+
+  test('should process full payment correctly', async () => {
+    const fullAmount = 100;
+    
+    const response = await request(app)
+      .post('/api/billing/process-payment')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        patientId: testPatient._id,
+        invoiceNumber: testInvoice.invoiceNumber,
+        paymentMethod: 'cash',
+        amountPaid: fullAmount,
+        notes: 'Full payment test'
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    
+    // Check invoice was updated correctly
+    const updatedInvoice = await MedicalInvoice.findById(testInvoice._id);
+    expect(updatedInvoice.amountPaid).toBe(fullAmount);
+    expect(updatedInvoice.balance).toBe(0);
+    expect(updatedInvoice.status).toBe('paid');
+  });
+
+  test('should reject payment exceeding balance', async () => {
+    const excessiveAmount = 150;
+    
+    const response = await request(app)
+      .post('/api/billing/process-payment')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        patientId: testPatient._id,
+        invoiceNumber: testInvoice.invoiceNumber,
+        paymentMethod: 'cash',
+        amountPaid: excessiveAmount,
+        notes: 'Excessive payment test'
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toContain('exceeds invoice balance');
+  });
+
+  test('should handle multiple partial payments', async () => {
+    // First partial payment
+    await request(app)
+      .post('/api/billing/process-payment')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        patientId: testPatient._id,
+        invoiceNumber: testInvoice.invoiceNumber,
+        paymentMethod: 'cash',
+        amountPaid: 30,
+        notes: 'First partial payment'
+      });
+
+    // Second partial payment
+    const response = await request(app)
+      .post('/api/billing/process-payment')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        patientId: testPatient._id,
+        invoiceNumber: testInvoice.invoiceNumber,
+        paymentMethod: 'credit_card',
+        amountPaid: 40,
+        notes: 'Second partial payment'
+      });
+
+    expect(response.status).toBe(200);
+    
+    // Check final state
+    const updatedInvoice = await MedicalInvoice.findById(testInvoice._id);
+    expect(updatedInvoice.amountPaid).toBe(70); // 30 + 40
+    expect(updatedInvoice.balance).toBe(30); // 100 - 70
+    expect(updatedInvoice.status).toBe('partial');
+    expect(updatedInvoice.payments).toHaveLength(2);
+  });
+
+  test('should complete payment with final partial payment', async () => {
+    // First partial payment
+    await request(app)
+      .post('/api/billing/process-payment')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        patientId: testPatient._id,
+        invoiceNumber: testInvoice.invoiceNumber,
+        paymentMethod: 'cash',
+        amountPaid: 80,
+        notes: 'Large partial payment'
+      });
+
+    // Final payment to complete
+    const response = await request(app)
+      .post('/api/billing/process-payment')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        patientId: testPatient._id,
+        invoiceNumber: testInvoice.invoiceNumber,
+        paymentMethod: 'bank_transfer',
+        amountPaid: 20,
+        notes: 'Final payment'
+      });
+
+    expect(response.status).toBe(200);
+    
+    // Check final state
+    const updatedInvoice = await MedicalInvoice.findById(testInvoice._id);
+    expect(updatedInvoice.amountPaid).toBe(100);
+    expect(updatedInvoice.balance).toBe(0);
+    expect(updatedInvoice.status).toBe('paid');
+  });
+});
+
+module.exports = { describe, test, expect, beforeAll, afterAll, beforeEach }; 

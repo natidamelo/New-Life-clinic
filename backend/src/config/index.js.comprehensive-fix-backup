@@ -1,0 +1,89 @@
+require('dotenv').config();
+
+module.exports = {
+  // Server configuration
+  port: process.env.PORT || 5002,
+  nodeEnv: process.env.NODE_ENV || 'development',
+  
+  // MongoDB configuration
+  mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/clinic',
+  
+  // JWT configuration
+  jwtSecret: process.env.JWT_SECRET || 'clinic-new-life-jwt-secret-key',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
+  refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET || 'clinic-new-life-refresh-token-secret',
+  refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
+  
+  // CORS configuration
+  corsOrigins: process.env.CORS_ORIGINS ? 
+    process.env.CORS_ORIGINS.split(',') : 
+    ['http://192.168.92.157:5175', 'http://192.168.78.157:5175', 'http://localhost:5173', 'http://localhost:5174'],
+  
+  // Security configuration
+  bcryptSaltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10),
+  
+  // Rate limiting
+  rateLimit: {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
+  },
+  
+  // Login attempts
+  loginRateLimit: {
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: parseInt(process.env.LOGIN_RATE_LIMIT_MAX || '5', 10),
+  },
+  
+  // Session configuration
+  session: {
+    secret: process.env.SESSION_SECRET || 'clinic-new-life-session-secret',
+    name: 'sessionId',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  },
+  
+  // Logging configuration
+  logging: {
+    level: process.env.LOG_LEVEL || 'info',
+    file: process.env.LOG_FILE || 'app.log',
+  },
+  
+  // API configuration
+  api: {
+    prefix: '/api',
+    version: 'v1',
+    timeout: parseInt(process.env.API_TIMEOUT || '30000', 10), // 30 seconds
+  },
+  
+  // WebSocket configuration
+  websocket: {
+    path: '/ws',
+    pingInterval: parseInt(process.env.WS_PING_INTERVAL || '30000', 10), // 30 seconds
+    pingTimeout: parseInt(process.env.WS_PING_TIMEOUT || '5000', 10), // 5 seconds
+  },
+  
+  // Email configuration (if needed)
+  email: {
+    host: process.env.EMAIL_HOST,
+    port: parseInt(process.env.EMAIL_PORT || '587', 10),
+    secure: process.env.EMAIL_SECURE === 'true',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+    from: process.env.EMAIL_FROM || 'noreply@clinic-cms.com',
+  },
+  
+  // File upload configuration
+  upload: {
+    maxSize: parseInt(process.env.UPLOAD_MAX_SIZE || '5242880', 10), // 5MB
+    allowedTypes: process.env.UPLOAD_ALLOWED_TYPES ? 
+      process.env.UPLOAD_ALLOWED_TYPES.split(',') : 
+      ['image/jpeg', 'image/png', 'application/pdf'],
+  },
+}; 

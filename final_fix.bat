@@ -1,0 +1,9 @@
+@echo off
+echo Final fix - Installing all remaining dependencies...
+cd /d C:\clinic-new-life\backend
+echo Current directory: %CD%
+echo Installing missing dependencies...
+npm install winston bcryptjs mongodb express-async-handler express-rate-limit bcrypt helmet cors dotenv express jsonwebtoken mongoose socket.io nodemon express-validator multer morgan compression
+echo All dependencies installed!
+echo Starting backend server...
+npm run dev 

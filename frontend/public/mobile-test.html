@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Connectivity Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            margin: 5px 0;
+        }
+        button:hover { background-color: #0056b3; }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Mobile Connectivity Test</h1>
+        <p>This page tests if your mobile device can connect to the clinic system.</p>
+        
+        <div id="device-info" class="status info">
+            <strong>Device Info:</strong><br>
+            <span id="user-agent"></span><br>
+            <span id="current-url"></span>
+        </div>
+        
+        <button onclick="testFrontendConnection()">Test Frontend Connection</button>
+        <button onclick="testBackendConnection()">Test Backend Connection</button>
+        <button onclick="testQRVerification()">Test QR Verification</button>
+        
+        <div id="results"></div>
+        
+        <div class="status info">
+            <strong>Instructions:</strong><br>
+            1. Make sure you're connected to the same WiFi network<br>
+            2. Click each test button above<br>
+            3. All tests should show "SUCCESS"<br>
+            4. If any test fails, check your network connection
+        </div>
+    </div>
+
+    <script>
+        // Display device info
+        document.getElementById('user-agent').textContent = navigator.userAgent;
+        document.getElementById('current-url').textContent = window.location.href;
+        
+        function addResult(test, status, message) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = 'test-result';
+            div.innerHTML = `
+                <strong>${test}:</strong> 
+                <span class="${status === 'SUCCESS' ? 'success' : 'error'}">${status}</span><br>
+                ${message}
+            `;
+            results.appendChild(div);
+        }
+        
+        async function testFrontendConnection() {
+            try {
+                const response = await fetch(window.location.origin + '/ping', {
+                    method: 'GET',
+                    timeout: 5000
+                });
+                
+                if (response.ok) {
+                    addResult('Frontend Connection', 'SUCCESS', 'Frontend server is accessible');
+                } else {
+                    addResult('Frontend Connection', 'ERROR', `HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                addResult('Frontend Connection', 'ERROR', `Connection failed: ${error.message}`);
+            }
+        }
+        
+        async function testBackendConnection() {
+            try {
+                const response = await fetch('http://192.168.165.90:5002/api/qr/test', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 5000
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult('Backend Connection', 'SUCCESS', `Backend API is working: ${data.message}`);
+                } else {
+                    addResult('Backend Connection', 'ERROR', `HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                addResult('Backend Connection', 'ERROR', `Connection failed: ${error.message}`);
+            }
+        }
+        
+        async function testQRVerification() {
+            try {
+                const testData = {
+                    type: 'staff-registration',
+                    userId: '684591465e30c62e5dc23a55',
+                    hash: '049357106c22110f7d75e0c1478005191d67afbd455c51270a08bef6d035f639',
+                    timestamp: new Date().toISOString()
+                };
+                
+                const response = await fetch('http://192.168.165.90:5002/api/qr/verify-url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData),
+                    timeout: 10000
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult('QR Verification', 'SUCCESS', `QR verification working: ${data.message}`);
+                } else {
+                    const errorText = await response.text();
+                    addResult('QR Verification', 'ERROR', `HTTP ${response.status}: ${errorText}`);
+                }
+            } catch (error) {
+                addResult('QR Verification', 'ERROR', `Connection failed: ${error.message}`);
+            }
+        }
+        
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testFrontendConnection();
+                setTimeout(() => testBackendConnection(), 1000);
+                setTimeout(() => testQRVerification(), 2000);
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

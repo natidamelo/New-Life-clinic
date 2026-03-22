@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Orders Frontend Test</title>
+</head>
+<body>
+    <h1>Lab Orders Frontend Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        async function testLabOrders() {
+            const results = [];
+            
+            // Test 1: Direct API call to lab orders
+            try {
+                console.log('Testing lab orders endpoint...');
+                const response = await fetch('http://localhost:5002/api/lab-orders/pending-for-reception', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.push(`✅ Lab Orders API: Found ${data.length} pending orders`);
+                    console.log('Lab orders data:', data);
+                    
+                    // Display the lab orders
+                    if (data.length > 0) {
+                        results.push('<h3>Lab Orders Found:</h3>');
+                        data.forEach((order, index) => {
+                            results.push(`
+                                <div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">
+                                    <strong>Order ${index + 1}:</strong><br>
+                                    Patient ID: ${order.patientId}<br>
+                                    Test: ${order.testName}<br>
+                                    Price: ETB ${order.totalPrice}<br>
+                                    Status: ${order.status}<br>
+                                    Payment Status: ${order.paymentStatus}<br>
+                                    Doctor: ${order.orderingDoctorId?.firstName} ${order.orderingDoctorId?.lastName}<br>
+                                    Date: ${new Date(order.orderDateTime).toLocaleString()}
+                                </div>
+                            `);
+                        });
+                    }
+                } else {
+                    results.push(`❌ Lab Orders API: ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                results.push(`❌ Lab Orders API Error: ${error.message}`);
+            }
+            
+            // Test 2: Check if notifications include lab orders
+            try {
+                console.log('Testing notifications endpoint...');
+                const response = await fetch('http://localhost:5002/api/notifications?type=lab_payment_required', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const notifications = data.data || data.notifications || data;
+                    const labNotifications = notifications.filter(n => n.type === 'lab_payment_required');
+                    results.push(`✅ Notifications API: Found ${labNotifications.length} lab payment notifications`);
+                    
+                    if (labNotifications.length > 0) {
+                        results.push('<h3>Lab Payment Notifications:</h3>');
+                        labNotifications.forEach((notification, index) => {
+                            results.push(`
+                                <div style="border: 1px solid #orange; margin: 10px; padding: 10px; background-color: #fff3cd;">
+                                    <strong>Notification ${index + 1}:</strong><br>
+                                    Type: ${notification.type}<br>
+                                    Message: ${notification.message}<br>
+                                    Patient: ${notification.data?.patientName || 'Unknown'}<br>
+                                    Amount: ETB ${notification.data?.totalAmount || 0}<br>
+                                    Date: ${new Date(notification.createdAt).toLocaleString()}
+                                </div>
+                            `);
+                        });
+                    }
+                } else {
+                    results.push(`❌ Notifications API: ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                results.push(`❌ Notifications API Error: ${error.message}`);
+            }
+            
+            // Display results
+            resultsDiv.innerHTML = results.join('<br>');
+        }
+        
+        // Run test when page loads
+        testLabOrders();
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Orders Frontend Test</title>
+</head>
+<body>
+    <h1>Lab Orders Frontend Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        async function testLabOrders() {
+            const results = [];
+            
+            // Test 1: Direct API call to lab orders
+            try {
+                console.log('Testing lab orders endpoint...');
+                const response = await fetch('http://localhost:5002/api/lab-orders/pending-for-reception', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.push(`✅ Lab Orders API: Found ${data.length} pending orders`);
+                    console.log('Lab orders data:', data);
+                    
+                    // Display the lab orders
+                    if (data.length > 0) {
+                        results.push('<h3>Lab Orders Found:</h3>');
+                        data.forEach((order, index) => {
+                            results.push(`
+                                <div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">
+                                    <strong>Order ${index + 1}:</strong><br>
+                                    Patient ID: ${order.patientId}<br>
+                                    Test: ${order.testName}<br>
+                                    Price: ETB ${order.totalPrice}<br>
+                                    Status: ${order.status}<br>
+                                    Payment Status: ${order.paymentStatus}<br>
+                                    Doctor: ${order.orderingDoctorId?.firstName} ${order.orderingDoctorId?.lastName}<br>
+                                    Date: ${new Date(order.orderDateTime).toLocaleString()}
+                                </div>
+                            `);
+                        });
+                    }
+                } else {
+                    results.push(`❌ Lab Orders API: ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                results.push(`❌ Lab Orders API Error: ${error.message}`);
+            }
+            
+            // Test 2: Check if notifications include lab orders
+            try {
+                console.log('Testing notifications endpoint...');
+                const response = await fetch('http://localhost:5002/api/notifications?type=lab_payment_required', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const notifications = data.data || data.notifications || data;
+                    const labNotifications = notifications.filter(n => n.type === 'lab_payment_required');
+                    results.push(`✅ Notifications API: Found ${labNotifications.length} lab payment notifications`);
+                    
+                    if (labNotifications.length > 0) {
+                        results.push('<h3>Lab Payment Notifications:</h3>');
+                        labNotifications.forEach((notification, index) => {
+                            results.push(`
+                                <div style="border: 1px solid #orange; margin: 10px; padding: 10px; background-color: #fff3cd;">
+                                    <strong>Notification ${index + 1}:</strong><br>
+                                    Type: ${notification.type}<br>
+                                    Message: ${notification.message}<br>
+                                    Patient: ${notification.data?.patientName || 'Unknown'}<br>
+                                    Amount: ETB ${notification.data?.totalAmount || 0}<br>
+                                    Date: ${new Date(notification.createdAt).toLocaleString()}
+                                </div>
+                            `);
+                        });
+                    }
+                } else {
+                    results.push(`❌ Notifications API: ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                results.push(`❌ Notifications API Error: ${error.message}`);
+            }
+            
+            // Display results
+            resultsDiv.innerHTML = results.join('<br>');
+        }
+        
+        // Run test when page loads
+        testLabOrders();
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 

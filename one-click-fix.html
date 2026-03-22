@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One-Click 401 Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .fix-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 20px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+        .fix-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            text-align: left;
+            min-height: 100px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .loading { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 One-Click 401 Fix</h1>
+        <p>Click the button below to automatically fix the 401 Unauthorized error:</p>
+        
+        <button class="fix-btn" onclick="fix401Error()">
+            🚀 Fix 401 Error Now
+        </button>
+        
+        <div id="status" class="status info">
+            Ready to fix the 401 error...
+        </div>
+    </div>
+
+    <script>
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.innerHTML = message;
+            status.className = `status ${type}`;
+        }
+
+        async function fix401Error() {
+            try {
+                showStatus('🔍 Step 1: Checking server connection...', 'loading');
+                
+                // Check if server is running
+                const serverCheck = await fetch('http://localhost:5002/ping', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (!serverCheck.ok) {
+                    showStatus('❌ Backend server is not running!\n\nPlease start the backend server first:\n1. Open terminal\n2. cd backend\n3. npm start\n\nThen try again.', 'error');
+                    return;
+                }
+
+                showStatus('✅ Server is running!\n🔐 Step 2: Logging in...', 'loading');
+
+                // Login
+                const loginResponse = await fetch('http://localhost:5002/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@clinic.com',
+                        password: 'admin123'
+                    })
+                });
+
+                const loginData = await loginResponse.json();
+
+                if (!loginResponse.ok || !loginData.success) {
+                    showStatus(`❌ Login failed: ${loginData.message || 'Unknown error'}\n\nPlease check if the admin user exists.`, 'error');
+                    return;
+                }
+
+                const token = loginData.token;
+                const userData = loginData.user;
+
+                showStatus('✅ Login successful!\n🔧 Step 3: Setting up authentication...', 'loading');
+
+                // Set token in all possible locations
+                localStorage.setItem('auth_token', token);
+                localStorage.setItem('AUTH_TOKEN_KEY', token);
+                localStorage.setItem('authToken', token);
+                localStorage.setItem('jwt_token', token);
+                localStorage.setItem('token', token);
+                localStorage.setItem('clinic_auth_token', token);
+                localStorage.setItem('clinic_jwt_token', token);
+                localStorage.setItem('user_data', JSON.stringify(userData));
+
+                showStatus('✅ Authentication tokens set!\n🧪 Step 4: Testing billing API...', 'loading');
+
+                // Test the billing API
+                const billingResponse = await fetch('http://localhost:5002/api/billing/unpaid-card-payments', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (billingResponse.ok) {
+                    const billingData = await billingResponse.json();
+                    showStatus(`🎉 SUCCESS! 401 Error Fixed!\n\n✅ Server: Running\n✅ Login: Successful\n✅ Auth Tokens: Set\n✅ Billing API: Working\n\nUser: ${userData.name}\nRole: ${userData.role}\n\nThe 401 errors should now be resolved!\n\nYou can now use your main application without authentication issues.`, 'success');
+                } else {
+                    showStatus(`⚠️ Warning: Authentication set but billing API test failed\n\nStatus: ${billingResponse.status}\n\nThis might indicate a different issue with the billing endpoint.`, 'error');
+                }
+
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}\n\nThis usually means the backend server is not running.\n\nPlease start the backend server first.`, 'error');
+            }
+        }
+
+        // Auto-check server on page load
+        window.onload = function() {
+            fetch('http://localhost:5002/ping')
+                .then(response => {
+                    if (response.ok) {
+                        showStatus('✅ Backend server is running!\n\nReady to fix the 401 error.', 'success');
+                    } else {
+                        showStatus('❌ Backend server is not responding.\n\nPlease start the backend server first.', 'error');
+                    }
+                })
+                .catch(() => {
+                    showStatus('❌ Cannot connect to backend server.\n\nPlease start the backend server first:\n1. Open terminal\n2. cd backend\n3. npm start', 'error');
+                });
+        };
+    </script>
+</body>
+</html> 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One-Click 401 Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .fix-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 20px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+        .fix-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            text-align: left;
+            min-height: 100px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .loading { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 One-Click 401 Fix</h1>
+        <p>Click the button below to automatically fix the 401 Unauthorized error:</p>
+        
+        <button class="fix-btn" onclick="fix401Error()">
+            🚀 Fix 401 Error Now
+        </button>
+        
+        <div id="status" class="status info">
+            Ready to fix the 401 error...
+        </div>
+    </div>
+
+    <script>
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.innerHTML = message;
+            status.className = `status ${type}`;
+        }
+
+        async function fix401Error() {
+            try {
+                showStatus('🔍 Step 1: Checking server connection...', 'loading');
+                
+                // Check if server is running
+                const serverCheck = await fetch('http://localhost:5002/ping', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (!serverCheck.ok) {
+                    showStatus('❌ Backend server is not running!\n\nPlease start the backend server first:\n1. Open terminal\n2. cd backend\n3. npm start\n\nThen try again.', 'error');
+                    return;
+                }
+
+                showStatus('✅ Server is running!\n🔐 Step 2: Logging in...', 'loading');
+
+                // Login
+                const loginResponse = await fetch('http://localhost:5002/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@clinic.com',
+                        password: 'admin123'
+                    })
+                });
+
+                const loginData = await loginResponse.json();
+
+                if (!loginResponse.ok || !loginData.success) {
+                    showStatus(`❌ Login failed: ${loginData.message || 'Unknown error'}\n\nPlease check if the admin user exists.`, 'error');
+                    return;
+                }
+
+                const token = loginData.token;
+                const userData = loginData.user;
+
+                showStatus('✅ Login successful!\n🔧 Step 3: Setting up authentication...', 'loading');
+
+                // Set token in all possible locations
+                localStorage.setItem('auth_token', token);
+                localStorage.setItem('AUTH_TOKEN_KEY', token);
+                localStorage.setItem('authToken', token);
+                localStorage.setItem('jwt_token', token);
+                localStorage.setItem('token', token);
+                localStorage.setItem('clinic_auth_token', token);
+                localStorage.setItem('clinic_jwt_token', token);
+                localStorage.setItem('user_data', JSON.stringify(userData));
+
+                showStatus('✅ Authentication tokens set!\n🧪 Step 4: Testing billing API...', 'loading');
+
+                // Test the billing API
+                const billingResponse = await fetch('http://localhost:5002/api/billing/unpaid-card-payments', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (billingResponse.ok) {
+                    const billingData = await billingResponse.json();
+                    showStatus(`🎉 SUCCESS! 401 Error Fixed!\n\n✅ Server: Running\n✅ Login: Successful\n✅ Auth Tokens: Set\n✅ Billing API: Working\n\nUser: ${userData.name}\nRole: ${userData.role}\n\nThe 401 errors should now be resolved!\n\nYou can now use your main application without authentication issues.`, 'success');
+                } else {
+                    showStatus(`⚠️ Warning: Authentication set but billing API test failed\n\nStatus: ${billingResponse.status}\n\nThis might indicate a different issue with the billing endpoint.`, 'error');
+                }
+
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}\n\nThis usually means the backend server is not running.\n\nPlease start the backend server first.`, 'error');
+            }
+        }
+
+        // Auto-check server on page load
+        window.onload = function() {
+            fetch('http://localhost:5002/ping')
+                .then(response => {
+                    if (response.ok) {
+                        showStatus('✅ Backend server is running!\n\nReady to fix the 401 error.', 'success');
+                    } else {
+                        showStatus('❌ Backend server is not responding.\n\nPlease start the backend server first.', 'error');
+                    }
+                })
+                .catch(() => {
+                    showStatus('❌ Cannot connect to backend server.\n\nPlease start the backend server first:\n1. Open terminal\n2. cd backend\n3. npm start', 'error');
+                });
+        };
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One-Click 401 Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .fix-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 20px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+        .fix-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            text-align: left;
+            min-height: 100px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .loading { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 One-Click 401 Fix</h1>
+        <p>Click the button below to automatically fix the 401 Unauthorized error:</p>
+        
+        <button class="fix-btn" onclick="fix401Error()">
+            🚀 Fix 401 Error Now
+        </button>
+        
+        <div id="status" class="status info">
+            Ready to fix the 401 error...
+        </div>
+    </div>
+
+    <script>
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.innerHTML = message;
+            status.className = `status ${type}`;
+        }
+
+        async function fix401Error() {
+            try {
+                showStatus('🔍 Step 1: Checking server connection...', 'loading');
+                
+                // Check if server is running
+                const serverCheck = await fetch('http://localhost:5002/ping', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (!serverCheck.ok) {
+                    showStatus('❌ Backend server is not running!\n\nPlease start the backend server first:\n1. Open terminal\n2. cd backend\n3. npm start\n\nThen try again.', 'error');
+                    return;
+                }
+
+                showStatus('✅ Server is running!\n🔐 Step 2: Logging in...', 'loading');
+
+                // Login
+                const loginResponse = await fetch('http://localhost:5002/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@clinic.com',
+                        password: 'admin123'
+                    })
+                });
+
+                const loginData = await loginResponse.json();
+
+                if (!loginResponse.ok || !loginData.success) {
+                    showStatus(`❌ Login failed: ${loginData.message || 'Unknown error'}\n\nPlease check if the admin user exists.`, 'error');
+                    return;
+                }
+
+                const token = loginData.token;
+                const userData = loginData.user;
+
+                showStatus('✅ Login successful!\n🔧 Step 3: Setting up authentication...', 'loading');
+
+                // Set token in all possible locations
+                localStorage.setItem('auth_token', token);
+                localStorage.setItem('AUTH_TOKEN_KEY', token);
+                localStorage.setItem('authToken', token);
+                localStorage.setItem('jwt_token', token);
+                localStorage.setItem('token', token);
+                localStorage.setItem('clinic_auth_token', token);
+                localStorage.setItem('clinic_jwt_token', token);
+                localStorage.setItem('user_data', JSON.stringify(userData));
+
+                showStatus('✅ Authentication tokens set!\n🧪 Step 4: Testing billing API...', 'loading');
+
+                // Test the billing API
+                const billingResponse = await fetch('http://localhost:5002/api/billing/unpaid-card-payments', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (billingResponse.ok) {
+                    const billingData = await billingResponse.json();
+                    showStatus(`🎉 SUCCESS! 401 Error Fixed!\n\n✅ Server: Running\n✅ Login: Successful\n✅ Auth Tokens: Set\n✅ Billing API: Working\n\nUser: ${userData.name}\nRole: ${userData.role}\n\nThe 401 errors should now be resolved!\n\nYou can now use your main application without authentication issues.`, 'success');
+                } else {
+                    showStatus(`⚠️ Warning: Authentication set but billing API test failed\n\nStatus: ${billingResponse.status}\n\nThis might indicate a different issue with the billing endpoint.`, 'error');
+                }
+
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}\n\nThis usually means the backend server is not running.\n\nPlease start the backend server first.`, 'error');
+            }
+        }
+
+        // Auto-check server on page load
+        window.onload = function() {
+            fetch('http://localhost:5002/ping')
+                .then(response => {
+                    if (response.ok) {
+                        showStatus('✅ Backend server is running!\n\nReady to fix the 401 error.', 'success');
+                    } else {
+                        showStatus('❌ Backend server is not responding.\n\nPlease start the backend server first.', 'error');
+                    }
+                })
+                .catch(() => {
+                    showStatus('❌ Cannot connect to backend server.\n\nPlease start the backend server first:\n1. Open terminal\n2. cd backend\n3. npm start', 'error');
+                });
+        };
+    </script>
+</body>
+</html> 
+ 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One-Click 401 Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .fix-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 20px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+        .fix-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            text-align: left;
+            min-height: 100px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .loading { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 One-Click 401 Fix</h1>
+        <p>Click the button below to automatically fix the 401 Unauthorized error:</p>
+        
+        <button class="fix-btn" onclick="fix401Error()">
+            🚀 Fix 401 Error Now
+        </button>
+        
+        <div id="status" class="status info">
+            Ready to fix the 401 error...
+        </div>
+    </div>
+
+    <script>
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.innerHTML = message;
+            status.className = `status ${type}`;
+        }
+
+        async function fix401Error() {
+            try {
+                showStatus('🔍 Step 1: Checking server connection...', 'loading');
+                
+                // Check if server is running
+                const serverCheck = await fetch('http://localhost:5002/ping', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (!serverCheck.ok) {
+                    showStatus('❌ Backend server is not running!\n\nPlease start the backend server first:\n1. Open terminal\n2. cd backend\n3. npm start\n\nThen try again.', 'error');
+                    return;
+                }
+
+                showStatus('✅ Server is running!\n🔐 Step 2: Logging in...', 'loading');
+
+                // Login
+                const loginResponse = await fetch('http://localhost:5002/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@clinic.com',
+                        password: 'admin123'
+                    })
+                });
+
+                const loginData = await loginResponse.json();
+
+                if (!loginResponse.ok || !loginData.success) {
+                    showStatus(`❌ Login failed: ${loginData.message || 'Unknown error'}\n\nPlease check if the admin user exists.`, 'error');
+                    return;
+                }
+
+                const token = loginData.token;
+                const userData = loginData.user;
+
+                showStatus('✅ Login successful!\n🔧 Step 3: Setting up authentication...', 'loading');
+
+                // Set token in all possible locations
+                localStorage.setItem('auth_token', token);
+                localStorage.setItem('AUTH_TOKEN_KEY', token);
+                localStorage.setItem('authToken', token);
+                localStorage.setItem('jwt_token', token);
+                localStorage.setItem('token', token);
+                localStorage.setItem('clinic_auth_token', token);
+                localStorage.setItem('clinic_jwt_token', token);
+                localStorage.setItem('user_data', JSON.stringify(userData));
+
+                showStatus('✅ Authentication tokens set!\n🧪 Step 4: Testing billing API...', 'loading');
+
+                // Test the billing API
+                const billingResponse = await fetch('http://localhost:5002/api/billing/unpaid-card-payments', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (billingResponse.ok) {
+                    const billingData = await billingResponse.json();
+                    showStatus(`🎉 SUCCESS! 401 Error Fixed!\n\n✅ Server: Running\n✅ Login: Successful\n✅ Auth Tokens: Set\n✅ Billing API: Working\n\nUser: ${userData.name}\nRole: ${userData.role}\n\nThe 401 errors should now be resolved!\n\nYou can now use your main application without authentication issues.`, 'success');
+                } else {
+                    showStatus(`⚠️ Warning: Authentication set but billing API test failed\n\nStatus: ${billingResponse.status}\n\nThis might indicate a different issue with the billing endpoint.`, 'error');
+                }
+
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}\n\nThis usually means the backend server is not running.\n\nPlease start the backend server first.`, 'error');
+            }
+        }
+
+        // Auto-check server on page load
+        window.onload = function() {
+            fetch('http://localhost:5002/ping')
+                .then(response => {
+                    if (response.ok) {
+                        showStatus('✅ Backend server is running!\n\nReady to fix the 401 error.', 'success');
+                    } else {
+                        showStatus('❌ Backend server is not responding.\n\nPlease start the backend server first.', 'error');
+                    }
+                })
+                .catch(() => {
+                    showStatus('❌ Cannot connect to backend server.\n\nPlease start the backend server first:\n1. Open terminal\n2. cd backend\n3. npm start', 'error');
+                });
+        };
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 
+ 

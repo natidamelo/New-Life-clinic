@@ -1,0 +1,109 @@
+[
+  {
+    "patientId": "68b17fd748c353ce9024293f",
+    "patientName": "Semhal Melaku", 
+    "taskType": "MEDICATION",
+    "status": "PENDING",
+    "priority": "MEDIUM",
+    "description": "Administer Ceftriaxone - 1g - Once daily (QD)",
+    "medicationDetails": {
+      "medicationName": "Ceftriaxone",
+      "dosage": "1g",
+      "route": "Intravenous", 
+      "frequency": "Once daily (QD)",
+      "duration": 5,
+      "prescriptionId": "68b1806848c353ce90242a19",
+      "doseRecords": [
+        { "day": 1, "timeSlot": "09:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 2, "timeSlot": "09:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 3, "timeSlot": "09:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 4, "timeSlot": "09:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 5, "timeSlot": "09:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" }
+      ]
+    },
+    "createdAt": { "$date": { "$numberLong": "1735471200000" } },
+    "updatedAt": { "$date": { "$numberLong": "1735471200000" } }
+  },
+  {
+    "patientId": "68b17fd748c353ce9024293f",
+    "patientName": "Semhal Melaku",
+    "taskType": "MEDICATION", 
+    "status": "PENDING",
+    "priority": "MEDIUM",
+    "description": "Administer Ceftriaxone - 1g - Twice daily (BID)",
+    "medicationDetails": {
+      "medicationName": "Ceftriaxone",
+      "dosage": "1g",
+      "route": "Intravenous",
+      "frequency": "Twice daily (BID)", 
+      "duration": 2,
+      "prescriptionId": "68b182e478bb4d7a269298d8",
+      "doseRecords": [
+        { "day": 1, "timeSlot": "09:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 1, "timeSlot": "21:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 2, "timeSlot": "09:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 2, "timeSlot": "21:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" }
+      ]
+    },
+    "createdAt": { "$date": { "$numberLong": "1735471200000" } },
+    "updatedAt": { "$date": { "$numberLong": "1735471200000" } }
+  },
+  {
+    "patientId": "68b17fd748c353ce9024293f",
+    "patientName": "Semhal Melaku",
+    "taskType": "MEDICATION",
+    "status": "PENDING", 
+    "priority": "MEDIUM",
+    "description": "Administer Ceftriaxone - 1g - Three times daily (TID)",
+    "medicationDetails": {
+      "medicationName": "Ceftriaxone",
+      "dosage": "1g",
+      "route": "Intravenous",
+      "frequency": "Three times daily (TID)",
+      "duration": 3,
+      "prescriptionId": "68b189fdb64f39ea908d2558", 
+      "doseRecords": [
+        { "day": 1, "timeSlot": "08:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 1, "timeSlot": "14:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 1, "timeSlot": "20:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 2, "timeSlot": "08:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 2, "timeSlot": "14:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 2, "timeSlot": "20:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 3, "timeSlot": "08:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 3, "timeSlot": "14:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 3, "timeSlot": "20:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" }
+      ]
+    },
+    "createdAt": { "$date": { "$numberLong": "1735471200000" } },
+    "updatedAt": { "$date": { "$numberLong": "1735471200000" } }
+  },
+  {
+    "patientId": "68b17fd748c353ce9024293f",
+    "patientName": "Semhal Melaku",
+    "taskType": "MEDICATION",
+    "status": "PENDING",
+    "priority": "MEDIUM", 
+    "description": "Administer Ceftriaxone - 1g - Three times daily (TID)",
+    "medicationDetails": {
+      "medicationName": "Ceftriaxone",
+      "dosage": "1g",
+      "route": "Intravenous",
+      "frequency": "Three times daily (TID)",
+      "duration": 3,
+      "prescriptionId": "68b18eb38ee9f97f59b301c6",
+      "doseRecords": [
+        { "day": 1, "timeSlot": "08:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 1, "timeSlot": "14:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 1, "timeSlot": "20:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 2, "timeSlot": "08:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 2, "timeSlot": "14:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 2, "timeSlot": "20:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 3, "timeSlot": "08:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 3, "timeSlot": "14:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" },
+        { "day": 3, "timeSlot": "20:00", "administered": false, "administeredAt": null, "administeredBy": null, "notes": "", "period": "active" }
+      ]
+    },
+    "createdAt": { "$date": { "$numberLong": "1735471200000" } },
+    "updatedAt": { "$date": { "$numberLong": "1735471200000" } }
+  }
+]

@@ -1,0 +1,3 @@
+@echo off
+echo Starting Combined Server...
+node combined-server.js 

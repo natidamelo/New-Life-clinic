@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedures Page Access Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <h1>Procedures Page Access Test</h1>
+    <p>This page helps diagnose why the procedures page is not viewable on the small PC.</p>
+    
+    <div class="test-container">
+        <h2>Network Connectivity Tests</h2>
+        <button class="test-button" onclick="testPing()">Test Ping to Server</button>
+        <button class="test-button" onclick="testServerResponse()">Test Server Response</button>
+        <button class="test-button" onclick="testProceduresPage()">Test Procedures Page</button>
+        <div id="network-results"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>Browser Compatibility Tests</h2>
+        <button class="test-button" onclick="testJavaScript()">Test JavaScript</button>
+        <button class="test-button" onclick="testLocalStorage()">Test Local Storage</button>
+        <button class="test-button" onclick="testFetch()">Test Fetch API</button>
+        <div id="browser-results"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>Direct Access Links</h2>
+        <p>Try these links directly:</p>
+        <ul>
+            <li><a href="http://192.168.222.157:5175/" target="_blank">Main Application</a></li>
+            <li><a href="http://192.168.222.157:5175/app/procedures" target="_blank">Procedures Page</a></li>
+            <li><a href="http://192.168.222.157:5175/app/nurse" target="_blank">Nurse Dashboard</a></li>
+            <li><a href="http://192.168.222.157:5175/login" target="_blank">Login Page</a></li>
+        </ul>
+    </div>
+
+    <div class="test-container">
+        <h2>System Information</h2>
+        <div id="system-info"></div>
+    </div>
+
+    <script>
+        // Display system information
+        document.getElementById('system-info').innerHTML = `
+            <p><strong>User Agent:</strong> ${navigator.userAgent}</p>
+            <p><strong>Screen Resolution:</strong> ${screen.width}x${screen.height}</p>
+            <p><strong>Window Size:</strong> ${window.innerWidth}x${window.innerHeight}</p>
+            <p><strong>Current URL:</strong> ${window.location.href}</p>
+            <p><strong>Protocol:</strong> ${window.location.protocol}</p>
+            <p><strong>Host:</strong> ${window.location.host}</p>
+        `;
+
+        function addResult(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = message;
+            container.appendChild(div);
+        }
+
+        function testPing() {
+            addResult('network-results', 'Testing ping to server...', 'info');
+            
+            // Create an image to test connectivity
+            const img = new Image();
+            const startTime = Date.now();
+            
+            img.onload = function() {
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                addResult('network-results', `✅ Server is reachable (${responseTime}ms)`, 'success');
+            };
+            
+            img.onerror = function() {
+                addResult('network-results', '❌ Server is not reachable', 'error');
+            };
+            
+            // Try to load a small image from the server
+            img.src = 'http://192.168.222.157:5175/favicon.ico?' + Date.now();
+        }
+
+        function testServerResponse() {
+            addResult('network-results', 'Testing server response...', 'info');
+            
+            fetch('http://192.168.222.157:5175/', {
+                method: 'GET',
+                mode: 'cors'
+            })
+            .then(response => {
+                if (response.ok) {
+                    addResult('network-results', `✅ Server responds with status: ${response.status}`, 'success');
+                } else {
+                    addResult('network-results', `❌ Server responds with status: ${response.status}`, 'error');
+                }
+            })
+            .catch(error => {
+                addResult('network-results', `❌ Server request failed: ${error.message}`, 'error');
+            });
+        }
+
+        function testProceduresPage() {
+            addResult('network-results', 'Testing procedures page...', 'info');
+            
+            fetch('http://192.168.222.157:5175/app/procedures', {
+                method: 'GET',
+                mode: 'cors'
+            })
+            .then(response => {
+                if (response.ok) {
+                    addResult('network-results', `✅ Procedures page responds with status: ${response.status}`, 'success');
+                    return response.text();
+                } else {
+                    addResult('network-results', `❌ Procedures page responds with status: ${response.status}`, 'error');
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            })
+            .then(html => {
+                if (html.includes('error') || html.includes('exception')) {
+                    addResult('network-results', '⚠️ Procedures page contains errors', 'error');
+                } else {
+                    addResult('network-results', '✅ Procedures page loads without errors', 'success');
+                }
+            })
+            .catch(error => {
+                addResult('network-results', `❌ Procedures page request failed: ${error.message}`, 'error');
+            });
+        }
+
+        function testJavaScript() {
+            try {
+                // Test basic JavaScript functionality
+                const testObj = { test: 'value' };
+                const jsonStr = JSON.stringify(testObj);
+                const parsed = JSON.parse(jsonStr);
+                
+                if (parsed.test === 'value') {
+                    addResult('browser-results', '✅ JavaScript is working correctly', 'success');
+                } else {
+                    addResult('browser-results', '❌ JavaScript JSON handling failed', 'error');
+                }
+            } catch (error) {
+                addResult('browser-results', `❌ JavaScript error: ${error.message}`, 'error');
+            }
+        }
+
+        function testLocalStorage() {
+            try {
+                localStorage.setItem('test', 'value');
+                const retrieved = localStorage.getItem('test');
+                localStorage.removeItem('test');
+                
+                if (retrieved === 'value') {
+                    addResult('browser-results', '✅ Local Storage is working', 'success');
+                } else {
+                    addResult('browser-results', '❌ Local Storage failed', 'error');
+                }
+            } catch (error) {
+                addResult('browser-results', `❌ Local Storage error: ${error.message}`, 'error');
+            }
+        }
+
+        function testFetch() {
+            try {
+                // Test if fetch API is available
+                if (typeof fetch === 'function') {
+                    addResult('browser-results', '✅ Fetch API is available', 'success');
+                } else {
+                    addResult('browser-results', '❌ Fetch API is not available', 'error');
+                }
+            } catch (error) {
+                addResult('browser-results', `❌ Fetch API error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run basic tests on page load
+        window.onload = function() {
+            addResult('network-results', 'Page loaded successfully. Click buttons above to run tests.', 'info');
+        };
+    </script>
+</body>
+</html>

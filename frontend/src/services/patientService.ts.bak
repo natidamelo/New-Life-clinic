@@ -1,0 +1,629 @@
+import api, { patientsAPI } from './api';
+import axios from 'axios';
+import { API_BASE_URL, IS_DEVELOPMENT } from '../config/index';
+
+// Add missing type definitions
+export interface ApiResponse<T> {
+  success?: boolean;
+  message?: string;
+  data?: T;
+  patients: Patient[];
+  currentPage: number;
+  totalPages: number;
+  totalPatients: number;
+}
+
+export interface PaginatedPatients {
+  patients: Patient[];
+  currentPage: number;
+  totalPages: number;
+  totalPatients: number;
+}
+
+export interface Patient {
+  id: string;
+  patientId: string;
+  firstName: string;
+  lastName: string;
+  age: number;
+  dateOfBirth: string;
+  gender: string;
+  status: 'Admitted' | 'Discharged' | 'Outpatient' | 'Emergency' | 'waiting' | 'in-progress' | 'scheduled' | 'completed';
+  contactNumber: string;
+  phone?: string;
+  email?: string;
+  address: string;
+  department?: string;
+  priority?: 'normal' | 'urgent' | 'emergency';
+  medicalHistory?: string;
+  allergies?: string;
+  notes?: string;
+  insuranceProvider?: string;
+  insuranceNumber?: string;
+  lastVisit?: string;
+  roomNumber?: string;
+  diagnosis?: string;
+  prescription?: string;
+  assignedDoctorId?: string;
+  assignedNurseId?: string;
+  assignedNurseName?: string;
+  lastUpdated?: string;
+  lastVitalsTimestamp?: string;
+  chiefComplaint?: string;
+  hidden?: boolean;
+  vitals?: {
+    temperature: string;
+    bloodPressure: string;
+    heartRate: string;
+    respiratoryRate: string;
+    bloodSugar?: string;
+    oxygenSaturation?: string;
+    pain?: string;
+    height?: string;
+    weight?: string;
+    bmi?: string;
+    timestamp?: string;
+  };
+  medications?: {
+    id: string;
+    name: string;
+    dosage: string;
+    frequency: string;
+    route: string;
+    lastGiven?: string;
+    nextDue?: string;
+    prescribedBy: string;
+  }[];
+  treatments?: {
+    id: string;
+    type: string;
+    description: string;
+    frequency: string;
+    lastPerformed?: string;
+    nextDue?: string;
+    notes?: string;
+  }[];
+  nextCheckup?: string;
+  diabetic?: boolean;
+  woundCare?: {
+    location: string;
+    type: string;
+    lastDressing?: string;
+    nextDressing?: string;
+    notes?: string;
+  }[];
+  imaging?: {
+    id: string;
+    type: string;
+    orderedBy: string;
+    date: string;
+    status: string;
+    results?: string;
+    notes?: string;
+  }[];
+  labResults?: {
+    id: string;
+    testName: string;
+    orderedBy: string;
+    collectionDate: string;
+    status: string;
+    results?: string;
+    normalRange?: string;
+    notes?: string;
+  }[];
+  doctorOrders?: {
+    id: string;
+    type: string;
+    doctor: string;
+    date: string;
+    status: string;
+    instructions: string;
+    notes?: string;
+  }[];
+  appointments?: {
+    id: string;
+    date: string;
+    time: string;
+    status: string;
+    reason: string;
+    notes?: string;
+  }[];
+  [key: string]: any; // Allow additional fields
+}
+
+export interface CreatePatientDto {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  gender: string;
+  contactNumber: string;
+  email?: string;
+  address?: string;
+  department?: string;
+  priority: 'normal' | 'urgent' | 'emergency';
+  medicalHistory?: string;
+  allergies?: string;
+  notes?: string;
+  insuranceProvider?: string;
+  insuranceNumber?: string;
+  selectedCardTypeId: string;
+}
+
+const getAllPatients = async (forceRefresh: boolean = false, includeHidden: boolean = false, limit: number = 1000): Promise<ApiResponse<PaginatedPatients>> => {
+  console.log(`Fetching patients from API${forceRefresh ? ' (forced)' : ''}...`);
+  try {
+    // Use the API client configured with the correct base URL and auth
+    const response = await api.get<ApiResponse<PaginatedPatients>>(`/api/patients?limit=${limit}`); 
+    console.log('API response for getAllPatients:', response.data);
+    
+    // If the API returns data in the expected format (paginated), return it
+    if (response.data && response.data.patients) {
+      // Process patients to ensure id field exists alongside _id
+      const processedPatients = response.data.patients.map(patient => {
+        if (patient._id && !patient.id) {
+          patient.id = patient._id.toString();
+        }
+        return patient;
+      });
+      
+      // Filter out hidden patients if includeHidden is false
+      const filteredPatients = includeHidden 
+        ? processedPatients 
+        : processedPatients.filter(patient => !patient.hidden);
+      
+      console.log(`Filtered ${processedPatients.length - filteredPatients.length} hidden patients. Returning ${filteredPatients.length} patients.`);
+      
+      return {
+        ...response.data,
+        patients: filteredPatients,
+        totalPatients: filteredPatients.length
+      };
+    } 
+    
+    // If the API doesn't follow the expected format but has array data
+    if (response.data && Array.isArray(response.data)) {
+      // Convert to expected format and ensure id exists
+      const processedPatients = response.data.map(patient => {
+        if (patient._id && !patient.id) {
+          patient.id = patient._id.toString();
+        }
+        return patient;
+      });
+      
+      // Filter out hidden patients if includeHidden is false
+      const filteredPatients = includeHidden 
+        ? processedPatients 
+        : processedPatients.filter(patient => !patient.hidden);
+      
+      console.log(`Filtered ${processedPatients.length - filteredPatients.length} hidden patients. Returning ${filteredPatients.length} patients.`);
+      
+      return {
+        patients: filteredPatients,
+        currentPage: 1,
+        totalPages: 1,
+        totalPatients: filteredPatients.length
+      };
+    }
+    
+    // Return an empty structure if no valid data
+    return { patients: [], currentPage: 1, totalPages: 1, totalPatients: 0 };
+  } catch (error) {
+    console.error('Error fetching patients from API:', error);
+    // Return an empty structure on error
+    return { patients: [], currentPage: 1, totalPages: 1, totalPatients: 0 }; 
+  }
+};
+
+const getPatientById = async (id: string): Promise<Patient | null> => {
+  try {
+    const response = await api.get<Patient>(`/api/patients/${id}`);
+    // Assuming the response directly contains the patient object
+    // Add transformation if needed (e.g., _id to id)
+    const patientData = response.data;
+    if (patientData && patientData._id && !patientData.id) {
+        patientData.id = patientData._id.toString();
+    }
+    return patientData;
+  } catch (error) {
+    console.error(`Error fetching patient by ID ${id}:`, error);
+    return null; // Return null on error
+  }
+};
+
+// Function to update patient status
+const updatePatientStatus = async (id: string, status: string): Promise<Patient> => {
+  try {
+    console.log(`Updating patient ${id} status to ${status}`);
+    // Assuming the API endpoint is PUT /patients/:id/status
+    const response = await api.put<Patient>(`/api/patients/${id}/status`, { status });
+    console.log(`Patient ${id} status updated successfully:`, response.data);
+    
+    const updatedPatient = response.data;
+    // Ensure id exists and transform if needed
+    if (updatedPatient && updatedPatient._id && !updatedPatient.id) {
+        updatedPatient.id = updatedPatient._id.toString();
+    }
+    // TODO: Consider recalculating age if needed here
+    return updatedPatient;
+  } catch (error) {
+    console.error(`Error updating patient ${id} status:`, error);
+    // Re-throw or handle error as appropriate for the application
+    // For now, re-throwing might make issues more visible
+    throw error; 
+  }
+};
+
+// Function to send notification to doctor
+const notifyDoctor = async (patientId: string, notificationData: { type: string; message: string; data?: any }): Promise<any> => {
+  try {
+    console.log(`Notifying doctor about patient ${patientId}:`, notificationData);
+    
+    // First update the patient status to 'scheduled' to ensure it shows up for the doctor
+    try {
+      const statusResponse = await api.put(`/api/patients/${patientId}/status`, { status: 'scheduled' });
+      console.log(`Updated patient ${patientId} status to scheduled:`, statusResponse.data);
+    } catch (statusError) {
+      console.error(`Error updating patient ${patientId} status:`, statusError);
+      // Continue even if status update fails
+    }
+    
+    // Now send the notification to the doctor
+    const response = await api.post(`/api/patients/${patientId}/notify-doctor`, notificationData);
+    console.log('Notify doctor API response:', response.data);
+    
+    return response.data; // Return the response from the API
+  } catch (error) {
+    console.error(`Error notifying doctor about patient ${patientId}:`, error);
+    // Re-throw or handle error
+    throw error; 
+  }
+};
+
+// Function to update lab results for a patient
+const updateLabResult = async (patientId: string, testId: string, resultData: any): Promise<any> => {
+  try {
+    console.log(`Updating lab result for patient ${patientId}, test ${testId}:`, resultData);
+    
+    // Call the real API endpoint
+    const response = await api.put(`/api/patients/${patientId}/lab-results/${testId}`, resultData);
+    console.log('Update lab result API response:', response.data);
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating lab result for patient ${patientId}, test ${testId}:`, error);
+    throw error;
+  }
+};
+
+// Function to get the latest active visit for a patient
+const getLatestActiveVisit = async (patientId: string): Promise<{ id: string } | null> => {
+  if (!patientId) return null;
+  try {
+    console.log(`Fetching latest active visit for patient ${patientId}...`);
+    // Expecting response data shape like { _id: string, ... } or { id: string, ... } or { visitId: string, ... } 
+    const response = await api.get<{ _id?: string; id?: string; visitId?: string } | null>(
+      `/api/visits/patient/${patientId}/latest-active`
+    );
+    console.log(`Latest active visit response for patient ${patientId}:`, response.data);
+    
+    // Check for ID in common fields (_id, id, visitId)
+    const visitId = response.data?._id || response.data?.id || response.data?.visitId;
+    
+    if (visitId) {
+      console.log(`Extracted visitId: ${visitId}`);
+      return { id: visitId };
+    }
+    console.log(`Could not extract visitId from response data.`);
+    return null;
+  } catch (error) {
+    // Handle 404 (Not Found) gracefully - it just means no active visit
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      console.log(`No active visit found for patient ${patientId} (404).`);
+      return null;
+    }
+    // Log other errors
+    console.error(`Error fetching latest active visit for patient ${patientId}:`, error);
+    return null; // Return null on other errors
+  }
+};
+
+// Create a new patient
+const createPatient = async (patientData: CreatePatientDto): Promise<Patient | null> => {
+  try {
+    // Make a copy to avoid modifying the original
+    const formattedData = { ...patientData };
+    
+    console.log("=== PATIENT CREATION REQUEST ===");
+    console.log("Original patient data:", JSON.stringify(patientData, null, 2));
+    
+    // Ensure date is in correct format YYYY-MM-DD
+    if (formattedData.dateOfBirth) {
+      try {
+        console.log("Original dateOfBirth value:", formattedData.dateOfBirth);
+        console.log("dateOfBirth type:", typeof formattedData.dateOfBirth);
+        
+        // Try to parse the date and format it properly if needed
+        const dateObj = new Date(formattedData.dateOfBirth);
+        
+        // Check if a valid date
+        if (!isNaN(dateObj.getTime())) {
+          // Format as YYYY-MM-DD
+          const year = dateObj.getFullYear();
+          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const day = String(dateObj.getDate()).padStart(2, '0');
+          formattedData.dateOfBirth = `${year}-${month}-${day}`;
+          console.log("Formatted dateOfBirth:", formattedData.dateOfBirth);
+        } else {
+          console.error("Invalid date:", formattedData.dateOfBirth);
+        }
+      } catch (dateError) {
+        console.error('Error formatting date:', dateError);
+      }
+    }
+    
+    // Remove any patientId, id, or _id properties if they exist to avoid validation issues
+    const { patientId, id, _id, ...cleanedData } = formattedData as any;
+    
+    console.log("Cleaned data:", JSON.stringify(cleanedData, null, 2));
+
+    // Fix address: if it's a string, convert to object
+    if (typeof cleanedData.address === 'string') {
+      cleanedData.address = { street: cleanedData.address };
+    } else if (!cleanedData.address) {
+      cleanedData.address = { street: '' };
+    }
+
+    // Fix medicalHistory: if it's a string, convert to array; if empty, set to []
+    if (typeof cleanedData.medicalHistory === 'string') {
+      cleanedData.medicalHistory = cleanedData.medicalHistory.trim() ? [cleanedData.medicalHistory] : [];
+    } else if (!Array.isArray(cleanedData.medicalHistory)) {
+      cleanedData.medicalHistory = [];
+    }
+
+    // Fix allergies: if it's a string, convert to array; if empty, set to []
+    if (typeof cleanedData.allergies === 'string') {
+      cleanedData.allergies = cleanedData.allergies.trim() ? [cleanedData.allergies] : [];
+    } else if (!Array.isArray(cleanedData.allergies)) {
+      cleanedData.allergies = [];
+    }
+
+    // Fix historyOfPresentIllness: if it's an array, convert to empty string or join as string
+    if (Array.isArray(cleanedData.historyOfPresentIllness)) {
+      cleanedData.historyOfPresentIllness = '';
+    } else if (typeof cleanedData.historyOfPresentIllness !== 'string') {
+      cleanedData.historyOfPresentIllness = '';
+    }
+
+    // Send request
+    console.log("Sending request to:", `${api.baseURL}/api/patients`);
+    const response = await api.post<Patient>('/api/patients', cleanedData);
+    
+    // --- DETAILED LOGGING START ---
+    console.log("createPatient - Raw response status:", response.status);
+    console.log("createPatient - Raw response data:", JSON.stringify(response.data, null, 2));
+    // --- DETAILED LOGGING END ---
+
+    // Accept both { patient: ... } and direct patient object
+    let patient = null;
+    if (response.data?.patient && typeof response.data.patient === 'object' && response.data.patient._id) {
+      console.log("createPatient - Found patient in response.data.patient");
+      patient = response.data.patient;
+    } else if (response.data && typeof response.data === 'object' && response.data._id) {
+      console.log("createPatient - Found patient directly in response.data");
+      patient = response.data;
+    } else if (response.data && typeof response.data === 'object') {
+      console.log("createPatient - response.data is an object, attempting to find nested patient object.");
+      const possiblePatient = Object.values(response.data).find(
+        (v: any) => v && typeof v === 'object' && v._id
+      );
+      if (possiblePatient) {
+        console.log("createPatient - Found patient in Object.values(response.data)");
+        patient = possiblePatient;
+      } else {
+        console.log("createPatient - Could not find patient object within response.data values.");
+      }
+    } else {
+      console.log("createPatient - response.data is not in a recognized format or is undefined.");
+    }
+
+    if (!patient || !patient._id) {
+      console.error("createPatient - Final check failed: patient object is invalid or missing _id. Patient variable:", JSON.stringify(patient, null, 2));
+      throw new Error('Invalid response from server: patient not returned');
+    }
+    console.log("createPatient - Successfully extracted patient:", JSON.stringify(patient, null, 2));
+    return patient;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      const status = error.response.status;
+      const responseData = error.response.data as any;
+      
+      console.error(`API Error (${status}):`, responseData);
+      console.error("API Error Config:", error.config);
+      console.error("Request details:", {
+        method: error.config?.method,
+        url: error.config?.url,
+        headers: error.config?.headers
+      });
+      
+      // Extract validation errors if available
+      if (status === 400 && responseData.errors) {
+        const validationErrors = responseData.errors;
+        const errorMessage = Object.entries(validationErrors)
+          .map(([field, message]) => `${field}: ${message}`)
+          .join(', ');
+        
+        throw new Error(`Validation failed: ${errorMessage}`);
+      }
+      
+      // Create a more descriptive error message
+      throw new Error(`API Error ${status}: ${responseData.message || 'Unknown error'}`);
+    }
+    
+    console.error('Error in createPatient service:', error);
+    throw error;
+  }
+};
+
+// Delete patient
+const deletePatient = async (id: string): Promise<void> => {
+  try {
+    await api.delete(`/api/patients/${id}`);
+  } catch (error) {
+    console.error(`Error deleting patient ${id}:`, error);
+    throw error;
+  }
+};
+
+// Function to get patients with pagination
+const getPatients = async (page: number = 1, limit: number = 10, includeHidden: boolean = false): Promise<PaginatedPatients> => {
+  console.log(`Getting patients with pagination: page=${page}, limit=${limit}`);
+  try {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    if (includeHidden) {
+      params.append('includeHidden', 'true');
+    }
+
+    // Use the API client instead of raw axios
+    const response = await api.get(`/api/patients?${params.toString()}`);
+    
+    if (response.data && Array.isArray(response.data.patients)) {
+      // Process to ensure id field exists
+      const processedPatients = response.data.patients.map((patient: Patient) => {
+        if (patient._id && !patient.id) {
+          patient.id = patient._id.toString();
+        }
+        return patient;
+      });
+      
+      return {
+        patients: processedPatients,
+        currentPage: response.data.currentPage || page,
+        totalPages: response.data.totalPages || 1,
+        totalPatients: response.data.totalPatients || processedPatients.length
+      };
+    }
+    
+    // Fallback for unexpected response format
+    return {
+      patients: [],
+      currentPage: page,
+      totalPages: 1,
+      totalPatients: 0
+    };
+  } catch (error) {
+    console.error('Error fetching patients with pagination:', error);
+    throw error;
+  }
+};
+
+// Create the service object for export
+const patientService = {
+  getAllPatients,
+  getPatients,
+  getPatientById,
+  createPatient,
+  updatePatientStatus,
+  notifyDoctor,
+  updateLabResult,
+  getLatestActiveVisit,
+  deletePatient,
+  updatePatient: async (id: string, patientData: Partial<Patient>): Promise<Patient> => {
+    try {
+      console.log(`Updating patient ${id} with data:`, patientData);
+      const response = await patientsAPI.update(id, patientData);
+      console.log(`Patient ${id} updated successfully:`, response.data);
+      
+      const updatedPatient = response.data;
+      // Ensure id exists and transform if needed
+      if (updatedPatient && updatedPatient._id && !updatedPatient.id) {
+        updatedPatient.id = updatedPatient._id.toString();
+      }
+      
+      return updatedPatient;
+    } catch (error) {
+      console.error(`Error updating patient ${id}:`, error);
+      throw error;
+    }
+  },
+  updateVitals: async (patientId: string, vitalsData: any): Promise<any> => {
+    try {
+      console.log(`Updating vitals for patient ${patientId}:`, vitalsData);
+      
+      // First save the vitals to the patient record
+      const response = await api.put(`/api/patients/${patientId}/vitals`, vitalsData);
+      console.log('Vitals update response:', response.data);
+      
+      // Also update the patient status to 'scheduled' to make sure it shows up in doctor dashboard
+      try {
+        await api.put(`/api/patients/${patientId}/status`, { status: 'scheduled' });
+        console.log(`Updated patient ${patientId} status to scheduled`);
+      } catch (statusError) {
+        console.error(`Error updating patient ${patientId} status:`, statusError);
+        // Continue even if status update fails
+      }
+      
+      // Immediately fetch the updated patient to ensure we have the latest data
+      const updatedPatient = await getPatientById(patientId);
+      console.log('Retrieved updated patient after vitals update:', updatedPatient);
+      
+      // Now send notification to assigned doctor if the patient has one
+      try {
+        const patient = updatedPatient || await getPatientById(patientId);
+        if (patient && patient.assignedDoctorId) {
+          // Check for concerning vitals
+          const concerningVitals = [];
+          if (vitalsData.temperature && parseFloat(vitalsData.temperature) >= 38.0) {
+            concerningVitals.push(`Fever: ${vitalsData.temperature}°C`);
+          }
+          if (vitalsData.bloodPressure) {
+            const [systolic, diastolic] = vitalsData.bloodPressure.split('/').map(Number);
+            if (systolic >= 160 || diastolic >= 100 || systolic < 90 || diastolic < 60) {
+              concerningVitals.push(`Abnormal BP: ${vitalsData.bloodPressure}`);
+            }
+          }
+          if (vitalsData.heartRate && (parseInt(vitalsData.heartRate) > 100 || parseInt(vitalsData.heartRate) < 60)) {
+            concerningVitals.push(`Abnormal HR: ${vitalsData.heartRate}`);
+          }
+          if (vitalsData.oxygenSaturation && parseInt(vitalsData.oxygenSaturation) < 95) {
+            concerningVitals.push(`Low O2: ${vitalsData.oxygenSaturation}%`);
+          }
+          
+          // Prepare notification data
+          const notificationData = {
+            type: 'PATIENT_VITALS',
+            message: concerningVitals.length > 0 
+              ? `Concerning vitals detected for ${patient.firstName} ${patient.lastName}: ${concerningVitals.join(', ')}` 
+              : `New vitals recorded for ${patient.firstName} ${patient.lastName}`,
+            data: {
+              title: 'Vitals Update',
+              patientId: patientId,
+              patientName: `${patient.firstName} ${patient.lastName}`,
+              priority: concerningVitals.length > 0 ? 'high' : 'normal',
+              vitals: vitalsData,
+              concerningVitals,
+            }
+          };
+          
+          // Send notification to doctor
+          await notifyDoctor(patientId, notificationData);
+          console.log('Doctor notification sent for vitals update');
+        } else {
+          console.log('Patient has no assigned doctor, skipping notification');
+        }
+      } catch (notifyError) {
+        console.error('Error notifying doctor about vitals update:', notifyError);
+        // Don't throw - we want to return the saved vitals even if notification fails
+      }
+      
+      // Return the updated patient data
+      return updatedPatient || response.data;
+    } catch (error) {
+      console.error(`Error updating vitals for patient ${patientId}:`, error);
+      throw error;
+    }
+  }
+};
+
+export default patientService; 

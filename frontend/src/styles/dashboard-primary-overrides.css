@@ -1,0 +1,201 @@
+/* Dashboard Primary Color Overrides */
+/* Uses semantic CSS variables so dark mode works correctly */
+
+/* ===== SIDEBAR ===== */
+
+/* Light mode sidebar — subtle primary tint */
+.w-64.h-screen.flex.flex-col,
+html body .w-64.h-screen.flex.flex-col {
+  background-color: hsl(var(--card)) !important;
+  border-right-color: hsl(var(--border)) !important;
+}
+
+/* Dark mode sidebar — proper dark background */
+.dark .w-64.h-screen.flex.flex-col,
+html.dark body .w-64.h-screen.flex.flex-col,
+html body.dark .w-64.h-screen.flex.flex-col {
+  background-color: hsl(var(--card)) !important;
+  border-right-color: hsl(var(--border)) !important;
+}
+
+/* Sidebar header/logo area */
+.w-64.h-screen .p-6.flex.items-center {
+  background-color: hsl(var(--card)) !important;
+  border-bottom-color: hsl(var(--border)) !important;
+}
+
+.dark .w-64.h-screen .p-6.flex.items-center {
+  background-color: hsl(var(--card)) !important;
+  border-bottom-color: hsl(var(--border)) !important;
+}
+
+/* Sidebar nav links */
+.w-64.h-screen nav .space-y-1 a {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.w-64.h-screen nav .space-y-1 a:hover {
+  background-color: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+  border-radius: 0.5rem !important;
+}
+
+/* Dark mode nav links */
+.dark .w-64.h-screen nav .space-y-1 a {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.dark .w-64.h-screen nav .space-y-1 a:hover {
+  background-color: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}
+
+/* Sidebar footer */
+.w-64.h-screen .p-4.border-t {
+  border-top-color: hsl(var(--border)) !important;
+  background-color: hsl(var(--card)) !important;
+}
+
+.dark .w-64.h-screen .p-4.border-t {
+  border-top-color: hsl(var(--border)) !important;
+  background-color: hsl(var(--card)) !important;
+}
+
+/* Sidebar check-in section */
+.w-64.h-screen .px-4.py-3.border-t {
+  border-top-color: hsl(var(--border)) !important;
+  background-color: hsl(var(--card)) !important;
+}
+
+.dark .w-64.h-screen .px-4.py-3.border-t {
+  border-top-color: hsl(var(--border)) !important;
+  background-color: hsl(var(--card)) !important;
+}
+
+/* ===== SHADCN SIDEBAR COMPONENT ===== */
+
+[data-sidebar="sidebar"],
+[data-sidebar="sidebar"] > div {
+  background-color: hsl(var(--card)) !important;
+  border-right-color: hsl(var(--border)) !important;
+}
+
+.dark [data-sidebar="sidebar"],
+.dark [data-sidebar="sidebar"] > div {
+  background-color: hsl(var(--card)) !important;
+  border-right-color: hsl(var(--border)) !important;
+}
+
+[data-sidebar="sidebar"] [data-sidebar="header"] {
+  background-color: hsl(var(--card)) !important;
+  border-bottom-color: hsl(var(--border)) !important;
+}
+
+.dark [data-sidebar="sidebar"] [data-sidebar="header"] {
+  background-color: hsl(var(--card)) !important;
+  border-bottom-color: hsl(var(--border)) !important;
+}
+
+[data-sidebar="sidebar"] [data-sidebar="menu-button"] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+[data-sidebar="sidebar"] [data-sidebar="menu-button"]:hover {
+  background-color: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}
+
+[data-sidebar="sidebar"] [data-sidebar="menu-button"][data-state="active"] {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.dark [data-sidebar="sidebar"] [data-sidebar="menu-button"] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.dark [data-sidebar="sidebar"] [data-sidebar="menu-button"]:hover {
+  background-color: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}
+
+.dark [data-sidebar="sidebar"] [data-sidebar="menu-button"][data-state="active"] {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+/* ===== MAIN CONTENT AREA ===== */
+
+main.flex-1.overflow-y-auto.bg-background {
+  background-color: hsl(var(--background)) !important;
+}
+
+.dark main.flex-1.overflow-y-auto.bg-background {
+  background-color: hsl(var(--background)) !important;
+}
+
+/* ===== CARDS ===== */
+
+.card {
+  border-color: hsl(var(--border)) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+
+.dark .card {
+  border-color: hsl(var(--border)) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ===== HEADERS ===== */
+
+h1, h2, h3, h4, h5, h6 {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* ===== BORDERS ===== */
+
+.border-gray-200,
+.border-gray-300,
+.border-gray-400 {
+  border-color: hsl(var(--border)) !important;
+}
+
+/* Text color overrides are handled by theme-color-overrides.css */
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 768px) {
+  .w-64.h-screen.flex.flex-col {
+    background-color: hsl(var(--card)) !important;
+  }
+
+  .dark .w-64.h-screen.flex.flex-col {
+    background-color: hsl(var(--card)) !important;
+  }
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+.force-primary-bg {
+  background-color: hsl(var(--primary) / 0.1) !important;
+}
+
+.force-primary-border {
+  border-color: hsl(var(--primary) / 0.3) !important;
+}
+
+.force-primary-text {
+  color: hsl(var(--primary)) !important;
+}
+
+.dark .force-primary-bg {
+  background-color: hsl(var(--primary) / 0.15) !important;
+}
+
+.dark .force-primary-border {
+  border-color: hsl(var(--primary) / 0.4) !important;
+}
+
+.dark .force-primary-text {
+  color: hsl(var(--primary)) !important;
+}
