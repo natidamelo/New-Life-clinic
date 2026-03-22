@@ -1,11 +1,6 @@
 {
-  "build": {
-    "env": {
-      "NODE_OPTIONS": "--max-old-space-size=7168"
-    }
-  },
   "installCommand": "cd frontend && npm install",
-  "buildCommand": "cd frontend && npm run build",
+  "buildCommand": "cd frontend && NODE_OPTIONS=--max-old-space-size=7168 npx vite build",
   "outputDirectory": "frontend/dist",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
