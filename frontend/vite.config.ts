@@ -2,6 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
+/** Vercel sets VERCEL=1 during build. Heavy manualChunks can OOM on CI. */
+const isVercel = process.env.VERCEL === '1';
+
 // Plugin to disable host checking (allows access via hostname)
 // This bypasses Vite's security check that blocks unknown hostnames
 const disableHostCheck = () => {
@@ -33,78 +36,77 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          // Vendor chunks
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'react-vendor';
-            }
-            if (id.includes('@mui') || id.includes('@emotion')) {
-              return 'mui-vendor';
-            }
-            if (id.includes('chart.js') || id.includes('recharts')) {
-              return 'charts-vendor';
-            }
-            if (id.includes('socket.io') || id.includes('jwt-decode')) {
-              return 'utils-vendor';
-            }
-            if (id.includes('@radix-ui')) {
-              return 'ui-vendor';
-            }
-            // Other large libraries
-            if (id.includes('html2pdf') || id.includes('jspdf')) {
-              return 'pdf-vendor';
-            }
-            if (id.includes('xlsx') || id.includes('file-saver')) {
-              return 'export-vendor';
-            }
-            // Group smaller node_modules together
-            return 'vendor';
-          }
+        // Never emit .map files (saves RAM/disk on Vercel; maps were still appearing without this)
+        sourcemap: false,
+        ...(isVercel
+          ? {}
+          : {
+              manualChunks: (id: string) => {
+                if (id.includes('node_modules')) {
+                  if (id.includes('react') || id.includes('react-dom')) {
+                    return 'react-vendor';
+                  }
+                  if (id.includes('@mui') || id.includes('@emotion')) {
+                    return 'mui-vendor';
+                  }
+                  if (id.includes('chart.js') || id.includes('recharts')) {
+                    return 'charts-vendor';
+                  }
+                  if (id.includes('socket.io') || id.includes('jwt-decode')) {
+                    return 'utils-vendor';
+                  }
+                  if (id.includes('@radix-ui')) {
+                    return 'ui-vendor';
+                  }
+                  if (id.includes('html2pdf') || id.includes('jspdf')) {
+                    return 'pdf-vendor';
+                  }
+                  if (id.includes('xlsx') || id.includes('file-saver')) {
+                    return 'export-vendor';
+                  }
+                  return 'vendor';
+                }
 
-          // Application chunks based on feature
-          if (id.includes('/pages/') || id.includes('/components/')) {
-            if (id.includes('doctor') || id.includes('Doctor')) {
-              return 'doctor';
-            }
-            if (id.includes('nurse') || id.includes('Nurse')) {
-              return 'nurse';
-            }
-            if (id.includes('reception') || id.includes('Reception')) {
-              return 'reception';
-            }
-            if (id.includes('lab') || id.includes('Lab')) {
-              return 'lab';
-            }
-            if (id.includes('billing') || id.includes('Billing')) {
-              return 'billing';
-            }
-            if (id.includes('inventory') || id.includes('Inventory')) {
-              return 'inventory';
-            }
-          }
+                if (id.includes('/pages/') || id.includes('/components/')) {
+                  if (id.includes('doctor') || id.includes('Doctor')) {
+                    return 'doctor';
+                  }
+                  if (id.includes('nurse') || id.includes('Nurse')) {
+                    return 'nurse';
+                  }
+                  if (id.includes('reception') || id.includes('Reception')) {
+                    return 'reception';
+                  }
+                  if (id.includes('lab') || id.includes('Lab')) {
+                    return 'lab';
+                  }
+                  if (id.includes('billing') || id.includes('Billing')) {
+                    return 'billing';
+                  }
+                  if (id.includes('inventory') || id.includes('Inventory')) {
+                    return 'inventory';
+                  }
+                }
 
-          // Services chunk - separate commonly used services
-          if (id.includes('/services/')) {
-            if (id.includes('patientService')) {
-              return 'patient-service';
-            }
-            if (id.includes('labService')) {
-              return 'lab-service';
-            }
-            return 'services';
-          }
+                if (id.includes('/services/')) {
+                  if (id.includes('patientService')) {
+                    return 'patient-service';
+                  }
+                  if (id.includes('labService')) {
+                    return 'lab-service';
+                  }
+                  return 'services';
+                }
 
-          // Utils chunk
-          if (id.includes('/utils/')) {
-            return 'utils';
-          }
+                if (id.includes('/utils/')) {
+                  return 'utils';
+                }
 
-          // Special handling for components that are both dynamically and statically imported
-          if (id.includes('LeaveManagement')) {
-            return 'leave-management';
-          }
-        }
+                if (id.includes('LeaveManagement')) {
+                  return 'leave-management';
+                }
+              }
+            })
       }
     },
     chunkSizeWarningLimit: 10000,

@@ -1,0 +1,12 @@
+# Render Blueprint: deploy API from /backend (where helmet, mongoose, etc. live)
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: new-life-clinic-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
