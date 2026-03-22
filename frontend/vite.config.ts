@@ -37,7 +37,8 @@ export default defineConfig({
   ],
   build: {
     target: 'es2018',
-    minify: 'esbuild',
+    // esbuild minify on a ~5MB main chunk can OOM a 8GB CI VM; skip on Vercel (still gzip'd by CDN).
+    minify: isVercel ? false : 'esbuild',
     sourcemap: false,
     rollupOptions: {
       output: {
