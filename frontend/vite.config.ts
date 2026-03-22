@@ -22,12 +22,17 @@ const disableHostCheck = () => {
 
 export default defineConfig({
   plugins: [
-    react({
-      jsxImportSource: '@emotion/react',
-      babel: {
-        plugins: ['@emotion/babel-plugin'],
-      },
-    }),
+    // Babel + emotion on full app is heavy; skip on Vercel CI to avoid OOM / fast-fail (esbuild handles JSX).
+    react(
+      isVercel
+        ? { jsxImportSource: '@emotion/react' }
+        : {
+            jsxImportSource: '@emotion/react',
+            babel: {
+              plugins: ['@emotion/babel-plugin'],
+            },
+          }
+    ),
     disableHostCheck(), // Add custom plugin to disable host checking
   ],
   build: {
