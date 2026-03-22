@@ -55,6 +55,9 @@
     "socket.io": "^4.8.1",
     "winston": "^3.17.0"
   },
+  "engines": {
+    "node": "18.x"
+  },
   "devDependencies": {
     "concurrently": "^9.1.2",
     "mongodb-memory-server": "^10.1.4",

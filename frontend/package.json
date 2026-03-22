@@ -7,7 +7,7 @@
     "dev:local": "vite --port 5175 --strictPort --host localhost",
     "dev:network": "cross-env NETWORK_ACCESS=true vite --port 5175 --strictPort --host 192.168.118.157",
     "start": "vite --port 5175 --strictPort",
-    "build": "node --max-old-space-size=5120 node_modules/vite/bin/vite.js build",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite build",
     "typecheck": "cross-env NODE_OPTIONS=\"--max-old-space-size=8192\" tsc --noEmit",
     "preview": "vite preview",
     "clean": "rm -rf node_modules package-lock.json",
@@ -76,6 +76,9 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.2.0",
     "vite": "^4.5.0"
+  },
+  "engines": {
+    "node": "18.x"
   },
   "overrides": {
     "@mui/icons-material": {
