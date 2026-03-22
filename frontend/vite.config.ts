@@ -130,34 +130,22 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: [
-      '@mui/icons-material',
-      '@mui/material',
       '@emotion/react',
       '@emotion/styled'
     ],
-    esbuildOptions: {
-      mainFields: ['module', 'main', 'browser'],
-      resolveExtensions: ['.web.js', '.web.ts', '.web.tsx', '.js', '.ts', '.tsx', '.json']
-    }
   },
   esbuild: {
     target: 'es2018',
-    format: 'esm',
     logLevel: 'error',
-    drop: ['console', 'debugger'],
-    minify: true,
+    drop: isVercel ? [] : ['console', 'debugger'],
     legalComments: 'none',
     sourcemap: false,
-    treeShaking: true,
-    define: {
-      'process.env.NODE_ENV': '"production"'
-    }
   },
   server: {
     port: 5175,
     strictPort: true,
     host: '0.0.0.0', // Explicitly bind to all interfaces - allows network access
-    allowedHosts: 'all', // Allow any host to access the dev server (needed for cross-device access)
+    allowedHosts: true,
     hmr: {
       protocol: 'ws',
       host: 'localhost', // HMR uses localhost for WebSocket (works even when accessing via hostname)
