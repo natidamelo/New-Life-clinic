@@ -2891,36 +2891,39 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
         borderColor: 'divider',
         bgcolor: 'background.paper',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        flexDirection: { xs: 'column', sm: 'row' },
         gap: 2,
       }}
     >
-      {/* Avatar */}
-      <Avatar
-        src={patientData.avatar}
-        sx={{
-          width: 44,
-          height: 44,
-          bgcolor: 'primary.main',
-          fontSize: '1rem',
-          fontWeight: 700,
-          flexShrink: 0,
-        }}
-      >
-        {(patientData.firstName || 'U')[0]}{(patientData.lastName || 'P')[0]}
-      </Avatar>
+      {/* Avatar + name row on mobile */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', minWidth: 0 }}>
+        {/* Avatar */}
+        <Avatar
+          src={patientData.avatar}
+          sx={{
+            width: 44,
+            height: 44,
+            bgcolor: 'primary.main',
+            fontSize: '1rem',
+            fontWeight: 700,
+            flexShrink: 0,
+          }}
+        >
+          {(patientData.firstName || 'U')[0]}{(patientData.lastName || 'P')[0]}
+        </Avatar>
 
-      {/* Name + meta */}
-      <Box flex={1} minWidth={0}>
-        <Typography variant="h6" fontWeight={700} noWrap sx={{ lineHeight: 1.3, fontSize: '1.05rem' }}>
-          Professional Medical Record — {patientData.firstName || 'Unknown'} {patientData.lastName || 'Patient'}
-        </Typography>
-        <Box display="flex" gap={1.5} mt={0.5} flexWrap="wrap" alignItems="center">
-          <Typography variant="body2" color="text.secondary">
-            {patientData.gender ? patientData.gender.charAt(0).toUpperCase() + patientData.gender.slice(1) : 'Unknown'} · {patientData.age || '—'} yrs
+        {/* Name + meta */}
+        <Box flex={1} minWidth={0}>
+          <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.3, fontSize: { xs: '0.9rem', sm: '1.05rem' }, wordBreak: 'break-word' }}>
+            {patientData.firstName || 'Unknown'} {patientData.lastName || 'Patient'}
           </Typography>
-          <Typography variant="body2" color="text.secondary">ID: {patientData.id}</Typography>
-          {patientData.phone && <Typography variant="body2" color="text.secondary">{patientData.phone}</Typography>}
+          <Box display="flex" gap={1} mt={0.5} flexWrap="wrap" alignItems="center">
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+              {patientData.gender ? patientData.gender.charAt(0).toUpperCase() + patientData.gender.slice(1) : 'Unknown'} · {patientData.age || '—'} yrs
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>ID: {patientData.id}</Typography>
+            {patientData.phone && <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>{patientData.phone}</Typography>}
           <Chip
             label={`Quality Score: ${Math.round(qualityScore)}%`}
             color={qualityScore >= 80 ? 'success' : qualityScore >= 60 ? 'warning' : 'error'}
@@ -2953,9 +2956,10 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           }}
         />
       </Box>
+      </Box>{/* end avatar+name wrapper */}
 
-      {/* Action buttons */}
-      <Box display="flex" gap={1} flexShrink={0} alignItems="center">
+      {/* Action buttons — wrap on mobile */}
+      <Box display="flex" gap={1} flexShrink={0} alignItems="center" flexWrap="wrap" sx={{ width: { xs: '100%', sm: 'auto' } }}>
         <Button variant="outlined" startIcon={<HistoryIcon />} size="small" onClick={fetchPatientHistory} sx={{ fontSize: '0.82rem', textTransform: 'none' }}>
           History
         </Button>
@@ -5489,14 +5493,45 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           ...viewModeStyles,
         }}
       >
-        <Box sx={{ p: 2.5 }}>
+        <Box sx={{ p: { xs: 1, sm: 2.5 } }}>
           {/* Patient Header */}
           {renderPatientHeader()}
 
-          {/* Two Column Layout: Sidebar + Content */}
+          {/* Mobile: horizontal scrollable step tabs */}
+          <Box sx={{ display: { xs: 'flex', md: 'none' }, overflowX: 'auto', mb: 2, gap: 0, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper' }}>
+            {steps.map((step, index) => {
+              const isActive = index === activeStep;
+              return (
+                <Box
+                  key={step.label}
+                  onClick={() => handleStepClick(index)}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: 2,
+                    py: 1.5,
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    borderBottom: isActive ? '3px solid' : '3px solid transparent',
+                    borderBottomColor: isActive ? 'primary.main' : 'transparent',
+                    bgcolor: isActive ? 'primary.50' : 'transparent',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <Typography variant="caption" fontWeight={isActive ? 700 : 500} sx={{ fontSize: '0.75rem', color: isActive ? 'primary.main' : 'text.secondary', whiteSpace: 'nowrap' }}>
+                    {index + 1}. {step.label}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+
+          {/* Desktop: Two Column Layout: Sidebar + Content */}
           <Box sx={{ display: 'flex', gap: 2.5, alignItems: 'flex-start' }}>
-            {/* Sidebar */}
-            <Box sx={{ width: 240, flexShrink: 0 }}>
+            {/* Sidebar — desktop only */}
+            <Box sx={{ width: 240, flexShrink: 0, display: { xs: 'none', md: 'block' } }}>
               {renderSidebar()}
             </Box>
 

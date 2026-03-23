@@ -528,36 +528,38 @@ const EnhancedConsultationForm: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-start gap-3">
           <Button 
-            variant="outline" 
+            variant="outline"
+            size="sm"
             onClick={() => navigate('/app/doctor/consultations')}
+            className="flex-shrink-0"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-4 w-4 mr-1" />
             Back
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-2xl font-bold text-foreground leading-tight">
               Enhanced Consultation
             </h1>
-            <p className="text-muted-foreground">
-              {patient.firstName} {patient.lastName} - {patient.patientId}
+            <p className="text-sm text-muted-foreground truncate">
+              {patient.firstName} {patient.lastName} — {patient.patientId}
             </p>
           </div>
         </div>
-        <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => navigate(`/app/doctor/medical-records/${patientId}`)}>
-            <FileText className="h-4 w-4 mr-2" />
-            View Records
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/app/doctor/medical-records/${patientId}`)}>
+            <FileText className="h-4 w-4 mr-1" />
+            <span className="hidden sm:inline">View </span>Records
           </Button>
-          <Button onClick={handleSaveConsultation} disabled={isSaving}>
+          <Button size="sm" onClick={handleSaveConsultation} disabled={isSaving}>
             {isSaving ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
             ) : (
-              <Save className="h-4 w-4 mr-2" />
+              <Save className="h-4 w-4 mr-1" />
             )}
-            Complete Consultation
+            <span className="hidden sm:inline">Complete </span>Consultation
           </Button>
         </div>
       </div>
@@ -682,14 +684,16 @@ const EnhancedConsultationForm: React.FC = () => {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-6">
-              <TabsTrigger value="chief-complaint">Chief Complaint</TabsTrigger>
-              <TabsTrigger value="history">History</TabsTrigger>
-              <TabsTrigger value="examination">Examination</TabsTrigger>
-              <TabsTrigger value="diagnosis">Diagnosis</TabsTrigger>
-              <TabsTrigger value="treatment">Treatment</TabsTrigger>
-              <TabsTrigger value="followup">Follow-up</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto -mx-1 px-1 pb-1">
+              <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-6 gap-0">
+                <TabsTrigger value="chief-complaint" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Chief Complaint</TabsTrigger>
+                <TabsTrigger value="history" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">History</TabsTrigger>
+                <TabsTrigger value="examination" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Examination</TabsTrigger>
+                <TabsTrigger value="diagnosis" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Diagnosis</TabsTrigger>
+                <TabsTrigger value="treatment" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Treatment</TabsTrigger>
+                <TabsTrigger value="followup" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Follow-up</TabsTrigger>
+              </TabsList>
+            </div>
 
             {/* Chief Complaint Tab */}
             <TabsContent value="chief-complaint" className="space-y-4">
