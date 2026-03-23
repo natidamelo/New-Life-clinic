@@ -305,11 +305,17 @@ router.post('/:clinicRef/migrate-default-data', auth, requireSuperAdmin, async (
     const userFilter = { ...tenantSourceFilter, role: { $ne: 'super_admin' } };
     const dataFilter = tenantSourceFilter;
 
+    // Use raw collections to bypass any tenant scoping middleware/plugins entirely.
+    const usersCol = mongoose.connection.collection(User.collection.collectionName);
+    const patientsCol = mongoose.connection.collection(Patient.collection.collectionName);
+    const recordsCol = mongoose.connection.collection(MedicalRecord.collection.collectionName);
+    const invoicesCol = mongoose.connection.collection(MedicalInvoice.collection.collectionName);
+
     const counts = {
-      users: includeUsers ? await User.countDocuments(userFilter).setOptions({ skipTenantScope: true }) : 0,
-      patients: await Patient.countDocuments(dataFilter).setOptions({ skipTenantScope: true }),
-      medicalRecords: await MedicalRecord.countDocuments(dataFilter).setOptions({ skipTenantScope: true }),
-      medicalInvoices: await MedicalInvoice.countDocuments(dataFilter).setOptions({ skipTenantScope: true })
+      users: includeUsers ? await usersCol.countDocuments(userFilter) : 0,
+      patients: await patientsCol.countDocuments(dataFilter),
+      medicalRecords: await recordsCol.countDocuments(dataFilter),
+      medicalInvoices: await invoicesCol.countDocuments(dataFilter)
     };
 
     if (dryRun) {
@@ -327,17 +333,11 @@ router.post('/:clinicRef/migrate-default-data', auth, requireSuperAdmin, async (
 
     const updates = {
       users: includeUsers
-        ? await User.updateMany(userFilter, { $set: { clinicId: target } }).setOptions({ skipTenantScope: true })
+        ? await usersCol.updateMany(userFilter, { $set: { clinicId: target } })
         : { matchedCount: 0, modifiedCount: 0 },
-      patients: await Patient.updateMany(dataFilter, { $set: { clinicId: target } }).setOptions({
-        skipTenantScope: true
-      }),
-      medicalRecords: await MedicalRecord.updateMany(dataFilter, { $set: { clinicId: target } }).setOptions({
-        skipTenantScope: true
-      }),
-      medicalInvoices: await MedicalInvoice.updateMany(dataFilter, { $set: { clinicId: target } }).setOptions({
-        skipTenantScope: true
-      })
+      patients: await patientsCol.updateMany(dataFilter, { $set: { clinicId: target } }),
+      medicalRecords: await recordsCol.updateMany(dataFilter, { $set: { clinicId: target } }),
+      medicalInvoices: await invoicesCol.updateMany(dataFilter, { $set: { clinicId: target } })
     };
 
     return res.json({
