@@ -38,8 +38,9 @@ const config = {
   PORT: parseInt(process.env.PORT || '5002', 10),
   HOST: process.env.HOST || 'localhost',
   
-  // MongoDB
-  MONGO_URI: process.env.MONGO_URI || 'mongodb://localhost:27017/clinic-cms',
+  // MongoDB (MONGODB_URI is the Atlas / hosting convention; MONGO_URI is legacy/local)
+  MONGO_URI:
+    process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/clinic-cms',
   
   // Authentication
   JWT_SECRET: process.env.JWT_SECRET || (process.env.NODE_ENV === 'development' 
