@@ -114,9 +114,9 @@ input:focus, textarea:focus, select:focus {
 
 /* Login page: force visible input text over dark glass card */
 .auth-login-card .auth-login-input {
-  color: #ffffff !important;
-  caret-color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+  color: #000000 !important;
+  caret-color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
 }
 .auth-login-card .auth-login-input::placeholder {
   color: #94a3b8 !important;
@@ -125,10 +125,10 @@ input:focus, textarea:focus, select:focus {
 .auth-login-card .auth-login-input:-webkit-autofill,
 .auth-login-card .auth-login-input:-webkit-autofill:hover,
 .auth-login-card .auth-login-input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #ffffff !important;
-  -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.05) inset !important;
-  box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.05) inset !important;
-  caret-color: #ffffff !important;
+  -webkit-text-fill-color: #000000 !important;
+  -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.9) inset !important;
+  box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.9) inset !important;
+  caret-color: #000000 !important;
 }
 
 /* Print styles */

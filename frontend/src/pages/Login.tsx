@@ -230,9 +230,9 @@ const Login: React.FC = () => {
                   className="auth-login-input w-full h-12 pl-10 pr-4 text-sm rounded-xl outline-none transition-all duration-200"
                   style={{
                     background: 'rgba(255,255,255,0.05)',
-                    color: '#ffffff',
-                    caretColor: '#ffffff',
-                    WebkitTextFillColor: '#ffffff',
+                    color: '#000000',
+                    caretColor: '#000000',
+                    WebkitTextFillColor: '#000000',
                     border: formik.touched.email && formik.errors.email
                       ? '1px solid rgba(248,113,113,0.6)'
                       : '1px solid rgba(255,255,255,0.09)',
@@ -243,16 +243,16 @@ const Login: React.FC = () => {
                   onFocus={(e) => {
                     e.currentTarget.style.border = '1px solid rgba(56,189,248,0.5)';
                     e.currentTarget.style.boxShadow = '0 0 0 3px rgba(56,189,248,0.12)';
-                    e.currentTarget.style.color = '#ffffff';
-                    e.currentTarget.style.webkitTextFillColor = '#ffffff';
+                    e.currentTarget.style.color = '#000000';
+                    e.currentTarget.style.webkitTextFillColor = '#000000';
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.border = formik.errors.email
                       ? '1px solid rgba(248,113,113,0.6)'
                       : '1px solid rgba(255,255,255,0.09)';
                     e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.color = '#ffffff';
-                    e.currentTarget.style.webkitTextFillColor = '#ffffff';
+                    e.currentTarget.style.color = '#000000';
+                    e.currentTarget.style.webkitTextFillColor = '#000000';
                     formik.handleBlur(e);
                   }}
                 />
@@ -285,9 +285,9 @@ const Login: React.FC = () => {
                   className="auth-login-input w-full h-12 pl-10 pr-11 text-sm rounded-xl outline-none transition-all duration-200"
                   style={{
                     background: 'rgba(255,255,255,0.05)',
-                    color: '#ffffff',
-                    caretColor: '#ffffff',
-                    WebkitTextFillColor: '#ffffff',
+                    color: '#000000',
+                    caretColor: '#000000',
+                    WebkitTextFillColor: '#000000',
                     border: formik.touched.password && formik.errors.password
                       ? '1px solid rgba(248,113,113,0.6)'
                       : '1px solid rgba(255,255,255,0.09)',
@@ -295,16 +295,16 @@ const Login: React.FC = () => {
                   onFocus={(e) => {
                     e.currentTarget.style.border = '1px solid rgba(56,189,248,0.5)';
                     e.currentTarget.style.boxShadow = '0 0 0 3px rgba(56,189,248,0.12)';
-                    e.currentTarget.style.color = '#ffffff';
-                    e.currentTarget.style.webkitTextFillColor = '#ffffff';
+                    e.currentTarget.style.color = '#000000';
+                    e.currentTarget.style.webkitTextFillColor = '#000000';
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.border = formik.errors.password
                       ? '1px solid rgba(248,113,113,0.6)'
                       : '1px solid rgba(255,255,255,0.09)';
                     e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.color = '#ffffff';
-                    e.currentTarget.style.webkitTextFillColor = '#ffffff';
+                    e.currentTarget.style.color = '#000000';
+                    e.currentTarget.style.webkitTextFillColor = '#000000';
                     formik.handleBlur(e);
                   }}
                 />
