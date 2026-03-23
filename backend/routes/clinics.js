@@ -3,6 +3,9 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const Clinic = require('../models/Clinic');
 const User = require('../models/User');
+const Patient = require('../models/Patient');
+const MedicalRecord = require('../models/MedicalRecord');
+const MedicalInvoice = require('../models/MedicalInvoice');
 const { auth } = require('../middleware/auth');
 
 function requireSuperAdmin(req, res, next) {
@@ -243,6 +246,130 @@ router.post('/:clinicRef/assign-admin', auth, requireSuperAdmin, async (req, res
     return res.status(500).json({
       success: false,
       message: 'Failed to assign clinic admin',
+      error: error.message
+    });
+  }
+});
+
+// POST /api/clinics/:clinicRef/migrate-default-data
+// Body:
+// {
+//   sourceClinicId?: "default",
+//   dryRun?: true,
+//   includeUsers?: true,
+//   confirmationCode: "YES_MIGRATE"
+// }
+router.post('/:clinicRef/migrate-default-data', auth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { clinicRef } = req.params;
+    const {
+      sourceClinicId = 'default',
+      dryRun = true,
+      includeUsers = true,
+      confirmationCode
+    } = req.body || {};
+
+    if (confirmationCode !== 'YES_MIGRATE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid confirmationCode. Use YES_MIGRATE.'
+      });
+    }
+
+    const clinic = await resolveClinic(clinicRef);
+    if (!clinic) {
+      return res.status(404).json({
+        success: false,
+        message: 'Clinic not found'
+      });
+    }
+
+    const source = String(sourceClinicId || 'default').trim();
+    const target = clinic.slug;
+    if (!source || !target) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid source/target clinic id'
+      });
+    }
+    if (source === target) {
+      return res.status(400).json({
+        success: false,
+        message: 'Source and target clinic ids are the same'
+      });
+    }
+
+    const userFilter = { clinicId: source, role: { $ne: 'super_admin' } };
+    const dataFilter = { clinicId: source };
+
+    const counts = {
+      users: includeUsers ? await User.countDocuments(userFilter).setOptions({ skipTenantScope: true }) : 0,
+      patients: await Patient.countDocuments(dataFilter).setOptions({ skipTenantScope: true }),
+      medicalRecords: await MedicalRecord.countDocuments(dataFilter).setOptions({ skipTenantScope: true }),
+      medicalInvoices: await MedicalInvoice.countDocuments(dataFilter).setOptions({ skipTenantScope: true })
+    };
+
+    if (dryRun) {
+      return res.json({
+        success: true,
+        message: 'Dry run complete. No data changed.',
+        data: {
+          sourceClinicId: source,
+          targetClinicId: target,
+          dryRun: true,
+          wouldMove: counts
+        }
+      });
+    }
+
+    const updates = {
+      users: includeUsers
+        ? await User.updateMany(userFilter, { $set: { clinicId: target } }).setOptions({ skipTenantScope: true })
+        : { matchedCount: 0, modifiedCount: 0 },
+      patients: await Patient.updateMany(dataFilter, { $set: { clinicId: target } }).setOptions({
+        skipTenantScope: true
+      }),
+      medicalRecords: await MedicalRecord.updateMany(dataFilter, { $set: { clinicId: target } }).setOptions({
+        skipTenantScope: true
+      }),
+      medicalInvoices: await MedicalInvoice.updateMany(dataFilter, { $set: { clinicId: target } }).setOptions({
+        skipTenantScope: true
+      })
+    };
+
+    return res.json({
+      success: true,
+      message: 'Migration completed successfully',
+      data: {
+        sourceClinicId: source,
+        targetClinicId: target,
+        dryRun: false,
+        beforeCounts: counts,
+        moved: {
+          users: {
+            matched: updates.users.matchedCount || 0,
+            modified: updates.users.modifiedCount || 0
+          },
+          patients: {
+            matched: updates.patients.matchedCount || 0,
+            modified: updates.patients.modifiedCount || 0
+          },
+          medicalRecords: {
+            matched: updates.medicalRecords.matchedCount || 0,
+            modified: updates.medicalRecords.modifiedCount || 0
+          },
+          medicalInvoices: {
+            matched: updates.medicalInvoices.matchedCount || 0,
+            modified: updates.medicalInvoices.modifiedCount || 0
+          }
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error migrating clinic data:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to migrate clinic data',
       error: error.message
     });
   }
