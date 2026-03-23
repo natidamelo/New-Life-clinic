@@ -9,7 +9,7 @@ async function bootstrapSuperAdmin() {
     console.warn('⚠️ SUPER_ADMIN env vars missing. Using default bootstrap credentials.');
   }
 
-  let superAdmin = await User.findOne({ role: 'super_admin' });
+  let superAdmin = await User.findOne({ role: 'super_admin' }).setOptions({ skipTenantScope: true });
 
   if (!superAdmin) {
     superAdmin = new User({

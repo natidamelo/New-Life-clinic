@@ -46,7 +46,7 @@ class AuthService {
       return null;
     }
 
-    let superAdmin = await User.findOne({ role: 'super_admin' });
+    let superAdmin = await User.findOne({ role: 'super_admin' }).setOptions({ skipTenantScope: true });
     if (!superAdmin) {
       superAdmin = new User({
         clinicId: 'global',
@@ -140,7 +140,7 @@ class AuthService {
             { email: new RegExp(`^${escapedIdentifier}$`, 'i') },
             { username: new RegExp(`^${escapedIdentifier}$`, 'i') }
           ]
-        });
+        }).setOptions({ skipTenantScope: true });
       }
       if (!user) {
         throw this.createAuthError('Invalid credentials', 401);

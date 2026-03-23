@@ -78,7 +78,9 @@ router.get('/ping', (req, res) => {
 router.get('/auth-probe', async (req, res) => {
   try {
     const dbStatus = mongoose.connection.readyState;
-    const sampleUser = await User.findOne({}, { _id: 1, role: 1, clinicId: 1 }).lean();
+    const sampleUser = await User.findOne({}, { _id: 1, role: 1, clinicId: 1 })
+      .setOptions({ skipTenantScope: true })
+      .lean();
     let writeProbe = { status: 'not_attempted' };
 
     try {
