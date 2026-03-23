@@ -500,7 +500,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   return (
     <AttendanceOverlay>
       <SidebarProvider>
-        <div className="flex min-h-screen w-full bg-background">
+        <div className="flex min-h-screen w-full bg-background overflow-x-hidden">
           <Sidebar variant="inset" className="no-print">
             {/* Header with Logo */}
             <SidebarHeader className="border-b border-sidebar-border pb-3">
@@ -704,7 +704,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
           {/* Main Content Area */}
           <SidebarInset>
             {/* Header with Sidebar Toggle */}
-            <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card/95 backdrop-blur-sm px-4 no-print sticky top-0 z-10">
+            <header className="flex h-12 sm:h-14 shrink-0 items-center gap-1 sm:gap-2 border-b border-border bg-card/95 backdrop-blur-sm px-2 sm:px-4 no-print sticky top-0 z-10">
               <SidebarTrigger className="-ml-1 h-8 w-8 rounded-md hover:bg-accent transition-colors" />
 
               {/* Divider */}
@@ -776,7 +776,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
             </header>
 
             {/* Page Content */}
-            <div className="flex flex-1 flex-col gap-4 p-5 bg-background">
+            <div className="flex flex-1 flex-col gap-3 p-3 sm:p-5 bg-background min-w-0 overflow-x-hidden">
               {children}
             </div>
           </SidebarInset>
@@ -808,7 +808,6 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               style: {
                 background: '#EF4444',
                 color: 'white',
-                minWidth: '300px',
               },
             },
           }}

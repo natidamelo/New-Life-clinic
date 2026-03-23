@@ -146,35 +146,35 @@ const Header: React.FC = () => {
   
   return (
     <header className="bg-primary-foreground/90 dark:bg-muted backdrop-blur shadow-sm border-b border-border">
-      <div className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center space-x-2">
-          <Link to="/" className="flex items-center">
+      <div className="flex items-center justify-between px-3 sm:px-6 py-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Link to="/" className="flex items-center flex-shrink-0">
             <div className="flex items-center">
               <img
                 src="/assets/images/logo.jpg"
                 alt="New Life Clinic logo"
-                className="h-8 w-8 rounded-full object-cover mr-2 ring-1 ring-black/10"
+                className="h-8 w-8 rounded-full object-cover mr-2 ring-1 ring-black/10 flex-shrink-0"
               />
-              <div>
-                <h1 className="text-xl font-bold text-foreground">New Life Clinic</h1>
+              <div className="hidden sm:block">
+                <h1 className="text-lg font-bold text-foreground leading-tight">New Life Clinic</h1>
                 <p className="text-xs text-muted-foreground">Healthcare Center</p>
               </div>
             </div>
           </Link>
           
-          <span className="mx-4 text-muted-foreground">|</span>
-          
-          <div className="relative w-96">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          {/* Search bar — hidden on mobile */}
+          <span className="hidden md:block mx-2 text-muted-foreground">|</span>
+          <div className="header-search hidden md:block relative w-72 lg:w-96">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search..."
-              className="w-full pl-10 pr-4 py-2 border border-border/30 dark:border-border rounded-lg focus:outline-none focus:border-primary bg-primary-foreground dark:bg-muted text-muted-foreground dark:text-muted-foreground/40 placeholder-muted-foreground dark:placeholder-muted-foreground/60"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-border/30 dark:border-border rounded-lg focus:outline-none focus:border-primary bg-primary-foreground dark:bg-muted text-muted-foreground placeholder-muted-foreground dark:placeholder-muted-foreground/60"
             />
           </div>
         </div>
         
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
           {/* Notification Bell */}
           <div className="relative" data-notification-dropdown>
             <button 
@@ -189,17 +189,18 @@ const Header: React.FC = () => {
               )}
             </button>
 
-            {/* Notification Dropdown */}
+            {/* Notification Dropdown — responsive width */}
             {isNotificationOpen && (
-              <div className="absolute top-16 left-4 right-4 w-[800px] bg-card rounded-lg shadow-lg border border-border z-50 max-h-64 overflow-hidden">
+              <div className="absolute top-12 right-0 w-[min(400px,calc(100vw-2rem))] bg-card rounded-lg shadow-lg border border-border z-50 max-h-80 overflow-hidden"
+                style={{ right: 0 }}>
                 <div className="px-3 py-2 border-b border-border flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-foreground">
                     Notifications ({notifications.length})
                   </h3>
-                  <div className="flex space-x-2">
+                  <div className="flex gap-2">
                     <button
                       onClick={refreshNotifications}
-                      className="text-xs text-primary hover:text-primary dark:hover:text-primary/40"
+                      className="text-xs text-primary hover:text-primary/80"
                       title="Refresh notifications"
                     >
                       🔄 Refresh
@@ -207,7 +208,7 @@ const Header: React.FC = () => {
                     {notifications.length > 0 && (
                       <button
                         onClick={clearAllNotifications}
-                        className="text-xs text-primary dark:text-primary/50 hover:text-primary dark:hover:text-primary/40"
+                        className="text-xs text-primary hover:text-primary/80"
                       >
                         Clear All
                       </button>
@@ -215,50 +216,42 @@ const Header: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="max-h-64 overflow-x-auto scrollbar-hide">
+                <div className="max-h-64 overflow-y-auto">
                   {notifications.length === 0 ? (
                     <div className="px-3 py-6 text-center text-muted-foreground">
                       <BellIcon className="w-6 h-6 mx-auto mb-2 opacity-50" />
                       <p className="text-sm">No new notifications</p>
                     </div>
                   ) : (
-                    <div className="flex space-x-2 p-2">
+                    <div className="divide-y divide-border">
                       {notifications.map((notification) => (
                         <div 
                           key={notification.id}
-                          className={`px-3 py-2 border-r last:border-r-0 min-w-[300px] flex-shrink-0 ${
+                          className={`px-3 py-3 flex items-start justify-between gap-2 group ${
                             notification.type === 'warning' 
-                              ? 'border-accent/20 dark:border-accent/40 bg-accent/10/50 dark:bg-accent/10 hover:bg-accent/20/70 dark:hover:bg-accent/20'
-                              : 'border-border/20 dark:border-border hover:bg-muted/10 dark:hover:bg-muted'
-                          } flex flex-col justify-between group`}
-                        >
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-xs leading-relaxed ${
-                            notification.type === 'warning'
-                              ? 'text-accent-foreground dark:text-accent-foreground/30'
-                              : 'text-muted-foreground dark:text-muted-foreground/40'
-                          }`}>
-                            {notification.message}
-                          </p>
-                          <p className={`text-xs mt-1 ${
-                            notification.type === 'warning'
-                              ? 'text-accent-foreground dark:text-accent-foreground/50'
-                              : 'text-muted-foreground dark:text-muted-foreground'
-                          }`}>
-                            {notification.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => removeNotification(notification.id)}
-                          className={`self-end p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ${
-                            notification.type === 'warning'
-                              ? 'text-accent-foreground dark:text-accent-foreground/40 hover:text-accent-foreground dark:hover:text-accent-foreground/30 hover:bg-accent/30 dark:hover:bg-accent/30'
-                              : 'text-muted-foreground/50 dark:text-muted-foreground/50 hover:text-muted-foreground dark:hover:text-muted-foreground/40 hover:bg-muted/30 dark:hover:bg-muted'
+                              ? 'bg-accent/5 hover:bg-accent/10'
+                              : 'hover:bg-muted/10'
                           }`}
                         >
-                          <XMarkIcon className="w-3 h-3" />
-                        </button>
-                      </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs leading-relaxed ${
+                              notification.type === 'warning'
+                                ? 'text-accent-foreground'
+                                : 'text-muted-foreground'
+                            }`}>
+                              {notification.message}
+                            </p>
+                            <p className="text-xs mt-1 text-muted-foreground">
+                              {notification.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => removeNotification(notification.id)}
+                            className="flex-shrink-0 p-1 rounded text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/30 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <XMarkIcon className="w-3 h-3" />
+                          </button>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -269,10 +262,7 @@ const Header: React.FC = () => {
           
           {/* Theme Toggle Button */}
           <button 
-            onClick={() => {
-              
-              toggleTheme();
-            }}
+            onClick={toggleTheme}
             className="p-2 rounded-lg focus:outline-none text-muted-foreground hover:bg-accent"
             aria-label="Toggle dark mode"
           >
@@ -283,9 +273,9 @@ const Header: React.FC = () => {
           <div className="relative" data-user-menu>
             <button 
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="flex items-center space-x-3 focus:outline-none"
+              className="flex items-center gap-2 focus:outline-none"
             >
-              <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-primary">
+              <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-primary flex-shrink-0">
                 {user?.photo ? (
                   <img
                     src={user.photo}
@@ -296,15 +286,15 @@ const Header: React.FC = () => {
                   <UserIcon className="w-5 h-5 text-primary-foreground" />
                 )}
               </div>
-              <div className="text-left">
-                <p className="text-sm font-medium text-foreground">
+              <div className="hidden sm:block text-left">
+                <p className="text-sm font-medium text-foreground leading-tight">
                   {user ? `${user.firstName} ${user.lastName}` : 'User'}
                 </p>
                 <p className="text-xs capitalize text-muted-foreground">
                   {user?.role || 'Role'}
                 </p>
               </div>
-              <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />
+              <ChevronDownIcon className="hidden sm:block w-4 h-4 text-muted-foreground" />
             </button>
 
             {/* Dropdown Menu */}
@@ -313,7 +303,7 @@ const Header: React.FC = () => {
                 <div className="py-1">
                   <Link
                     to="/app/settings" 
-                    className="flex items-center px-4 py-2 text-sm text-muted-foreground dark:text-muted-foreground/40 hover:bg-accent"
+                    className="flex items-center px-4 py-3 text-sm text-muted-foreground hover:bg-accent"
                     onClick={() => setIsUserMenuOpen(false)}
                   >
                     <UserIcon className="w-4 h-4 mr-3" />
@@ -324,7 +314,7 @@ const Header: React.FC = () => {
                       setIsUserMenuOpen(false);
                       handleLogout();
                     }}
-                    className="flex items-center w-full text-left px-4 py-2 text-sm text-muted-foreground dark:text-muted-foreground/40 hover:bg-accent"
+                    className="flex items-center w-full text-left px-4 py-3 text-sm text-muted-foreground hover:bg-accent"
                   >
                     <ArrowRightOnRectangleIcon className="w-4 h-4 mr-3" />
                     Logout
