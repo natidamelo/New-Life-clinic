@@ -56,6 +56,10 @@ class AttendanceMonitor {
    */
   async checkAttendance() {
     try {
+      if (mongoose.connection.readyState !== 1) {
+        return;
+      }
+
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       

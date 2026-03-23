@@ -111,7 +111,7 @@ const killProcessOnPort = (port) => {
 };
 
 // Function to start server
-const startServer = async () => {
+const startServer = async (dbConnected) => {
   try {
     let availablePort = PORT;
     
@@ -148,7 +148,7 @@ const startServer = async () => {
       console.log(`\n💡 Frontend should be accessed at: http://${networkIP}:5175`);
       
       // Start services after server is ready
-      startServices();
+      startServices(dbConnected);
     });
     
     // Handle server errors
@@ -169,8 +169,15 @@ const startServer = async () => {
 };
 
 // Function to start all services
-const startServices = async () => {
+const startServices = async (dbConnected) => {
   try {
+    if (!dbConnected) {
+      console.log(
+        '⚠️  MongoDB not connected — skipping background jobs (attendance, revenue, sync, overtime, inventory). Add MONGODB_URI on Render.'
+      );
+      return;
+    }
+
     // Initialize Telegram service
     console.log('📱 Initializing Telegram notification service...');
     const telegramInitialized = await telegramService.initialize();
@@ -349,7 +356,7 @@ const connectDB = async () => {
   if (!dbConnected) {
     console.log('⚠️  Starting server without database connection...');
   }
-  startServer();
+  startServer(dbConnected);
 })();
 
 // Enhanced error handling to prevent crashes
