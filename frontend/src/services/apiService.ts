@@ -130,7 +130,15 @@ class ApiService {
         if (tenantId && config.headers) {
           (config.headers as Record<string, string>)['x-clinic-id'] = tenantId;
         }
-        
+
+        // Super-admin clinic CRUD: Clinic model has no clinicId; these routes don't need the header.
+        // Omitting it avoids CORS preflight failures when the API hasn't redeployed with
+        // Access-Control-Allow-Headers including x-clinic-id yet.
+        const pathOnly = (config.url || '').split('?')[0];
+        if (pathOnly.startsWith('/api/clinics') && config.headers) {
+          delete (config.headers as Record<string, unknown>)['x-clinic-id'];
+        }
+
         return config;
       },
       (error: AxiosError) => {

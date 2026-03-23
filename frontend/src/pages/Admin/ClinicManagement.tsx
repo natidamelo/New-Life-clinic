@@ -32,7 +32,9 @@ const ClinicManagement: React.FC = () => {
       const data = await clinicService.listClinics();
       setClinics(data);
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to load clinics');
+      toast.error(
+        error?.response?.data?.message || error?.message || 'Failed to load clinics'
+      );
     } finally {
       setLoading(false);
     }
@@ -62,7 +64,11 @@ const ClinicManagement: React.FC = () => {
       setNewClinic({ name: '', slug: '', contactEmail: '', contactPhone: '' });
       await loadClinics();
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to create clinic');
+      toast.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Failed to create clinic'
+      );
     }
   };
 

@@ -11,13 +11,36 @@ const DEFAULT_ALLOWED_ORIGINS = [
 ];
 
 function getAllowedOrigins() {
-  const envOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim()).filter(Boolean)
+  const fromAllowed = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
     : [];
-  
-  const merged = Array.from(new Set([...envOrigins, ...DEFAULT_ALLOWED_ORIGINS]));
+  // Same comma-list as config CORS_ORIGINS (Render/docs often use this name)
+  const fromCorsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+    : [];
+
+  const merged = Array.from(new Set([...fromAllowed, ...fromCorsOrigins, ...DEFAULT_ALLOWED_ORIGINS]));
   return merged;
 }
+
+/** Custom headers the SPA sends (tenant); must be listed for browser preflight */
+const ALLOWED_CORS_HEADERS = [
+  'Content-Type',
+  'Authorization',
+  'X-Requested-With',
+  'Accept',
+  'Cache-Control',
+  'Pragma',
+  'Origin',
+  'X-CSRF-Token',
+  'X-Request-ID',
+  'x-request-id',
+  'x-clinic-id',
+  'X-Clinic-Id',
+  'Expires',
+  'Access-Control-Request-Method',
+  'Access-Control-Request-Headers'
+];
 
 function configureCorsOptions() {
   const allowedOrigins = getAllowedOrigins();
@@ -49,21 +72,7 @@ function configureCorsOptions() {
     credentials: true,
     optionsSuccessStatus: 200, // Changed from 204 to 200 for better compatibility
     maxAge: 86400,
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-Requested-With',
-      'Accept',
-      'Cache-Control',
-      'Pragma',
-      'Origin',
-      'X-CSRF-Token',
-      'X-Request-ID',
-      'x-request-id',
-      'Expires',
-      'Access-Control-Request-Method',
-      'Access-Control-Request-Headers'
-    ],
+    allowedHeaders: [...ALLOWED_CORS_HEADERS],
     exposedHeaders: [
       'Content-Range',
       'X-Content-Range',
@@ -108,7 +117,7 @@ const handleOptions = (req = {}, res) => {
     res.header('Access-Control-Allow-Credentials', 'true');
   }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Cache-Control, Pragma, Origin, X-CSRF-Token, X-Request-ID, x-request-id');
+  res.header('Access-Control-Allow-Headers', ALLOWED_CORS_HEADERS.join(', '));
   res.header('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range, Cache-Control, Pragma');
   res.header('Access-Control-Max-Age', '86400');
   res.header('Cache-Control', 'public, max-age=86400');
