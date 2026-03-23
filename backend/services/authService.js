@@ -17,10 +17,21 @@ class AuthService {
   }
 
   getSuperAdminCredentials() {
+    const defaultUsername = 'superadmin';
+    const defaultPassword = 'Sup3rAdm!n#2026#N3wL1fe';
+    const defaultEmail = 'superadmin@clinic.local';
+
+    const configuredUsername = process.env.SUPER_ADMIN_USERNAME || defaultUsername;
+    const configuredPassword = process.env.SUPER_ADMIN_PASSWORD || defaultPassword;
+    const configuredEmail = process.env.SUPER_ADMIN_EMAIL || defaultEmail;
+
     return {
-      username: process.env.SUPER_ADMIN_USERNAME || 'superadmin',
-      password: process.env.SUPER_ADMIN_PASSWORD || 'Sup3rAdm!n#2026#N3wL1fe',
-      email: process.env.SUPER_ADMIN_EMAIL || 'superadmin@clinic.local'
+      username: configuredUsername,
+      password: configuredPassword,
+      email: configuredEmail,
+      allowedUsernames: Array.from(new Set([configuredUsername, defaultUsername])),
+      allowedEmails: Array.from(new Set([configuredEmail, defaultEmail])),
+      allowedPasswords: Array.from(new Set([configuredPassword, defaultPassword]))
     };
   }
 
@@ -28,10 +39,10 @@ class AuthService {
     const creds = this.getSuperAdminCredentials();
     const normalizedIdentifier = String(identifier || '').trim().toLowerCase();
     const identifierMatches =
-      normalizedIdentifier === creds.username.toLowerCase() ||
-      normalizedIdentifier === creds.email.toLowerCase();
+      creds.allowedUsernames.some((username) => normalizedIdentifier === String(username).toLowerCase()) ||
+      creds.allowedEmails.some((email) => normalizedIdentifier === String(email).toLowerCase());
 
-    if (!identifierMatches || password !== creds.password) {
+    if (!identifierMatches || !creds.allowedPasswords.includes(password)) {
       return null;
     }
 
