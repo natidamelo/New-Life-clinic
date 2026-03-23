@@ -4,6 +4,14 @@ const crypto = require('crypto');
 const { logger } = require('../middleware/errorHandler');
 
 class AuthService {
+  createAuthError(message, statusCode = 401) {
+    const err = new Error(message);
+    err.statusCode = statusCode;
+    err.isOperational = true;
+    err.name = 'AuthError';
+    return err;
+  }
+
   /**
    * Register a new user
    * @param {Object} userData - User registration data
@@ -61,18 +69,18 @@ class AuthService {
       // Find user by email or username
       const user = await User.findByEmailOrUsername(identifier);
       if (!user) {
-        throw new Error('Invalid credentials');
+        throw this.createAuthError('Invalid credentials', 401);
       }
       
       // Check if user is active
       if (!user.isActive) {
-        throw new Error('Account is deactivated');
+        throw this.createAuthError('Account is deactivated', 403);
       }
       
       // Verify password
       const isPasswordValid = await user.comparePassword(password);
       if (!isPasswordValid) {
-        throw new Error('Invalid credentials');
+        throw this.createAuthError('Invalid credentials', 401);
       }
       
       // Update last login
