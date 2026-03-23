@@ -184,28 +184,40 @@ userSchema.statics.findByEmailOrUsername = async function(identifier, clinicId =
   const trimmed = identifier.trim();
   if (!trimmed) return null;
 
-  // 1) Exact email or username (case-insensitive)
-  const byEmailOrUsername = await this.findOne({
-    clinicId,
-    $or: [
-      { email: new RegExp('^' + trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') },
-      { username: new RegExp('^' + trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }
-    ]
-  });
-  if (byEmailOrUsername) return byEmailOrUsername;
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const emailOrUsernameFilter = [
+    { email: new RegExp('^' + escaped + '$', 'i') },
+    { username: new RegExp('^' + escaped + '$', 'i') }
+  ];
 
-  // 2) Display name: "DR Natan" / "Dr. Natan" -> match firstName or lastName (e.g. "Natan")
+  // 1) Try inside the requested clinic first
+  const inClinic = await this.findOne({
+    clinicId,
+    $or: emailOrUsernameFilter
+  }).setOptions({ skipTenantScope: true });
+  if (inClinic) return inClinic;
+
+  // 2) Display name ("DR Natan" → "Natan") inside the requested clinic
   const namePart = trimmed.replace(/^dr\.?\s*/i, '').trim();
   if (namePart) {
+    const nameEscaped = namePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const byName = await this.findOne({
       clinicId,
       $or: [
-        { firstName: new RegExp('^' + namePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') },
-        { lastName: new RegExp('^' + namePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }
+        { firstName: new RegExp('^' + nameEscaped + '$', 'i') },
+        { lastName: new RegExp('^' + nameEscaped + '$', 'i') }
       ]
-    });
+    }).setOptions({ skipTenantScope: true });
     if (byName) return byName;
   }
+
+  // 3) Fallback: search across ALL clinics so users don't need the exact code.
+  //    The user's own clinicId (stored on the doc) is used for tenant scoping
+  //    after login — so even if found here, they can only access their own clinic.
+  const crossClinic = await this.findOne({
+    $or: emailOrUsernameFilter
+  }).setOptions({ skipTenantScope: true });
+  if (crossClinic) return crossClinic;
 
   return null;
 };

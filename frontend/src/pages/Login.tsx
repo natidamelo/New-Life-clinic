@@ -28,13 +28,17 @@ const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const savedClinicId = getClinicTenantId();
+  const hasRememberedClinic = savedClinicId && savedClinicId !== 'default';
+  const [showClinicField, setShowClinicField] = useState(!hasRememberedClinic);
+
   const formik = useFormik({
-    initialValues: { email: '', password: '', clinicId: getClinicTenantId() },
+    initialValues: { email: '', password: '', clinicId: savedClinicId },
     validationSchema: LoginSchema,
     onSubmit: async (values) => {
       setIsLoading(true);
       try {
-        const tenant = (values.clinicId || 'default').trim() || 'default';
+        const tenant = (values.clinicId || '').trim() || 'default';
         const loggedInUser = await login(values.email, values.password, tenant);
         toast.success(`Welcome back, ${loggedInUser.firstName || loggedInUser.name}!`);
         const isAdmin =
@@ -330,31 +334,41 @@ const Login: React.FC = () => {
               )}
             </div>
 
-            {/* Clinic / tenant (slug) — use "default" for legacy data; after migration use your clinic slug e.g. "clinic" */}
-            <div className="space-y-1.5">
-              <label htmlFor="clinicId" className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                Clinic code
-              </label>
-              <input
-                id="clinicId"
-                name="clinicId"
-                type="text"
-                autoComplete="off"
-                placeholder="default"
-                {...formik.getFieldProps('clinicId')}
-                className="auth-login-input w-full h-11 px-4 text-sm rounded-xl outline-none transition-all duration-200"
-                style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  color: '#000000',
-                  caretColor: '#000000',
-                  WebkitTextFillColor: '#000000',
-                  border: '1px solid rgba(255,255,255,0.09)',
-                }}
-              />
-              <p className="text-[10px] text-slate-500 leading-snug">
-                Same as your clinic <strong className="text-slate-400">slug</strong> in Clinic Management. Leave <code className="text-sky-400/90">default</code> until you migrate old data.
-              </p>
-            </div>
+            {/* Clinic code — remembered after first login; collapsible for returning users */}
+            {showClinicField ? (
+              <div className="space-y-1.5">
+                <label htmlFor="clinicId" className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                  Clinic code
+                </label>
+                <input
+                  id="clinicId"
+                  name="clinicId"
+                  type="text"
+                  autoComplete="off"
+                  placeholder="e.g. clinicnew"
+                  {...formik.getFieldProps('clinicId')}
+                  className="auth-login-input w-full h-11 px-4 text-sm rounded-xl outline-none transition-all duration-200"
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    color: '#000000',
+                    caretColor: '#000000',
+                    WebkitTextFillColor: '#000000',
+                    border: '1px solid rgba(255,255,255,0.09)',
+                  }}
+                />
+                <p className="text-[10px] text-slate-500 leading-snug">
+                  Your clinic <strong className="text-slate-400">slug</strong> from Clinic Management. Leave blank if unsure.
+                </p>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowClinicField(true)}
+                className="text-xs text-sky-400/70 hover:text-sky-300 transition-colors"
+              >
+                Change clinic ({savedClinicId})
+              </button>
+            )}
 
             {/* Submit button */}
             <button
