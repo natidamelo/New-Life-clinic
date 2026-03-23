@@ -9,6 +9,11 @@ class TelegramService {
   }
 
   async initialize() {
+    // Already initialized — don't create a second polling instance
+    if (this.isInitialized && this.bot) {
+      return true;
+    }
+
     try {
       // Check for bot token in environment variable first
       const botToken = process.env.TELEGRAM_BOT_TOKEN;
