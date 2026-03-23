@@ -85,6 +85,7 @@ import ProfessionalMedicalRecordPage from './pages/Doctor/ProfessionalMedicalRec
 import MahletImagingOrderForm from './components/doctor/MahletImagingOrderForm';
 import UserManagement from './pages/Admin/UserManagement';
 import SystemControls from './pages/Admin/SystemControls';
+import ClinicManagement from './pages/Admin/ClinicManagement';
 import UIShowcasePage from './pages/UIShowcasePage';
 import StaffAttendanceControlPage from './pages/Admin/StaffAttendanceControl';
 import { PatientDemographics } from './pages/Dashboard/PatientDemographics';
@@ -345,6 +346,10 @@ const router = createBrowserRouter([
       {
         path: 'system-controls',
         element: <ProtectedRoute allowedRoles={['admin']}><SystemControls /></ProtectedRoute>
+      },
+      {
+        path: 'clinics',
+        element: <ProtectedRoute allowedRoles={['admin']}><ClinicManagement /></ProtectedRoute>
       },
       {
         path: 'staff-attendance-control',

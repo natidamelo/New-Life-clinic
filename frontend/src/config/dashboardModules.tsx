@@ -28,6 +28,15 @@ interface DashboardModule {
 // Define modules based on previous hardcoded cards and router paths/roles
 export const adminDashboardModules: DashboardModule[] = [
   {
+    id: 'clinics',
+    title: 'Clinic Management',
+    description: 'Create clinics and assign clinic admins',
+    icon: <BuildingOffice2Icon className="h-8 w-8" />,
+    path: '/app/clinics',
+    color: 'blue',
+    requiredRoles: ['admin'],
+  },
+  {
     id: 'facility',
     title: 'Facility Management',
     description: 'Manage buildings, rooms, and equipment',

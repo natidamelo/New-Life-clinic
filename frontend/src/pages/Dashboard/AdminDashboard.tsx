@@ -210,7 +210,7 @@ const AdminDashboard: React.FC = () => {
   }, [fetchStats]);
 
   const accessibleModules = useMemo(() => {
-    const role = user?.role ?? 'admin';
+    const role = user?.role === 'super_admin' ? 'admin' : (user?.role ?? 'admin');
     return adminDashboardModules.filter(m => m.requiredRoles.includes(role as any));
   }, [user]);
 

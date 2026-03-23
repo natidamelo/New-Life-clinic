@@ -36,6 +36,7 @@ const Login: React.FC = () => {
         toast.success(`Welcome back, ${loggedInUser.firstName || loggedInUser.name}!`);
         const isAdmin =
           loggedInUser.role === 'admin' ||
+          loggedInUser.role === 'super_admin' ||
           (loggedInUser.email && loggedInUser.email.toLowerCase().includes('admin')) ||
           (loggedInUser.username && loggedInUser.username.toLowerCase().includes('admin'));
         navigate(isAdmin ? '/app/dashboard' : getRoleBasedRoute(loggedInUser.role));

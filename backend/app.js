@@ -964,6 +964,7 @@ const createApp = () => {
   
   // Data Share routes
   app.use('/api/data-share', require('./routes/dataShare'));
+  app.use('/api/clinics', require('./routes/clinics'));
   
   // Service request routes
   app.use('/api/service-requests', require('./routes/serviceRequests'));

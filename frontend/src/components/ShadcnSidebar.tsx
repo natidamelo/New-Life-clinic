@@ -51,6 +51,7 @@ import {
 // Define menu items for different roles (EXACTLY as in your original sidebar)
 const adminMenuItems = [
   { path: '/app/dashboard', icon: AdminHomeIcon, label: 'Admin Dashboard' },
+  { path: '/app/clinics', icon: CogIcon, label: 'Clinic Management' },
   { path: '/app/patient-services', icon: PatientsIcon, label: 'Patient Services' },
   { path: '/app/staff-management', icon: UserPlusIcon, label: 'Staff Management' },
   { path: '/app/pharmacy', icon: BeakerIcon, label: 'Stock Management' },
@@ -257,6 +258,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
           allSidebarPaths = financeMenuItems.map(item => item.path);
           break;
         case 'admin':
+        case 'super_admin':
         default:
           allSidebarPaths = adminMenuItems.map(item => item.path);
           break;
@@ -321,6 +323,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               testPaths = ['/app/dashboard', '/app/reception', '/app/appointments'];
               break;
             case 'admin':
+            case 'super_admin':
               testPaths = ['/app/dashboard', '/app/staff-management', '/app/patients'];
               break;
             default:
@@ -355,6 +358,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               paths = nurseMenuItems.map(item => item.path);
               break;
             case 'admin':
+            case 'super_admin':
             default:
               paths = adminMenuItems.map(item => item.path);
               break;
@@ -479,6 +483,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
         currentMenuItems = financeMenuItems;
         break;
       case 'admin':
+      case 'super_admin':
       default:
         currentMenuItems = adminMenuItems;
         break;
@@ -586,7 +591,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               </SidebarGroup>
 
               {/* System Controls section - only for admin users */}
-              {user?.role === 'admin' && (
+              {(user?.role === 'admin' || user?.role === 'super_admin') && (
                 <SidebarGroup>
                   <div className="px-3 py-2">
                     <h3 className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">
