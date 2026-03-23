@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const mongoose = require('mongoose');
+const { setTenantInCurrentContext } = require('../config/tenantContext');
 
 const auth = async (req, res, next) => {
     try {
@@ -99,12 +100,22 @@ const auth = async (req, res, next) => {
         }
         console.log('[AUTH] User found:', user.email, 'Role:', user.role);
 
+        const isSuperAdmin = user.role === 'super_admin';
+        const requestedClinicId = req.headers['x-clinic-id'];
+
         // Add user to request object
         req.user = user;
+        req.tenantId = isSuperAdmin
+          ? (requestedClinicId === 'all' ? '*' : (requestedClinicId || user.clinicId || 'default'))
+          : (user.clinicId || 'default');
+        req.isSuperAdmin = isSuperAdmin;
+        setTenantInCurrentContext(req.tenantId);
         console.log('[AUTH] User added to request:', {
           userId: user._id || user.id,
           email: user.email,
           role: user.role,
+          isSuperAdmin,
+          clinicId: user.clinicId,
           userKeys: Object.keys(user)
         });
         
@@ -150,6 +161,9 @@ const authorize = (...roles) => {
         const requiredRoles = (roles.length === 1 && Array.isArray(roles[0])) ? roles[0] : roles;
         
         if (!requiredRoles.includes(req.user.role)) {
+            if (req.user.role === 'super_admin') {
+                return next();
+            }
             console.log('[AUTH] Access denied. User role:', req.user.role, 'Required roles:', roles);
             console.log('[AUTH] User object check:', {
                 hasUser: !!req.user,
@@ -185,7 +199,7 @@ const checkPermission = (permission) => {
     return async (req, res, next) => {
         try {
             // Admin bypass - admins have all permissions
-            if (req.user.role === 'admin') {
+            if (req.user.role === 'admin' || req.user.role === 'super_admin') {
                 return next();
             }
             

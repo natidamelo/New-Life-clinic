@@ -5,11 +5,13 @@ const compression = require('compression');
 const mongoSanitize = require('express-mongo-sanitize');
 const path = require('path');
 const config = require('./config');
+require('./config/tenantIsolation');
 const { logger, notFound, errorHandler, corsErrorHandler } = require('./middleware/errorHandler');
 const { corsMiddleware, handleOptions } = require('./middleware/corsMiddleware');
 const { apiLimiter, authLimiter } = require('./middleware/rateLimitMiddleware');
 const { setupCacheRoutes } = require('./middleware/cacheMiddleware');
 const { initializeDefaultCardTypes } = require('./controllers/cardTypeController');
+const { tenantContextMiddleware } = require('./middleware/tenantContext');
 // Temporarily disabled to fix server startup issues
 // const { validatePaymentStatusData, logPaymentStatusCorrections } = require('./middleware/paymentStatusValidationMiddleware');
 
@@ -70,6 +72,7 @@ const createApp = () => {
   // Parse JSON and URL-encoded request bodies
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+  app.use(tenantContextMiddleware);
   
   // Payment Status Validation Middleware - Automatically corrects incorrect payment status data
   // Temporarily disabled to fix server startup issues

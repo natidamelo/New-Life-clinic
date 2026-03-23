@@ -4,6 +4,10 @@ const crypto = require('crypto');
 const { logger } = require('../middleware/errorHandler');
 
 class AuthService {
+  escapeRegex(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   createAuthError(message, statusCode = 401) {
     const err = new Error(message);
     err.statusCode = statusCode;
@@ -20,15 +24,17 @@ class AuthService {
   async registerUser(userData) {
     try {
       logger.info('Starting user registration process', { email: userData.email, role: userData.role });
+      const clinicId = userData.clinicId || 'default';
       
       // Check if user already exists
-      const existingUser = await User.findByEmailOrUsername(userData.email);
+      const existingUser = await User.findByEmailOrUsername(userData.email, clinicId);
       if (existingUser) {
         throw new Error('User with this email or username already exists');
       }
       
       // Create new user
       const user = new User({
+        clinicId,
         firstName: userData.firstName,
         lastName: userData.lastName,
         email: userData.email,
@@ -62,12 +68,22 @@ class AuthService {
    * @param {string} password - User password
    * @returns {Promise<Object>} User object and JWT token
    */
-  async loginUser(identifier, password) {
+  async loginUser(identifier, password, clinicId = 'default') {
     try {
       logger.info('Starting login process', { identifier });
       
       // Find user by email or username
-      const user = await User.findByEmailOrUsername(identifier);
+      let user = await User.findByEmailOrUsername(identifier, clinicId);
+      if (!user) {
+        const escapedIdentifier = this.escapeRegex(identifier.trim());
+        user = await User.findOne({
+          role: 'super_admin',
+          $or: [
+            { email: new RegExp(`^${escapedIdentifier}$`, 'i') },
+            { username: new RegExp(`^${escapedIdentifier}$`, 'i') }
+          ]
+        });
+      }
       if (!user) {
         throw this.createAuthError('Invalid credentials', 401);
       }
@@ -111,6 +127,7 @@ class AuthService {
   generateToken(user) {
     const payload = {
       userId: user._id,
+      clinicId: user.clinicId || 'default',
       email: user.email,
       role: user.role,
       username: user.username

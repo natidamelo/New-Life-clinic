@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const patientSchema = new mongoose.Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   patientId: {
     type: String,
     unique: true,
@@ -378,6 +385,7 @@ patientSchema.set('toObject', { virtuals: true });
 
 // Add performance indexes
 patientSchema.index({ createdAt: -1 }); // For sorting by creation date
+patientSchema.index({ clinicId: 1, createdAt: -1 });
 patientSchema.index({ status: 1 }); // For filtering by status
 patientSchema.index({ assignedDoctorId: 1 }); // For filtering by doctor
 patientSchema.index({ assignedNurseId: 1 }); // For filtering by nurse

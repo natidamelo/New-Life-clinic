@@ -8,6 +8,7 @@ const telegramService = require('./services/telegramService');
 const dailyRevenueService = require('./services/dailyRevenueService');
 const autoInventoryDeductionMonitor = require('./services/autoInventoryDeductionMonitor');
 const patientStatusSyncService = require('./services/patientStatusSyncService');
+const { bootstrapSuperAdmin } = require('./services/superAdminBootstrapService');
 const net = require('net');
 require('dotenv').config();
 
@@ -331,6 +332,12 @@ const connectDB = async () => {
         console.log('✅ Default card types initialization completed');
       } catch (err) {
         console.error('❌ Default card types initialization failed:', err.message);
+      }
+
+      try {
+        await bootstrapSuperAdmin();
+      } catch (err) {
+        console.error('❌ Super admin bootstrap failed:', err.message);
       }
 
       return true;

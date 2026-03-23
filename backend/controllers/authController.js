@@ -17,10 +17,14 @@ const authController = {
       logger.info('User registration attempt', { 
         username: req.body.username,
         email: req.body.email,
-        role: req.body.role
+        role: req.body.role,
+        clinicId: req.body.clinicId || req.headers['x-clinic-id'] || 'default'
       });
-      
-      const user = await authService.registerUser(req.body);
+
+      const user = await authService.registerUser({
+        ...req.body,
+        clinicId: req.body.clinicId || req.headers['x-clinic-id'] || 'default'
+      });
       
       logger.info('User registered successfully', { 
         userId: user._id,
@@ -45,10 +49,11 @@ const authController = {
   login: async (req, res, next) => {
     try {
       const { identifier, password } = req.body;
+      const clinicId = req.body.clinicId || req.headers['x-clinic-id'] || 'default';
       
       logger.info('Login attempt', { identifier });
       
-      const { user, token } = await authService.loginUser(identifier, password);
+      const { user, token } = await authService.loginUser(identifier, password, clinicId);
       
       logger.info('User logged in successfully', {
         userId: user._id,
@@ -186,6 +191,7 @@ const authController = {
       logger.info('✅ [testLogin] Processing test login request');
       
       const { identifier, password } = req.body;
+      const clinicId = req.body.clinicId || req.headers['x-clinic-id'] || 'default';
       
       if (!identifier || !password) {
         logger.warn('⚠️ [testLogin] Missing credentials', { hasIdentifier: !!identifier, hasPassword: !!password });
@@ -211,7 +217,7 @@ const authController = {
       logger.info('✅ [testLogin] Database connected, attempting authentication');
       
       // Normal flow when DB is connected
-      const { user, token } = await authService.loginUser(identifier, password);
+      const { user, token } = await authService.loginUser(identifier, password, clinicId);
 
       logger.info('✅ [testLogin] Login successful', { 
         userId: user._id, 

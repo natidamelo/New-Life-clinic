@@ -174,6 +174,13 @@ const PaymentSchema = new Schema({
 
 // Main invoice schema
 const MedicalInvoiceSchema = new Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   // Invoice identification
   invoiceNumber: {
     type: String,
@@ -897,6 +904,7 @@ MedicalInvoiceSchema.statics.generateInvoiceNumber = async function() {
 
 // Set up indexes for better query performance
 MedicalInvoiceSchema.index({ patient: 1, status: 1 });
+MedicalInvoiceSchema.index({ clinicId: 1, patient: 1, status: 1 });
 MedicalInvoiceSchema.index({ patientId: 1, status: 1 });
 MedicalInvoiceSchema.index({ invoiceNumber: 1 });
 

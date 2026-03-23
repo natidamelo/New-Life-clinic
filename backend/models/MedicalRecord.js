@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const medicalRecordSchema = new mongoose.Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   patient: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Patient',
@@ -348,6 +355,7 @@ const medicalRecordSchema = new mongoose.Schema({
 
 // Index for efficient queries
 medicalRecordSchema.index({ patient: 1, visitDate: -1 });
+medicalRecordSchema.index({ clinicId: 1, patient: 1, visitDate: -1 });
 medicalRecordSchema.index({ doctor: 1, visitDate: -1 });
 medicalRecordSchema.index({ patientId: 1, visitDate: -1 });
 medicalRecordSchema.index({ doctorId: 1, visitDate: -1 });

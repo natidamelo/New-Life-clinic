@@ -2,6 +2,13 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   username: {
     type: String,
     required: true,
@@ -21,7 +28,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'reception', 'nurse', 'lab', 'imaging', 'doctor', 'billing', 'inventory', 'finance', 'pharmacy'],
+    enum: ['super_admin', 'admin', 'reception', 'nurse', 'lab', 'imaging', 'doctor', 'billing', 'inventory', 'finance', 'pharmacy'],
     required: true
   },
   firstName: {
@@ -117,6 +124,17 @@ userSchema.pre('save', async function(next) {
           viewReports: true
         };
         break;
+      case 'super_admin':
+        this.permissions = {
+          manageUsers: true,
+          managePatients: true,
+          manageAppointments: true,
+          manageBilling: true,
+          manageInventory: true,
+          generateReports: true,
+          viewReports: true
+        };
+        break;
       case 'doctor':
         this.permissions = {
           managePatients: true,
@@ -161,13 +179,14 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 };
 
 // Static method to find user by email, username, or display name (case-insensitive)
-userSchema.statics.findByEmailOrUsername = async function(identifier) {
+userSchema.statics.findByEmailOrUsername = async function(identifier, clinicId = 'default') {
   if (!identifier || typeof identifier !== 'string') return null;
   const trimmed = identifier.trim();
   if (!trimmed) return null;
 
   // 1) Exact email or username (case-insensitive)
   const byEmailOrUsername = await this.findOne({
+    clinicId,
     $or: [
       { email: new RegExp('^' + trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') },
       { username: new RegExp('^' + trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }
@@ -179,6 +198,7 @@ userSchema.statics.findByEmailOrUsername = async function(identifier) {
   const namePart = trimmed.replace(/^dr\.?\s*/i, '').trim();
   if (namePart) {
     const byName = await this.findOne({
+      clinicId,
       $or: [
         { firstName: new RegExp('^' + namePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') },
         { lastName: new RegExp('^' + namePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }
