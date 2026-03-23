@@ -299,8 +299,11 @@ router.post('/:clinicRef/migrate-default-data', auth, requireSuperAdmin, async (
       });
     }
 
-    const userFilter = { clinicId: source, role: { $ne: 'super_admin' } };
-    const dataFilter = { clinicId: source };
+    const tenantSourceFilter = {
+      $or: [{ clinicId: source }, { clinicId: null }, { clinicId: '' }, { clinicId: { $exists: false } }]
+    };
+    const userFilter = { ...tenantSourceFilter, role: { $ne: 'super_admin' } };
+    const dataFilter = tenantSourceFilter;
 
     const counts = {
       users: includeUsers ? await User.countDocuments(userFilter).setOptions({ skipTenantScope: true }) : 0,
