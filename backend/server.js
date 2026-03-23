@@ -279,48 +279,68 @@ const gracefulShutdown = async (signal) => {
   }
 };
 
+/** Log which env var supplied the URI; never log passwords. */
+const mongoUriSource = () => {
+  if (process.env.MONGODB_URI) return 'MONGODB_URI';
+  if (process.env.MONGO_URI) return 'MONGO_URI';
+  return 'default localhost fallback';
+};
+
+const maskMongoUri = (uri) =>
+  typeof uri === 'string' ? uri.replace(/:([^:@/]+)@/, ':***@') : '';
+
 // Connect to MongoDB and start server
 const connectDB = async () => {
   // Atlas / Render typically use MONGODB_URI; local .env often uses MONGO_URI
   const mongoURI =
     process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/clinic-cms';
-  
-  // Configure Mongoose to not buffer commands when disconnected
-  // This prevents timeout errors when DB is not available
+
   mongoose.set('bufferCommands', false);
-  
-  try {
-    await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 5000, // 5 second timeout
-      socketTimeoutMS: 45000,
-      bufferCommands: false, // Don't buffer commands
-    });
-    console.log('✅ Connected to MongoDB');
-    
-    // Initialize default data AFTER DB connection
+
+  const opts = {
+    // Atlas + Render cold start often needs >5s to pick a server
+    serverSelectionTimeoutMS: 45000,
+    connectTimeoutMS: 20000,
+    socketTimeoutMS: 45000,
+    bufferCommands: false,
+    maxPoolSize: 10,
+  };
+
+  const attempts = 3;
+  const delayMs = 4000;
+
+  console.log(`📦 MongoDB config: using ${mongoUriSource()} → ${maskMongoUri(mongoURI)}`);
+
+  for (let i = 1; i <= attempts; i++) {
     try {
-      await initializeDefaultCardTypes();
-      console.log('✅ Default card types initialization completed');
-    } catch (err) {
-      console.error('❌ Default card types initialization failed:', err.message);
+      if (mongoose.connection.readyState !== 0) {
+        await mongoose.disconnect();
+      }
+      await mongoose.connect(mongoURI, opts);
+      console.log('✅ Connected to MongoDB');
+
+      try {
+        await initializeDefaultCardTypes();
+        console.log('✅ Default card types initialization completed');
+      } catch (err) {
+        console.error('❌ Default card types initialization failed:', err.message);
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`❌ MongoDB connection attempt ${i}/${attempts}:`, error.message);
+      if (i < attempts) {
+        console.error(`   Retrying in ${delayMs / 1000}s...`);
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
     }
-    
-    return true;
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error.message);
-    console.error('⚠️  Server will start but database features will not work');
-    console.error('⚠️  Please ensure MongoDB is running:');
-    console.error('   1. Check if MongoDB service is running');
-    console.error('   2. Verify MongoDB is installed and accessible');
-    console.error('   3. Check connection string:', mongoURI);
-    
-    // Ensure Mongoose doesn't buffer commands when disconnected
-    mongoose.set('bufferCommands', false);
-    
-    // Don't exit - allow server to start without DB
-    // The server can still respond to health checks and provide error messages
-    return false;
   }
+
+  console.error('⚠️  Server will start but database features will not work');
+  console.error('   Fix: set MONGODB_URI on Render (Atlas connection string). Special chars in the password must be URL-encoded.');
+  console.error('   Verify: Atlas user has read/write to the DB; Network Access allows 0.0.0.0/0 or Render egress.');
+  mongoose.set('bufferCommands', false);
+  return false;
 };
 
 // Start server regardless of DB connection status
