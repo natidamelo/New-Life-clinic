@@ -1372,15 +1372,15 @@ const LabDashboard: React.FC = () => {
     <div className="px-2 sm:px-4 lg:px-6 py-6 w-full mx-auto">
       <div className="flex flex-col space-y-5">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Laboratory Dashboard</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Laboratory Dashboard</h1>
             <p className="mt-1 text-sm text-muted-foreground">Manage and process laboratory tests</p>
           </div>
           <button
             onClick={fetchLabTests}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm font-medium text-foreground bg-background hover:bg-muted transition-colors disabled:opacity-50 shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm font-medium text-foreground bg-background hover:bg-muted transition-colors disabled:opacity-50 shadow-sm self-start sm:self-auto"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
@@ -1388,7 +1388,7 @@ const LabDashboard: React.FC = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           {[
             { label: 'Pending Tests', value: labTests.filter(t => pendingStatuses.includes(t.status)).length, color: 'text-yellow-600', bg: 'bg-yellow-50 dark:bg-yellow-900/20', border: 'border-yellow-200 dark:border-yellow-800' },
             { label: 'Processing', value: labTests.filter(t => t.status === 'Processing').length, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800' },

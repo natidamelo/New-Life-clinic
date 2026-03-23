@@ -2779,8 +2779,8 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
           </div>
 
           {/* Records Table */}
-          <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-            <table className="w-full">
+          <div className="rounded-xl border border-gray-200 overflow-x-auto shadow-sm">
+            <table className="w-full min-w-[600px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   {!selectedPatientForMedicalRecords && (
@@ -3624,12 +3624,12 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                   </div>
 
                   {/* Patient Table */}
-                  <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                  <div className="rounded-xl border border-gray-200 overflow-x-auto shadow-sm">
+                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
                       <h3 className="text-sm font-semibold text-gray-700">Completed Patients</h3>
                       <p className="text-xs text-gray-400">Patients with finalized medical records</p>
                     </div>
-                    <table className="w-full">
+                    <table className="w-full min-w-[500px]">
                       <thead>
                         <tr className="border-b border-gray-200 bg-gray-50/50">
                           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Patient</th>
@@ -3823,7 +3823,8 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                     }
 
                     return (
-                      <Table>
+                      <div className="overflow-x-auto">
+                      <Table className="min-w-[500px]">
                         <TableHeader>
                           <TableRow className="bg-muted/50">
                             <TableHead className="font-semibold text-xs">Date & Time</TableHead>
@@ -3952,6 +3953,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                           })}
                         </TableBody>
                       </Table>
+                      </div>
                     );
                   })()}
                 </CardContent>

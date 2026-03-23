@@ -314,21 +314,21 @@ const Appointments: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-4 sm:gap-6 p-3 sm:p-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Appointments</h1>
-          <p className="text-muted-foreground mt-1">Manage and track all patient appointments</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Appointments</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Manage and track all patient appointments</p>
         </div>
-        <Button onClick={() => setIsScheduleModalOpen(true)} className="gap-2">
+        <Button onClick={() => setIsScheduleModalOpen(true)} className="gap-2 w-full sm:w-auto">
           <PlusIcon className="w-4 h-4" />
           Schedule Appointment
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setDateFilter('today')}>
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
@@ -476,8 +476,8 @@ const Appointments: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="rounded-b-lg overflow-hidden">
-            <Table>
+          <div className="rounded-b-lg overflow-x-auto">
+            <Table className="min-w-[600px]">
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="font-semibold">Date & Time</TableHead>
@@ -658,7 +658,7 @@ const Appointments: React.FC = () => {
           </DialogHeader>
           {selectedAppointment && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs text-muted-foreground uppercase tracking-wide">Patient</Label>
                   <p className="font-medium mt-1">{getPatientName(selectedAppointment)}</p>

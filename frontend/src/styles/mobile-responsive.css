@@ -206,3 +206,130 @@ html, body {
 .overflow-y-scroll {
   -webkit-overflow-scrolling: touch;
 }
+
+/* ===== CATCH-ALL: PAGE PADDING ===== */
+/* Reduce excessive padding on mobile for any page using p-6 */
+@media (max-width: 640px) {
+  .p-6 {
+    padding: 0.75rem !important;
+  }
+  .p-5 {
+    padding: 0.625rem !important;
+  }
+  .px-6 {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  .space-y-6 > * + * {
+    margin-top: 1rem !important;
+  }
+  .space-y-8 > * + * {
+    margin-top: 1.25rem !important;
+  }
+}
+
+/* ===== CATCH-ALL: MUI DIALOGS ===== */
+/* MUI Paper dialogs should not exceed viewport */
+@media (max-width: 640px) {
+  .MuiDialog-paper {
+    margin: 0.5rem !important;
+    max-width: calc(100vw - 1rem) !important;
+    max-height: calc(100vh - 2rem) !important;
+    border-radius: 0.75rem !important;
+  }
+  .MuiDialogContent-root {
+    padding: 0.75rem !important;
+  }
+  .MuiDialogTitle-root {
+    padding: 0.75rem 1rem !important;
+    font-size: 1rem !important;
+  }
+  .MuiDialogActions-root {
+    padding: 0.5rem 0.75rem !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+}
+
+/* ===== CATCH-ALL: MUI STEPPER ===== */
+@media (max-width: 640px) {
+  .MuiStepper-root {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .MuiStepLabel-label {
+    font-size: 0.7rem !important;
+  }
+  .MuiStep-root {
+    padding: 0 4px !important;
+  }
+}
+
+/* ===== CATCH-ALL: MUI TABS ===== */
+@media (max-width: 768px) {
+  .MuiTabs-root {
+    overflow-x: auto !important;
+  }
+  .MuiTabs-scroller {
+    overflow-x: auto !important;
+  }
+}
+
+/* ===== CATCH-ALL: MUI GRID ===== */
+/* Force MUI Grid items to stack on small screens */
+@media (max-width: 480px) {
+  .MuiGrid-container > .MuiGrid-item {
+    flex-basis: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* ===== CATCH-ALL: CARD HEADERS WITH FLEX ROW ===== */
+/* Prevent card header title + badge/button from overflowing */
+@media (max-width: 640px) {
+  .flex.flex-row.items-center.justify-between {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+/* ===== CATCH-ALL: FIXED WIDTH INPUTS ===== */
+@media (max-width: 640px) {
+  input[class*="w-64"],
+  input[class*="w-56"],
+  input[class*="w-48"],
+  input[class*="w-96"] {
+    width: 100% !important;
+  }
+}
+
+/* ===== CATCH-ALL: BUTTON GROUPS ===== */
+@media (max-width: 480px) {
+  .flex.space-x-4 > *,
+  .flex.space-x-3 > *,
+  .flex.space-x-2 > * {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+/* ===== CATCH-ALL: TEXT SIZES ===== */
+@media (max-width: 480px) {
+  .text-3xl { font-size: 1.5rem !important; }
+  .text-2xl { font-size: 1.25rem !important; }
+}
+
+/* ===== CATCH-ALL: STAT CARD NUMBERS ===== */
+/* Prevent huge numbers from breaking layout */
+@media (max-width: 480px) {
+  .text-4xl, .text-5xl {
+    font-size: 1.75rem !important;
+  }
+}
+
+/* ===== CATCH-ALL: MUI PAPER PADDING ===== */
+@media (max-width: 640px) {
+  .MuiPaper-root > .MuiBox-root {
+    padding: 0.75rem !important;
+  }
+}

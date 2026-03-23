@@ -1346,7 +1346,8 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
     
     return (
       <Card className="mb-6 overflow-hidden">
-        <Table>
+        <div className="overflow-x-auto">
+        <Table className="min-w-[600px]">
           <TableHeader>
             <TableRow>
               <TableHead>Patient</TableHead>
@@ -1508,6 +1509,7 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
             )}
           </TableBody>
         </Table>
+        </div>{/* end overflow-x-auto */}
         {/* Pagination controls */}
         <div className="flex items-center justify-between px-4 py-3">
           <div className="text-sm text-muted-foreground">
@@ -1706,16 +1708,16 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
 
   return (
     <ToastProvider>
-      <div className="container mx-auto p-4 max-w-7xl">
-        <div className="flex justify-between items-center mb-6">
+      <div className="container mx-auto p-3 sm:p-4 max-w-7xl">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Nurse Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back, {user?.firstName ? `${user.firstName} ${user.lastName}` : 'Nurse'}</p>
+            <h1 className="text-xl sm:text-2xl font-bold">Nurse Dashboard</h1>
+            <p className="text-muted-foreground text-sm">Welcome back, {user?.firstName ? `${user.firstName} ${user.lastName}` : 'Nurse'}</p>
           </div>
-          <div className="flex space-x-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               variant="default"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 flex-1 sm:flex-none text-sm"
               onClick={() => window.location.href = '/app/nurse/tasks'}
             >
               <ClipboardList className="h-4 w-4" />
@@ -1723,7 +1725,7 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
             </Button>
             <Button
               variant="outline"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 flex-1 sm:flex-none text-sm"
               onClick={() => {
                 fetchPatients();
                 fetchNurseTasks();
@@ -1850,7 +1852,8 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
             <div className="mb-6">
               <h3 className="text-lg font-semibold mb-4">Vitals History Log</h3>
               <Card>
-                <Table>
+                <div className="overflow-x-auto">
+                <Table className="min-w-[500px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Patient</TableHead>
@@ -1967,6 +1970,7 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
                     })()}
                   </TableBody>
                 </Table>
+                </div>{/* end overflow-x-auto */}
               </Card>
             </div>
           </TabsContent>

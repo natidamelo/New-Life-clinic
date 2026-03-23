@@ -242,17 +242,17 @@ const BillingDashboard: React.FC = () => {
                   className="h-9 text-sm border-gray-200 focus:border-blue-400" />
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="flex rounded-xl overflow-hidden border border-gray-200 shadow-sm">
                 {(['year', 'six', 'month'] as const).map((p, i) => (
                   <button key={p} onClick={() => handleQuickRange(p)}
-                    className={`px-4 py-2 text-sm font-semibold transition-colors ${i > 0 ? 'border-l border-gray-200' : ''} ${period === p ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
-                    {p === 'year' ? '1 Year' : p === 'six' ? '6 Months' : '1 Month'}
+                    className={`px-3 py-2 text-xs sm:text-sm font-semibold transition-colors ${i > 0 ? 'border-l border-gray-200' : ''} ${period === p ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                    {p === 'year' ? '1Y' : p === 'six' ? '6M' : '1M'}
                   </button>
                 ))}
               </div>
-              <span className="text-xs text-gray-400 hidden lg:block whitespace-nowrap">
-                {format(startDate, 'MMM d, yyyy')} – {format(endDate, 'MMM d, yyyy')}
+              <span className="text-xs text-gray-400 hidden sm:block whitespace-nowrap">
+                {format(startDate, 'MMM d')} – {format(endDate, 'MMM d, yyyy')}
               </span>
               <button
                 type="button"
@@ -262,10 +262,10 @@ const BillingDashboard: React.FC = () => {
                 }`}
               >
                 <Calendar className="h-3.5 w-3.5" />
-                {showEthiopianCalendar ? 'በዓለም አቆጣጠር' : 'Ethiopian'}
+                {showEthiopianCalendar ? 'Gregorian' : 'Ethiopian'}
               </button>
               {showEthiopianCalendar && (
-                <span className="text-xs text-gray-500 whitespace-nowrap">
+                <span className="text-xs text-gray-500 whitespace-nowrap hidden sm:block">
                   {gregorianToEthiopian(startDate).shortFormatted} – {gregorianToEthiopian(endDate).shortFormatted}
                 </span>
               )}

@@ -2533,16 +2533,16 @@ const ReceptionDashboard: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
 
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Reception Dashboard
           </h1>
-          <p className="text-muted-foreground mt-1">Manage patient flow and appointments</p>
+          <p className="text-muted-foreground mt-1 text-sm">Manage patient flow and appointments</p>
         </div>
-        <div className="flex space-x-4">
+        <div className="flex flex-wrap gap-2">
           <Button
             onClick={() => {
               formik.resetForm();
@@ -2552,26 +2552,26 @@ const ReceptionDashboard: React.FC = () => {
               setExpiredCardSearchResults([]);
               setIsNewPatientModalOpen(true);
             }}
-            className="flex items-center bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-primary-foreground shadow-md"
+            className="flex items-center flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-primary-foreground shadow-md text-sm"
             type="button"
           >
-            <Icon icon={UserPlusIcon} className="w-5 h-5 mr-2" />
-            New Patient / Renew Card
+            <Icon icon={UserPlusIcon} className="w-4 h-4 mr-1.5" />
+            New Patient
           </Button>
           <Button
             variant="outline"
-            className="flex items-center"
+            className="flex items-center flex-1 sm:flex-none text-sm"
             onClick={handleOpenScheduleModal}
           >
-            <Icon icon={CalendarIcon} className="w-5 h-5 mr-2" />
+            <Icon icon={CalendarIcon} className="w-4 h-4 mr-1.5" />
             Schedule
           </Button>
-          <Link to="/app/reception/service-request">
+          <Link to="/app/reception/service-request" className="flex-1 sm:flex-none">
             <Button
               variant="outline"
-              className="flex items-center border-secondary/30 text-secondary-foreground hover:bg-secondary/10"
+              className="flex items-center w-full border-secondary/30 text-secondary-foreground hover:bg-secondary/10 text-sm"
             >
-              <Icon icon={CalendarIcon} className="w-5 h-5 mr-2" />
+              <Icon icon={CalendarIcon} className="w-4 h-4 mr-1.5" />
               Services
             </Button>
           </Link>
@@ -2672,7 +2672,7 @@ const ReceptionDashboard: React.FC = () => {
         <div ref={queueSectionRef}>
           <Card className="p-6">
             <div className="flex flex-col gap-4 mb-6">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                 <div>
                   <h2 className="text-xl font-semibold flex items-center gap-2">
                     {searchQuery ? 'Search Results' : 'Patient Queue'}
@@ -2682,7 +2682,7 @@ const ReceptionDashboard: React.FC = () => {
                   </h2>
                   {searchQuery ? (
                     <p className="text-sm text-muted-foreground mt-1">
-                      Showing results for "{searchQuery}" • {queuePatients.length} patient(s) found (all statuses)
+                      Showing results for "{searchQuery}" • {queuePatients.length} patient(s) found
                     </p>
                   ) : (
                     <p className="text-sm text-muted-foreground mt-1">
@@ -2691,14 +2691,14 @@ const ReceptionDashboard: React.FC = () => {
                     </p>
                   )}
                 </div>
-                <div className="flex items-center space-x-3">
-                  <div className="relative">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative flex-1 min-w-[160px]">
                     <input
                       type="text"
                       placeholder="Search patients..."
                       value={searchQuery}
                       onChange={(e) => handleSearchChange(e.target.value)}
-                      className="pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className="pl-9 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm w-full"
                     />
                     <Icon icon={MagnifyingGlassIcon} className="w-4 h-4 text-muted-foreground/50 absolute left-3 top-1/2 transform -translate-y-1/2" />
                   </div>
@@ -2716,8 +2716,8 @@ const ReceptionDashboard: React.FC = () => {
 
               {/* Priority filter tabs */}
               {!searchQuery && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground font-medium mr-1">Filter:</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-medium">Filter:</span>
                   {(['all', 'normal', 'urgent', 'emergency'] as const).map(p => (
                     <button
                       key={p}
@@ -2731,7 +2731,7 @@ const ReceptionDashboard: React.FC = () => {
                         }`}
                     >
                       {p === 'all' ? `All (${queuePatientsForTabCounts.length})` :
-                        p === 'emergency' ? `Emergency (${queuePatientsForTabCounts.filter(pt => (pt.priority || '').toLowerCase() === 'emergency').length})` :
+                        p === 'emergency' ? `Emerg. (${queuePatientsForTabCounts.filter(pt => (pt.priority || '').toLowerCase() === 'emergency').length})` :
                           p === 'urgent' ? `Urgent (${queuePatientsForTabCounts.filter(pt => (pt.priority || '').toLowerCase() === 'urgent').length})` :
                             `Normal (${queuePatientsForTabCounts.filter(pt => ['normal', ''].includes((pt.priority || '').toLowerCase())).length})`
                       }

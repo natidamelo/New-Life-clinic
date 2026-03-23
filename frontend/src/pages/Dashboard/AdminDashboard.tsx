@@ -220,7 +220,7 @@ const AdminDashboard: React.FC = () => {
     return (
       <div className="space-y-6 p-6">
         <Skeleton className="h-28 w-full rounded-2xl" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -283,7 +283,7 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Mini stat strip */}
-          <div className="relative mt-5 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="relative mt-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: 'Total Patients', value: stats.totalPatients.toLocaleString(), icon: <Users className="h-4 w-4" /> },
               { label: 'Staff Members',  value: stats.totalStaff.toLocaleString(),    icon: <UserCog className="h-4 w-4" /> },
@@ -309,7 +309,7 @@ const AdminDashboard: React.FC = () => {
               Quick Actions
             </h2>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
             {[
               { icon: <UserPlus className="h-6 w-6 text-blue-600" />,    label: 'New Patient',    to: '/app/patient-services', color: 'hover:bg-blue-50' },
               { icon: <CalendarPlus className="h-6 w-6 text-violet-600" />, label: 'Book Appointment', to: '/app/appointments', color: 'hover:bg-violet-50' },
