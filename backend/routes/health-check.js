@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const User = require('../models/User');
 
 /**
  * @route   GET /api/health-check
@@ -67,6 +68,32 @@ router.get('/ping', (req, res) => {
     ok: true,
     time: new Date().toISOString()
   });
+});
+
+/**
+ * @route   GET /api/health-check/auth-probe
+ * @desc    Probe auth DB dependencies (temporary diagnostics)
+ * @access  Public
+ */
+router.get('/auth-probe', async (req, res) => {
+  try {
+    const dbStatus = mongoose.connection.readyState;
+    const sampleUser = await User.findOne({}, { _id: 1, role: 1, clinicId: 1 }).lean();
+    res.json({
+      status: 'OK',
+      databaseReadyState: dbStatus,
+      userQuery: 'success',
+      sampleUser: sampleUser || null
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      databaseReadyState: mongoose.connection.readyState,
+      userQuery: 'failed',
+      errorName: error.name,
+      errorMessage: error.message
+    });
+  }
 });
 
 /**
