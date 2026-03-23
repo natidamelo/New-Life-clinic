@@ -79,11 +79,28 @@ router.get('/auth-probe', async (req, res) => {
   try {
     const dbStatus = mongoose.connection.readyState;
     const sampleUser = await User.findOne({}, { _id: 1, role: 1, clinicId: 1 }).lean();
+    let writeProbe = { status: 'not_attempted' };
+
+    try {
+      await User.updateOne(
+        { _id: new mongoose.Types.ObjectId('000000000000000000000000') },
+        { $set: { lastLogin: new Date() } }
+      );
+      writeProbe = { status: 'success' };
+    } catch (writeError) {
+      writeProbe = {
+        status: 'failed',
+        errorName: writeError.name,
+        errorMessage: writeError.message
+      };
+    }
+
     res.json({
       status: 'OK',
       databaseReadyState: dbStatus,
       userQuery: 'success',
-      sampleUser: sampleUser || null
+      sampleUser: sampleUser || null,
+      writeProbe
     });
   } catch (error) {
     res.status(500).json({
