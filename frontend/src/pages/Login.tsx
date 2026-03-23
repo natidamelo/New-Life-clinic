@@ -175,7 +175,7 @@ const Login: React.FC = () => {
 
         {/* Glass card */}
         <div
-          className="w-full max-w-[400px] rounded-3xl p-8 sm:p-10 space-y-8 shadow-2xl"
+          className="auth-login-card w-full max-w-[400px] rounded-3xl p-8 sm:p-10 space-y-8 shadow-2xl"
           style={{
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.10)',
@@ -227,7 +227,7 @@ const Login: React.FC = () => {
                   autoComplete="off"
                   placeholder="dr.smith or admin@clinic.com"
                   {...formik.getFieldProps('email')}
-                  className="w-full h-12 pl-10 pr-4 text-sm rounded-xl text-white placeholder:text-slate-600 outline-none transition-all duration-200"
+                  className="auth-login-input w-full h-12 pl-10 pr-4 text-sm rounded-xl text-white placeholder:text-slate-600 outline-none transition-all duration-200"
                   style={{
                     background: 'rgba(255,255,255,0.05)',
                     border: formik.touched.email && formik.errors.email
@@ -275,7 +275,7 @@ const Login: React.FC = () => {
                   autoComplete="off"
                   placeholder="Enter your password"
                   {...formik.getFieldProps('password')}
-                  className="w-full h-12 pl-10 pr-11 text-sm rounded-xl text-white placeholder:text-slate-600 outline-none transition-all duration-200"
+                  className="auth-login-input w-full h-12 pl-10 pr-11 text-sm rounded-xl text-white placeholder:text-slate-600 outline-none transition-all duration-200"
                   style={{
                     background: 'rgba(255,255,255,0.05)',
                     border: formik.touched.password && formik.errors.password

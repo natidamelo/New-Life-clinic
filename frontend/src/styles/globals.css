@@ -112,6 +112,25 @@ input:focus, textarea:focus, select:focus {
   caret-color: #fff;
 }
 
+/* Login page: force visible input text over dark glass card */
+.auth-login-card .auth-login-input {
+  color: #ffffff !important;
+  caret-color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+.auth-login-card .auth-login-input::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1;
+}
+.auth-login-card .auth-login-input:-webkit-autofill,
+.auth-login-card .auth-login-input:-webkit-autofill:hover,
+.auth-login-card .auth-login-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.05) inset !important;
+  box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.05) inset !important;
+  caret-color: #ffffff !important;
+}
+
 /* Print styles */
 @media print {
   .no-print {
