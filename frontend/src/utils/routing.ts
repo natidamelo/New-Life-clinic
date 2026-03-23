@@ -3,7 +3,8 @@
  */
 export const isAdminUser = (user: { role?: string; email?: string; username?: string } | null | undefined): boolean => {
   if (!user) return false;
-  return user.role === 'admin' || 
+  return user.role === 'admin' ||
+         user.role === 'super_admin' ||
          (user.email && user.email.toLowerCase().includes('admin')) ||
          (user.username && user.username.toLowerCase().includes('admin'));
 };
@@ -18,6 +19,8 @@ export const getRoleBasedRoute = (role: string, user?: { role?: string; email?: 
   }
   
   switch (role) {
+    case 'super_admin':
+      return '/app/dashboard';
     case 'doctor':
       return '/app/doctor';
     case 'nurse':

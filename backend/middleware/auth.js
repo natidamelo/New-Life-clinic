@@ -90,7 +90,9 @@ const auth = async (req, res, next) => {
             });
         }
 
-        const user = await User.findById(userId).select('-password');
+        const user = await User.findById(userId)
+          .setOptions({ skipTenantScope: true })
+          .select('-password');
         if (!user) {
             console.log('[AUTH] User not found in database:', userId);
             return res.status(401).json({ 

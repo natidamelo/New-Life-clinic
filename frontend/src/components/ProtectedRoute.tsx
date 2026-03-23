@@ -28,13 +28,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
     return <div>Loading user data...</div>;
   }
 
+  const effectiveUserRole = user.role === 'super_admin' ? 'admin' : user.role;
+
   // If there are specific roles allowed and user's role is not in that list, redirect
-  if (allowedRoles.length > 0 && user && !allowedRoles.includes(user.role)) {
+  if (allowedRoles.length > 0 && user && !allowedRoles.includes(effectiveUserRole)) {
     console.log(`[ProtectedRoute] User role '${user.role}' not allowed for this route. Allowed roles: ${allowedRoles.join(', ')}. Redirecting to role-based route.`);
     
 
     // Get the correct route based on the user's actual role
-    const correctRoute = getRoleBasedRoute(user.role);
+    const correctRoute = getRoleBasedRoute(effectiveUserRole);
     console.log(`[ProtectedRoute] Redirecting to: ${correctRoute}`);
     return <Navigate to={correctRoute} replace />;
   }
