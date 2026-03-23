@@ -26,7 +26,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   
   // Methods
-  login: (identifier: string, password: string) => Promise<User>;
+  login: (identifier: string, password: string, clinicId?: string) => Promise<User>;
   testLogin: (identifier: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -118,12 +118,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   /**
    * Login user with credentials
    */
-  const login = async (identifier: string, password: string): Promise<User> => {
+  const login = async (identifier: string, password: string, clinicId?: string): Promise<User> => {
     try {
       console.log('🔄 [AuthContext] Attempting login...');
       setIsLoading(true);
 
-      const response = await authService.login({ identifier, password });
+      const response = await authService.login({ identifier, password, clinicId });
       
       if (response.success && response.data.user) {
         setUser(response.data.user);

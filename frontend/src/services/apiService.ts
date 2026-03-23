@@ -26,7 +26,7 @@ interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
 }
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../config';
-import { getAuthToken } from '../utils/authToken';
+import { getAuthToken, getClinicTenantId, CLINIC_TENANT_KEY } from '../utils/authToken';
 
 // Request retry configuration
 const RETRY_CONFIG = {
@@ -123,6 +123,12 @@ class ApiService {
             const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
             config.headers.Authorization = authHeader;
           }
+        }
+
+        // Tenant context for super_admin data scope + consistent clinic routing
+        const tenantId = getClinicTenantId();
+        if (tenantId && config.headers) {
+          (config.headers as Record<string, string>)['x-clinic-id'] = tenantId;
         }
         
         return config;
@@ -361,6 +367,7 @@ class ApiService {
       'jwt_token',
       'token',
       'user_data',
+      CLINIC_TENANT_KEY,
     ];
 
     keysToRemove.forEach(key => {

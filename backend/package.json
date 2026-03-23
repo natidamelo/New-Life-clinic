@@ -20,6 +20,7 @@
     "build:prod": "cross-env NODE_ENV=production node server.js",
     "build:indexes": "node scripts/buildIndexes.js",
     "verify:indexes": "node scripts/verifyIndexes.js",
+    "migrate:clinic": "node scripts/migrate-default-clinic-to-slug.js",
     "test": "jest"
   },
   "keywords": [

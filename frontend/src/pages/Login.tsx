@@ -6,10 +6,12 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useSafeTheme } from '../hooks/useSafeTheme';
 import { Moon, Sun, Eye, EyeOff } from 'lucide-react';
+import { getClinicTenantId } from '../utils/authToken';
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string().required('Username or email is required'),
   password: Yup.string().min(3, 'Password must be at least 3 characters').required('Password is required'),
+  clinicId: Yup.string().trim(),
 });
 
 const stats = [
@@ -27,12 +29,13 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const formik = useFormik({
-    initialValues: { email: '', password: '' },
+    initialValues: { email: '', password: '', clinicId: getClinicTenantId() },
     validationSchema: LoginSchema,
     onSubmit: async (values) => {
       setIsLoading(true);
       try {
-        const loggedInUser = await login(values.email, values.password);
+        const tenant = (values.clinicId || 'default').trim() || 'default';
+        const loggedInUser = await login(values.email, values.password, tenant);
         toast.success(`Welcome back, ${loggedInUser.firstName || loggedInUser.name}!`);
         const isAdmin =
           loggedInUser.role === 'admin' ||
@@ -325,6 +328,32 @@ const Login: React.FC = () => {
                   <span>⚠</span> {formik.errors.password}
                 </p>
               )}
+            </div>
+
+            {/* Clinic / tenant (slug) — use "default" for legacy data; after migration use your clinic slug e.g. "clinic" */}
+            <div className="space-y-1.5">
+              <label htmlFor="clinicId" className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                Clinic code
+              </label>
+              <input
+                id="clinicId"
+                name="clinicId"
+                type="text"
+                autoComplete="off"
+                placeholder="default"
+                {...formik.getFieldProps('clinicId')}
+                className="auth-login-input w-full h-11 px-4 text-sm rounded-xl outline-none transition-all duration-200"
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  color: '#000000',
+                  caretColor: '#000000',
+                  WebkitTextFillColor: '#000000',
+                  border: '1px solid rgba(255,255,255,0.09)',
+                }}
+              />
+              <p className="text-[10px] text-slate-500 leading-snug">
+                Same as your clinic <strong className="text-slate-400">slug</strong> in Clinic Management. Leave <code className="text-sky-400/90">default</code> until you migrate old data.
+              </p>
             </div>
 
             {/* Submit button */}

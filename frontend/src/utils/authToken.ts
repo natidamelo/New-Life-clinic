@@ -1,3 +1,16 @@
+/** localStorage key: which clinic tenant to use for login + x-clinic-id (e.g. default, clinic) */
+export const CLINIC_TENANT_KEY = 'clinic_tenant_context';
+
+export const getClinicTenantId = (): string => {
+  const v = localStorage.getItem(CLINIC_TENANT_KEY)?.trim();
+  return v && v.length > 0 ? v : 'default';
+};
+
+export const setClinicTenantId = (clinicId: string): void => {
+  const id = (clinicId || 'default').trim() || 'default';
+  localStorage.setItem(CLINIC_TENANT_KEY, id);
+};
+
 /**
  * Centralized Authentication Token Utility
  * 
@@ -81,7 +94,8 @@ export const clearAuthTokens = (): void => {
     'token',
     'clinic_user_data',
     'user_data',
-    'user'
+    'user',
+    CLINIC_TENANT_KEY
   ];
 
   tokenKeys.forEach(key => {
@@ -132,5 +146,8 @@ export default {
   isAuthenticated,
   getAuthHeaders,
   clearAuthTokens,
-  debugTokenStatus
+  debugTokenStatus,
+  getClinicTenantId,
+  setClinicTenantId,
+  CLINIC_TENANT_KEY
 };

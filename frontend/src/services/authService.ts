@@ -18,6 +18,7 @@
 import { jwtDecode } from 'jwt-decode';
 import { User } from '../types/user';
 import api from './apiService';
+import { getClinicTenantId, setClinicTenantId } from '../utils/authToken';
 
 // Constants
 const TOKEN_KEY = 'clinic_auth_token';
@@ -49,6 +50,8 @@ interface AuthResponse {
 interface LoginCredentials {
   identifier: string;
   password: string;
+  /** Tenant slug: use "default" for legacy data, or your clinic slug (e.g. "clinic") after migration */
+  clinicId?: string;
 }
 
 class AuthService {
@@ -256,6 +259,8 @@ class AuthService {
         // Ensure credentials are properly formatted
         const identifier = credentials.identifier?.trim() || '';
         const password = credentials.password || '';
+        const clinicId =
+          (credentials.clinicId && credentials.clinicId.trim()) || getClinicTenantId();
         
         // Validate that we have both fields before sending
         if (!identifier) {
@@ -269,7 +274,8 @@ class AuthService {
         // Some backend validations might check for email field
         const loginPayload: any = {
           identifier: identifier,
-          password: password
+          password: password,
+          clinicId
         };
         
         // If identifier looks like an email, also send it as email field
@@ -290,7 +296,13 @@ class AuthService {
         
         if (response.data.success && response.data.data) {
           const { user, token, refreshToken } = response.data.data;
-          
+          const u = user as User & { clinicId?: string };
+          if (u.role === 'super_admin') {
+            setClinicTenantId(clinicId);
+          } else {
+            setClinicTenantId(u.clinicId || clinicId);
+          }
+
           // Store authentication data
           this.setToken(token);
           this.setUser(user);

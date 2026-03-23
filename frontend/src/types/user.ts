@@ -1,6 +1,8 @@
 export interface User {
   _id: string;
   id: string;
+  /** Tenant slug stored on the user (e.g. default, clinic) */
+  clinicId?: string;
   name: string;
   firstName?: string;
   lastName?: string;
