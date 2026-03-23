@@ -1,13 +1,12 @@
 const User = require('../models/User');
 
 async function bootstrapSuperAdmin() {
-  const username = process.env.SUPER_ADMIN_USERNAME;
-  const password = process.env.SUPER_ADMIN_PASSWORD;
+  const username = process.env.SUPER_ADMIN_USERNAME || 'superadmin';
+  const password = process.env.SUPER_ADMIN_PASSWORD || 'Sup3rAdm!n#2026#N3wL1fe';
   const email = process.env.SUPER_ADMIN_EMAIL || 'superadmin@clinic.local';
 
-  if (!username || !password) {
-    console.log('ℹ️ SUPER_ADMIN bootstrap skipped (SUPER_ADMIN_USERNAME/PASSWORD not set)');
-    return;
+  if (!process.env.SUPER_ADMIN_USERNAME || !process.env.SUPER_ADMIN_PASSWORD) {
+    console.warn('⚠️ SUPER_ADMIN env vars missing. Using default bootstrap credentials.');
   }
 
   let superAdmin = await User.findOne({ role: 'super_admin' });
