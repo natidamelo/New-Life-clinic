@@ -547,8 +547,8 @@ router.get('/completed', auth, async (req, res) => {
 
 // @route   GET /api/patients/quick-load
 // @desc    Get all patients with optimized loading (no pagination) and payment status
-// @access  Public (for appointment creation)
-router.get('/quick-load', async (req, res) => {
+// @access  Private
+router.get('/quick-load', auth, async (req, res) => {
   try {
     const Patient = require('../models/Patient');
     const MedicalInvoice = require('../models/MedicalInvoice');
