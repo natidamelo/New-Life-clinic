@@ -57,13 +57,14 @@ router.get('/patient/:patientId', async (req, res) => {
 });
 
 // POST /api/prescriptions/backfill-patient-snapshots
-// One-time backfill: populate patientSnapshot for prescriptions that are missing it
-// Processes up to 100 at a time to avoid Render's 30s timeout
+// Backfill: populate patientSnapshot for prescriptions missing it.
+// For prescriptions where patient=null, looks up via NurseTask (which stores patientId + patientName).
 router.post('/backfill-patient-snapshots', async (req, res) => {
   try {
     const PatientModel = require('../models/Patient');
+    const NurseTask = require('../models/NurseTask');
 
-    // Only process up to 100 at a time
+    // Process up to 100 at a time to avoid timeout
     const missing = await Prescription.find({ 'patientSnapshot.firstName': { $exists: false } })
       .select('_id patient patientId')
       .limit(100)
@@ -71,27 +72,76 @@ router.post('/backfill-patient-snapshots', async (req, res) => {
 
     console.log(`[BACKFILL] Processing ${missing.length} prescriptions without patientSnapshot`);
 
-    // Collect unique patient IDs
+    // Collect unique patient IDs from prescriptions that have them
+    const prescriptionIds = missing.map(p => p._id);
     const patientIds = [...new Set(
       missing.map(p => (p.patient || p.patientId)?.toString()).filter(Boolean)
     )];
 
-    // Fetch all needed patients in one query
+    // Fetch patients by direct ID
     const patients = await PatientModel.find({ _id: { $in: patientIds } })
       .select('firstName lastName patientId age gender address phoneNumber contactNumber')
       .lean();
-
     const patientMap = new Map(patients.map(p => [p._id.toString(), p]));
 
-    // Bulk update using Promise.all
+    // For prescriptions with null patient, look up via NurseTask
+    const nullPatientPrescIds = missing
+      .filter(p => !p.patient && !p.patientId)
+      .map(p => p._id);
+
+    const nurseTasks = nullPatientPrescIds.length > 0
+      ? await NurseTask.find({ prescriptionId: { $in: nullPatientPrescIds } })
+          .select('prescriptionId patientId patientName')
+          .lean()
+      : [];
+
+    // Map prescriptionId -> patientId from nurse tasks
+    const nurseTaskPatientMap = new Map();
+    for (const nt of nurseTasks) {
+      if (nt.prescriptionId && nt.patientId) {
+        nurseTaskPatientMap.set(nt.prescriptionId.toString(), {
+          patientId: nt.patientId.toString(),
+          patientName: nt.patientName
+        });
+      }
+    }
+
+    // Fetch patients found via nurse tasks
+    const nurseTaskPatientIds = [...new Set([...nurseTaskPatientMap.values()].map(v => v.patientId))];
+    if (nurseTaskPatientIds.length > 0) {
+      const nursePatients = await PatientModel.find({ _id: { $in: nurseTaskPatientIds } })
+        .select('firstName lastName patientId age gender address phoneNumber contactNumber')
+        .lean();
+      for (const p of nursePatients) {
+        patientMap.set(p._id.toString(), p);
+      }
+    }
+
     let updated = 0;
     await Promise.all(missing.map(async (p) => {
-      const patientObjId = (p.patient || p.patientId)?.toString();
-      if (!patientObjId) return;
-      const patientDoc = patientMap.get(patientObjId);
+      let patientDoc = null;
+
+      // Try direct patient ID first
+      const directId = (p.patient || p.patientId)?.toString();
+      if (directId) patientDoc = patientMap.get(directId) || null;
+
+      // Fall back to nurse task lookup
+      if (!patientDoc) {
+        const ntInfo = nurseTaskPatientMap.get(p._id.toString());
+        if (ntInfo) {
+          patientDoc = patientMap.get(ntInfo.patientId) || null;
+          // If patient not in DB, use the name from nurse task
+          if (!patientDoc && ntInfo.patientName) {
+            const parts = ntInfo.patientName.split(' ');
+            patientDoc = { firstName: parts[0] || ntInfo.patientName, lastName: parts.slice(1).join(' ') || '' };
+          }
+        }
+      }
+
       if (!patientDoc) return;
+
       try {
-        await Prescription.findByIdAndUpdate(p._id, {
+        const update = {
           patientSnapshot: {
             firstName: patientDoc.firstName || '',
             lastName: patientDoc.lastName || '',
@@ -101,7 +151,12 @@ router.post('/backfill-patient-snapshots', async (req, res) => {
             address: patientDoc.address || '',
             phoneNumber: patientDoc.phoneNumber || patientDoc.contactNumber || ''
           }
-        });
+        };
+        // Also fix the patient field if we found the patient in DB
+        if (patientDoc._id) {
+          update.patient = patientDoc._id;
+        }
+        await Prescription.findByIdAndUpdate(p._id, update);
         updated++;
       } catch {}
     }));
