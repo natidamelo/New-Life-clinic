@@ -31,7 +31,7 @@ interface DoseStatus {
 
 interface SimplifiedMedicationAdminProps {
   task: any;
-  onRefresh?: () => void;
+  onRefresh?: (taskId?: string) => void;
   displayName?: string;
   allTasks?: any[];
   hidePaymentBadge?: boolean;
@@ -122,11 +122,16 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
     }
   };
 
+  const taskId = task?._id || task?.id;
+
   useEffect(() => {
     generateDoseStatuses();
+  }, [task]);
+
+  useEffect(() => {
     fetchPaymentData();
     fetchPatientData();
-  }, [task]);
+  }, [taskId]);
 
   const getDosesPerDay = (freq: string) => {
     if (!freq) return 1;
@@ -244,7 +249,7 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
           ));
           setAdministering('');
           toast.info('✓ This dose was already administered.');
-          if (onRefresh) onRefresh();
+          if (onRefresh) onRefresh(task._id || task.id);
           return;
         }
       } catch (_) {}
@@ -295,7 +300,7 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
       } else {
         toast.success(`Dose administered successfully`);
       }
-      if (onRefresh) onRefresh();
+      if (onRefresh) onRefresh(task._id || task.id);
     } catch (error: any) {
       setDoseStatuses(prev => prev.map(dose =>
         dose.day === day && dose.timeSlot === timeSlot
@@ -305,7 +310,7 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
       const msg = error.message || 'Failed to administer dose.';
       if (msg.includes('already been administered') || msg.includes('DOSE_ALREADY_ADMINISTERED')) {
         setFailedAttempts(prev => ({ ...prev, [doseKey]: (prev[doseKey] || 0) + 1 }));
-        if (onRefresh) onRefresh();
+        if (onRefresh) onRefresh(task._id || task.id);
         toast.warning('This dose has already been administered. Refreshing...');
       } else if (msg.includes('not logged in')) {
         toast.error('Authentication Error: Please log in again.');
@@ -325,7 +330,7 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
 
   const handleManualRefresh = async () => {
     setRefreshing(true);
-    if (onRefresh) onRefresh();
+    if (onRefresh) onRefresh(task._id || task.id);
     await fetchPaymentData();
     setRefreshing(false);
     toast.success('Refreshed');
@@ -339,9 +344,9 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
     try {
       const res = await api.post(`/api/nurse-tasks/${taskId}/fix-doses`, {});
       if (res.data?.success) {
-        if (res.data.changed) {
+          if (res.data.changed) {
           toast.success(`Fixed: ${res.data.oldDoses} → ${res.data.newDoses} doses`);
-          if (onRefresh) onRefresh();
+          if (onRefresh) onRefresh(task._id || task.id);
         } else {
           toast.info(res.data.message || 'Dose records already correct');
         }

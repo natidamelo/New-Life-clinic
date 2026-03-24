@@ -46,9 +46,29 @@ router.get('/', auth, async (req, res) => {
     const limit = parseInt(req.query.limit) || 100; // Default limit of 100 tasks
     const skip = (page - 1) * limit;
     
+    // Projection: for list views exclude the heavy nested arrays unless a single patient is requested
+    const projection = req.query.patientId
+      ? {} // full data when fetching for one patient
+      : {
+          _id: 1, patientId: 1, patientName: 1, taskType: 1, status: 1, priority: 1,
+          description: 1, prescriptionId: 1, assignedTo: 1, assignedBy: 1,
+          dueDate: 1, createdAt: 1, updatedAt: 1, isExtension: 1,
+          paymentAuthorization: 1,
+          'medicationDetails.medicationName': 1,
+          'medicationDetails.dosage': 1,
+          'medicationDetails.frequency': 1,
+          'medicationDetails.route': 1,
+          'medicationDetails.duration': 1,
+          'medicationDetails.prescriptionId': 1,
+          'medicationDetails.extensionDetails': 1,
+          'medicationDetails.doseRecords': 1,
+          'medicationDetails.administrationSchedule': 1,
+          prescriptionDependencies: 1,
+        };
+
     // Execute query with pagination
     const [tasks, totalCount] = await Promise.all([
-      NurseTask.find(query)
+      NurseTask.find(query, projection)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)

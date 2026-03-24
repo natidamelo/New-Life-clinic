@@ -248,13 +248,17 @@ const CheckboxMedicationsPage: React.FC = () => {
           return dateB.getTime() - dateA.getTime();
         });
 
+        // Show tasks immediately, then load payment statuses in the background
         setTasks(sortedTasks);
+        setLoading(false);
 
-        // Fetch all payment statuses in a SINGLE batch request
         setPaymentStatusesLoading(true);
-        const newPaymentStatuses = await fetchBatchPaymentStatuses(sortedTasks);
-        setTaskPaymentStatuses(newPaymentStatuses);
-        setPaymentStatusesLoading(false);
+        fetchBatchPaymentStatuses(sortedTasks).then(newPaymentStatuses => {
+          setTaskPaymentStatuses(newPaymentStatuses);
+          setPaymentStatusesLoading(false);
+        }).catch(() => {
+          setPaymentStatusesLoading(false);
+        });
 
       } catch (innerError: any) {
         if (innerError.name === 'AbortError' || innerError.message === 'timeout') {
@@ -286,7 +290,6 @@ const CheckboxMedicationsPage: React.FC = () => {
       }
     } finally {
       setLoading(false);
-      setPaymentStatusesLoading(false);
     }
   };
 
@@ -314,9 +317,21 @@ const CheckboxMedicationsPage: React.FC = () => {
     }
   };
 
-  // Handle dose administration
-  const handleDoseAdministered = () => {
-    // Refresh the tasks to get updated data
+  // Handle dose administration — refresh only the affected task to avoid full reload
+  const handleDoseAdministered = async (taskId?: string) => {
+    if (taskId) {
+      try {
+        const token = getToken();
+        const response = await api.get(`/api/nurse-tasks/${taskId}`);
+        const updated = response.data?.data || response.data;
+        if (updated && (updated._id || updated.id)) {
+          setTasks(prev => prev.map(t => (t._id || t.id) === taskId ? { ...t, ...updated } : t));
+          return;
+        }
+      } catch {
+        // fall through to full refresh
+      }
+    }
     fetchTasks();
   };
 

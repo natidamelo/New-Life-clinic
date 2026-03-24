@@ -341,95 +341,30 @@ const getMedicationTasks = async (token: string, params?: {
   page?: number;
 }): Promise<NurseTask[]> => {
   try {
-    // Build base query parameters with cache busting
-    const baseQueryParams = new URLSearchParams();
-    // Only include MEDICATION task type for doctor-prescribed medications
-    baseQueryParams.append('taskType', 'MEDICATION');
-    baseQueryParams.append('_t', Date.now().toString());
-    if (params?.status) baseQueryParams.append('status', params.status);
-    if (params?.nurseId) baseQueryParams.append('assignedTo', params.nurseId);
-    if (params?.patientId) baseQueryParams.append('patientId', params.patientId);
-    
-    // Use a larger limit per page to reduce number of requests
-    const limit = params?.limit || 500;
-    baseQueryParams.append('limit', limit.toString());
-    baseQueryParams.append('paginated', 'true'); // Request pagination metadata
-    
-    // If specific page requested, just fetch that page
-    if (params?.page) {
-      baseQueryParams.append('page', params.page.toString());
-      const url = `/api/nurse-tasks?${baseQueryParams.toString()}`;
-      console.log(`Fetching doctor medication tasks from: ${url}`);
-      const response = await api.get<any>(url);
-      
-      // Handle both paginated response format and backward-compatible array format
-      if (Array.isArray(response.data)) {
-        // Backward compatibility: direct array response
-        console.log(`Successfully fetched ${response.data.length} doctor medication tasks (page ${params.page}, legacy format)`);
-        return response.data;
-      } else if (response.data && response.data.success && Array.isArray(response.data.data)) {
-        // New paginated format
-        console.log(`Successfully fetched ${response.data.data.length} doctor medication tasks (page ${params.page})`);
-        return response.data.data;
-      }
-      return [];
+    const queryParams = new URLSearchParams();
+    queryParams.append('taskType', 'MEDICATION');
+    queryParams.append('_t', Date.now().toString());
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.nurseId) queryParams.append('assignedTo', params.nurseId);
+    if (params?.patientId) queryParams.append('patientId', params.patientId);
+
+    const limit = params?.limit || 100;
+    const page = params?.page || 1;
+    queryParams.append('limit', limit.toString());
+    queryParams.append('page', page.toString());
+    queryParams.append('paginated', 'true');
+
+    const url = `/api/nurse-tasks?${queryParams.toString()}`;
+    const response = await api.get<any>(url);
+
+    if (Array.isArray(response.data)) {
+      return response.data;
+    } else if (response.data && response.data.success && Array.isArray(response.data.data)) {
+      return response.data.data;
     }
-    
-    // Fetch all pages to ensure we get all medication tasks
-    let allTasks: NurseTask[] = [];
-    let currentPage = 1;
-    let hasMore = true;
-    let totalPages = 1;
-    
-    while (hasMore) {
-      const queryParams = new URLSearchParams(baseQueryParams);
-      queryParams.set('page', currentPage.toString());
-      
-      const url = `/api/nurse-tasks?${queryParams.toString()}`;
-      console.log(`Fetching doctor medication tasks page ${currentPage} from: ${url}`);
-      
-      const response = await api.get<any>(url);
-      
-      // Handle both paginated response format and backward-compatible array format
-      let tasks: NurseTask[] = [];
-      let pagination: any = null;
-      
-      if (Array.isArray(response.data)) {
-        // Backward compatibility: direct array response
-        tasks = response.data;
-        hasMore = tasks.length === limit; // Assume more pages if we got a full page
-        console.log(`Fetched page ${currentPage} (legacy format): ${tasks.length} tasks (total so far: ${allTasks.length + tasks.length})`);
-      } else if (response.data && response.data.success && Array.isArray(response.data.data)) {
-        // New paginated format
-        tasks = response.data.data;
-        pagination = response.data.pagination;
-        
-        if (pagination) {
-          totalPages = pagination.totalPages || 1;
-          hasMore = currentPage < totalPages && tasks.length > 0;
-          console.log(`Fetched page ${currentPage}/${totalPages}: ${tasks.length} tasks (total so far: ${allTasks.length + tasks.length})`);
-        } else {
-          // If no pagination metadata, assume no more pages if we got fewer tasks than the limit
-          hasMore = tasks.length === limit;
-        }
-      } else {
-        console.warn('API returned unexpected response structure:', response.data);
-        hasMore = false;
-        break;
-      }
-      
-      if (tasks.length > 0) {
-        allTasks = allTasks.concat(tasks);
-        currentPage++;
-      } else {
-        hasMore = false;
-      }
-    }
-    
-    console.log(`✅ Successfully fetched all ${allTasks.length} doctor medication tasks across ${currentPage - 1} page(s)`);
-    return allTasks;
+    return [];
   } catch (error: any) {
-    console.error('Error fetching medication tasks (no cache fallback):', error.response?.data || error.message);
+    console.error('Error fetching medication tasks:', error.response?.data || error.message);
     throw error;
   }
 };
