@@ -1724,35 +1724,33 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
 
       setPrescriptions(processedPrescriptions);
 
-      // If any prescriptions are still missing patient data, trigger a one-time backfill on the backend
+      // Run backfill in background (non-blocking) if patient data is missing
       const stillMissing = processedPrescriptions.some(
         (p: any) => !p.patient || typeof p.patient !== 'object' || !p.patient.firstName
       );
       if (stillMissing) {
-        try {
-          await prescriptionAPI.backfillPatientSnapshots();
-          // Re-fetch after backfill
-          const refreshed = await prescriptionService.getPrescriptionsByDoctor(currentDoctorId);
-          const refreshedProcessed = (refreshed || []).map((prescription: any) => {
-            let enrichedPatient: any =
-              prescription.patient && typeof prescription.patient === 'object' && prescription.patient.firstName
-                ? prescription.patient
-                : prescription.patientSnapshot && prescription.patientSnapshot.firstName
-                  ? prescription.patientSnapshot
-                  : null;
-            const patientName = enrichedPatient
-              ? `${enrichedPatient.firstName || ''} ${enrichedPatient.lastName || ''}`.trim() || 'Unknown Patient'
-              : 'Unknown Patient';
-            return { ...prescription, patient: enrichedPatient || prescription.patient, patientName };
-          });
-          setPrescriptions(refreshedProcessed);
-        } catch {
-          // backfill is best-effort
-        }
+        // Fire and forget — don't await, don't block loading state
+        prescriptionAPI.backfillPatientSnapshots()
+          .then(() => prescriptionService.getPrescriptionsByDoctor(currentDoctorId))
+          .then((refreshed) => {
+            const refreshedProcessed = (refreshed || []).map((prescription: any) => {
+              const enrichedPatient: any =
+                prescription.patient && typeof prescription.patient === 'object' && prescription.patient.firstName
+                  ? prescription.patient
+                  : prescription.patientSnapshot && prescription.patientSnapshot.firstName
+                    ? prescription.patientSnapshot
+                    : null;
+              const patientName = enrichedPatient
+                ? `${enrichedPatient.firstName || ''} ${enrichedPatient.lastName || ''}`.trim() || 'Unknown Patient'
+                : 'Unknown Patient';
+              return { ...prescription, patient: enrichedPatient || prescription.patient, patientName };
+            });
+            setPrescriptions(refreshedProcessed);
+          })
+          .catch(() => { /* backfill is best-effort */ });
       }
     } catch (error) {
       console.error('Error fetching prescriptions:', error);
-      // Don't show error toast as this might happen during initial load
       setPrescriptions([]);
     } finally {
       setPrescriptionsLoading(false);

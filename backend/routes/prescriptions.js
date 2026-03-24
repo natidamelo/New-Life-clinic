@@ -58,22 +58,39 @@ router.get('/patient/:patientId', async (req, res) => {
 
 // POST /api/prescriptions/backfill-patient-snapshots
 // One-time backfill: populate patientSnapshot for prescriptions that are missing it
+// Processes up to 100 at a time to avoid Render's 30s timeout
 router.post('/backfill-patient-snapshots', async (req, res) => {
   try {
     const PatientModel = require('../models/Patient');
+
+    // Only process up to 100 at a time
     const missing = await Prescription.find({ 'patientSnapshot.firstName': { $exists: false } })
       .select('_id patient patientId')
+      .limit(100)
       .lean();
 
-    console.log(`[BACKFILL] Found ${missing.length} prescriptions without patientSnapshot`);
-    let updated = 0;
+    console.log(`[BACKFILL] Processing ${missing.length} prescriptions without patientSnapshot`);
 
-    for (const p of missing) {
-      const patientObjId = p.patient || p.patientId;
-      if (!patientObjId) continue;
+    // Collect unique patient IDs
+    const patientIds = [...new Set(
+      missing.map(p => (p.patient || p.patientId)?.toString()).filter(Boolean)
+    )];
+
+    // Fetch all needed patients in one query
+    const patients = await PatientModel.find({ _id: { $in: patientIds } })
+      .select('firstName lastName patientId age gender address phoneNumber contactNumber')
+      .lean();
+
+    const patientMap = new Map(patients.map(p => [p._id.toString(), p]));
+
+    // Bulk update using Promise.all
+    let updated = 0;
+    await Promise.all(missing.map(async (p) => {
+      const patientObjId = (p.patient || p.patientId)?.toString();
+      if (!patientObjId) return;
+      const patientDoc = patientMap.get(patientObjId);
+      if (!patientDoc) return;
       try {
-        const patientDoc = await PatientModel.findById(patientObjId).lean();
-        if (!patientDoc) continue;
         await Prescription.findByIdAndUpdate(p._id, {
           patientSnapshot: {
             firstName: patientDoc.firstName || '',
@@ -87,9 +104,10 @@ router.post('/backfill-patient-snapshots', async (req, res) => {
         });
         updated++;
       } catch {}
-    }
+    }));
 
-    res.json({ success: true, total: missing.length, updated });
+    const remaining = await Prescription.countDocuments({ 'patientSnapshot.firstName': { $exists: false } });
+    res.json({ success: true, total: missing.length, updated, remaining });
   } catch (err) {
     console.error('[BACKFILL] Error:', err);
     res.status(500).json({ success: false, error: err.message });
