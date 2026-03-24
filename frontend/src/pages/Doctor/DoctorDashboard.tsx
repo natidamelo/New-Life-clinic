@@ -1625,68 +1625,95 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
   const fetchAllPrescriptions = async () => {
     const currentDoctorId = user?.id || user?._id;
     if (!currentDoctorId) {
-      console.log('[DoctorDashboard] No doctor ID available for fetching prescriptions');
       return;
     }
 
     setPrescriptionsLoading(true);
     try {
-      console.log('[DoctorDashboard] Fetching prescriptions for doctor:', currentDoctorId);
       const response = await prescriptionService.getPrescriptionsByDoctor(currentDoctorId);
-      console.log('[DoctorDashboard] Prescriptions fetched:', response);
-      console.log('[DoctorDashboard] First prescription raw data:', response[0]);
-      console.log('[DoctorDashboard] First prescription patient data:', response[0]?.patient);
 
-      // Process prescriptions — resolve patient names from already-populated backend data
-      // or from the already-loaded patients list. No extra API calls needed.
-      const processedPrescriptions = (response || []).map((prescription: any) => {
-        const patientIdStr = typeof prescription.patientId === 'object'
-          ? prescription.patientId?.id || prescription.patientId?._id
-          : prescription.patientId;
-
-        const patientObjId = typeof prescription.patient === 'object'
-          ? prescription.patient?.id || prescription.patient?._id
-          : prescription.patient;
-
-        const resolvedPatientId = patientIdStr || patientObjId;
-
-        // Prefer backend-populated patient object
-        let patientName = '';
-        let enrichedPatient = prescription.patient && typeof prescription.patient === 'object' && prescription.patient.firstName
-          ? prescription.patient
-          : null;
-
-        if (enrichedPatient) {
-          patientName = `${enrichedPatient.firstName || ''} ${enrichedPatient.lastName || ''}`.trim();
-        } else if (prescription.patientId && typeof prescription.patientId === 'object' && prescription.patientId.firstName) {
-          enrichedPatient = prescription.patientId;
-          patientName = `${prescription.patientId.firstName || ''} ${prescription.patientId.lastName || ''}`.trim();
+      // Helper: extract the raw patient ObjectId string from a prescription
+      const extractPatientId = (prescription: any): string | null => {
+        if (prescription.patient && typeof prescription.patient === 'object') {
+          return prescription.patient._id || prescription.patient.id || null;
         }
-
-        if (!patientName && prescription.patientName &&
-          prescription.patientName !== 'Patient Name' &&
-          prescription.patientName !== 'Unknown') {
-          patientName = prescription.patientName;
+        if (typeof prescription.patient === 'string' && prescription.patient.length > 0) {
+          return prescription.patient;
         }
+        if (prescription.patientId && typeof prescription.patientId === 'object') {
+          return prescription.patientId._id || prescription.patientId.id || null;
+        }
+        if (typeof prescription.patientId === 'string' && prescription.patientId.length > 0) {
+          return prescription.patientId;
+        }
+        return null;
+      };
 
-        // Fall back to already-loaded patients list (no extra API call)
-        if ((!patientName || !enrichedPatient) && resolvedPatientId) {
-          const existing = patients.find((p: any) => p.id === resolvedPatientId || p._id === resolvedPatientId);
-          if (existing) {
-            if (!patientName) {
-              patientName = `${existing.firstName || ''} ${existing.lastName || ''}`.trim();
-            }
-            if (!enrichedPatient) {
-              enrichedPatient = existing;
-            }
+      // Collect unique patient IDs that don't already have populated data
+      const patientCache = new Map<string, any>();
+
+      // Pre-seed cache from already-loaded patients list
+      patients.forEach((p: any) => {
+        const id = p._id || p.id;
+        if (id) patientCache.set(id.toString(), p);
+      });
+
+      // Find IDs that need fetching (populate didn't work on backend)
+      const needsFetch = new Set<string>();
+      (response || []).forEach((prescription: any) => {
+        const hasPopulated =
+          prescription.patient && typeof prescription.patient === 'object' && prescription.patient.firstName;
+        if (!hasPopulated) {
+          const pid = extractPatientId(prescription);
+          if (pid && !patientCache.has(pid.toString())) {
+            needsFetch.add(pid.toString());
           }
         }
+      });
+
+      // Batch-fetch missing patients (in parallel, max 10 at a time)
+      const idsToFetch = Array.from(needsFetch);
+      for (let i = 0; i < idsToFetch.length; i += 10) {
+        const batch = idsToFetch.slice(i, i + 10);
+        await Promise.all(
+          batch.map(async (pid) => {
+            try {
+              const p = await patientService.getPatientById(pid);
+              if (p) patientCache.set(pid, p);
+            } catch {
+              // ignore individual fetch errors
+            }
+          })
+        );
+      }
+
+      // Now build processed prescriptions with full patient data
+      const processedPrescriptions = (response || []).map((prescription: any) => {
+        // Use already-populated patient object if available
+        let enrichedPatient: any =
+          prescription.patient && typeof prescription.patient === 'object' && prescription.patient.firstName
+            ? prescription.patient
+            : prescription.patientId && typeof prescription.patientId === 'object' && prescription.patientId.firstName
+              ? prescription.patientId
+              : null;
+
+        // Look up from cache if not populated
+        if (!enrichedPatient) {
+          const pid = extractPatientId(prescription);
+          if (pid) enrichedPatient = patientCache.get(pid.toString()) || null;
+        }
+
+        const patientName = enrichedPatient
+          ? `${enrichedPatient.firstName || ''} ${enrichedPatient.lastName || ''}`.trim() || 'Unknown Patient'
+          : (prescription.patientName && prescription.patientName !== 'Patient Name' ? prescription.patientName : 'Unknown Patient');
+
+        const resolvedPatientId = extractPatientId(prescription);
 
         return {
           ...prescription,
           patientId: resolvedPatientId,
           patient: enrichedPatient || prescription.patient,
-          patientName: patientName || 'Unknown Patient',
+          patientName,
         };
       });
 
