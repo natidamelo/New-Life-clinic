@@ -56,6 +56,46 @@ router.get('/patient/:patientId', async (req, res) => {
   }
 });
 
+// POST /api/prescriptions/backfill-patient-snapshots
+// One-time backfill: populate patientSnapshot for prescriptions that are missing it
+router.post('/backfill-patient-snapshots', async (req, res) => {
+  try {
+    const PatientModel = require('../models/Patient');
+    const missing = await Prescription.find({ 'patientSnapshot.firstName': { $exists: false } })
+      .select('_id patient patientId')
+      .lean();
+
+    console.log(`[BACKFILL] Found ${missing.length} prescriptions without patientSnapshot`);
+    let updated = 0;
+
+    for (const p of missing) {
+      const patientObjId = p.patient || p.patientId;
+      if (!patientObjId) continue;
+      try {
+        const patientDoc = await PatientModel.findById(patientObjId).lean();
+        if (!patientDoc) continue;
+        await Prescription.findByIdAndUpdate(p._id, {
+          patientSnapshot: {
+            firstName: patientDoc.firstName || '',
+            lastName: patientDoc.lastName || '',
+            patientId: patientDoc.patientId || '',
+            age: patientDoc.age,
+            gender: patientDoc.gender || '',
+            address: patientDoc.address || '',
+            phoneNumber: patientDoc.phoneNumber || patientDoc.contactNumber || ''
+          }
+        });
+        updated++;
+      } catch {}
+    }
+
+    res.json({ success: true, total: missing.length, updated });
+  } catch (err) {
+    console.error('[BACKFILL] Error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/prescriptions/fix-dose-counts - Fix prescriptions with incorrect dose counts
 router.post('/fix-dose-counts', async (req, res) => {
   try {
@@ -181,12 +221,22 @@ router.get('/', async (req, res) => {
     
     console.log(`Found ${prescriptions.length} prescriptions`);
 
-    // Ensure patient data is always present — if patient is null but patientId is populated, use patientId
+    // Ensure patient data is always present — use patientId populate or patientSnapshot as fallback
     const enriched = prescriptions.map(p => {
-      if (!p.patient && p.patientId && typeof p.patientId === 'object') {
-        return { ...p, patient: p.patientId };
+      let patient = p.patient;
+
+      // If populate didn't work, try patientId populated object
+      if ((!patient || typeof patient !== 'object' || !patient.firstName) &&
+          p.patientId && typeof p.patientId === 'object' && p.patientId.firstName) {
+        patient = p.patientId;
       }
-      return p;
+
+      // If still no patient data, use the stored snapshot
+      if ((!patient || typeof patient !== 'object' || !patient.firstName) && p.patientSnapshot && p.patientSnapshot.firstName) {
+        patient = p.patientSnapshot;
+      }
+
+      return { ...p, patient };
     });
       
     res.json(enriched);
@@ -626,6 +676,21 @@ router.post('/', auth, async (req, res) => {
       const UserModel = require('../models/User');
       const patientDoc = await PatientModel.findById(effectivePatientId).lean();
       const doctorDoc = await UserModel.findById(effectiveDoctorId).lean();
+
+      // Save patient snapshot to prescription so it's always available without populate
+      if (patientDoc) {
+        await prescription.constructor.findByIdAndUpdate(prescription._id, {
+          patientSnapshot: {
+            firstName: patientDoc.firstName || '',
+            lastName: patientDoc.lastName || '',
+            patientId: patientDoc.patientId || '',
+            age: patientDoc.age,
+            gender: patientDoc.gender || '',
+            address: patientDoc.address || '',
+            phoneNumber: patientDoc.phoneNumber || patientDoc.contactNumber || ''
+          }
+        });
+      }
 
       const patientName = patientDoc
         ? `${patientDoc.firstName || ''} ${patientDoc.lastName || ''}`.trim()

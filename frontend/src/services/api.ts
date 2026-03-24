@@ -51,6 +51,7 @@ export const prescriptionAPI = {
   delete: (id: string) => apiService.delete(`/api/prescriptions/${id}`),
   getByPatient: (patientId: string) => apiService.get(`/api/prescriptions?patientId=${patientId}`),
   getByDoctor: (doctorId: string) => apiService.get(`/api/prescriptions?doctorId=${doctorId}`),
+  backfillPatientSnapshots: () => apiService.post('/api/prescriptions/backfill-patient-snapshots', {}),
 };
 
 // Direct fetch function (for backward compatibility)

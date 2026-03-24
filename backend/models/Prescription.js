@@ -341,6 +341,17 @@ const PrescriptionSchema = new Schema({
     materials: [String],
     topics: [String],
     patientUnderstanding: { type: String, enum: ['good', 'fair', 'poor'] }
+  },
+
+  // Denormalized patient info — stored at creation so it's always available
+  patientSnapshot: {
+    firstName: String,
+    lastName: String,
+    patientId: String,
+    age: Number,
+    gender: String,
+    address: String,
+    phoneNumber: String
   }
 
 }, {

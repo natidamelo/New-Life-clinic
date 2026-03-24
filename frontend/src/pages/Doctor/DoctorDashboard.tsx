@@ -1697,7 +1697,12 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
               ? prescription.patientId
               : null;
 
-        // Look up from cache if not populated
+        // Fall back to patientSnapshot (stored at creation time)
+        if (!enrichedPatient && prescription.patientSnapshot && prescription.patientSnapshot.firstName) {
+          enrichedPatient = prescription.patientSnapshot;
+        }
+
+        // Look up from cache if still not populated
         if (!enrichedPatient) {
           const pid = extractPatientId(prescription);
           if (pid) enrichedPatient = patientCache.get(pid.toString()) || null;
@@ -1718,6 +1723,33 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       });
 
       setPrescriptions(processedPrescriptions);
+
+      // If any prescriptions are still missing patient data, trigger a one-time backfill on the backend
+      const stillMissing = processedPrescriptions.some(
+        (p: any) => !p.patient || typeof p.patient !== 'object' || !p.patient.firstName
+      );
+      if (stillMissing) {
+        try {
+          await prescriptionAPI.backfillPatientSnapshots();
+          // Re-fetch after backfill
+          const refreshed = await prescriptionService.getPrescriptionsByDoctor(currentDoctorId);
+          const refreshedProcessed = (refreshed || []).map((prescription: any) => {
+            let enrichedPatient: any =
+              prescription.patient && typeof prescription.patient === 'object' && prescription.patient.firstName
+                ? prescription.patient
+                : prescription.patientSnapshot && prescription.patientSnapshot.firstName
+                  ? prescription.patientSnapshot
+                  : null;
+            const patientName = enrichedPatient
+              ? `${enrichedPatient.firstName || ''} ${enrichedPatient.lastName || ''}`.trim() || 'Unknown Patient'
+              : 'Unknown Patient';
+            return { ...prescription, patient: enrichedPatient || prescription.patient, patientName };
+          });
+          setPrescriptions(refreshedProcessed);
+        } catch {
+          // backfill is best-effort
+        }
+      }
     } catch (error) {
       console.error('Error fetching prescriptions:', error);
       // Don't show error toast as this might happen during initial load
