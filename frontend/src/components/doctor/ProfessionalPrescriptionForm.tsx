@@ -12,6 +12,7 @@ import { toast } from 'react-hot-toast';
 import inventoryService, { InventoryItem } from '../../services/inventoryService';
 import serviceService from '../../services/serviceService';
 import serviceRequestService from '../../services/serviceRequestService';
+import api from '../../services/apiService';
 import type { Service } from '../../types/service';
 // PrescriptionExtensionModal import removed - simplified prescription system
 
@@ -1094,70 +1095,75 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
     // Fetch available medications from inventory and nurses on component mount
     useEffect(() => {
         const fetchData = async () => {
+            // Fetch available medications from inventory
             try {
-                const token = getToken();
-                
-                // Fetch available medications from inventory
                 const inventoryMeds = await inventoryService.getMedicationsForPrescription();
                 setAvailableInventoryMedications(inventoryMeds);
+            } catch (error) {
+                console.error('Error fetching medications for prescription:', error);
+                setAvailableInventoryMedications([]);
+                // Keep form usable even if inventory endpoint has issues
+                toast.error('Unable to load inventory medications');
+            }
 
-                // Fetch clinic services (with inventory linkage info)
+            // Fetch clinic services (with inventory linkage info)
+            try {
+                const services = await serviceService.getAllWithInventory({ active: true });
+                setAvailableServices(Array.isArray(services) ? services : []);
+            } catch (serviceErr) {
+                console.error('Error fetching services:', serviceErr);
+                setAvailableServices([]);
+            }
+                
+            // Load saved external medications from localStorage
+            const stored = localStorage.getItem(SAVED_EXTERNAL_MEDS_KEY);
+            if (stored) {
                 try {
-                    const services = await serviceService.getAllWithInventory({ active: true });
-                    setAvailableServices(Array.isArray(services) ? services : []);
-                } catch (serviceErr) {
-                    console.error('Error fetching services:', serviceErr);
-                    setAvailableServices([]);
-                }
-                
-                // Load saved external medications from localStorage
-                const stored = localStorage.getItem(SAVED_EXTERNAL_MEDS_KEY);
-                if (stored) {
-                    try {
-                        const parsed = JSON.parse(stored);
-                        if (Array.isArray(parsed)) {
-                            setSavedExternalMeds(parsed.filter(Boolean));
-                        }
-                    } catch {}
-                }
-                // Load saved custom dosages from localStorage (ignore very short fragments and typing intermediates)
-                const storedDosages = localStorage.getItem(SAVED_CUSTOM_DOSAGES_KEY);
-                if (storedDosages) {
-                    try {
-                        const parsed = JSON.parse(storedDosages);
-                        if (Array.isArray(parsed)) {
-                            const trimmed = parsed.filter((d): d is string => typeof d === 'string' && d.trim().length >= 3).map((d: string) => d.trim());
-                            // Remove entries that are strict prefixes of another (e.g. keep "450mg", drop "4", "45", "450", "450m")
-                            const valid = trimmed.filter(
-                                (d) => !trimmed.some((other) => other !== d && other.startsWith(d))
-                            );
-                            setSavedCustomDosages(valid);
-                            if (valid.length !== parsed.length) {
-                                localStorage.setItem(SAVED_CUSTOM_DOSAGES_KEY, JSON.stringify(valid));
-                            }
-                        }
-                    } catch {}
-                }
-                
-                // Fetch nurses
-                const response = await fetch('/api/nurse/all', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+                    const parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed)) {
+                        setSavedExternalMeds(parsed.filter(Boolean));
                     }
-                });
+                } catch {}
+            }
+            // Load saved custom dosages from localStorage (ignore very short fragments and typing intermediates)
+            const storedDosages = localStorage.getItem(SAVED_CUSTOM_DOSAGES_KEY);
+            if (storedDosages) {
+                try {
+                    const parsed = JSON.parse(storedDosages);
+                    if (Array.isArray(parsed)) {
+                        const trimmed = parsed.filter((d): d is string => typeof d === 'string' && d.trim().length >= 3).map((d: string) => d.trim());
+                        // Remove entries that are strict prefixes of another (e.g. keep "450mg", drop "4", "45", "450", "450m")
+                        const valid = trimmed.filter(
+                            (d) => !trimmed.some((other) => other !== d && other.startsWith(d))
+                        );
+                        setSavedCustomDosages(valid);
+                        if (valid.length !== parsed.length) {
+                            localStorage.setItem(SAVED_CUSTOM_DOSAGES_KEY, JSON.stringify(valid));
+                        }
+                    }
+                } catch {}
+            }
                 
-                if (response.ok) {
-                    const nursesData = await response.json();
-                    const nursesList = nursesData.data || nursesData;
-                    setNurses(nursesList);
-                } else {
-                    console.error('Failed to fetch nurses:', response.status, response.statusText);
+            // Fetch nurses using shared API client so base URL/env config is respected
+            try {
+                const nurseResponse = await api.get('/api/nurse/all');
+                const nursesData = nurseResponse?.data;
+                const nursesList = Array.isArray(nursesData?.data)
+                    ? nursesData.data
+                    : Array.isArray(nursesData)
+                        ? nursesData
+                        : [];
+
+                if (!Array.isArray(nursesList)) {
+                    console.error('Failed to parse nurses response:', nursesData);
                     toast.error('Failed to load nurses list');
+                } else {
+                    setNurses(nursesList);
                 }
             } catch (error) {
-                console.error('Error fetching data:', error);
-                toast.error('Error loading prescription data');
+                console.error('Error fetching nurses:', error);
+                setNurses([]);
+                toast.error('Failed to load nurses list');
             }
         };
 

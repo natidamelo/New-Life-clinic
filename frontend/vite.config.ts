@@ -20,6 +20,28 @@ const disableHostCheck = () => {
   };
 };
 
+// Ensure runtime env loads before the app bundle. Vite puts the entry module in
+// <head>; a classic script at </body> can still race with module execution in
+// some cases. A sync script immediately after <head> guarantees window._env_ exists
+// before any import of API_BASE_URL runs.
+const injectRuntimeEnvScript = () => {
+  return {
+    name: 'inject-runtime-env-script',
+    enforce: 'post' as const,
+    transformIndexHtml(html: string) {
+      const tag = '    <script src="/env-config.js"></script>\n';
+      const stripped = html.replace(
+        /\s*<script\s+src=["']\/env-config\.js["']\s*><\/script>\s*/gi,
+        ''
+      );
+      if (stripped.includes('<head>')) {
+        return stripped.replace('<head>', `<head>\n${tag}`);
+      }
+      return stripped.replace('</body>', `${tag}  </body>`);
+    },
+  };
+};
+
 export default defineConfig({
   plugins: [
     // Babel + emotion on full app is heavy; skip on Vercel CI to avoid OOM / fast-fail (esbuild handles JSX).
@@ -34,6 +56,7 @@ export default defineConfig({
           }
     ),
     disableHostCheck(), // Add custom plugin to disable host checking
+    injectRuntimeEnvScript(),
   ],
   build: {
     target: 'es2018',

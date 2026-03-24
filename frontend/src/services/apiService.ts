@@ -70,9 +70,10 @@ class ApiService {
    * Create axios instance with default configuration
    */
   private createAxiosInstance(): AxiosInstance {
+    // Render free tier and similar hosts often need 30–60s+ on cold start; 30s trips false timeouts.
     const instance = axios.create({
       baseURL: this.baseURL,
-      timeout: 30000, // Increased to 30 seconds for patient assignment operations
+      timeout: 120000,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',

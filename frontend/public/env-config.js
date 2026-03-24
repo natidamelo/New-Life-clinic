@@ -1,3 +1,3 @@
 window._env_ = {
-  REACT_APP_API_URL: 'http://localhost:5002'
-}; 
+  REACT_APP_API_URL: 'https://new-life-clinic.onrender.com'
+};
