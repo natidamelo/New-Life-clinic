@@ -534,15 +534,15 @@ export const createPatient = async (patientData: CreatePatientDto): Promise<any>
       const patientServerUrl = api.defaults.baseURL || '';
   console.log('Sending request to patient server using shared API instance:', `${patientServerUrl}/api/patients`);
   
-  // Check if patient server is reachable
+  // Do not block patient creation on a separate ping check.
+  // In production this endpoint can be unavailable or delayed while the create API is healthy.
   try {
     console.log('Patient server ping attempt...');
     const pingUrl = patientServerUrl ? `${patientServerUrl}/api/ping` : '/api/ping';
-    await axios.get(pingUrl);
-    console.log('Patient server is reachable, proceeding with patient creation');
+    await axios.get(pingUrl, { timeout: 5000 });
+    console.log('Patient server ping succeeded');
   } catch (error) {
-    console.error('Patient server is not reachable, cannot create patient', error);
-    throw new Error('Patient server is not reachable. Please check if the patient server is running.');
+    console.warn('Patient server ping failed; proceeding with patient creation request', error);
   }
   
   try {

@@ -124,6 +124,17 @@ const getItemPaymentStatus = (item: any, invoice: any) => {
   return { isFullyPaid: false, isPartiallyPaid: false };
 };
 
+const normalizeInvoiceText = (text: any): string => {
+  const value = String(text ?? '');
+  return value
+    .replace(/\bregstred\b/gi, 'registered')
+    .replace(/\bregistred\b/gi, 'registered')
+    .replace(/\bregisterd\b/gi, 'registered')
+    .replace(/\bpatitnt\b/gi, 'patient')
+    .replace(/\bpatiant\b/gi, 'patient')
+    .replace(/\bpatint\b/gi, 'patient');
+};
+
 const InvoiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -987,7 +998,7 @@ const InvoiceDetail: React.FC = () => {
                                     </div>
                                 ) : (
                                   <div className="flex items-center">
-                                    {item.description}
+                                    {normalizeInvoiceText(item.description)}
                                     {itemPaymentStatus.isFullyPaid && <span className="ml-2 text-primary">✓</span>}
                                   </div>
                                 )}
@@ -1340,7 +1351,7 @@ const InvoiceDetail: React.FC = () => {
               <tbody>
                 {invoice?.items?.map((item: any, idx: number) => (
                   <tr key={idx}>
-                    <td>{item.description}</td>
+                    <td>{normalizeInvoiceText(item.description)}</td>
                     <td>{item.quantity}</td>
                     <td>{formatCurrency(item.unitPrice)}</td>
                     <td>{formatCurrency(item.total)}</td>

@@ -231,8 +231,8 @@ router.post('/', auth, async (req, res) => {
       };
     }
     
-    // Handle cardType field - convert empty string to null if not provided or invalid
-    // Frontend sends selectedCardTypeId, so map it to cardType
+    // Handle cardType field - normalize all frontend variants to a valid ObjectId string
+    // Frontend may send selectedCardTypeId, cardType, or an object value from Select components
     console.log('🔍 [DEBUG] Original data received:', JSON.stringify(req.body, null, 2));
     
     if (sanitizedData.selectedCardTypeId) {
@@ -240,6 +240,17 @@ router.post('/', auth, async (req, res) => {
       sanitizedData.cardType = sanitizedData.selectedCardTypeId;
       delete sanitizedData.selectedCardTypeId;
       console.log('🔍 [DEBUG] Mapped to cardType:', sanitizedData.cardType);
+    }
+
+    // Accept object-shaped values (e.g. { _id }, { id }, { value })
+    if (sanitizedData.cardType && typeof sanitizedData.cardType === 'object') {
+      const cardTypeObject = sanitizedData.cardType;
+      sanitizedData.cardType =
+        cardTypeObject._id ||
+        cardTypeObject.id ||
+        cardTypeObject.value ||
+        null;
+      console.log('🔍 [DEBUG] Normalized object cardType to:', sanitizedData.cardType);
     }
     
     if (sanitizedData.cardType === '' || sanitizedData.cardType === null || sanitizedData.cardType === undefined) {

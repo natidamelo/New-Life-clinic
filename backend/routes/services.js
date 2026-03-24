@@ -64,7 +64,7 @@ router.get('/', auth, async (req, res) => {
         }
         
         return serviceObj;
-      }));
+      });
     }
     
     res.json(services);
