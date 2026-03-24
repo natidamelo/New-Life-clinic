@@ -196,37 +196,35 @@ router.post('/fix-dose-counts', async (req, res) => {
   }
 });
 
-// GET all prescriptions (temporarily without auth to fix timeout issues)
+// GET all prescriptions
 router.get('/', async (req, res) => {
   try {
-    const filter = {};
-    
+    const andClauses = [];
+
     if (req.query.patientId) {
       try {
         const patientObjId = new mongoose.Types.ObjectId(req.query.patientId);
-        filter.$or = [
-          { patient: patientObjId },
-          { patientId: patientObjId }
-        ];
+        andClauses.push({ $or: [{ patient: patientObjId }, { patientId: patientObjId }] });
       } catch (err) {
-        filter.$or = [
-          { patient: req.query.patientId },
-          { patientId: req.query.patientId }
-        ];
+        andClauses.push({ $or: [{ patient: req.query.patientId }, { patientId: req.query.patientId }] });
       }
     }
-    
+
     if (req.query.doctorId) {
-      filter.$or = filter.$or || [];
-      filter.$or.push({ doctor: req.query.doctorId });
-      filter.$or.push({ doctorId: req.query.doctorId });
+      try {
+        const doctorObjId = new mongoose.Types.ObjectId(req.query.doctorId);
+        andClauses.push({ $or: [{ doctor: doctorObjId }, { doctorId: doctorObjId }] });
+      } catch (err) {
+        andClauses.push({ $or: [{ doctor: req.query.doctorId }, { doctorId: req.query.doctorId }] });
+      }
     }
-    
-    if (req.query.status) filter.status = req.query.status;
-    
-    console.log('Starting prescription query with filter:', filter);
-    
-    // Use direct mongoose query instead of executeWithTimeout to fix timeout issues
+
+    if (req.query.status) andClauses.push({ status: req.query.status });
+
+    const filter = andClauses.length > 0 ? { $and: andClauses } : {};
+
+    console.log('Starting prescription query with filter:', JSON.stringify(filter));
+
     const prescriptions = await Prescription.find(filter)
       .sort({ datePrescribed: -1 })
       .limit(1000)
@@ -236,27 +234,26 @@ router.get('/', async (req, res) => {
       .populate('doctor', 'firstName lastName')
       .populate('doctorId', 'firstName lastName')
       .lean();
-    
+
     console.log(`Found ${prescriptions.length} prescriptions`);
 
     // Ensure patient data is always present — use patientId populate or patientSnapshot as fallback
     const enriched = prescriptions.map(p => {
       let patient = p.patient;
 
-      // If populate didn't work, try patientId populated object
       if ((!patient || typeof patient !== 'object' || !patient.firstName) &&
           p.patientId && typeof p.patientId === 'object' && p.patientId.firstName) {
         patient = p.patientId;
       }
 
-      // If still no patient data, use the stored snapshot
-      if ((!patient || typeof patient !== 'object' || !patient.firstName) && p.patientSnapshot && p.patientSnapshot.firstName) {
+      if ((!patient || typeof patient !== 'object' || !patient.firstName) &&
+          p.patientSnapshot && p.patientSnapshot.firstName) {
         patient = p.patientSnapshot;
       }
 
       return { ...p, patient };
     });
-      
+
     res.json(enriched);
   } catch (err) {
     console.error('Error fetching prescriptions:', err);
