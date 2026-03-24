@@ -61,8 +61,9 @@ const apiLimiter = rateLimit(
 const authLimiter = rateLimit(
   configureRateLimiter({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: process.env.AUTH_RATE_LIMIT_MAX ? parseInt(process.env.AUTH_RATE_LIMIT_MAX) : 5, // 5 requests per window
-    message: 'Too many authentication attempts, please try again later'
+    max: process.env.AUTH_RATE_LIMIT_MAX ? parseInt(process.env.AUTH_RATE_LIMIT_MAX) : 30,
+    message: 'Too many authentication attempts, please try again later',
+    skipSuccessfulRequests: true
   })
 );
 
