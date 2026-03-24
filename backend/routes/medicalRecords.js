@@ -184,17 +184,26 @@ router.get('/dashboard-lite', auth, asyncHandler(async (req, res) => {
     
     // Build simple query - start with minimal filters
     let query = {};
+
+    const FINALIZED_STATUSES = [
+      'Finalized', 'finalized', 'FINALIZED',
+      'Completed', 'completed', 'COMPLETED',
+      'Closed', 'closed', 'CLOSED',
+      'Archived', 'archived', 'ARCHIVED',
+      'Not specified', 'not specified', 'NOT SPECIFIED'
+    ];
     
-    // Exclude finalized records - only show active/draft records
-    query.status = { 
-      $nin: [
-        'Finalized', 'finalized', 'FINALIZED',
-        'Completed', 'completed', 'COMPLETED',
-        'Closed', 'closed', 'CLOSED',
-        'Archived', 'archived', 'ARCHIVED',
-        'Not specified', 'not specified', 'NOT SPECIFIED'
-      ] 
-    };
+    // Only show active/draft records
+    query.status = { $nin: FINALIZED_STATUSES };
+
+    // Exclude drafts for patients who already have a finalized record
+    // (orphaned drafts left over from before finalization)
+    const finalizedPatientIds = await MedicalRecord.distinct('patient', {
+      status: { $in: FINALIZED_STATUSES }
+    });
+    if (finalizedPatientIds.length > 0) {
+      query.patient = { $nin: finalizedPatientIds };
+    }
 
     // Doctors only see their own records
     if (req.user.role === 'doctor') {
@@ -209,6 +218,8 @@ router.get('/dashboard-lite', auth, asyncHandler(async (req, res) => {
     if (req.query.patientId) {
       const andClauses = [{ status: query.status }];
       if (query.$or) andClauses.push({ $or: query.$or });
+      // When filtering by a specific patient, show their draft even if they have finalized records
+      // (the doctor may be creating a new visit for a returning patient)
       andClauses.push({
         $or: [
           { patient: req.query.patientId },
