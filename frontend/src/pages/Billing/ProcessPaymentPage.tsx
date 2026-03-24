@@ -152,16 +152,12 @@ const ProcessPaymentPage = () => {
 
     // Add force refresh button to the UI
     useEffect(() => {
-        // Auto-refresh every 5 seconds to ensure data consistency - BUT ONLY FOR ACTUAL EXTENSIONS
+        const isActualExtension = notification?.data?.isExtension === true || notification?.data?.extensionDetails;
+        if (!notification?.data?.prescriptionId || !isActualExtension) return;
+
         const refreshInterval = setInterval(() => {
-            const isActualExtension = notification?.data?.isExtension === true || notification?.data?.extensionDetails;
-            if (notification?.data?.prescriptionId && isActualExtension) {
-                console.log('🔄 [AUTO-REFRESH] Refreshing extension data...');
-                fetchExtensionPaymentDetails(notification.data.prescriptionId);
-            } else if (notification?.data?.prescriptionId) {
-                console.log('🔄 [AUTO-REFRESH] Skipping refresh - not an extension notification');
-            }
-        }, 5000);
+            fetchExtensionPaymentDetails(notification.data.prescriptionId);
+        }, 30000);
         
         return () => clearInterval(refreshInterval);
     }, [notification?.data?.prescriptionId, notification?.data?.isExtension, notification?.data?.extensionDetails]);

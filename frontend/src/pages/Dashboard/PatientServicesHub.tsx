@@ -33,17 +33,6 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ icon, title, subtitle, to }) 
 const PatientServicesHub: React.FC = () => {
   const { user, isLoading } = useAuth();
 
-  useEffect(() => {
-    console.log('PatientServicesHub mounted');
-    console.log('Auth state:', { user, isLoading });
-    
-    // Log any potential issues with the Card component
-    try {
-      console.log('Card component:', Card);
-    } catch (error) {
-      console.error('Error accessing Card component:', error);
-    }
-  }, [user, isLoading]);
 
   try {
     if (isLoading) {

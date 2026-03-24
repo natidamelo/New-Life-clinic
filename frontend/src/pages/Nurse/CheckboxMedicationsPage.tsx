@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import nurseTaskService from '../../services/nurseTaskService';
 import inventoryService from '../../services/inventoryService';
@@ -370,8 +370,7 @@ const CheckboxMedicationsPage: React.FC = () => {
     return task.status?.toLowerCase() || 'pending';
   };
 
-  // Filter tasks based on search and filters
-  const filteredTasks = tasks.filter(task => {
+  const filteredTasks = useMemo(() => tasks.filter(task => {
     const matchesSearch = 
       task.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -388,10 +387,9 @@ const CheckboxMedicationsPage: React.FC = () => {
     const matchesTaskSelection = selectedTaskId === '' || (task._id || task.id) === selectedTaskId;
     
     return matchesSearch && matchesStatus && matchesPriority && matchesPatientFilter && matchesTaskSelection;
-  });
+  }), [tasks, searchTerm, statusFilter, priorityFilter, selectedPatientFilter, selectedTaskId]);
 
-  // Sort tasks
-  const sortedTasks = [...filteredTasks].sort((a, b) => {
+  const sortedTasks = useMemo(() => [...filteredTasks].sort((a, b) => {
     let aValue = a[sortField];
     let bValue = b[sortField];
 
@@ -408,18 +406,17 @@ const CheckboxMedicationsPage: React.FC = () => {
     if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
     if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
     return 0;
-  });
+  }), [filteredTasks, sortField, sortDirection]);
 
-  // Group tasks by patient so multiple medications appear in a single row/checkbox
-  const groupedByPatient = sortedTasks.reduce((groups: Record<string, { patientId: string; patientName: string; tasks: NurseTask[] }>, task) => {
+  const groupedByPatient = useMemo(() => sortedTasks.reduce((groups: Record<string, { patientId: string; patientName: string; tasks: NurseTask[] }>, task) => {
     const key = task.patientId;
     if (!groups[key]) {
       groups[key] = { patientId: task.patientId, patientName: task.patientName, tasks: [] };
     }
     groups[key].tasks.push(task);
     return groups;
-  }, {});
-  const groupedRows = Object.values(groupedByPatient);
+  }, {}), [sortedTasks]);
+  const groupedRows = useMemo(() => Object.values(groupedByPatient), [groupedByPatient]);
 
   // Pagination: latest-first by group, 10 per page
   const [currentPage, setCurrentPage] = useState(1);
@@ -544,19 +541,16 @@ const CheckboxMedicationsPage: React.FC = () => {
     fetchTasks();
   }, []);
 
-  // Refresh payment statuses every 30 seconds to reflect any payments made in billing
   useEffect(() => {
+    if (tasks.length === 0) return;
     const interval = setInterval(async () => {
-      if (tasks.length === 0) return;
       try {
         const updated = await fetchBatchPaymentStatuses(tasks);
         setTaskPaymentStatuses(updated);
-      } catch {
-        // silent — don't disrupt the UI on background refresh failure
-      }
-    }, 30000);
+      } catch { /* silent */ }
+    }, 60000);
     return () => clearInterval(interval);
-  }, [tasks]);
+  }, [tasks.length]);
 
   // Don't reload when status filter changes - filter on frontend only
   // Status filtering is now handled by getActualTaskStatus() in filteredTasks

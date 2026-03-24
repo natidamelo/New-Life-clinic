@@ -28,21 +28,25 @@ router.get('/', auth, async (req, res) => {
     if (category) filter.category = category;
     if (search) filter.name = { $regex: search, $options: 'i' };
     
-    console.log('🔍 [DEBUG] Services API - Filter:', filter);
+    const limit = Math.min(parseInt(req.query.limit) || 500, 1000);
     
-    // Get services from Service collection (after migration, all services are here)
-    let services = await Service.find(filter).sort({ name: 1 });
-    console.log('🔍 [DEBUG] Services API - Found services:', services.length);
-    console.log('🔍 [DEBUG] Services API - Service names:', services.map(s => s.name));
+    let services = await Service.find(filter).sort({ name: 1 }).limit(limit).lean();
     
-    // ✅ ENHANCEMENT: If withInventory=true, populate inventory information
     if (withInventory === 'true') {
-      services = await Promise.all(services.map(async (service) => {
-        const serviceObj = service.toObject();
+      const linkedItemIds = services
+        .filter(s => s.linkedInventoryItems?.length > 0)
+        .map(s => s.linkedInventoryItems[0]);
+      
+      const linkedItems = linkedItemIds.length > 0
+        ? await InventoryItem.find({ _id: { $in: linkedItemIds } }).lean()
+        : [];
+      const linkedItemMap = new Map(linkedItems.map(item => [item._id.toString(), item]));
+
+      services = services.map(service => {
+        const serviceObj = { ...service };
         
-        // Check if service has linked inventory items
-        if (service.linkedInventoryItems && service.linkedInventoryItems.length > 0) {
-          const inventoryItem = await InventoryItem.findById(service.linkedInventoryItems[0]);
+        if (service.linkedInventoryItems?.length > 0) {
+          const inventoryItem = linkedItemMap.get(service.linkedInventoryItems[0].toString());
           if (inventoryItem) {
             serviceObj.inventoryStatus = {
               linked: true,
@@ -53,47 +57,10 @@ router.get('/', auth, async (req, res) => {
               isActive: inventoryItem.isActive
             };
           } else {
-            serviceObj.inventoryStatus = {
-              linked: false,
-              reason: 'Linked inventory item not found'
-            };
+            serviceObj.inventoryStatus = { linked: false, reason: 'Linked inventory item not found' };
           }
         } else {
-          // Check if matching inventory item exists (for auto-linking suggestion)
-          const isLabService = LAB_SERVICE_CATEGORIES.includes(service.category);
-          const isImagingService = IMAGING_SERVICE_CATEGORIES.includes(service.category);
-
-          if (isLabService || isImagingService) {
-            const targetCategory = isLabService ? 'laboratory' : 'imaging';
-            const matchingItem = await InventoryItem.findOne({
-              name: { $regex: new RegExp(service.name, 'i') },
-              category: targetCategory,
-              isActive: true
-            });
-            
-            if (matchingItem) {
-              serviceObj.inventoryStatus = {
-                linked: false,
-                suggestion: {
-                  available: true,
-                  inventoryItemId: matchingItem._id,
-                  inventoryItemName: matchingItem.name,
-                  quantity: matchingItem.quantity,
-                  message: `Found matching ${targetCategory} inventory item: ${matchingItem.name} (${matchingItem.quantity} units)`
-                }
-              };
-            } else {
-              serviceObj.inventoryStatus = {
-                linked: false,
-                suggestion: { available: false }
-              };
-            }
-          } else {
-            serviceObj.inventoryStatus = {
-              linked: false,
-              suggestion: { available: false }
-            };
-          }
+          serviceObj.inventoryStatus = { linked: false, suggestion: { available: false } };
         }
         
         return serviceObj;

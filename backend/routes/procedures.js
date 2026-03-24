@@ -97,15 +97,15 @@ router.get('/my-procedures', auth, async (req, res) => {
     
     if (status) filter.status = status;
 
-    console.log('[MY-PROCEDURES] Filter:', JSON.stringify(filter));
+    const limit = Math.min(parseInt(req.query.limit) || 100, 500);
 
     const procedures = await Procedure.find(filter)
       .populate('patientId', 'firstName lastName dateOfBirth')
       .populate('createdBy', 'firstName lastName')
       .populate('assignedNurse', 'firstName lastName username')
-      .sort({ scheduledTime: 1 });
-
-    console.log(`[MY-PROCEDURES] Found ${procedures.length} procedures for user ${req.user.id}`);
+      .sort({ scheduledTime: 1 })
+      .limit(limit)
+      .lean();
 
     res.json(procedures);
   } catch (error) {

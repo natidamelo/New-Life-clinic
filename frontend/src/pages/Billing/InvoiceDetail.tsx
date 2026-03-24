@@ -190,21 +190,18 @@ const InvoiceDetail: React.FC = () => {
   }, [error]);
 
 
-  // Fetch medications and lab tests for autocomplete
   useEffect(() => {
+    if (!isEditingInvoice) return;
+    
     const fetchAutocompleteData = async () => {
       try {
-        // Fetch all inventory items
         const allItems = await inventoryService.getAllInventoryItems({});
         
-        // Filter medications
         const medicationItems = allItems
           .filter((item: any) => item.category === 'medication' && item.isActive !== false)
           .map((item: any) => ({ name: item.name, _id: item._id }));
         setMedications(medicationItems);
-        console.log('📋 Loaded medications for autocomplete:', medicationItems.length);
 
-        // Filter lab tests (check both 'laboratory' and 'lab' categories)
         const labItems = allItems
           .filter((item: any) => 
             (item.category === 'laboratory' || item.category === 'lab') && 
@@ -212,14 +209,12 @@ const InvoiceDetail: React.FC = () => {
           )
           .map((item: any) => ({ name: item.name, _id: item._id }));
         setLabTests(labItems);
-        console.log('🔬 Loaded lab tests for autocomplete:', labItems.length);
-        console.log('🔬 Lab test names:', labItems.map((l: any) => l.name).slice(0, 10));
       } catch (error) {
-        console.error('Error fetching autocomplete data:', error);
+        // silent
       }
     };
     fetchAutocompleteData();
-  }, []);
+  }, [isEditingInvoice]);
 
   // Update dropdown position on scroll/resize
   useEffect(() => {

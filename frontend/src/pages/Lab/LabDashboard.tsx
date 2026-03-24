@@ -151,219 +151,81 @@ const LabDashboard: React.FC = () => {
   }, [user, navigate]);
 
   
-  // Fetch lab tests from database
   const fetchLabTests = async () => {
     try {
       setIsLoading(true);
       setError(null);
       
-      console.log('Fetching lab orders from database...');
-      
-      // Try up to 3 times with backoff
-      let labOrders = [];
-      let attempts = 0;
-      let lastError = null;
-      
-      while (attempts < 3 && labOrders.length === 0) {
-        try {
-          if (attempts > 0) {
-            console.log(`Retry attempt ${attempts} after ${attempts * 500}ms delay`);
-            await new Promise(resolve => setTimeout(resolve, attempts * 500));
-          }
-          
-          // Try to fetch all lab orders for lab processing (both paid and pending)
-          // Use status=all to ensure we get all orders regardless of payment status
-          labOrders = await labService.getAllLabOrders();
-          
-          if (labOrders && labOrders.length > 0) {
-            console.log(`Successfully fetched ${labOrders.length} lab orders on attempt ${attempts + 1}`);
-            // Log first lab order structure to help with debugging
-            console.log('First lab order structure:', JSON.stringify(labOrders[0], null, 2));
-            break;
-          } else {
-            console.warn(`Received empty lab orders array on attempt ${attempts + 1}`);
-          }
-        } catch (attemptError: any) {
-          console.error(`Attempt ${attempts + 1} failed:`, attemptError);
-          lastError = attemptError;
-        }
-        
-        attempts++;
-      }
-      
-      console.log('Raw Lab Orders from DB (via Service):', labOrders.length > 0 
-        ? `${labOrders.length} orders retrieved` 
-        : 'No orders retrieved');
-      
-      if (lastError && labOrders.length === 0) {
-        throw lastError; // If all attempts failed, throw the last error
-      }
+      const labOrders = await labService.getAllLabOrders();
       
       if (!labOrders || labOrders.length === 0) {
         setLabTests([]);
-        toast('No lab orders found in the database');
         return;
       }
 
-      // Get all patients for patient data lookup (but don't filter lab orders by visibility)
-      const patientsResponse = await patientService.getAllPatients(false, false);
-      console.log(`Retrieved ${patientsResponse.patients?.length || 0} patients for data lookup`);
-      
-      // Create a map of patient IDs to patient data for easy lookup
-      const patientMap = new Map();
-      patientsResponse.patients.forEach(patient => {
-        const patientId = patient.patientId || patient.id || patient._id;
-        if (patientId) {
-          // Store with multiple key formats for better lookup
-          patientMap.set(String(patientId), patient);
-          patientMap.set(String(patient._id), patient);
-          if (patient.patientId) {
-            patientMap.set(String(patient.patientId), patient);
-          }
-        }
-      });
-      
-      console.log('Patient map created with keys:', Array.from(patientMap.keys()));
-      
-      // Use all lab orders (don't filter by patient visibility for lab dashboard)
-      // Include ALL orders regardless of payment status for lab processing
       const visibleLabOrders = labOrders.filter(order => {
-        // Only filter out orders with missing patientId
-        if (!order.patientId) {
-          console.log(`Warning: Order ${order._id || 'unknown'} has no patientId, filtering it out`);
-          return false;
-        }
-        
+        if (!order.patientId) return false;
         const patientId = typeof order.patientId === 'object' 
           ? (order.patientId._id || order.patientId.id || null) 
           : order.patientId;
-          
-        // If we couldn't get a valid patientId, filter out this order
-        if (!patientId) {
-          console.log(`Warning: Order has invalid patientId format, filtering it out`);
-          return false;
-        }
-        
-        console.log(`Including lab order ${order._id} with patientId ${patientId}, paymentStatus: ${order.paymentStatus}, status: ${order.status} - all orders are visible to lab`);
-        return true;
+        return !!patientId;
       });
       
-      console.log(`Using ${visibleLabOrders.length} lab orders (all paid orders are visible to lab)`);
-      
-      try {
-        // Map the database records to our LabTest format
-        const formattedLabTests = visibleLabOrders.map(order => {
-          const orderPatientId = typeof order.patientId === 'object' 
-            ? (order.patientId._id || order.patientId.id || null) 
-            : order.patientId;
-          
-          // Look up patient information - try multiple approaches
-          let patient = patientMap.get(String(orderPatientId));
-          
-          // If not found, try using the populated patient data from the order
-          if (!patient && order.patient) {
-            patient = order.patient;
-            console.log(`Using populated patient data for order ${order._id}:`, patient);
-          }
-          
-          // If still not found, try different patient ID formats
-          if (!patient) {
-            // Try with ObjectId string format
-            patient = patientMap.get(String(order.patientId));
-            if (!patient && order.patientId && typeof order.patientId === 'object') {
-              patient = patientMap.get(String(order.patientId._id || order.patientId.id));
-            }
-          }
-          
-          const patientName = patient 
-            ? `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || `Unknown Patient (ID: ${orderPatientId || 'N/A'})`
-            : `Unknown Patient (ID: ${orderPatientId || 'N/A'})`;
-          
-          console.log(`Patient lookup for order ${order._id}:`, {
-            orderPatientId,
-            patientFound: !!patient,
-            patientName: patient ? `${patient.firstName} ${patient.lastName}` : 'Not found',
-            patientData: patient,
-            source: order.source
-          });
-          
-          // Determine the ordered by text based on source
-          let orderedByText = 'Unknown Doctor';
-          if (order.source === 'reception') {
-            orderedByText = 'Reception Service';
-          } else if (typeof order.orderingDoctorId === 'object' && order.orderingDoctorId) {
-            orderedByText = `Dr. ${order.orderingDoctorId.firstName || ''} ${order.orderingDoctorId.lastName || ''}`.trim() || 'Unknown Doctor';
-          }
-
-          const mappedTest = {
-            id: order._id,
-            testName: order.testName || 'Unknown Test',
-            patientId: orderPatientId || 'unknown',
-            patientName: patientName,
-            patientAge: patient ? (patient.age || 0) : 0,
-            patientGender: patient ? (patient.gender || 'Unknown') : 'Unknown',
-            orderedBy: orderedByText,
-            status: order.status || 'Ordered',
-            priority: order.priority || 'Routine',
-            requestDate: order.orderDateTime || new Date().toISOString(),
-            collectionDate: order.collectionDateTime,
-            resultDate: order.resultDateTime,
-            results: order.results,
-            normalRange: order.normalRange,
-            notes: order.notes,
-            source: order.source || 'doctor', // Add source field
-            sentToDoctor: order.sentToDoctor || false // Add sentToDoctor field
-          };
-          
-          console.log(`Mapped test for ${patientName}:`, {
-            testName: mappedTest.testName,
-            source: mappedTest.source,
-            orderedBy: mappedTest.orderedBy,
-            status: mappedTest.status
-          });
-          
-          return mappedTest;
-        });
+      const formattedLabTests = visibleLabOrders.map(order => {
+        const orderPatientId = typeof order.patientId === 'object' 
+          ? (order.patientId._id || order.patientId.id || null) 
+          : order.patientId;
         
-        setLabTests(formattedLabTests);
-        console.log('Formatted lab tests:', formattedLabTests.length);
+        // Use populated patient data from the order (backend already populates this)
+        const patient = (typeof order.patientId === 'object' && order.patientId)
+          ? order.patientId
+          : order.patient || null;
         
-        // Initialize savedToService state from backend data (keeping patient-level for service results)
-        const savedToServiceFromBackend = new Set<string>();
-        formattedLabTests.forEach(test => {
-          if (test.sentToDoctor && test.source === 'reception') {
-            savedToServiceFromBackend.add(test.patientId);
-          }
-        });
-        setSavedToService(savedToServiceFromBackend);
-        console.log('Initialized savedToService state from backend:', Array.from(savedToServiceFromBackend));
+        const patientName = patient 
+          ? `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || `Unknown Patient (ID: ${orderPatientId || 'N/A'})`
+          : `Unknown Patient (ID: ${orderPatientId || 'N/A'})`;
         
-        if (formattedLabTests.length > 0) {
-          toast.success(`Successfully loaded ${formattedLabTests.length} lab orders`);
-        } else {
-          toast('No lab orders found');
+        let orderedByText = 'Unknown Doctor';
+        if (order.source === 'reception') {
+          orderedByText = 'Reception Service';
+        } else if (typeof order.orderingDoctorId === 'object' && order.orderingDoctorId) {
+          orderedByText = `Dr. ${order.orderingDoctorId.firstName || ''} ${order.orderingDoctorId.lastName || ''}`.trim() || 'Unknown Doctor';
         }
-      } catch (formatError) {
-        console.error('Error formatting lab tests:', formatError);
-        toast.error('Error processing lab test data. See console for details.');
-        setError('Error processing lab data. The data format might be unexpected.');
-      }
+
+        return {
+          id: order._id,
+          testName: order.testName || 'Unknown Test',
+          patientId: orderPatientId || 'unknown',
+          patientName,
+          patientAge: patient ? (patient.age || 0) : 0,
+          patientGender: patient ? (patient.gender || 'Unknown') : 'Unknown',
+          orderedBy: orderedByText,
+          status: order.status || 'Ordered',
+          priority: order.priority || 'Routine',
+          requestDate: order.orderDateTime || new Date().toISOString(),
+          collectionDate: order.collectionDateTime,
+          resultDate: order.resultDateTime,
+          results: order.results,
+          normalRange: order.normalRange,
+          notes: order.notes,
+          source: order.source || 'doctor',
+          sentToDoctor: order.sentToDoctor || false
+        };
+      });
+      
+      setLabTests(formattedLabTests);
+      
+      const savedToServiceFromBackend = new Set<string>();
+      formattedLabTests.forEach(test => {
+        if (test.sentToDoctor && test.source === 'reception') {
+          savedToServiceFromBackend.add(test.patientId);
+        }
+      });
+      setSavedToService(savedToServiceFromBackend);
     } catch (error: any) {
-      console.error('Error fetching lab orders:', error);
-      
-      // More descriptive error handling
-      let errorMessage = 'Failed to fetch lab orders. Please check your connection and try again.';
-      
-      if (error.message) {
-        errorMessage += ` Error: ${error.message}`;
-      }
-      
-      if (error.response) {
-        errorMessage += ` (Server responded with: ${error.response.status})`;
-      } else if (error.request) {
-        errorMessage += ' (No response received from server)';
-      }
-      
+      const errorMessage = error.response
+        ? `Failed to fetch lab orders (${error.response.status})`
+        : 'Failed to fetch lab orders. Please check your connection.';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -558,9 +420,7 @@ const LabDashboard: React.FC = () => {
   // Update test status
   const updateTestStatus = async (testId: string, newStatus: string) => {
     try {
-      console.log(`Updating test status for ID ${testId} to ${newStatus}`);
       const result = await labService.updateLabOrderStatus(testId, newStatus);
-      console.log(`Update result:`, result);
       toast.success(`Test status updated to ${newStatus}`);
       await fetchLabTests(); // Refresh the data
       return true; // Success indicator
@@ -578,10 +438,7 @@ const LabDashboard: React.FC = () => {
     notes?: string 
   }) => {
     try {
-      console.log(`Updating test result for ID ${testId}`, resultData);
-      // First update the result data
       const updatedTest = await labService.updateLabOrderStatus(testId, 'Results Available', resultData);
-      console.log(`Result update success:`, updatedTest);
       toast.success('Test results saved successfully');
       await fetchLabTests(); // Refresh the data
       return true;
@@ -1035,8 +892,6 @@ const LabDashboard: React.FC = () => {
         return false;
       }
       
-      console.log(`Sending ${testIdsToSend.length} test results for patient ${patientName} to their doctor...`);
-      
       // Call the lab service to send results to doctor
       const result = await labService.sendLabResultsToDoctor(testIdsToSend, patientId);
       
@@ -1094,15 +949,9 @@ const LabDashboard: React.FC = () => {
         return false;
       }
       
-      console.log(`Saving ${testsWithResults.length} reception test results for patient ${patientName} to service results...`);
-      console.log('Tests to save:', testsWithResults);
-      console.log('Current user:', user);
-      
-      // Create service result entries for each test
       const serviceResults = [];
       for (const test of testsWithResults) {
         try {
-          console.log(`Creating service result for test: ${test.testName}`);
           const payload = {
             patientId: patientId,
             testName: test.testName,
@@ -1111,10 +960,8 @@ const LabDashboard: React.FC = () => {
             notes: test.notes || '',
             priority: (test.priority as 'Routine' | 'STAT' | 'ASAP') || 'Routine'
           };
-          console.log('Payload:', payload);
           
           const serviceResult = await labService.createLabServiceResult(payload);
-          console.log('Service result created:', serviceResult);
           serviceResults.push(serviceResult);
         } catch (error) {
           console.error(`Error creating service result for test ${test.testName}:`, error);
@@ -1531,8 +1378,6 @@ const LabDashboard: React.FC = () => {
                       const canComplete = group.tests.some(t => t.status === 'Processing');
 
                       const handleGroupAction = async (targetStatus: string) => {
-                        console.log(`Attempting to update tests in group to status: ${targetStatus}`);
-                        
                         const sourceStatuses: string[] = [];
                         if (targetStatus === 'Collected') sourceStatuses.push('Ordered', 'Pending Payment', 'Scheduled');
                         if (targetStatus === 'Processing') sourceStatuses.push('Collected');
@@ -1551,11 +1396,8 @@ const LabDashboard: React.FC = () => {
                           
                           // Update each test one by one
                           for (const test of testsToUpdate) {
-                            console.log(`Processing test: ${test.id}, ${test.testName}, current status: ${test.status}`);
                             try {
-                              // Direct call to service to avoid multiple fetchLabTests calls
                               const result = await labService.updateLabOrderStatus(test.id, targetStatus);
-                              console.log(`Update result for ${test.id}:`, result);
                               successCount++;
                             } catch (testError) {
                               console.error(`Error updating individual test ${test.id}:`, testError);
@@ -1579,8 +1421,6 @@ const LabDashboard: React.FC = () => {
                       
                       // Generate a list of test IDs for this group - helps with debugging
                       const testIds = group.tests.map(t => t.id).join(', ');
-                      console.log(`Group ${group.groupKey} has test IDs: ${testIds}`);
-
                       return (
                         <>
                         <tr key={group.groupKey} className="hover:bg-muted/20 transition-colors">

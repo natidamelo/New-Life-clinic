@@ -49,7 +49,6 @@ import api from '../../services/api';
 import nurseTaskService from '../../services/nurseTaskService';
 import prescriptionService from '../../services/prescriptionService';
 import { Prescription } from '../../types/prescription';
-import '../../utils/testWorkflow.js'; // Import test utilities for debugging
 
 // Local type definitions
 
@@ -222,18 +221,6 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
   
   const navigate = useNavigate();
 
-  // Debug selectedPatient changes
-  useEffect(() => {
-    if (selectedPatient) {
-      console.log('selectedPatient updated:', {
-        id: selectedPatient.id,
-        name: selectedPatient.name || `${selectedPatient.firstName} ${selectedPatient.lastName}`,
-        assignedDoctorId: selectedPatient.assignedDoctorId,
-        hasAssignedDoctor: !!selectedPatient.assignedDoctorId
-      });
-    }
-  }, [selectedPatient]);
-
   // Fetch patients on component mount
   useEffect(() => {
     fetchPatients();
@@ -242,7 +229,6 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
 
   // WebSocket listener for real-time nurse task cleanup
   useNurseTaskCleanup((event) => {
-    console.log('🧹 Nurse task cleanup event received:', event);
     if (event.filter?.taskType === 'MEDICATION') {
       // Refresh tasks to remove cleaned up medication tasks
       fetchNurseTasks();
@@ -289,32 +275,19 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
     try {
       const userId = user?._id || user?.id;
       if (!user || !userId) {
-        console.error('Cannot fetch tasks: No user ID available');
         return;
       }
 
-      console.log(`Fetching nurse tasks for nurse ID: ${userId}`);
-      
-      // Get the token from localStorage or context
       const token = localStorage.getItem('token') || '';
       
-      // Fetch tasks assigned to this nurse AND unassigned medication tasks
-      const assignedTasks = await nurseTaskService.getNurseTasks({ nurseId: userId }, token);
-      console.log(`Fetched ${assignedTasks?.length || 0} assigned nurse tasks`);
+      const [assignedTasks, unassignedMedicationTasks] = await Promise.all([
+        nurseTaskService.getNurseTasks({ nurseId: userId }, token),
+        nurseTaskService.getNurseTasks({ taskType: 'MEDICATION', status: 'PENDING' }, token)
+      ]);
       
-      // Also fetch unassigned medication tasks that any nurse can handle
-      const unassignedMedicationTasks = await nurseTaskService.getNurseTasks({ 
-        taskType: 'MEDICATION',
-        status: 'PENDING' 
-      }, token);
-      console.log(`Fetched ${unassignedMedicationTasks?.length || 0} unassigned medication tasks`);
-      
-      // Filter unassigned tasks to only include those not assigned to any nurse
-      // Add null/undefined checks to prevent filter errors
       const trulyUnassignedTasks = Array.isArray(unassignedMedicationTasks) 
         ? unassignedMedicationTasks.filter(task => !task.assignedTo)
         : [];
-      console.log(`Found ${trulyUnassignedTasks.length} truly unassigned medication tasks`);
       
       // Combine assigned and unassigned tasks, removing duplicates
       const allTaskIds = new Set();
@@ -327,8 +300,6 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
         allTaskIds.add(taskId);
         return true;
       });
-      
-      console.log(`Total tasks after combining: ${fetchedTasks.length}`);
       
       // Convert to the format expected by the dashboard
       const formattedTasks = fetchedTasks.map(task => {
@@ -385,64 +356,13 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
     try {
       setIsLoading(true);
       
-      // Clear browser cache by adding timestamp to URL
-      const timestamp = new Date().getTime();
-      console.log(`Fetching patients with timestamp ${timestamp} to avoid caching`);
+      const allPatients = await patientService.getAllPatients(true, false, 200);
       
-      // Use forceRefresh=true to ensure we always get the latest data
-      const allPatients = await patientService.getAllPatients(true, false, 1000);
-      
-      console.log(`[DEBUG] Current nurse user ID:`, user?._id);
-      console.log("[DEBUG] All patients fetched:", allPatients.patients.length);
-      
-      // Define active statuses for filtering
       const activeStatuses = ['Admitted', 'scheduled', 'in-progress', 'waiting'];
       
-      // Debug: Log all patients to understand what we have
-      console.log("[DEBUG] All patients summary:");
-      const patientsWithNurseAssignment = allPatients.patients.filter(p => p.assignedNurseId);
-      const patientsWithActiveStatus = allPatients.patients.filter(p => activeStatuses.includes(p.status));
-      
-      console.log(`[DEBUG] Summary: ${allPatients.patients.length} total patients`);
-      console.log(`[DEBUG] Patients with assignedNurseId: ${patientsWithNurseAssignment.length}`);
-      console.log(`[DEBUG] Patients with active status: ${patientsWithActiveStatus.length}`);
-      
-      if (patientsWithNurseAssignment.length > 0) {
-        console.log("[DEBUG] Sample of patients with nurse assignments:");
-        patientsWithNurseAssignment.slice(0, 5).forEach((p, index) => {
-          console.log(`  ${index + 1}. ${p.firstName} ${p.lastName}`, {
-            assignedNurseId: p.assignedNurseId,
-            assignedNurseIdType: typeof p.assignedNurseId,
-            status: p.status
-          });
-        });
-      }
-      
-      allPatients.patients.forEach((p, index) => {
-        console.log(`Patient ${index + 1}: ${p.firstName} ${p.lastName}`, {
-          id: p.id,
-          status: p.status,
-          assignedNurseId: p.assignedNurseId,
-          assignedNurseIdType: typeof p.assignedNurseId,
-          assignedDoctorId: p.assignedDoctorId
-        });
-      });
-      
-      // Filter to show patients assigned to this nurse
-      // Show patients with status: 'Admitted', 'scheduled', 'in-progress' (active patients)
-      // Note: activeStatuses is already defined above
       const currentNurseId = user?.id || user?._id;
-      console.log(`[DEBUG] Current nurse ID: ${currentNurseId}`);
-      console.log(`[DEBUG] Current user object:`, {
-        _id: user?._id,
-        id: user?.id,
-        firstName: user?.firstName,
-        lastName: user?.lastName,
-        role: user?.role
-      });
       
       if (!currentNurseId) {
-        console.error('[NurseDashboard] No nurse ID found in user object');
         toast({
           title: "Error",
           description: "Unable to identify nurse. Please log out and log back in.",
@@ -469,40 +389,11 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
         const isAssignedToThisNurse = patientNurseId === normalizedNurseId;
         const hasActiveStatus = activeStatuses.includes(patient.status);
 
-        console.log(`[DEBUG] Checking patient ${patient.firstName} ${patient.lastName}:`, {
-          assignedNurseId: patient.assignedNurseId,
-          normalizedPatientNurseId: patientNurseId,
-          normalizedCurrentNurseId: normalizedNurseId,
-          isAssignedToThisNurse: isAssignedToThisNurse,
-          status: patient.status,
-          hasActiveStatus: hasActiveStatus,
-          willInclude: isAssignedToThisNurse && hasActiveStatus
-        });
-
         if (isAssignedToThisNurse && hasActiveStatus) {
-          console.log(`[NurseDashboard] Including assigned patient: ${patient.firstName} ${patient.lastName}`, {
-            nurseId: patient.assignedNurseId,
-            currentNurseId: currentNurseId,
-            status: patient.status
-          });
           return true;
         }
         
-        // Log patients that don't meet criteria for debugging
-        if (isAssignedToThisNurse && !hasActiveStatus) {
-          console.log(`[NurseDashboard] Excluding assigned patient (inactive status): ${patient.firstName} ${patient.lastName}`, {
-            status: patient.status,
-            activeStatuses: activeStatuses
-          });
-        }
-        
         if (!isAssignedToThisNurse && hasActiveStatus) {
-          console.log(`[NurseDashboard] Excluding patient (not assigned to this nurse): ${patient.firstName} ${patient.lastName}`, {
-            assignedNurseId: patient.assignedNurseId,
-            currentNurseId: currentNurseId
-          });
-        }
-
         return false;
       });
       
@@ -521,25 +412,12 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
           })
         : [];
       
-      console.log(`Showing ${assignedPatients.length} patients assigned to this nurse with active status`);
-      
-      // Also check all patients assigned to this nurse (any status) for debugging
       const allAssignedPatients = allPatients.patients.filter(patient => {
         const patientNurseId = normalizeId(patient.assignedNurseId);
         return patientNurseId === normalizedNurseId;
       });
       
-      console.log(`[DEBUG] Total patients assigned to this nurse (any status): ${allAssignedPatients.length}`);
-      if (allAssignedPatients.length > 0) {
-        console.log("[DEBUG] All assigned patients (any status):", allAssignedPatients.map(p => 
-          `${p.firstName} ${p.lastName}: status=${p.status}, nurseId=${p.assignedNurseId}`
-        ));
-      }
-      
       if (assignedPatients.length > 0) {
-        console.log("Assigned patients with active status:", assignedPatients.map(p => 
-          `${p.firstName} ${p.lastName} (${p.id}): status=${p.status}, nurseId=${p.assignedNurseId}`
-        ));
         
         // Fetch prescriptions for each patient
         fetchPrescriptionsForPatients(assignedPatients);
@@ -548,11 +426,6 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
         setError(null);
         return assignedPatients;
       } else if (activePatientsForVitals.length > 0) {
-        // Show active patients that need vitals recorded (workflow fallback)
-        console.log(`Showing ${activePatientsForVitals.length} active patients that need vitals recorded`);
-        console.log("Active patients for vitals:", activePatientsForVitals.map(p => 
-          `${p.firstName} ${p.lastName} (${p.id}): status=${p.status}`
-        ));
         
         toast({
           title: "Showing Active Patients",
@@ -570,7 +443,6 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
         
         // If no active patients, show all assigned patients (any status) so nurse can see what's assigned
         if (allAssignedPatients.length > 0) {
-          console.log("Showing all assigned patients regardless of status");
           toast({
             title: "Info",
             description: `Found ${allAssignedPatients.length} patient(s) assigned to you, but none are in active status. Showing all assigned patients.`,
@@ -586,7 +458,6 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
           const allActivePatients = allPatients.patients.filter(p => activeStatuses.includes(p.status));
           
           if (allActivePatients.length > 0) {
-            console.log(`No assigned patients found. Showing all ${allActivePatients.length} active patients as fallback.`);
             toast({
               title: "No Patients Assigned",
               description: `No patients are assigned to you. Showing all ${allActivePatients.length} active patient(s) for vitals recording.`,
@@ -598,8 +469,6 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
             setError(null);
             return allActivePatients;
           } else {
-            // No patients at all
-            console.log("No patients available");
             toast({
               title: "No Patients Available",
               description: "No active patients are available. Patients will appear here once they are registered and have an active status.",
@@ -641,7 +510,6 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
         await Promise.all(batch.map(async (patient) => {
           try {
             if (patient.id) {
-              console.log(`Fetching prescriptions for patient: ${patient.firstName} ${patient.lastName} (${patient.id})`);
               const allPrescriptions = await prescriptionService.getPatientPrescriptions(patient.id);
               // Keep only active prescriptions from the current admission window
               const admissionTime = patient.updatedAt || patient.lastUpdated || patient.lastVisit || patient.createdAt;
@@ -653,7 +521,6 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
                 const prescribedAt = new Date(prescription.datePrescribed || prescription.createdAt || 0);
                 return prescribedAt >= new Date(admissionTime);
               });
-              console.log(`Filtered to ${activeCurrentPrescriptions.length} current prescriptions for patient ${patient.id}`);
               prescriptionMap[patient.id] = activeCurrentPrescriptions as any;
             }
           } catch (error) {
@@ -664,7 +531,6 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
       }
       
       setPrescriptions(prescriptionMap);
-      console.log("All prescriptions loaded:", prescriptionMap);
     } catch (error) {
       console.error("Error fetching prescriptions:", error);
     } finally {
@@ -688,9 +554,7 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
       const ws = notificationService.connectWebSocket(
         user.id,
         'nurse',
-        (notification: WebSocketNotification) => { 
-          console.log('WS Notification Received:', notification);
-          // Add to state, ensuring it matches the base Notification structure
+        (notification: WebSocketNotification) => {
           setNotifications(prev => [{
              id: notification.id || Date.now().toString(),
              title: notification.title || 'Notification',
@@ -723,7 +587,6 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
       setWsConnection(ws as any);
 
       return () => {
-        console.log('Cleaning up WebSocket connection');
         notificationService.disconnect();
       };
     }
@@ -748,15 +611,8 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
 
   // Update vitals handler
   const handleUpdateVitals = async (patientId: string) => {
-    // First try to get the latest patient data from the API to ensure we have current assignedDoctorId
-    console.log('Looking for patient with ID:', patientId);
-    console.log('Available patients count:', patients.length);
-    console.log('Available patients IDs:', patients.map(p => ({ id: p.id, _id: p._id, name: `${p.firstName} ${p.lastName}` })));
-    
     let patient = patients.find(p => p.id === patientId || p._id === patientId);
     if (!patient) {
-      console.error('Patient not found in local patients array. Looking for patientId:', patientId);
-      console.error('Available patients:', patients.map(p => ({ id: p.id, _id: p._id, name: `${p.firstName} ${p.lastName}` })));
       toast({
         title: "Error",
         description: "Selected patient not found locally.",
@@ -1693,7 +1549,6 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
       setWsConnection(ws as any);
 
       return () => {
-        console.log('Cleaning up WebSocket connection');
         notificationService.disconnect();
       };
     } catch (error) {

@@ -26,7 +26,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { useSafeTheme } from '../hooks/useSafeTheme';
-import { toast, Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import attendanceService from '../services/attendanceService';
 import { useAttendanceStatus } from '../hooks/useAttendanceStatus';
 import analyticsService from '../services/analyticsService';
@@ -793,30 +793,6 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
           onClose={() => setIsQRModalOpen(false)}
         />
 
-        {/* Toaster for notifications */}
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 6000,
-            style: {
-              zIndex: 9999,
-              fontSize: '14px',
-              fontWeight: '500',
-            },
-            success: {
-              style: {
-                background: '#10B981',
-                color: 'white',
-              },
-            },
-            error: {
-              style: {
-                background: '#EF4444',
-                color: 'white',
-              },
-            },
-          }}
-        />
       </SidebarProvider>
     </AttendanceOverlay>
   );

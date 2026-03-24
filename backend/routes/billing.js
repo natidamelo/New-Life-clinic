@@ -2533,45 +2533,25 @@ router.get('/invoices', auth, async (req, res) => {
       Object.assign(filter, dateFilter);
     }
 
-    console.log(`🔍 [BILLING] Fetching invoices with filter:`, JSON.stringify(filter, null, 2));
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 100));
+    const skip = (page - 1) * limit;
 
-    // Fetch invoices with filters
-    const invoices = await MedicalInvoice.find(filter)
-      .populate('patient', 'firstName lastName patientId')
-      .populate('createdBy', 'firstName lastName')
-      .populate('payments.processedBy', 'firstName lastName')
-      .sort({ issueDate: -1, dateIssued: -1, createdAt: -1 }); // ROOT CAUSE FIX: Sort by multiple date fields
+    const [invoices, total] = await Promise.all([
+      MedicalInvoice.find(filter)
+        .select('invoiceNumber patient patientId patientName status total balance amountPaid issueDate dateIssued dueDate items.description items.serviceName items.itemType items.category isDailyConsolidated finalized createdAt')
+        .populate('patient', 'firstName lastName patientId')
+        .sort({ issueDate: -1, dateIssued: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      MedicalInvoice.countDocuments(filter)
+    ]);
 
-    console.log(`🔍 [BILLING] Found ${invoices.length} invoices`);
-
-    // Log lab invoices specifically for debugging
-    const labInvoices = invoices.filter(inv =>
-      inv.items && inv.items.some(item => item.itemType === 'lab' || item.category === 'lab')
-    );
-    console.log(`🔍 [BILLING] Found ${labInvoices.length} invoices with lab items:`,
-      labInvoices.map(inv => ({
-        invoiceNumber: inv.invoiceNumber,
-        patientName: inv.patientName,
-        total: inv.total,
-        status: inv.status,
-        labItems: inv.items.filter(item => item.itemType === 'lab' || item.category === 'lab').map(item => item.serviceName || item.description)
-      }))
-    );
-
-    // Log extension invoices specifically
-    const extensionInvoices = invoices.filter(inv => inv.isExtension);
-    console.log(`🔍 [BILLING] Found ${extensionInvoices.length} extension invoices:`,
-      extensionInvoices.map(inv => ({
-        invoiceNumber: inv.invoiceNumber,
-        patientName: inv.patientName,
-        total: inv.total,
-        status: inv.status,
-        isExtension: inv.isExtension,
-        type: inv.type
-      }))
-    );
-
-    res.json({ data: invoices });
+    res.json({
+      data: invoices,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+    });
   } catch (error) {
     console.error('Error fetching invoices:', error);
     res.status(500).json({ message: 'Server error', error: error.message });

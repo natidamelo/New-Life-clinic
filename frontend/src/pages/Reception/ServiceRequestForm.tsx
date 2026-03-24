@@ -131,19 +131,17 @@ const ServiceRequestForm: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      console.log('ServiceRequestForm: Starting to fetch data...');
+      const [servicesResponse, nursesData, doctorsData, imagingData, usersData] = await Promise.all([
+        serviceService.getServices({ isActive: true }),
+        userService.getUsersByRole('nurse').catch(() => []),
+        userService.getUsersByRole('doctor').catch(() => []),
+        userService.getUsersByRole('imaging').catch(() => []),
+        userService.getUsersByRole('lab').catch(() => [])
+      ]);
       
-      // Fetch services
-      console.log('ServiceRequestForm: Fetching services...');
-      const servicesResponse = await serviceService.getServices({ isActive: true });
-      console.log('ServiceRequestForm: Services response:', servicesResponse);
-      
-      // Ensure services are set even if empty and filter out invalid services
       const validServices = (servicesResponse || []).filter((s: any) => s && s._id);
-      console.log('ServiceRequestForm: Valid services:', validServices);
       setServices(validServices);
       
-      // Create service options for the searchable combobox
       const options: ComboboxOption[] = validServices.map((service: Service) => ({
         value: service._id,
         label: `${service.name} - ${service.price} ETB (${service.category})`,
@@ -151,50 +149,15 @@ const ServiceRequestForm: React.FC = () => {
       }));
       setServiceOptions(options);
       
-      // Fetch all staff types
-      console.log('ServiceRequestForm: Fetching staff...');
-      const [nursesData, doctorsData, imagingData, usersData] = await Promise.all([
-        userService.getUsersByRole('nurse').catch((err) => {
-          console.error('Error fetching nurses:', err);
-          return [];
-        }),
-        userService.getUsersByRole('doctor').catch((err) => {
-          console.error('Error fetching doctors:', err);
-          return [];
-        }),
-        userService.getUsersByRole('imaging').catch((err) => {
-          console.error('Error fetching imaging staff:', err);
-          return [];
-        }),
-        userService.getUsers().catch((err) => {
-          console.error('Error fetching users:', err);
-          return [];
-        })
-      ]);
-      
-      console.log('ServiceRequestForm: Nurses data:', nursesData);
-      console.log('ServiceRequestForm: Doctors data:', doctorsData);
-      console.log('ServiceRequestForm: Imaging data:', imagingData);
-      console.log('ServiceRequestForm: Users data:', usersData);
-      
-      // Combine all staff types
       const nurses = (nursesData || []).map((n: any) => ({ ...n, role: 'nurse' }));
       const doctors = (doctorsData || []).map((d: any) => ({ ...d, role: 'doctor' }));
       const imagingStaff = (imagingData || []).map((i: any) => ({ ...i, role: 'imaging' }));
-      const labTechs = (usersData || [])
-        .filter((u: any) => u.role && u.role.toLowerCase().includes('lab'))
-        .map((u: any) => ({ ...u, role: 'lab_technician' }));
+      const labTechs = (usersData || []).map((u: any) => ({ ...u, role: 'lab_technician' }));
       
-      const combinedStaff = [...nurses, ...doctors, ...imagingStaff, ...labTechs];
-      console.log('ServiceRequestForm: Combined staff:', combinedStaff);
-      
-      setAllStaff(combinedStaff);
+      setAllStaff([...nurses, ...doctors, ...imagingStaff, ...labTechs]);
       
     } catch (error) {
-      console.error('ServiceRequestForm: Error fetching data:', error);
       toast.error('Failed to load form data');
-      
-      // Remove mock data fallback
       setServices([]);
       setAllStaff([]);
     }

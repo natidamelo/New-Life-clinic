@@ -105,7 +105,7 @@ const StaffManagement: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
-    const interval = setInterval(() => fetchUsers(), 30000);
+    const interval = setInterval(() => fetchUsers(), 120000);
     return () => clearInterval(interval);
   }, []);
 
@@ -132,12 +132,7 @@ const StaffManagement: React.FC = () => {
           const response = await api.post('/api/qr/staff-registration-status/batch', { userIds });
           setDeviceRegistrationStatus(response.data.data || {});
         } catch {
-          const statusMap: {[key: string]: boolean} = {};
-          for (const user of normalized) {
-            const uid = user._id || user.id;
-            if (uid) statusMap[uid] = await checkDeviceRegistrationStatus(uid);
-          }
-          setDeviceRegistrationStatus(statusMap);
+          // Batch endpoint unavailable; skip individual lookups to avoid N+1
         }
       }
     } catch {

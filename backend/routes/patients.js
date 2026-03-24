@@ -22,18 +22,40 @@ async function patientHasFinalizedMedicalRecord(patientId) {
 router.get('/', auth, async (req, res) => {
   try {
     const Patient = require('../models/Patient');
-    const { includeCompleted = false } = req.query;
+    const { includeCompleted = false, page = 1, limit = 50, search } = req.query;
     
-    // Build query - exclude completed patients by default
     const query = { isActive: true };
     if (includeCompleted !== 'true') {
       query.status = { $ne: 'completed' };
     }
-    
-    const patients = await Patient.find(query).populate('cardType').sort({ createdAt: -1 });
+
+    if (search) {
+      query.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { patientId: { $regex: search, $options: 'i' } },
+        { contactNumber: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit)));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [patients, total] = await Promise.all([
+      Patient.find(query).populate('cardType').sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),
+      Patient.countDocuments(query)
+    ]);
+
     res.json({
       success: true,
-      data: patients
+      data: patients,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum)
+      }
     });
   } catch (error) {
     console.error('Error fetching patients:', error);
@@ -53,10 +75,8 @@ router.get('/demographics', auth, async (req, res) => {
     const Patient = require('../models/Patient');
     const { timeRange = '1year' } = req.query;
 
-    // All patients including completed (true population analytics)
     const patients = await Patient.find({ isActive: true })
-      .select('firstName lastName gender dateOfBirth age contactNumber email createdAt')
-      .sort({ createdAt: -1 })
+      .select('firstName lastName gender dateOfBirth age createdAt')
       .lean();
 
     const now = new Date();
@@ -598,200 +618,149 @@ router.get('/quick-load', auth, async (req, res) => {
       });
     }
     
-    // Extract patient IDs for batch querying
     const patientIds = patients.map(patient => patient._id);
 
-    // Get unpaid invoices (pending and overdue)
-    const unpaidInvoices = await MedicalInvoice.find({
-      patient: { $in: patientIds },
-      status: { $in: ['pending', 'overdue'] }
-    })
-    .select('patient status balance total')
-    .lean();
+    const registrationInvoiceIds = patients
+      .filter(p => p.registrationInvoiceId)
+      .map(p => p.registrationInvoiceId);
 
-    // Also get partial invoices to check if they have remaining balance
-    const partialInvoices = await MedicalInvoice.find({
-      patient: { $in: patientIds },
-      status: { $in: ['partial', 'partially_paid'] }
-    })
-    .select('patient status balance total')
-    .lean();
+    let ServiceRequest, PatientCard;
+    try { ServiceRequest = require('../models/ServiceRequest'); } catch (_) {}
+    try { PatientCard = require('../models/PatientCard'); } catch (_) {}
 
-    // Only consider partial invoices as "unpaid" if they have remaining balance
-    const partialWithBalance = partialInvoices.filter(invoice => (invoice.balance || 0) > 0);
-
-    // Combine unpaid and partial invoices with balance
-    const allUnpaidInvoices = [...unpaidInvoices, ...partialWithBalance];
-
-    // Create a map of patient IDs to their unpaid invoices
-    const patientUnpaidInvoicesMap = {};
-    allUnpaidInvoices.forEach(invoice => {
-      const patientId = invoice.patient.toString();
-      if (!patientUnpaidInvoicesMap[patientId]) {
-        patientUnpaidInvoicesMap[patientId] = [];
-      }
-      patientUnpaidInvoicesMap[patientId].push(invoice);
-    });
-
-    // Get active service requests (pending and in-progress)
-    let activeServiceRequests = [];
-    try {
-      const ServiceRequest = require('../models/ServiceRequest');
-      activeServiceRequests = await ServiceRequest.find({
+    const [
+      unpaidInvoices,
+      partialInvoices,
+      activeServiceRequests,
+      paidCards,
+      paidCardInvoices,
+      partialCardInvoices,
+      paidRegInvoices,
+      unpaidCardInvoices
+    ] = await Promise.all([
+      MedicalInvoice.find({
         patient: { $in: patientIds },
-        status: { $in: ['pending', 'in-progress'] }
-      })
-      .populate('service', 'name category price')
-      .populate('assignedNurse', 'firstName lastName')
-      .populate('assignedDoctor', 'firstName lastName')
-      .lean();
-    } catch (serviceRequestError) {
-      console.warn('Could not load ServiceRequest model:', serviceRequestError.message);
-      activeServiceRequests = [];
-    }
+        status: { $in: ['pending', 'overdue'] }
+      }).select('patient status balance total').lean(),
 
-    // Create a map of patient IDs to their active service requests
-    const patientServiceRequestsMap = {};
-    activeServiceRequests.forEach(sr => {
-      const patientId = sr.patient.toString();
-      if (!patientServiceRequestsMap[patientId]) {
-        patientServiceRequestsMap[patientId] = [];
-      }
-      patientServiceRequestsMap[patientId].push(sr);
-    });
-
-    // Check which patients have a paid card using ALL possible sources:
-    // 1. PatientCard collection (amountPaid > 0, status Active/Grace)
-    // 2. MedicalInvoice with a 'card' category item that is fully paid (status: 'paid')
-    // 3. Patient.cardIssueDate set (legacy)
-    const patientCardPaidSet = new Set();
-    try {
-      // Source 1: PatientCard records
-      const PatientCard = require('../models/PatientCard');
-      const paidCards = await PatientCard.find({
+      MedicalInvoice.find({
         patient: { $in: patientIds },
-        $or: [
-          { status: 'Active', amountPaid: { $gt: 0 } },
-          { status: 'Grace', amountPaid: { $gt: 0 } }
-        ]
-      }).select('patient status amountPaid').lean();
-      paidCards.forEach(card => patientCardPaidSet.add(card.patient.toString()));
+        status: { $in: ['partial', 'partially_paid'] }
+      }).select('patient status balance total').lean(),
 
-      // Source 2: MedicalInvoice with paid card items
-      // This covers the case where card payment is recorded as an invoice (most common flow)
-      const paidCardInvoices = await MedicalInvoice.find({
+      ServiceRequest
+        ? ServiceRequest.find({
+            patient: { $in: patientIds },
+            status: { $in: ['pending', 'in-progress'] }
+          })
+          .populate('service', 'name category price')
+          .populate('assignedNurse', 'firstName lastName')
+          .populate('assignedDoctor', 'firstName lastName')
+          .lean()
+        : Promise.resolve([]),
+
+      PatientCard
+        ? PatientCard.find({
+            patient: { $in: patientIds },
+            $or: [
+              { status: 'Active', amountPaid: { $gt: 0 } },
+              { status: 'Grace', amountPaid: { $gt: 0 } }
+            ]
+          }).select('patient').lean()
+        : Promise.resolve([]),
+
+      MedicalInvoice.find({
         patient: { $in: patientIds },
         status: 'paid',
         'items.category': 'card'
-      }).select('patient status items').lean();
-      paidCardInvoices.forEach(inv => {
-        // Confirm at least one item is a card item
-        const hasCardItem = inv.items && inv.items.some(item => item.category === 'card');
-        if (hasCardItem) {
-          patientCardPaidSet.add(inv.patient.toString());
-        }
-      });
+      }).select('patient items').lean(),
 
-      // Also check partially-paid card invoices where balance is 0 (fully settled)
-      const partialCardInvoices = await MedicalInvoice.find({
+      MedicalInvoice.find({
         patient: { $in: patientIds },
         status: { $in: ['partial', 'partially_paid'] },
         balance: 0,
         'items.category': 'card'
-      }).select('patient status balance items').lean();
-      partialCardInvoices.forEach(inv => {
-        const hasCardItem = inv.items && inv.items.some(item => item.category === 'card');
-        if (hasCardItem && (inv.balance === 0)) {
-          patientCardPaidSet.add(inv.patient.toString());
-        }
-      });
+      }).select('patient items').lean(),
 
-      // Source 3: Check registrationInvoiceId — if the patient's registration invoice is paid,
-      // the card fee was collected at registration
-      const registrationInvoiceIds = patients
-        .filter(p => p.registrationInvoiceId)
-        .map(p => p.registrationInvoiceId);
+      registrationInvoiceIds.length > 0
+        ? MedicalInvoice.find({
+            _id: { $in: registrationInvoiceIds },
+            status: 'paid'
+          }).select('_id').lean()
+        : Promise.resolve([]),
 
-      if (registrationInvoiceIds.length > 0) {
-        const paidRegInvoices = await MedicalInvoice.find({
-          _id: { $in: registrationInvoiceIds },
-          status: 'paid'
-        }).select('_id patient').lean();
-
-        // Build a map from invoiceId -> patientId
-        const invoiceToPatientMap = {};
-        patients.forEach(p => {
-          if (p.registrationInvoiceId) {
-            invoiceToPatientMap[p.registrationInvoiceId.toString()] = p._id.toString();
-          }
-        });
-
-        paidRegInvoices.forEach(inv => {
-          const patId = invoiceToPatientMap[inv._id.toString()];
-          if (patId) patientCardPaidSet.add(patId);
-        });
-      }
-
-    } catch (cardErr) {
-      console.warn('Could not check card payment status:', cardErr.message);
-    }
-
-    // Patients who have an unpaid invoice that includes a card item (real "card payment required")
-    const patientIdsWithUnpaidCardInvoice = new Set();
-    try {
-      const unpaidCardInvoices = await MedicalInvoice.find({
+      MedicalInvoice.find({
         patient: { $in: patientIds },
         $or: [
           { status: { $in: ['pending', 'overdue'] } },
           { status: { $in: ['partial', 'partially_paid'] }, balance: { $gt: 0 } }
         ],
         'items.category': 'card'
-      }).select('patient items').lean();
-      unpaidCardInvoices.forEach(inv => {
-        const hasCardItem = inv.items && inv.items.some(item => item.category === 'card');
-        if (hasCardItem) patientIdsWithUnpaidCardInvoice.add(inv.patient.toString());
+      }).select('patient items').lean()
+    ]);
+
+    const partialWithBalance = partialInvoices.filter(inv => (inv.balance || 0) > 0);
+    const allUnpaidInvoices = [...unpaidInvoices, ...partialWithBalance];
+
+    const patientUnpaidInvoicesMap = {};
+    allUnpaidInvoices.forEach(invoice => {
+      const pid = invoice.patient.toString();
+      if (!patientUnpaidInvoicesMap[pid]) patientUnpaidInvoicesMap[pid] = [];
+      patientUnpaidInvoicesMap[pid].push(invoice);
+    });
+
+    const patientServiceRequestsMap = {};
+    activeServiceRequests.forEach(sr => {
+      const pid = sr.patient.toString();
+      if (!patientServiceRequestsMap[pid]) patientServiceRequestsMap[pid] = [];
+      patientServiceRequestsMap[pid].push(sr);
+    });
+
+    const patientCardPaidSet = new Set();
+    paidCards.forEach(card => patientCardPaidSet.add(card.patient.toString()));
+    paidCardInvoices.forEach(inv => {
+      if (inv.items && inv.items.some(item => item.category === 'card'))
+        patientCardPaidSet.add(inv.patient.toString());
+    });
+    partialCardInvoices.forEach(inv => {
+      if (inv.items && inv.items.some(item => item.category === 'card'))
+        patientCardPaidSet.add(inv.patient.toString());
+    });
+
+    if (paidRegInvoices.length > 0) {
+      const invoiceToPatientMap = {};
+      patients.forEach(p => {
+        if (p.registrationInvoiceId)
+          invoiceToPatientMap[p.registrationInvoiceId.toString()] = p._id.toString();
       });
-    } catch (e) {
-      console.warn('Could not check unpaid card invoices:', e.message);
+      paidRegInvoices.forEach(inv => {
+        const patId = invoiceToPatientMap[inv._id.toString()];
+        if (patId) patientCardPaidSet.add(patId);
+      });
     }
-    
-    // Add payment status and service requests to each patient
+
+    const patientIdsWithUnpaidCardInvoice = new Set();
+    unpaidCardInvoices.forEach(inv => {
+      if (inv.items && inv.items.some(item => item.category === 'card'))
+        patientIdsWithUnpaidCardInvoice.add(inv.patient.toString());
+    });
+
     const patientsWithPaymentStatus = patients.map(patient => {
       const patientId = patient._id.toString();
-      const unpaidInvoices = patientUnpaidInvoicesMap[patientId] || [];
-      const hasUnpaidInvoices = unpaidInvoices.length > 0;
-      const activeServiceRequests = patientServiceRequestsMap[patientId] || [];
-      const hasActiveServiceRequests = activeServiceRequests.length > 0;
-
-      // Verified card fee: invoice/PatientCard/registration payment only (not legacy cardIssueDate alone).
+      const unpaid = patientUnpaidInvoicesMap[patientId] || [];
+      const svcReqs = patientServiceRequestsMap[patientId] || [];
       const hasPaidCardFee = patientCardPaidSet.has(patientId);
 
-      // A patient has a paid card if any of these are true:
-      // 1. PatientCard record with amountPaid > 0 exists (patientCardPaidSet)
-      // 2. MedicalInvoice with paid card item exists (also in patientCardPaidSet)
-      // 3. Patient.cardIssueDate is set (legacy) — still used elsewhere; reception queue uses hasPaidCardFee only
-      const hasCardPayment = hasPaidCardFee || Boolean(patient.cardIssueDate);
-
-      // Only show in "Card Payment Required" when they have an actual unpaid invoice containing a card charge
-      const hasUnpaidCardInvoice = patientIdsWithUnpaidCardInvoice.has(patientId);
-
-      const enhancedPatient = {
+      return {
         ...patient,
-        hasUnpaidInvoices,
-        unpaidInvoices,
-        activeServiceRequests: activeServiceRequests || [],
-        hasActiveServiceRequests: hasActiveServiceRequests || false,
-        hasCardPayment,
+        hasUnpaidInvoices: unpaid.length > 0,
+        unpaidInvoices: unpaid,
+        activeServiceRequests: svcReqs,
+        hasActiveServiceRequests: svcReqs.length > 0,
+        hasCardPayment: hasPaidCardFee || Boolean(patient.cardIssueDate),
         hasPaidCardFee,
-        hasUnpaidCardInvoice
+        hasUnpaidCardInvoice: patientIdsWithUnpaidCardInvoice.has(patientId)
       };
-
-      // Log service request info for debugging
-      if (hasActiveServiceRequests) {
-        console.log('🔍 [quick-load] Patient', patient.firstName, patient.lastName, 'has active service requests:', activeServiceRequests.length);
-      }
-
-      return enhancedPatient;
     });
     
     res.json({

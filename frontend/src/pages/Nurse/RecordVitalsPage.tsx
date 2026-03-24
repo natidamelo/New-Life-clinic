@@ -199,7 +199,7 @@ const RecordVitalsPage: React.FC = () => {
   const fetchPatients = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await patientService.getAllPatients(true);
+      const data = await patientService.getAllPatients(true, false, 200);
       const list: Patient[] = Array.isArray(data)
         ? data
         : (data as any)?.patients ?? (data as any)?.data ?? [];

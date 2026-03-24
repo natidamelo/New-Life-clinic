@@ -37,13 +37,10 @@ export default defineConfig({
   ],
   build: {
     target: 'es2018',
-    // esbuild minify on a ~5MB main chunk can OOM a 8GB CI VM; skip on Vercel (still gzip'd by CDN).
-    minify: isVercel ? false : 'esbuild',
+    minify: 'esbuild',
     sourcemap: false,
     rollupOptions: {
-      // Skipping dead-code elimination on Vercel saves the RAM spike of reading 4000+ MUI icon files.
-      // Bundle is slightly larger but CDN gzips it; local builds still tree-shake.
-      treeshake: isVercel ? false : undefined,
+      treeshake: true,
       output: {
         // Never emit .map files (saves RAM/disk on Vercel; maps were still appearing without this)
         sourcemap: false,
@@ -118,7 +115,7 @@ export default defineConfig({
             })
       }
     },
-    chunkSizeWarningLimit: 10000,
+    chunkSizeWarningLimit: 1000,
     cssCodeSplit: true,
     reportCompressedSize: false
   },

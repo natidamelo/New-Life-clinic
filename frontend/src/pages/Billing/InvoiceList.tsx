@@ -2,12 +2,9 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/button';
-import api from '../../services/api';
-import fixCeftriaxoneInvoice from '../../utils/fixCeftriaxoneInvoice';
 import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
@@ -19,11 +16,8 @@ import {
   FunnelIcon
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
-import billingService, { Invoice, InvoiceStatus } from '../../services/billingService';
-import patientService, { Patient } from '../../services/patientService';
+import billingService, { Invoice } from '../../services/billingService';
 import { safeArray } from '../../utils/formatters';
-
-interface PatientRecord { [key: string]: Patient; }
 
 type StatusFilter = 'all' | 'pending' | 'partial' | 'overdue' | 'paid' | 'cancelled';
 
@@ -39,7 +33,6 @@ const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string;
 const InvoiceList: React.FC = () => {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [patients, setPatients] = useState<PatientRecord>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -51,10 +44,6 @@ const InvoiceList: React.FC = () => {
   const [paymentForm, setPaymentForm] = useState({ amountPaid: 0, paymentMethod: 'cash', notes: '' });
   const [processingPayment, setProcessingPayment] = useState(false);
   const [confirmFinalize, setConfirmFinalize] = useState<Invoice | null>(null);
-
-  React.useEffect(() => {
-    (window as any).fixCeftriaxoneInvoice = fixCeftriaxoneInvoice;
-  }, []);
 
   const formatCurrency = (amount: number | undefined | null) => {
     if (amount === undefined || amount === null || isNaN(amount)) return 'ETB 0.00';
@@ -69,23 +58,14 @@ const InvoiceList: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const invoiceData = await billingService.getAllInvoices();
+      const invoiceData = await billingService.getAllInvoices(undefined, { limit: 200 });
       let invoicesArray: Invoice[] = [];
       if (invoiceData && invoiceData.data && Array.isArray(invoiceData.data)) {
         invoicesArray = invoiceData.data;
       } else if (Array.isArray(invoiceData)) {
         invoicesArray = invoiceData;
       }
-      const safeInvoices = safeArray<Invoice>(invoicesArray);
-      setInvoices(safeInvoices);
-
-      const patientData = await patientService.getAllPatients(false, false);
-      const patientDict: PatientRecord = {};
-      const safePatients = safeArray<Patient>(patientData?.patients);
-      safePatients.forEach((patient: Patient) => {
-        if (patient && patient.id) patientDict[patient.id] = patient;
-      });
-      setPatients(patientDict);
+      setInvoices(safeArray<Invoice>(invoicesArray));
       setError(null);
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Failed to load invoices.';
@@ -109,19 +89,11 @@ const InvoiceList: React.FC = () => {
 
   const getPatientName = (invoice: Invoice): string => {
     try {
-      if (invoice.patientName) return invoice.patientName;
       if (invoice.patient && typeof invoice.patient === 'object') {
-        if (invoice.patient.firstName || invoice.patient.lastName)
-          return `${invoice.patient.firstName || ''} ${invoice.patient.lastName || ''}`.trim();
+        const name = `${invoice.patient.firstName || ''} ${invoice.patient.lastName || ''}`.trim();
+        if (name) return name;
       }
-      if (invoice.patientId && patients[invoice.patientId]) {
-        const p = patients[invoice.patientId];
-        return `${p.firstName || ''} ${p.lastName || ''}`.trim() || (p as any).name || '';
-      }
-      if (invoice.patient && typeof invoice.patient === 'string' && patients[invoice.patient]) {
-        const p = patients[invoice.patient];
-        return `${p.firstName || ''} ${p.lastName || ''}`.trim() || (p as any).name || '';
-      }
+      if (invoice.patientName) return invoice.patientName;
       return 'Unknown Patient';
     } catch { return 'Unknown Patient'; }
   };
@@ -174,7 +146,7 @@ const InvoiceList: React.FC = () => {
     }
 
     return result;
-  }, [baseInvoices, searchTerm, statusFilter, patients]);
+  }, [baseInvoices, searchTerm, statusFilter]);
 
   // Stats and tab counts both use baseInvoices so numbers always match what's visible
   const stats = useMemo(() => {

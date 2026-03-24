@@ -217,33 +217,18 @@ const LAB_ORDERS_API_ENDPOINT_RELATIVE = '/api/lab-orders';
 // Function to fetch all lab orders
 const getAllLabOrders = async (): Promise<LabOrder[]> => {
   try {
-    console.log('Fetching all lab orders with status=all parameter...');
-    
-    // Add query parameter to fetch all orders without payment filtering
     const response = await api.get(`${LAB_ORDERS_API_ENDPOINT_RELATIVE}?status=all`);
 
-    console.log('Lab orders API response:', response.data);
-
-    // The backend returns { success: true, count: number, data: LabOrder[] }
-    // We need to extract the data array from the response
     if (response.data && response.data.success && Array.isArray(response.data.data)) {
-      console.log(`Successfully fetched ${response.data.data.length} lab orders from API`);
       return response.data.data;
     } else if (Array.isArray(response.data)) {
-      // Fallback: if response.data is directly an array
-      console.log(`Successfully fetched ${response.data.length} lab orders from API (direct array)`);
       return response.data;
     } else {
-      console.warn('Unexpected response format from lab orders API:', response.data);
       return [];
     }
   } catch (error: any) {
-    console.error('Error fetching lab orders:', error);
-    // Add more detailed error logging
     if (error.response) {
-      console.error('Error response:', error.response.status, error.response.data);
-    } else if (error.request) {
-      console.error('No response received from server. Request:', error.request);
+      console.error('Error fetching lab orders:', error.response.status);
     } else {
       console.error('Error setting up request:', error.message);
     }

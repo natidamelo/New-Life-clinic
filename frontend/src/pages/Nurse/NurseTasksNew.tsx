@@ -259,11 +259,9 @@ const NurseTasksNew: React.FC = () => {
     fetchTasks();
   };
 
-  // Auto-refresh on mount and when cache buster changes
   useEffect(() => {
-    console.log('🔄 Auto-refreshing nurse tasks on mount...');
     forceRefresh();
-  }, []); // Only run on mount
+  }, []);
 
   // Utility functions
   const getTaskId = (task: NurseTask): string => task._id || task.id || '';
@@ -952,10 +950,8 @@ const NurseTasksNew: React.FC = () => {
       } catch {}
     };
 
-    // Compute immediately on task load
     compute();
-    // Then keep fresh every 15 seconds
-    const interval = setInterval(compute, 15000);
+    const interval = setInterval(compute, 60000);
     return () => clearInterval(interval);
   }, [tasks]);
 
@@ -1368,37 +1364,14 @@ const NurseTasksNew: React.FC = () => {
       return matchesSearch && matchesStatus && matchesPriority && matchesType;
     });
     
-    console.log('🔍 Filter Summary:', {
-      totalTasks: tasks.length,
-      filteredTasks: filtered.length,
-      filters: {
-        searchQuery,
-        selectedStatus,
-        selectedPriority,
-        selectedTaskType
-      },
-      allTaskStatuses: [...new Set(tasks.map(t => t.status).filter(Boolean))],
-      allTaskPriorities: [...new Set(tasks.map(t => t.priority).filter(Boolean))],
-      allTaskTypes: [...new Set(tasks.map(t => t.taskType).filter(Boolean))]
-    });
-    
     return filtered;
   };
 
-  // Effects
-  useEffect(() => {
-    if (!authLoading) {
-    fetchTasks();
-    }
-  }, [authLoading]);
-
-  // Auto-refresh tasks every 30 seconds to get updated payment status
   useEffect(() => {
     if (!authLoading) {
       const interval = setInterval(() => {
-        console.log('🔄 Auto-refreshing tasks for payment status updates...');
         fetchTasks();
-      }, 30000); // Refresh every 30 seconds
+      }, 60000);
 
       return () => clearInterval(interval);
     }

@@ -14,9 +14,10 @@ import router from './router'
 import './index.css'
 import './styles/globals.css'
 import { initializeAuthFromStorage } from './utils/auth'
-import './utils/serviceExposure' // Import service exposure to make services globally available
-import './utils/manualThemeTest' // Import theme testing utilities
-import './utils/debugThemeSelection' // Import theme debugging utilities
+// Debug utilities loaded on-demand only in development (not bundled in production)
+if (import.meta.env.DEV) {
+  import('./utils/serviceExposure');
+}
 
 // Initialize auth token from localStorage on app start
 initializeAuthFromStorage();

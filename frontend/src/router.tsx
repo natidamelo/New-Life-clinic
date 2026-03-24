@@ -54,69 +54,58 @@ const BillingDashboard = lazy(() => import('./pages/Billing/BillingDashboard'));
 const BillingReports = lazy(() => import('./pages/Billing/BillingReports'));
 const DetailedBillingReport = lazy(() => import('./pages/Billing/DetailedBillingReport'));
 const ItemRevenueReport = lazy(() => import('./pages/Billing/ItemRevenueReport'));
-import BillingPatientDemographics from './pages/Billing/PatientDemographics';
-import StandardFinancialReport from './pages/Finance/Reports/StandardFinancialReport';
-import StockManagement from './pages/Inventory/StockManagement';
-import InventoryDashboard from './components/admin/InventoryDashboard';
-import NewInventoryItemForm from './pages/Inventory/NewInventoryItemForm';
-import StaffManagement from './pages/Dashboard/StaffManagement';
-import StaffControlCenter from './pages/Dashboard/StaffControlCenter';
 import ProtectedRoute from './components/ProtectedRoute';
-import PatientDashboard from './components/PatientDashboard';
-import NewInvoiceForm from './pages/Billing/NewInvoiceForm';
-import InvoiceDetail from './pages/Billing/InvoiceDetail';
-import PatientCardManagement from './pages/Billing/PatientCardManagement';
-import PatientServicesHub from './pages/Dashboard/PatientServicesHub';
-import PatientReports from './pages/Reports/PatientReports';
-import ReportsDashboard from './pages/Reports/ReportsDashboard';
-import WorkloadAnalytics from './pages/Reports/WorkloadAnalytics';
-import WeeklyDiseasesReportPage from './pages/Reports/WeeklyDiseasesReport';
-import FacilityDashboard from './pages/Facility/FacilityDashboard';
-import Settings from './pages/Settings';
-import ThemeSettings from './pages/ThemeSettings';
 import ErrorFallback from './components/common/ErrorFallback';
-import PatientCardSettings from './pages/Settings/PatientCardSettings';
-import ServiceManagement from './pages/Services/ServiceManagement';
-import DataSharePage from './pages/DataShare/DataShare';
-import RegisterPatient from './pages/Reception/RegisterPatient';
-import MedicalRecordDemo from './pages/MedicalRecordDemo';
 import ShadcnSidebarLayout from './components/ShadcnSidebar';
-import ProfessionalMedicalRecordPage from './pages/Doctor/ProfessionalMedicalRecordPage';
-import MahletImagingOrderForm from './components/doctor/MahletImagingOrderForm';
-import UserManagement from './pages/Admin/UserManagement';
-import SystemControls from './pages/Admin/SystemControls';
-import ClinicManagement from './pages/Admin/ClinicManagement';
-import UIShowcasePage from './pages/UIShowcasePage';
-import StaffAttendanceControlPage from './pages/Admin/StaffAttendanceControl';
-import { PatientDemographics } from './pages/Dashboard/PatientDemographics';
-import ServiceRequestForm from './pages/Reception/ServiceRequestForm';
-import ServicePatientsManagement from './pages/Reception/ServicePatientsManagement';
-import DuePaymentsManager from './components/Reception/DuePaymentsManager';
-import AuthTest from './pages/AuthTest';
-import ProcessPaymentPage from './pages/Billing/ProcessPaymentPage';
-import PrescriptionPaymentPage from './pages/Billing/PrescriptionPaymentPage';
-import AddExpenseForm from './pages/Finance/AddExpenseForm';
-import ExpenseManager from './pages/Finance/ExpenseManager';
-import Consultations from './pages/Doctor/Consultations';
-import MedicalRecords from './pages/Doctor/MedicalRecords';
-import ConsultationForm from './pages/Doctor/ConsultationForm';
-import EnhancedConsultationForm from './pages/Doctor/EnhancedConsultationForm';
-import VitalsPage from './pages/Nurse/VitalsPage';
-import MedicationsPage from './pages/Nurse/MedicationsPage';
-import MyPatients from './pages/Doctor/MyPatients';
-import DoctorAppointments from './pages/Doctor/DoctorAppointments';
-import BloodPressure from './pages/Ward/BloodPressure';
-import DashDiet from './pages/Ward/DashDiet';
-import IPDManagement from './pages/Ward/IPDManagement';
-import Procedures from './pages/Nurse/Procedures';
-import MonthlyReportPage from './pages/Nurse/MonthlyReportPage';
-import VerifyQR from './pages/VerifyQR';
-import LeaveRequest from './pages/LeaveRequest';
-import EMRPrescriptions from './pages/Doctor/EMRPrescriptions';
-import DepoInjectionManagement from './pages/DepoInjectionManagement';
-import MedicalCertificates from './pages/Doctor/MedicalCertificates';
-import EMRReferralPaper from './components/doctor/EMRReferralPaper';
-import MedicalTestRequestForm from './pages/Doctor/MedicalTestRequestForm';
+
+const BillingPatientDemographics = lazy(() => import('./pages/Billing/PatientDemographics'));
+const StandardFinancialReport = lazy(() => import('./pages/Finance/Reports/StandardFinancialReport'));
+const StockManagement = lazy(() => import('./pages/Inventory/StockManagement'));
+const InventoryDashboard = lazy(() => import('./components/admin/InventoryDashboard'));
+const NewInventoryItemForm = lazy(() => import('./pages/Inventory/NewInventoryItemForm'));
+const StaffManagement = lazy(() => import('./pages/Dashboard/StaffManagement'));
+const StaffControlCenter = lazy(() => import('./pages/Dashboard/StaffControlCenter'));
+const InvoiceDetail = lazy(() => import('./pages/Billing/InvoiceDetail'));
+const PatientServicesHub = lazy(() => import('./pages/Dashboard/PatientServicesHub'));
+const PatientReports = lazy(() => import('./pages/Reports/PatientReports'));
+const ReportsDashboard = lazy(() => import('./pages/Reports/ReportsDashboard'));
+const WorkloadAnalytics = lazy(() => import('./pages/Reports/WorkloadAnalytics'));
+const WeeklyDiseasesReportPage = lazy(() => import('./pages/Reports/WeeklyDiseasesReport'));
+const FacilityDashboard = lazy(() => import('./pages/Facility/FacilityDashboard'));
+const Settings = lazy(() => import('./pages/Settings'));
+const ThemeSettings = lazy(() => import('./pages/ThemeSettings'));
+const PatientCardSettings = lazy(() => import('./pages/Settings/PatientCardSettings'));
+const ServiceManagement = lazy(() => import('./pages/Services/ServiceManagement'));
+const DataSharePage = lazy(() => import('./pages/DataShare/DataShare'));
+const RegisterPatient = lazy(() => import('./pages/Reception/RegisterPatient'));
+const MedicalRecordDemo = lazy(() => import('./pages/MedicalRecordDemo'));
+const UserManagement = lazy(() => import('./pages/Admin/UserManagement'));
+const SystemControls = lazy(() => import('./pages/Admin/SystemControls'));
+const ClinicManagement = lazy(() => import('./pages/Admin/ClinicManagement'));
+const UIShowcasePage = lazy(() => import('./pages/UIShowcasePage'));
+const StaffAttendanceControlPage = lazy(() => import('./pages/Admin/StaffAttendanceControl'));
+const ServiceRequestForm = lazy(() => import('./pages/Reception/ServiceRequestForm'));
+const AuthTest = lazy(() => import('./pages/AuthTest'));
+const ProcessPaymentPage = lazy(() => import('./pages/Billing/ProcessPaymentPage'));
+const ExpenseManager = lazy(() => import('./pages/Finance/ExpenseManager'));
+const Consultations = lazy(() => import('./pages/Doctor/Consultations'));
+const EnhancedConsultationForm = lazy(() => import('./pages/Doctor/EnhancedConsultationForm'));
+const VitalsPage = lazy(() => import('./pages/Nurse/VitalsPage'));
+const MedicationsPage = lazy(() => import('./pages/Nurse/MedicationsPage'));
+const MyPatients = lazy(() => import('./pages/Doctor/MyPatients'));
+const DoctorAppointments = lazy(() => import('./pages/Doctor/DoctorAppointments'));
+const BloodPressure = lazy(() => import('./pages/Ward/BloodPressure'));
+const DashDiet = lazy(() => import('./pages/Ward/DashDiet'));
+const IPDManagement = lazy(() => import('./pages/Ward/IPDManagement'));
+const Procedures = lazy(() => import('./pages/Nurse/Procedures'));
+const MonthlyReportPage = lazy(() => import('./pages/Nurse/MonthlyReportPage'));
+const VerifyQR = lazy(() => import('./pages/VerifyQR'));
+const LeaveRequest = lazy(() => import('./pages/LeaveRequest'));
+const EMRPrescriptions = lazy(() => import('./pages/Doctor/EMRPrescriptions'));
+const DepoInjectionManagement = lazy(() => import('./pages/DepoInjectionManagement'));
+const MedicalCertificates = lazy(() => import('./pages/Doctor/MedicalCertificates'));
+const EMRReferralPaper = lazy(() => import('./components/doctor/EMRReferralPaper'));
+const MedicalTestRequestForm = lazy(() => import('./pages/Doctor/MedicalTestRequestForm'));
 
 
 const router = createBrowserRouter([
@@ -128,13 +117,13 @@ const router = createBrowserRouter([
   createLazyRoute("/login", Login),
   {
     path: "/verify-qr",
-    element: <VerifyQR />,
+    element: <LazyWrapper><VerifyQR /></LazyWrapper>,
     errorElement: <ErrorFallback />
   },
 
   {
     path: '/billing/process-payment/:notificationId',
-    element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><ProcessPaymentPage /></ProtectedRoute>,
+    element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><LazyWrapper><ProcessPaymentPage /></LazyWrapper></ProtectedRoute>,
     errorElement: <ErrorFallback />
   },
   {
@@ -169,304 +158,303 @@ const router = createBrowserRouter([
     children: [
       {
         path: 'dashboard',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance']}><AdminDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance']}><LazyWrapper><AdminDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'patients',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception']}><Patients /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception']}><LazyWrapper><Patients /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'appointments',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception']}><Appointments /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception']}><LazyWrapper><Appointments /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'lab-tests',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'lab']}><LabTests /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'lab']}><LazyWrapper><LabTests /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><BillingDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><LazyWrapper><BillingDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/invoices',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><InvoiceList /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><LazyWrapper><InvoiceList /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/invoices/new',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><NewInvoice /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><LazyWrapper><NewInvoice /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/invoices/:id',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><InvoiceDetail /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><LazyWrapper><InvoiceDetail /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/invoices/:id/edit',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><EditInvoice /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><LazyWrapper><EditInvoice /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/patient-cards',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><PatientCardSettings /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><LazyWrapper><PatientCardSettings /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/reports',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><BillingReports /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><BillingReports /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/reports/detailed',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><DetailedBillingReport /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><DetailedBillingReport /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/expense-manager',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><ExpenseManager /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><ExpenseManager /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/financial-report',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><StandardFinancialReport /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><StandardFinancialReport /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/item-revenue-report',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><ItemRevenueReport /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><ItemRevenueReport /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/patient-demographics',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><BillingPatientDemographics /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><BillingPatientDemographics /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'nurse',
-        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><NurseDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><LazyWrapper><NurseDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'nurse/tasks',
-        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><NurseTasksNew /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><LazyWrapper><NurseTasksNew /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'ward',
-        element: <ProtectedRoute allowedRoles={['admin', 'nurse', 'doctor']}><ModernWardDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'nurse', 'doctor']}><LazyWrapper><ModernWardDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'ward/ipd',
-        element: <ProtectedRoute allowedRoles={['admin', 'nurse', 'doctor']}><IPDManagement /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'nurse', 'doctor']}><LazyWrapper><IPDManagement /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'ward/vitals',
-        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><VitalsPage /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><LazyWrapper><VitalsPage /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'ward/medications-backup',
-        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><MedicationsPage /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><LazyWrapper><MedicationsPage /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'ward/injection',
-        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><InjectionDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><LazyWrapper><InjectionDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'ward/blood-pressure',
-        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><BloodPressure /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><LazyWrapper><BloodPressure /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'ward/dash-diet',
-        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><DashDiet /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><LazyWrapper><DashDiet /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'procedures',
-        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><Procedures /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'nurse']}><LazyWrapper><Procedures /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'nurse/monthly-report',
-        element: <ProtectedRoute allowedRoles={['admin', 'nurse', 'doctor']}><MonthlyReportPage /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'nurse', 'doctor']}><LazyWrapper><MonthlyReportPage /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'reception',
-        element: <ProtectedRoute allowedRoles={['admin', 'receptionist', 'reception']}><ReceptionDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'receptionist', 'reception']}><LazyWrapper><ReceptionDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'reception/register',
-        element: <ProtectedRoute allowedRoles={['admin', 'receptionist', 'reception']}><RegisterPatient /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'receptionist', 'reception']}><LazyWrapper><RegisterPatient /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'reception/service-request',
-        element: <ProtectedRoute allowedRoles={['admin', 'receptionist', 'reception']}><ServiceRequestForm /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'receptionist', 'reception']}><LazyWrapper><ServiceRequestForm /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'doctor',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><DoctorDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><LazyWrapper><DoctorDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'doctor/dashboard',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><DoctorDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><LazyWrapper><DoctorDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'doctor/patients',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><MyPatients /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><LazyWrapper><MyPatients /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'doctor/consultations',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><Consultations /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><LazyWrapper><Consultations /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'doctor/consultation/:patientId',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><EnhancedConsultationForm /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><LazyWrapper><EnhancedConsultationForm /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'doctor/appointments',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><DoctorAppointments /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><LazyWrapper><DoctorAppointments /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'doctor/emr-prescriptions',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><EMRPrescriptions /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><LazyWrapper><EMRPrescriptions /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'doctor/medical-certificates',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><MedicalCertificates /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><LazyWrapper><MedicalCertificates /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'doctor/emr-referral',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><EMRReferralPaper /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><LazyWrapper><EMRReferralPaper /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'doctor/medical-test-requests',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><MedicalTestRequestForm /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><LazyWrapper><MedicalTestRequestForm /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'depo-injections',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse']}><DepoInjectionManagement /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse']}><LazyWrapper><DepoInjectionManagement /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'imaging',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'imaging', 'lab_technician']}><MahletImagingDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'imaging', 'lab_technician']}><LazyWrapper><MahletImagingDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'imaging/dashboard',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'imaging', 'lab_technician']}><MahletImagingDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'imaging', 'lab_technician']}><LazyWrapper><MahletImagingDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'admin',
-        element: <ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><AdminDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'system-controls',
-        element: <ProtectedRoute allowedRoles={['admin']}><SystemControls /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><SystemControls /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'clinics',
-        element: <ProtectedRoute allowedRoles={['admin']}><ClinicManagement /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><ClinicManagement /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'staff-attendance-control',
-        element: <ProtectedRoute allowedRoles={['admin']}><StaffAttendanceControlPage /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><StaffAttendanceControlPage /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'inventory',
-        element: <ProtectedRoute allowedRoles={['admin']}><StockManagement /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><StockManagement /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'inventory/dashboard',
-        element: <ProtectedRoute allowedRoles={['admin']}><InventoryDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><InventoryDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'inventory/new-item',
-        element: <ProtectedRoute allowedRoles={['admin']}><NewInventoryItemForm /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><NewInventoryItemForm /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'inventory/edit/:id',
-        element: <ProtectedRoute allowedRoles={['admin']}><NewInventoryItemForm /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><NewInventoryItemForm /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'facility',
-        element: <ProtectedRoute allowedRoles={['admin']}><FacilityDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><FacilityDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'settings',
-        element: <ProtectedRoute allowedRoles={['admin']}><Settings /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><Settings /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'theme-settings',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'lab', 'finance']}><ThemeSettings /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'lab', 'finance']}><LazyWrapper><ThemeSettings /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'profile',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance', 'lab', 'imaging']}><Profile /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance', 'lab', 'imaging']}><LazyWrapper><Profile /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'patient-services',
-        element: <ProtectedRoute allowedRoles={['admin', 'reception', 'nurse', 'doctor']}><PatientServicesHub /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'reception', 'nurse', 'doctor']}><LazyWrapper><PatientServicesHub /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'data-share',
-        element: <ProtectedRoute allowedRoles={['admin']}><DataSharePage /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><DataSharePage /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'reports',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance']}><ReportsDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance']}><LazyWrapper><ReportsDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'reports/workload',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance', 'lab', 'imaging']}><WorkloadAnalytics /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance', 'lab', 'imaging']}><LazyWrapper><WorkloadAnalytics /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'patient-reports',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception']}><PatientReports /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception']}><LazyWrapper><PatientReports /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'weekly-diseases-report',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse']}><WeeklyDiseasesReportPage /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse']}><LazyWrapper><WeeklyDiseasesReportPage /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'patient-card-settings',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><PatientCardSettings /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><PatientCardSettings /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'staff-management',
-        element: <ProtectedRoute allowedRoles={['admin']}><StaffManagement /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><StaffManagement /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'staff-control',
-        element: <ProtectedRoute allowedRoles={['admin']}><StaffControlCenter /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><StaffControlCenter /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'leave-request',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'lab', 'imaging', 'reception']}><LeaveRequest /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'lab', 'imaging', 'reception']}><LazyWrapper><LeaveRequest /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'pharmacy',
-        element: <ProtectedRoute allowedRoles={['admin']}><StockManagement /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><StockManagement /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'services',
-        element: <ProtectedRoute allowedRoles={['admin']}><ServiceManagement /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><ServiceManagement /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'medical-record-demo',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><MedicalRecordDemo /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><LazyWrapper><MedicalRecordDemo /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'auth-test',
-        element: <AuthTest />
+        element: <LazyWrapper><AuthTest /></LazyWrapper>
       },
       {
         path: 'ui-showcase',
-        element: <ProtectedRoute allowedRoles={['admin', 'nurse', 'doctor']}><UIShowcasePage /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'nurse', 'doctor']}><LazyWrapper><UIShowcasePage /></LazyWrapper></ProtectedRoute>
       },
-      // Lab routes
       {
         path: 'lab',
-        element: <ProtectedRoute allowedRoles={['admin', 'lab_technician', 'lab']}><LabDashboard /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'lab_technician', 'lab']}><LazyWrapper><LabDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'lab/new-test',
-        element: <ProtectedRoute allowedRoles={['admin', 'lab_technician', 'lab']}><EnterTestResults /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'lab_technician', 'lab']}><LazyWrapper><EnterTestResults /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'lab/results', 
-        element: <ProtectedRoute allowedRoles={['admin', 'lab_technician', 'lab']}><ViewResults /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'lab_technician', 'lab']}><LazyWrapper><ViewResults /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'lab/results/search', 
-        element: <ProtectedRoute allowedRoles={['admin', 'lab_technician', 'lab']}><ViewResults /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'lab_technician', 'lab']}><LazyWrapper><ViewResults /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'lab/service-results',
-        element: <ProtectedRoute allowedRoles={['admin', 'lab_technician', 'lab']}><ServiceResults /></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'lab_technician', 'lab']}><LazyWrapper><ServiceResults /></LazyWrapper></ProtectedRoute>
       }
     ]
   }

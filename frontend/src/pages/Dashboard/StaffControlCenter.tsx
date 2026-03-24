@@ -196,12 +196,6 @@ const StaffControlCenter: React.FC = () => {
           staffService.getStaffMembersWithAssignments()
         ]);
         
-        // Debug logging to understand data structure
-        console.log('🔍 StaffControlCenter - Overview data:', overview);
-        console.log('🔍 StaffControlCenter - Staff data:', staff);
-        console.log('🔍 StaffControlCenter - Staff type:', typeof staff);
-        console.log('🔍 StaffControlCenter - Staff isArray:', Array.isArray(staff));
-        
         // Update state with loaded data
         setDepartments(overview.departmentStats || []);
         setStaffMembers(Array.isArray(staff) ? staff : []);
@@ -271,14 +265,10 @@ const StaffControlCenter: React.FC = () => {
     // Start automatic activity tracking
     attendanceService.startActivityTracking();
 
-    // Refresh attendance data every 30 seconds
-    const interval = setInterval(() => {
-      loadAttendanceData();
-    }, 30000);
+    const interval = setInterval(loadAttendanceData, 60000);
 
-    return () => clearInterval(interval);
-    
     return () => {
+      clearInterval(interval);
       attendanceService.stopActivityTracking();
     };
   }, []);
@@ -502,12 +492,7 @@ const StaffControlCenter: React.FC = () => {
         setAttendanceData(Array.isArray(data.monthlyAttendanceData) ? data.monthlyAttendanceData : []);
         setAttendanceSummary(data.summary || null);
 
-        console.log(`✅ Monthly attendance data loaded for ${year}-${month}:`, {
-          staffCount: data.monthlyAttendanceData?.length || 0,
-          summary: data.summary
-        });
       } else {
-        console.log(`No monthly data available for ${year}-${month}`);
         // Set empty data with proper error indication
         setAttendanceData([]);
         setAttendanceSummary(null);

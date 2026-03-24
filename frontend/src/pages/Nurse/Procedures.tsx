@@ -130,13 +130,18 @@ const Procedures: React.FC = () => {
     const grouped: { [key: string]: { main: Procedure; sessions: Procedure[]; } } = {};
     const standalone: Procedure[] = [];
 
+    const byId = new Map(procedures.map(p => [p._id, p]));
+    const parentIds = new Set(
+      procedures
+        .filter(p => p.previousVisitId)
+        .map(p => p.previousVisitId!.toString())
+    );
+
     procedures.forEach(procedure => {
-      // Check if this is a session (contains "Session" in the name)
       if (procedure.procedureName.includes('Session') && procedure.previousVisitId) {
         const mainId = procedure.previousVisitId.toString();
         if (!grouped[mainId]) {
-          // Find the main procedure
-          const mainProcedure = procedures.find(p => p._id === mainId);
+          const mainProcedure = byId.get(mainId);
           if (mainProcedure) {
             grouped[mainId] = { main: mainProcedure, sessions: [] };
           }
@@ -145,11 +150,7 @@ const Procedures: React.FC = () => {
           grouped[mainId].sessions.push(procedure);
         }
       } else {
-        // Check if this procedure has sessions
-        const hasSessions = procedures.some(p => 
-          p.previousVisitId && p.previousVisitId.toString() === procedure._id
-        );
-        if (hasSessions) {
+        if (parentIds.has(procedure._id)) {
           if (!grouped[procedure._id]) {
             grouped[procedure._id] = { main: procedure, sessions: [] };
           }
@@ -326,28 +327,19 @@ const Procedures: React.FC = () => {
       console.log('Fetching procedures...');
       console.log('API_BASE_URL:', API_BASE_URL);
       console.log('Current hostname:', window.location.hostname);
-      console.log('Current origin:', window.location.origin);
-      
       const token = getToken();
       if (!token) {
         throw new Error('No authentication token found');
       }
       
-      // Use ApiService axios instance which handles URL detection automatically
-      // The apiService is already an axios instance with proper baseURL configured
-      const baseURL = (apiService as any).defaults?.baseURL || API_BASE_URL || '';
-      console.log('ApiService baseURL:', baseURL);
-      
-      // Use the axios instance from ApiService - it will automatically use the detected URL
       const response = await apiService.get('/api/procedures/my-procedures', {
         timeout: 30000,
+        params: { limit: 100 },
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      console.log('Response status:', response.status);
-      console.log('Fetched procedures:', response.data);
       setProcedures(response.data);
       
     } catch (error: any) {

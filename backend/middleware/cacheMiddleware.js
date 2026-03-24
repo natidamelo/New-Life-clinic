@@ -156,8 +156,8 @@ const cacheMiddleware = (duration, keyGenerator) => {
       return next();
     }
     
-    // Generate cache key
-    const key = keyGenerator ? keyGenerator(req) : req.originalUrl;
+    const tenantId = req.tenantId || req.headers['x-clinic-id'] || 'default';
+    const key = keyGenerator ? keyGenerator(req) : `${tenantId}:${req.originalUrl}`;
     
     // Try to get cached response
     const cachedResponse = cache.get(key);

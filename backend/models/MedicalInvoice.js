@@ -902,10 +902,11 @@ MedicalInvoiceSchema.statics.generateInvoiceNumber = async function() {
   return `INV-${year}-${month}-${nextNumber.toString().padStart(4, '0')}-${timestamp}`;
 };
 
-// Set up indexes for better query performance
 MedicalInvoiceSchema.index({ patient: 1, status: 1 });
 MedicalInvoiceSchema.index({ clinicId: 1, patient: 1, status: 1 });
 MedicalInvoiceSchema.index({ patientId: 1, status: 1 });
 MedicalInvoiceSchema.index({ invoiceNumber: 1 });
+MedicalInvoiceSchema.index({ clinicId: 1, issueDate: -1, status: 1 });
+MedicalInvoiceSchema.index({ clinicId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('MedicalInvoice', MedicalInvoiceSchema); 

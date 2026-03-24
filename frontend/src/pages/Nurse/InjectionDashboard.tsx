@@ -70,83 +70,52 @@ const InjectionDashboard: React.FC = () => {
         throw new Error('No authentication token available');
       }
 
-      console.log('💉 Fetching injection tasks...');
-      
-      // Fetch injection tasks (service-sent medications)
-      const filteredTasks = await nurseTaskService.getInjectionTasks(token, {
-        status: statusFilter === 'all' ? undefined : statusFilter
-      });
+      const [filteredTasks, depoSchedulesData] = await Promise.all([
+        nurseTaskService.getInjectionTasks(token, {
+          status: statusFilter === 'all' ? undefined : statusFilter
+        }),
+        depoInjectionService.getUpcomingInjections(30).catch(() => [])
+      ]);
 
-      // Fetch Depo injection schedules
-      try {
-        const depoSchedulesData = await depoInjectionService.getUpcomingInjections(30);
-        setDepoSchedules(depoSchedulesData);
-        console.log(`📅 Found ${depoSchedulesData.length} Depo injection schedules`);
-      } catch (depoError) {
-        console.log('⚠️ Could not fetch Depo schedules:', depoError);
-        setDepoSchedules([]);
-      }
+      setDepoSchedules(depoSchedulesData);
       
-      console.log(`✅ Found ${filteredTasks.length} injection tasks`);
-      
-      // Debug: Log payment statuses and verify with invoice data
-      for (const task of filteredTasks) {
-        console.log(`Task ${task.patientName}: paymentStatus = "${task.paymentStatus}", status = "${task.status}"`);
+      const unpaidTasks = filteredTasks.filter(t => t.paymentStatus === 'unpaid');
+      if (unpaidTasks.length > 0) {
+        const uniquePatientIds = [...new Set(unpaidTasks.map(t => t.patientId).filter(Boolean))];
+        const invoicesByPatient: Record<string, any[]> = {};
         
-        // If task shows unpaid but we suspect it might be paid, verify with invoice
-        console.log(`🔍 Checking payment verification for ${task.patientName}: paymentStatus=${task.paymentStatus}, hasInvoiceId=${!!task.metadata?.invoiceId}`);
-        if (task.paymentStatus === 'unpaid') {
+        await Promise.all(uniquePatientIds.map(async (patientId) => {
+          try {
+            const res = await fetch(`/api/billing/invoices?patientId=${patientId}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+              const response = await res.json();
+              invoicesByPatient[patientId] = response.data || response;
+            }
+          } catch { /* skip */ }
+        }));
+
+        await Promise.all(unpaidTasks.map(async (task) => {
           try {
             let invoice = null;
             
-            // Method 1: Use metadata.invoiceId if available
             if (task.metadata?.invoiceId) {
-              console.log(`🔍 Trying to fetch invoice via metadata: ${task.metadata.invoiceId}`);
-              const invoiceResponse = await fetch(`/api/billing/invoices/${task.metadata.invoiceId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-              if (invoiceResponse.ok) {
-                invoice = await invoiceResponse.json();
-                console.log(`✅ Found invoice via metadata: ${invoice.invoiceNumber}`);
-              }
+              const invoices = invoicesByPatient[task.patientId] || [];
+              invoice = invoices.find(inv => inv._id === task.metadata.invoiceId);
             }
             
-            // Method 2: Find invoice by patient and service if metadata method failed
             if (!invoice) {
-              console.log(`🔍 Trying to find invoice by patient and service for ${task.patientName}`);
-              const invoicesResponse = await fetch(`/api/billing/invoices?patientId=${task.patientId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-              if (invoicesResponse.ok) {
-                const response = await invoicesResponse.json();
-                // The API returns { data: invoices } format
-                const invoices = response.data || response;
-                console.log(`🔍 Found ${invoices.length} invoices for patient ${task.patientId}`);
-                
-                // Find invoice with injection service
-                invoice = invoices.find(inv => 
-                  inv.items && inv.items.some(item => 
-                    (item.description && item.description.toLowerCase().includes('injection')) ||
-                    (item.serviceName && item.serviceName.toLowerCase().includes('injection'))
-                  )
-                );
-                if (invoice) {
-                  console.log(`✅ Found invoice by patient + service: ${invoice.invoiceNumber}`);
-                } else {
-                  console.log(`ℹ️ No injection invoice found, checking all invoices for payment status`);
-                  // If no injection-specific invoice, check if any invoice is paid
-                  invoice = invoices.find(inv => inv.status === 'paid' || inv.amountPaid >= inv.total);
-                  if (invoice) {
-                    console.log(`✅ Found paid invoice: ${invoice.invoiceNumber}`);
-                  }
-                }
-              }
+              const invoices = invoicesByPatient[task.patientId] || [];
+              invoice = invoices.find(inv => 
+                inv.items?.some(item => 
+                  item.description?.toLowerCase().includes('injection') ||
+                  item.serviceName?.toLowerCase().includes('injection')
+                )
+              ) || invoices.find(inv => inv.status === 'paid' || inv.amountPaid >= inv.total);
             }
             
             if (invoice && (invoice.status === 'paid' || invoice.amountPaid >= invoice.total)) {
-              console.log(`🔍 Payment verification: Task shows unpaid but invoice is paid. Updating task payment status.`);
-              
-              // Actually update the task in the database
               const updateResponse = await fetch(`/api/nurse-tasks/${task._id}`, {
                 method: 'PUT',
                 headers: {
@@ -157,26 +126,17 @@ const InjectionDashboard: React.FC = () => {
                   paymentStatus: 'paid',
                   paidAt: new Date(),
                   paymentMethod: invoice.paymentMethod || 'cash',
-                  'metadata.invoiceId': invoice._id // Ensure metadata is linked
+                  'metadata.invoiceId': invoice._id
                 })
               });
               
               if (updateResponse.ok) {
-                console.log(`✅ Task payment status updated in database`);
                 task.paymentStatus = 'paid';
                 task.paidAt = new Date();
-              } else {
-                console.log(`❌ Failed to update task payment status in database`);
               }
-            } else if (invoice) {
-              console.log(`ℹ️ Invoice found but not fully paid: status=${invoice.status}, amountPaid=${invoice.amountPaid}, total=${invoice.total}`);
-            } else {
-              console.log(`ℹ️ No invoice found for task ${task.patientName}`);
             }
-          } catch (error) {
-            console.log(`⚠️ Could not verify payment status for task ${task._id}:`, error);
-          }
-        }
+          } catch { /* skip */ }
+        }));
       }
       
       // Sort by priority and creation date
@@ -207,7 +167,7 @@ const InjectionDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchInjectionTasks();
-  }, [statusFilter, priorityFilter]);
+  }, [statusFilter]);
 
   // Filter tasks based on search term
   const filteredTasks = tasks.filter(task =>

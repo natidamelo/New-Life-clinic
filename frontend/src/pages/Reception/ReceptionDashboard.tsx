@@ -454,25 +454,7 @@ const ReceptionDashboard: React.FC = () => {
 
       if (res.data && Array.isArray(res.data.patients)) {
         // The backend now provides payment status directly
-        const patientsWithPaymentStatus = res.data.patients.map((patient: any) => {
-          // Debug logging for patients with unpaid invoices
-          if (patient.hasUnpaidInvoices && patient.unpaidInvoices && patient.unpaidInvoices.length > 0) {
-
-          }
-
-          // Debug: Log card information to help diagnose grace period issues
-          if (patient.cardType || patient.cardStatus) {
-            console.log(`[Patient Card Info] ${patient.patientId} - ${patient.firstName} ${patient.lastName}:`, {
-              hasCardType: !!patient.cardType,
-              cardTypeName: patient.cardType?.name,
-              cardStatus: patient.cardStatus,
-              cardIssueDate: patient.cardIssueDate,
-              cardExpiryDate: patient.cardExpiryDate
-            });
-          }
-
-          return patient;
-        });
+        const patientsWithPaymentStatus = res.data.patients;
 
         setPatients(patientsWithPaymentStatus);
         setCurrentPage(res.data.currentPage || 1);
@@ -510,14 +492,8 @@ const ReceptionDashboard: React.FC = () => {
   }, [searchQuery, fetchPatients]);
 
   useEffect(() => {
-    // Only fetch if not searching (search effect handles search queries).
-    // Do NOT depend on currentPage: queue pagination is client-side; refetching on page change
-    // would reset currentPage to 1 when the response arrives and break Prev/Next.
-    if (!searchQuery.trim()) {
-      fetchPatients(1, QUEUE_PATIENTS_LOAD_SIZE);
-    }
     fetchDashboardStats();
-  }, [limit, fetchPatients, fetchDashboardStats, searchQuery]);
+  }, [fetchDashboardStats]);
 
   // Recompute client-side-driven stats when patient list/queue updates
   // moved below after queuePatients is defined to avoid temporal dead zone
@@ -754,7 +730,7 @@ const ReceptionDashboard: React.FC = () => {
 
   useEffect(() => {
     const handlePatientRegistered = () => {
-      fetchPatients(1, limit);
+      fetchPatients(1, QUEUE_PATIENTS_LOAD_SIZE);
     };
 
     window.addEventListener('patientRegistered', handlePatientRegistered);
@@ -845,63 +821,48 @@ const ReceptionDashboard: React.FC = () => {
   // Add method to fetch payment notifications
   const fetchPaymentNotifications = async () => {
     try {
-      console.log('🔍 [ReceptionDashboard] Fetching payment notifications...');
-
       const response = await api.get('/api/notifications?type=medication_payment_required,lab_payment_required,service_payment_required,card_payment_required');
 
-      console.log('🔍 [ReceptionDashboard] Notifications API response:', response.data);
-
       const notifications = response.data?.data || response.data?.notifications || [];
-      console.log('🔍 [ReceptionDashboard] Raw notifications:', notifications);
 
       if (Array.isArray(notifications)) {
         const activeNotifications = getActiveNotifications(notifications);
-        console.log('🔍 [ReceptionDashboard] Active notifications after filtering:', activeNotifications);
         setPaymentNotifications(activeNotifications);
       } else {
-        console.warn("Unexpected response structure from notifications API:", response.data);
         setPaymentNotifications([]);
       }
-
     } catch (error) {
-      console.error("Error fetching payment notifications:", error);
-      toast.error("Failed to fetch payment notifications");
+      setPaymentNotifications([]);
     }
   };
 
   useEffect(() => {
-    fetchPatients();
     fetchDoctors();
     fetchNurses();
     fetchPaymentNotifications();
 
-    // Also periodically refresh doctors list in case new doctors were added
     const refreshDoctorsInterval = setInterval(() => {
       fetchDoctors();
-    }, 60000);
+    }, 120000);
 
-    // Check for patient updates from admin dashboard every 30 seconds
     const checkPatientUpdatesInterval = setInterval(() => {
-      // Check if there was a recent update to hidden patients
       const lastUpdatedAt = localStorage.getItem('patientsLastUpdatedAt');
-      if (lastUpdatedAt && parseInt(lastUpdatedAt) > Date.now() - 60000) { // Only refresh if update was in last 60 seconds
-        fetchPatients();
+      if (lastUpdatedAt && parseInt(lastUpdatedAt) > Date.now() - 60000) {
+        fetchPatients(1, QUEUE_PATIENTS_LOAD_SIZE);
       }
 
-      // Always check if any patient IDs are marked as hidden in localStorage
       const hiddenPatientIds = localStorage.getItem('hiddenPatientIds');
       if (hiddenPatientIds) {
-        const hiddenIds = JSON.parse(hiddenPatientIds);
-        // Filter out any patients that should be hidden
-        setPatients(prev => prev.filter(patient => !hiddenIds.includes(patient.id)));
+        try {
+          const hiddenIds = JSON.parse(hiddenPatientIds);
+          setPatients(prev => prev.filter(patient => !hiddenIds.includes(patient.id)));
+        } catch {}
       }
+    }, 60000);
 
-    }, 30000);
-
-    // Refresh payment notifications every 30 seconds
     const refreshPaymentNotificationsInterval = setInterval(() => {
       fetchPaymentNotifications();
-    }, 30000);
+    }, 60000);
 
     // Listen for payment processed events to refresh immediately
     const handlePaymentProcessed = (event: CustomEvent) => {
@@ -2305,8 +2266,7 @@ const ReceptionDashboard: React.FC = () => {
     // Load data when modal opens
     fetchPatientsForSelect();
     fetchDoctorsForSelect();
-    fetchLabServices();
-    fetchImagingServices();
+    fetchLabAndImagingServices();
   };
 
   // Handle click outside to close dropdown
@@ -2328,12 +2288,11 @@ const ReceptionDashboard: React.FC = () => {
   const fetchPatientsForSelect = async () => {
     setIsLoadingPatientsForSelect(true);
     try {
-      const response = await api.get('/api/patients');
+      const response = await api.get('/api/patients?limit=100');
       const patientsData = response.data?.data || response.data?.patients || [];
       setPatientsForSelect(patientsData);
-      setFilteredPatientsForSelect(patientsData); // Initialize filtered patients
+      setFilteredPatientsForSelect(patientsData);
     } catch (error) {
-      console.error('Error fetching patients for select:', error);
       toast.error('Failed to load patients');
     } finally {
       setIsLoadingPatientsForSelect(false);
@@ -2359,11 +2318,12 @@ const ReceptionDashboard: React.FC = () => {
     }
   };
 
-  const fetchLabServices = async () => {
+  const fetchLabAndImagingServices = async () => {
     setIsLoadingServices(true);
     try {
       const response = await api.get('/api/services?active=true');
       const allServices = response.data || [];
+      
       const labServicesData = allServices.filter((service: any) =>
         service.category === 'lab' ||
         service.category === 'blood_test' ||
@@ -2377,18 +2337,7 @@ const ReceptionDashboard: React.FC = () => {
         service.name.toLowerCase().includes('stool')
       );
       setLabServices(labServicesData);
-    } catch (error) {
-      console.error('Error fetching lab services:', error);
-    } finally {
-      setIsLoadingServices(false);
-    }
-  };
-
-  const fetchImagingServices = async () => {
-    setIsLoadingServices(true);
-    try {
-      const response = await api.get('/api/services?active=true');
-      const allServices = response.data || [];
+      
       const imagingServicesData = allServices.filter((service: any) =>
         service.category === 'imaging' ||
         service.category === 'ultrasound' ||
@@ -2400,7 +2349,7 @@ const ReceptionDashboard: React.FC = () => {
       );
       setImagingServices(imagingServicesData);
     } catch (error) {
-      console.error('Error fetching imaging services:', error);
+      // silent
     } finally {
       setIsLoadingServices(false);
     }
