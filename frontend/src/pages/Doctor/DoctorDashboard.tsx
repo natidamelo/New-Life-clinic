@@ -1640,15 +1640,26 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       // Process prescriptions — resolve patient names from already-populated backend data
       // or from the already-loaded patients list. No extra API calls needed.
       const processedPrescriptions = (response || []).map((prescription: any) => {
-        const patientId = typeof prescription.patientId === 'object'
+        const patientIdStr = typeof prescription.patientId === 'object'
           ? prescription.patientId?.id || prescription.patientId?._id
           : prescription.patientId;
 
+        const patientObjId = typeof prescription.patient === 'object'
+          ? prescription.patient?.id || prescription.patient?._id
+          : prescription.patient;
+
+        const resolvedPatientId = patientIdStr || patientObjId;
+
         // Prefer backend-populated patient object
         let patientName = '';
-        if (prescription.patient && typeof prescription.patient === 'object') {
-          patientName = `${prescription.patient.firstName || ''} ${prescription.patient.lastName || ''}`.trim();
-        } else if (prescription.patientId && typeof prescription.patientId === 'object') {
+        let enrichedPatient = prescription.patient && typeof prescription.patient === 'object' && prescription.patient.firstName
+          ? prescription.patient
+          : null;
+
+        if (enrichedPatient) {
+          patientName = `${enrichedPatient.firstName || ''} ${enrichedPatient.lastName || ''}`.trim();
+        } else if (prescription.patientId && typeof prescription.patientId === 'object' && prescription.patientId.firstName) {
+          enrichedPatient = prescription.patientId;
           patientName = `${prescription.patientId.firstName || ''} ${prescription.patientId.lastName || ''}`.trim();
         }
 
@@ -1659,14 +1670,24 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
         }
 
         // Fall back to already-loaded patients list (no extra API call)
-        if (!patientName && patientId) {
-          const existing = patients.find((p: any) => p.id === patientId || p._id === patientId);
+        if ((!patientName || !enrichedPatient) && resolvedPatientId) {
+          const existing = patients.find((p: any) => p.id === resolvedPatientId || p._id === resolvedPatientId);
           if (existing) {
-            patientName = `${existing.firstName || ''} ${existing.lastName || ''}`.trim();
+            if (!patientName) {
+              patientName = `${existing.firstName || ''} ${existing.lastName || ''}`.trim();
+            }
+            if (!enrichedPatient) {
+              enrichedPatient = existing;
+            }
           }
         }
 
-        return { ...prescription, patientId, patientName: patientName || 'Unknown Patient' };
+        return {
+          ...prescription,
+          patientId: resolvedPatientId,
+          patient: enrichedPatient || prescription.patient,
+          patientName: patientName || 'Unknown Patient',
+        };
       });
 
       setPrescriptions(processedPrescriptions);
@@ -3469,25 +3490,43 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                             </td>
                             <td className="px-4 py-2">
                               <Button variant="outline" size="sm" onClick={async () => {
-                                console.log('🔍 [PRESCRIPTION VIEW] Opening prescription popup for group:', group);
-                                console.log('🔍 [PRESCRIPTION VIEW] Group meds:', group.meds);
+                                // Use current group meds directly (no need to refetch)
+                                const meds = group.meds;
 
-                                // Refresh prescription data to ensure we have the latest patient information
-                                await fetchAllPrescriptions();
+                                // Extract the patient ID from the first prescription
+                                const firstMed = meds[0] as any;
+                                const patientObjId =
+                                  (firstMed?.patient && typeof firstMed.patient === 'object' ? firstMed.patient._id || firstMed.patient.id : null)
+                                  || (typeof firstMed?.patient === 'string' ? firstMed.patient : null)
+                                  || (firstMed?.patientId && typeof firstMed.patientId === 'object' ? firstMed.patientId._id || firstMed.patientId.id : null)
+                                  || (typeof firstMed?.patientId === 'string' ? firstMed.patientId : null);
 
-                                // Find the updated prescriptions for this patient
-                                const updatedGroup = groupedPrescriptions.find(g => g.key === group.key);
-                                if (updatedGroup) {
-                                  console.log('🔍 [PRESCRIPTION VIEW] Updated group found:', updatedGroup);
-                                  console.log('🔍 [PRESCRIPTION VIEW] Updated group meds:', updatedGroup.meds);
-                                  console.log('🔍 [PRESCRIPTION VIEW] First prescription patient data:', updatedGroup.meds[0]?.patient);
-                                  setSelectedPatientPrescriptions(updatedGroup.meds);
-                                } else {
-                                  console.log('🔍 [PRESCRIPTION VIEW] Using original group data');
-                                  console.log('🔍 [PRESCRIPTION VIEW] Original group meds:', group.meds);
-                                  console.log('🔍 [PRESCRIPTION VIEW] First prescription patient data:', group.meds[0]?.patient);
-                                  setSelectedPatientPrescriptions(group.meds);
+                                // Check if patient data is already populated
+                                const alreadyHasPatient = firstMed?.patient && typeof firstMed.patient === 'object' && firstMed.patient.firstName;
+
+                                let patientData: any = alreadyHasPatient ? firstMed.patient : null;
+
+                                // Try patients array first
+                                if (!patientData && patientObjId) {
+                                  patientData = patients.find((p: any) => p.id === patientObjId || p._id === patientObjId) || null;
                                 }
+
+                                // Fetch directly from API if still not found
+                                if (!patientData && patientObjId) {
+                                  try {
+                                    const res = await patientService.getPatientById(patientObjId);
+                                    if (res) patientData = res;
+                                  } catch {
+                                    // ignore fetch error, will show what we have
+                                  }
+                                }
+
+                                // Attach patient data to all meds
+                                const enrichedMeds = patientData
+                                  ? meds.map((med: any) => ({ ...med, patient: patientData }))
+                                  : meds;
+
+                                setSelectedPatientPrescriptions(enrichedMeds);
                               }}>
                                 View
                               </Button>

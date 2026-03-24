@@ -180,8 +180,16 @@ router.get('/', async (req, res) => {
       .lean();
     
     console.log(`Found ${prescriptions.length} prescriptions`);
+
+    // Ensure patient data is always present — if patient is null but patientId is populated, use patientId
+    const enriched = prescriptions.map(p => {
+      if (!p.patient && p.patientId && typeof p.patientId === 'object') {
+        return { ...p, patient: p.patientId };
+      }
+      return p;
+    });
       
-    res.json(prescriptions);
+    res.json(enriched);
   } catch (err) {
     console.error('Error fetching prescriptions:', err);
     if (err.message.includes('timeout') || err.message.includes('timed out')) {
