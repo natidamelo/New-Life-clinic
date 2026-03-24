@@ -59,9 +59,15 @@ function tenantScopePlugin(schema) {
   });
 
   schema.pre('validate', function setClinicIdOnWrite(next) {
-    if (!this.clinicId) {
-      const tenantId = getCurrentTenantId();
-      this.clinicId = tenantId === '*' ? 'default' : tenantId;
+    const tenantId = getCurrentTenantId();
+    if (tenantId && tenantId !== '*') {
+      // For new documents, always stamp the current tenant's clinicId so the
+      // schema default of 'default' doesn't win over the real tenant value.
+      if (this.isNew || !this.clinicId || this.clinicId === 'default') {
+        this.clinicId = tenantId;
+      }
+    } else if (!this.clinicId) {
+      this.clinicId = 'default';
     }
     next();
   });
