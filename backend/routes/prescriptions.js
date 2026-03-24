@@ -66,7 +66,7 @@ router.post('/backfill-patient-snapshots', async (req, res) => {
 
     // Process up to 100 at a time to avoid timeout
     const missing = await Prescription.find({ 'patientSnapshot.firstName': { $exists: false } })
-      .select('_id patient patientId')
+      .select('_id patient patientId invoiceId')
       .limit(100)
       .lean();
 
@@ -84,78 +84,114 @@ router.post('/backfill-patient-snapshots', async (req, res) => {
       .lean();
     const patientMap = new Map(patients.map(p => [p._id.toString(), p]));
 
-    // For prescriptions with null patient, look up via NurseTask
+    // For prescriptions with null patient, look up via NurseTask and MedicalInvoice
     const nullPatientPrescIds = missing
       .filter(p => !p.patient && !p.patientId)
       .map(p => p._id);
 
+    // NurseTask lookup
     const nurseTasks = nullPatientPrescIds.length > 0
       ? await NurseTask.find({ prescriptionId: { $in: nullPatientPrescIds } })
           .select('prescriptionId patientId patientName')
           .lean()
       : [];
 
-    // Map prescriptionId -> patientId from nurse tasks
     const nurseTaskPatientMap = new Map();
     for (const nt of nurseTasks) {
-      if (nt.prescriptionId && nt.patientId) {
+      if (nt.prescriptionId) {
         nurseTaskPatientMap.set(nt.prescriptionId.toString(), {
-          patientId: nt.patientId.toString(),
+          patientId: nt.patientId?.toString(),
           patientName: nt.patientName
         });
       }
     }
 
+    // MedicalInvoice lookup for prescriptions with invoiceId
+    const MedicalInvoice = require('../models/MedicalInvoice');
+    const invoiceIds = missing.map(p => p.invoiceId).filter(Boolean);
+    const invoices = invoiceIds.length > 0
+      ? await MedicalInvoice.find({ _id: { $in: invoiceIds } })
+          .select('_id patientName patientId patient')
+          .lean()
+      : [];
+    const invoiceMap = new Map(invoices.map(inv => [inv._id.toString(), inv]));
+
     // Fetch patients found via nurse tasks
-    const nurseTaskPatientIds = [...new Set([...nurseTaskPatientMap.values()].map(v => v.patientId))];
+    const nurseTaskPatientIds = [...new Set(
+      [...nurseTaskPatientMap.values()].map(v => v.patientId).filter(Boolean)
+    )];
     if (nurseTaskPatientIds.length > 0) {
       const nursePatients = await PatientModel.find({ _id: { $in: nurseTaskPatientIds } })
         .select('firstName lastName patientId age gender address phoneNumber contactNumber')
         .lean();
-      for (const p of nursePatients) {
+      for (const p of nursePatients) patientMap.set(p._id.toString(), p);
+    }
+
+    // Also try to find patients by patientId string from invoices
+    const invoicePatientIdStrings = [...new Set(invoices.map(inv => inv.patientId).filter(Boolean))];
+    if (invoicePatientIdStrings.length > 0) {
+      const invPatients = await PatientModel.find({ patientId: { $in: invoicePatientIdStrings } })
+        .select('firstName lastName patientId age gender address phoneNumber contactNumber')
+        .lean();
+      for (const p of invPatients) {
         patientMap.set(p._id.toString(), p);
+        if (p.patientId) patientMap.set(p.patientId, p);
       }
     }
 
     let updated = 0;
     await Promise.all(missing.map(async (p) => {
       let patientDoc = null;
+      let nameOverride = null;
 
-      // Try direct patient ID first
+      // 1. Try direct patient ObjectId
       const directId = (p.patient || p.patientId)?.toString();
       if (directId) patientDoc = patientMap.get(directId) || null;
 
-      // Fall back to nurse task lookup
+      // 2. Try nurse task lookup
       if (!patientDoc) {
         const ntInfo = nurseTaskPatientMap.get(p._id.toString());
         if (ntInfo) {
-          patientDoc = patientMap.get(ntInfo.patientId) || null;
-          // If patient not in DB, use the name from nurse task
-          if (!patientDoc && ntInfo.patientName) {
-            const parts = ntInfo.patientName.split(' ');
-            patientDoc = { firstName: parts[0] || ntInfo.patientName, lastName: parts.slice(1).join(' ') || '' };
-          }
+          if (ntInfo.patientId) patientDoc = patientMap.get(ntInfo.patientId) || null;
+          if (!patientDoc && ntInfo.patientName) nameOverride = ntInfo.patientName;
         }
       }
 
-      if (!patientDoc) return;
+      // 3. Try invoice lookup
+      if (!patientDoc && !nameOverride && p.invoiceId) {
+        const inv = invoiceMap.get(p.invoiceId.toString());
+        if (inv) {
+          if (inv.patient) patientDoc = patientMap.get(inv.patient.toString()) || null;
+          if (!patientDoc && inv.patientId) patientDoc = patientMap.get(inv.patientId) || null;
+          if (!patientDoc && inv.patientName) nameOverride = inv.patientName;
+        }
+      }
+
+      if (!patientDoc && !nameOverride) return;
 
       try {
+        let firstName = '', lastName = '';
+        if (patientDoc) {
+          firstName = patientDoc.firstName || '';
+          lastName = patientDoc.lastName || '';
+        } else if (nameOverride) {
+          const parts = nameOverride.trim().split(' ');
+          firstName = parts[0] || nameOverride;
+          lastName = parts.slice(1).join(' ') || '';
+        }
+
         const update = {
           patientSnapshot: {
-            firstName: patientDoc.firstName || '',
-            lastName: patientDoc.lastName || '',
-            patientId: patientDoc.patientId || '',
-            age: patientDoc.age,
-            gender: patientDoc.gender || '',
-            address: patientDoc.address || '',
-            phoneNumber: patientDoc.phoneNumber || patientDoc.contactNumber || ''
+            firstName,
+            lastName,
+            patientId: patientDoc?.patientId || '',
+            age: patientDoc?.age,
+            gender: patientDoc?.gender || '',
+            address: patientDoc?.address || '',
+            phoneNumber: patientDoc?.phoneNumber || patientDoc?.contactNumber || ''
           }
         };
-        // Also fix the patient field if we found the patient in DB
-        if (patientDoc._id) {
-          update.patient = patientDoc._id;
-        }
+        if (patientDoc?._id) update.patient = patientDoc._id;
         await Prescription.findByIdAndUpdate(p._id, update);
         updated++;
       } catch {}
