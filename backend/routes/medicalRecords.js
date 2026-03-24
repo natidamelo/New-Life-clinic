@@ -137,9 +137,9 @@ router.get('/debug-count', asyncHandler(async (req, res) => {
     const startTime = Date.now();
     console.log(`[DEBUG COUNT] Starting count query at ${new Date().toISOString()}`);
     
-    // Simple count with timeout
-    const totalCount = await MedicalRecord.countDocuments({}).maxTimeMS(5000);
-    const deletedCount = await MedicalRecord.countDocuments({ isDeleted: true }).maxTimeMS(5000);
+    // Simple count with timeout - skip tenant scope to get true totals
+    const totalCount = await MedicalRecord.countDocuments({}).setOptions({ skipTenantScope: true }).maxTimeMS(5000);
+    const deletedCount = await MedicalRecord.countDocuments({ isDeleted: true }).setOptions({ skipTenantScope: true }).maxTimeMS(5000);
     const activeCount = totalCount - deletedCount;
     
     const queryTime = Date.now() - startTime;
