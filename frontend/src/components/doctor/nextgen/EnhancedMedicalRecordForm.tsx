@@ -109,6 +109,7 @@ import LaboratoryRequestForm from '../LaboratoryRequestForm';
 import ImagingOrderForm from '../ImagingOrderForm';
 import { useMemorySystem } from '../../../hooks/useMemorySystem';
 import MemorySystemControls from '../MemorySystemControls';
+import { API_BASE_URL as CONFIG_API_BASE_URL } from '../../../config';
 
 // Types
 interface MedicalRecord {
@@ -1163,8 +1164,17 @@ const EnhancedMedicalRecordForm: React.FC<EnhancedMedicalRecordFormProps> = ({
   
   const { user } = useAuth();
 
-  // Get the API base URL from config
-  const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '' : 'http://192.168.78.157:5002');
+  // Always prefer runtime env-config.js so production never falls back to a local LAN IP
+  const API_BASE_URL: string = (() => {
+    const w = window as any;
+    return (
+      w?._env_?.REACT_APP_API_URL ||
+      w?._env_?.VITE_API_URL ||
+      w?._env_?.API_BASE_URL ||
+      CONFIG_API_BASE_URL ||
+      ''
+    );
+  })();
 
   // Memory System Integration
   const memorySystem = useMemorySystem({

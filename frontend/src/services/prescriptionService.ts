@@ -5,10 +5,11 @@ import { AUTH_TOKEN_KEY, USER_DATA_KEY } from '../config';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
-// Create a custom debug instance of axios for more visibility
+// Use runtime env-config.js so this always points to the correct backend (never a local LAN IP)
+const _apiBaseUrl = (window as any)?._env_?.REACT_APP_API_URL || (window as any)?._env_?.VITE_API_URL || '';
 const debugAxios = axios.create({
-    baseURL: 'http://10.252.95.124:5002',
-    timeout: 10000  // Reduced from 30000 to 10000 (10 seconds) for faster response
+    baseURL: _apiBaseUrl,
+    timeout: 30000,
 });
 
 // Improved error handling function for API calls

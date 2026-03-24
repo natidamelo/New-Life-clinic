@@ -134,6 +134,7 @@ import { ipdService } from '../../../services/ipdService';
 import { formatDateTime } from '../../../utils/formatters';
 import { enhancedDiagnosisDatabase } from '../../../data/enhancedDiagnosisDatabase';
 import icd11Service from '../../../services/icd11Service';
+import { API_BASE_URL as CONFIG_API_BASE_URL } from '../../../config';
 
 // Classic MUI Grid (with item/container API)
 // NOTE: Ensure only one Grid import exists
@@ -222,12 +223,22 @@ interface PhysicalExaminationData {
   summary?: string; // free-text narrative
 }
 
-// Determine backend API base URL (supports Vite env, global config, or fallback)
-const API_BASE_URL =
-  (window as any)?.API_BASE_URL ||
-  (window as any)?.envConfig?.API_BASE_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV ? '' : 'http://192.168.78.157:5002');
+// Determine backend API base URL — always prefer the runtime env-config.js value
+// so production (Vercel) never falls back to a local LAN IP.
+const API_BASE_URL: string = (() => {
+  const w = window as any;
+  return (
+    w?._env_?.REACT_APP_API_URL ||
+    w?._env_?.VITE_API_URL ||
+    w?._env_?.API_BASE_URL ||
+    w?.API_BASE_URL ||
+    w?.envConfig?.API_BASE_URL ||
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    CONFIG_API_BASE_URL ||
+    ''
+  );
+})();
 
 // Simple debounce function
 const debounce = <T extends (...args: any[]) => any>(
