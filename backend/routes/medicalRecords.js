@@ -825,11 +825,10 @@ router.get('/completed-patient-history', [auth,
   const limit = Math.min(parseInt(req.query.limit) || 20, 100); // Cap at 100, default to 20
   const skip = (page - 1) * limit;
   
-  // Build query filters - include finalized/completed records AND drafts (saved but not finalized)
+  // Build query filters - only finalized/completed records for history view
   let query = { 
     status: { 
       $in: [
-        'Draft', 'draft', 'DRAFT',
         'Finalized', 'finalized', 'FINALIZED',
         'Completed', 'completed', 'COMPLETED',
         'Closed', 'closed', 'CLOSED',
