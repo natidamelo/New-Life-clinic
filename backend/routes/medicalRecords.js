@@ -168,10 +168,10 @@ router.get('/debug-count', asyncHandler(async (req, res) => {
 
 /**
  * @route   GET /api/medical-records/dashboard-lite
- * @desc    Get medical records for dashboard (no auth, for testing)
- * @access  Public (for testing)
+ * @desc    Get medical records for dashboard
+ * @access  Private (Medical Staff)
  */
-router.get('/dashboard-lite', asyncHandler(async (req, res) => {
+router.get('/dashboard-lite', auth, asyncHandler(async (req, res) => {
   const startTime = Date.now();
   
   try {
@@ -195,21 +195,27 @@ router.get('/dashboard-lite', asyncHandler(async (req, res) => {
         'Not specified', 'not specified', 'NOT SPECIFIED'
       ] 
     };
+
+    // Doctors only see their own records
+    if (req.user.role === 'doctor') {
+      query.$or = [
+        { createdBy: req.user._id },
+        { doctor: req.user._id },
+        { doctorId: req.user._id }
+      ];
+    }
     
     // If patient filter is provided - support both patientId and patient field
     if (req.query.patientId) {
-      const patientFilter = {
+      const andClauses = [{ status: query.status }];
+      if (query.$or) andClauses.push({ $or: query.$or });
+      andClauses.push({
         $or: [
           { patient: req.query.patientId },
           { patientId: req.query.patientId }
         ]
-      };
-      query = {
-        $and: [
-          { status: query.status },
-          patientFilter
-        ]
-      };
+      });
+      query = { $and: andClauses };
       console.log(`[DEBUG DASHBOARD-LITE] Filtering by patient: ${req.query.patientId}`);
     }
     
@@ -263,7 +269,7 @@ router.get('/dashboard-lite', asyncHandler(async (req, res) => {
       count: records.length,
       totalInDb: totalCount,
       queryTime: queryTime,
-      message: `Found ${records.length} records (no auth)`,
+      message: `Found ${records.length} records`,
       isRecent: !req.query.patientId,
       isPatientSpecific: !!req.query.patientId,
       pagination: {
