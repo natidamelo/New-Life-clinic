@@ -196,36 +196,21 @@ router.get('/dashboard-lite', asyncHandler(async (req, res) => {
       ] 
     };
     
-    // Exclude records for patients with status 'completed' (root cause fix: finalized patients
-    // can have orphaned draft records from reopening the form; they should not appear in Active & draft list)
-    const completedPatientIds = await Patient.find({ status: 'completed' }).distinct('_id');
-    if (completedPatientIds.length > 0) {
-      query.patient = { $nin: completedPatientIds };
-    }
-    
     // If patient filter is provided - support both patientId and patient field
     if (req.query.patientId) {
-      const pid = String(req.query.patientId);
-      const isCompletedPatient = completedPatientIds.some(id => id.toString() === pid);
-      if (isCompletedPatient) {
-        query.patient = { $in: [] };  // Force no match - completed patients have no active/draft records
-      } else {
-        const patientFilter = {
-          $or: [
-            { patient: req.query.patientId },
-            { patientId: req.query.patientId }
-          ]
-        };
-        query.$and = query.$and || [];
-        query.$and.push({ status: query.status });
-        if (completedPatientIds.length > 0) query.$and.push({ patient: { $nin: completedPatientIds } });
-        query.$and.push(patientFilter);
-        delete query.status;
-        query = { $and: query.$and };
-      }
+      const patientFilter = {
+        $or: [
+          { patient: req.query.patientId },
+          { patientId: req.query.patientId }
+        ]
+      };
+      query = {
+        $and: [
+          { status: query.status },
+          patientFilter
+        ]
+      };
       console.log(`[DEBUG DASHBOARD-LITE] Filtering by patient: ${req.query.patientId}`);
-    } else if (completedPatientIds.length > 0) {
-      // patient exclusion already set above
     }
     
     console.log(`[DEBUG DASHBOARD-LITE] Initial query:`, JSON.stringify(query, null, 2));
@@ -236,12 +221,14 @@ router.get('/dashboard-lite', asyncHandler(async (req, res) => {
     
     // Then let's see how many match our query
     const queryCount = await MedicalRecord.countDocuments(query);
-    console.log(`[DEBUG DASHBOARD-LITE] Records matching query (excluding finalized + completed patients): ${queryCount}`);
+    console.log(`[DEBUG DASHBOARD-LITE] Records matching query (excluding finalized): ${queryCount}`);
     
     const records = await MedicalRecord.find(query)
-      .select('patientId doctorId doctorName createdAt visitDate status chiefComplaint diagnosis')
+      .select('patient patientId doctorId doctor doctorName createdAt visitDate status chiefComplaint diagnosis')
+      .populate('patient', 'firstName lastName')
       .populate('patientId', 'firstName lastName')
       .populate('doctorId', 'firstName lastName')
+      .populate('doctor', 'firstName lastName')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -251,18 +238,24 @@ router.get('/dashboard-lite', asyncHandler(async (req, res) => {
     const queryTime = Date.now() - startTime;
     console.log(`[DEBUG DASHBOARD-LITE] Populated query completed in ${queryTime}ms, found ${records.length} records`);
     
-    // Format records
-    const formattedRecords = records.map(record => ({
-      _id: record._id,
-      patientId: record.patientId?._id || record.patientId,
-      patientName: record.patientId ? `${record.patientId.firstName} ${record.patientId.lastName}` : 'Unknown Patient',
-      createdAt: record.createdAt,
-      visitDate: record.visitDate,
-      status: record.status || 'Draft', // Use actual status from database
-      chiefComplaint: record.chiefComplaint?.description || 'Not specified',
-      diagnosis: record.diagnosis || 'Not specified',
-      doctorName: record.doctorName || (record.doctorId ? `${record.doctorId.firstName} ${record.doctorId.lastName}` : 'Unknown Doctor')
-    }));
+    // Format records - support both 'patient' and 'patientId' field names
+    const formattedRecords = records.map(record => {
+      const patientDoc = record.patient || record.patientId;
+      const doctorDoc = record.doctorId || record.doctor;
+      return {
+        _id: record._id,
+        patientId: patientDoc?._id || patientDoc || record.patientId || record.patient,
+        patientName: patientDoc && typeof patientDoc === 'object'
+          ? `${patientDoc.firstName} ${patientDoc.lastName}`
+          : 'Unknown Patient',
+        createdAt: record.createdAt,
+        visitDate: record.visitDate,
+        status: record.status || 'Draft',
+        chiefComplaint: record.chiefComplaint?.description || 'Not specified',
+        diagnosis: record.diagnosis || 'Not specified',
+        doctorName: record.doctorName || (doctorDoc ? `${doctorDoc.firstName} ${doctorDoc.lastName}` : 'Unknown Doctor')
+      };
+    });
     
     res.json({
       success: true,
@@ -351,9 +344,12 @@ router.get('/dashboard', [auth,
       console.log(`[DEBUG DASHBOARD] Doctor query - doctorId: ${req.user._id}`);
     }
     
-    // If patient filter is provided
+    // If patient filter is provided - support both patient and patientId fields
     if (req.query.patientId) {
-      query.patientId = req.query.patientId;
+      query.$or = [
+        { patient: req.query.patientId },
+        { patientId: req.query.patientId }
+      ];
       console.log(`[DEBUG DASHBOARD] Filtering by patient: ${req.query.patientId}`);
     } else {
       // Only get very recent records (last 7 days) for dashboard
@@ -370,9 +366,11 @@ router.get('/dashboard', [auth,
     console.log(`[DEBUG DASHBOARD] Starting database query with ${queryTimeout}ms timeout...`);
     
     const records = await MedicalRecord.find(query)
-      .select('patientId doctorId doctorName createdAt visitDate status chiefComplaint diagnosis') // Include status and other fields
-      .populate('patientId', 'firstName lastName', null, { maxTimeMS: 1000 }) // 1 second populate timeout
+      .select('patient patientId doctorId doctor doctorName createdAt visitDate status chiefComplaint diagnosis')
+      .populate('patient', 'firstName lastName', null, { maxTimeMS: 1000 })
+      .populate('patientId', 'firstName lastName', null, { maxTimeMS: 1000 })
       .populate('doctorId', 'firstName lastName', null, { maxTimeMS: 1000 })
+      .populate('doctor', 'firstName lastName', null, { maxTimeMS: 1000 })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -404,18 +402,24 @@ router.get('/dashboard', [auth,
       });
     }
     
-    // Minimal formatting for dashboard
-    const formattedRecords = records.map(record => ({
-      _id: record._id,
-      patientId: record.patientId?._id || record.patientId,
-      patientName: record.patientId ? `${record.patientId.firstName} ${record.patientId.lastName}` : 'Unknown Patient',
-      createdAt: record.createdAt,
-      visitDate: record.visitDate,
-      status: record.status || 'Draft', // Use actual status from database
-      chiefComplaint: record.chiefComplaint?.description || 'Not specified',
-      diagnosis: record.diagnosis || 'Not specified',
-      doctorName: record.doctorName || (record.doctorId ? `${record.doctorId.firstName} ${record.doctorId.lastName}` : 'Unknown Doctor')
-    }));
+    // Minimal formatting for dashboard - support both 'patient' and 'patientId' field names
+    const formattedRecords = records.map(record => {
+      const patientDoc = record.patient || record.patientId;
+      const doctorDoc = record.doctorId || record.doctor;
+      return {
+        _id: record._id,
+        patientId: patientDoc?._id || patientDoc || record.patientId || record.patient,
+        patientName: patientDoc && typeof patientDoc === 'object'
+          ? `${patientDoc.firstName} ${patientDoc.lastName}`
+          : 'Unknown Patient',
+        createdAt: record.createdAt,
+        visitDate: record.visitDate,
+        status: record.status || 'Draft',
+        chiefComplaint: record.chiefComplaint?.description || 'Not specified',
+        diagnosis: record.diagnosis || 'Not specified',
+        doctorName: record.doctorName || (doctorDoc ? `${doctorDoc.firstName} ${doctorDoc.lastName}` : 'Unknown Doctor')
+      };
+    });
     
     const totalTime = Date.now() - startTime;
     console.log(`[DEBUG DASHBOARD] Request completed successfully in ${totalTime}ms`);
@@ -815,10 +819,11 @@ router.get('/completed-patient-history', [auth,
   const limit = Math.min(parseInt(req.query.limit) || 20, 100); // Cap at 100, default to 20
   const skip = (page - 1) * limit;
   
-  // Build query filters - include only finalized/completed records (exclude drafts)
+  // Build query filters - include finalized/completed records AND drafts (saved but not finalized)
   let query = { 
     status: { 
       $in: [
+        'Draft', 'draft', 'DRAFT',
         'Finalized', 'finalized', 'FINALIZED',
         'Completed', 'completed', 'COMPLETED',
         'Closed', 'closed', 'CLOSED',
@@ -912,9 +917,6 @@ router.get('/', [auth,
   
   // Exclude finalized records by default - they should only appear in Completed Patients tab
   // Also exclude records for patients with status 'completed' (prevents finalized patients
-  // from appearing via orphaned drafts created when reopening the form)
-  const completedPatientIds = await Patient.find({ status: 'completed' }).distinct('_id');
-  
   if (!req.query.status) {
     query.status = { 
       $nin: [
@@ -924,21 +926,16 @@ router.get('/', [auth,
         'Archived', 'archived', 'ARCHIVED'
       ] 
     };
-    if (completedPatientIds.length > 0) {
-      query.patient = { $nin: completedPatientIds };
-    }
   } else {
     query.status = req.query.status;
   }
   
   if (req.query.patientId) {
-    const pid = String(req.query.patientId);
-    const isCompleted = completedPatientIds.some(id => id.toString() === pid);
-    if (isCompleted && !req.query.status) {
-      query.patient = { $in: [] };  // Force no match - completed patients have no active/draft records
-    } else {
-      query.patient = req.query.patientId;
-    }
+    // Support both patient and patientId fields
+    query.$or = [
+      { patient: req.query.patientId },
+      { patientId: req.query.patientId }
+    ];
   }
   
   console.log(`[DEBUG] Query filters:`, query);

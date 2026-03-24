@@ -389,10 +389,34 @@ const deleteMedicalRecord = async (req, res) => {
 
 const getMedicalRecordsByPatient = async (req, res) => {
   try {
+    const { patientId } = req.params;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const page = parseInt(req.query.page) || 1;
+    const skip = (page - 1) * limit;
+
+    const query = {
+      $or: [
+        { patient: patientId },
+        { patientId: patientId }
+      ]
+    };
+
+    const records = await medicalRecord.find(query)
+      .populate('patient', 'firstName lastName dateOfBirth gender patientId')
+      .populate('patientId', 'firstName lastName dateOfBirth gender patientId')
+      .populate('doctor', 'firstName lastName')
+      .populate('doctorId', 'firstName lastName')
+      .populate('createdBy', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
     res.json({
       success: true,
-      message: 'Get medical records by patient endpoint working',
-      data: []
+      data: records,
+      count: records.length,
+      pagination: { page, limit }
     });
   } catch (error) {
     console.error('Error fetching medical records by patient:', error);
