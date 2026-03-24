@@ -251,6 +251,16 @@ router.post('/fix-dose-counts', async (req, res) => {
   }
 });
 
+// GET /api/prescriptions/raw-sample - returns first 3 prescriptions without populate for debugging
+router.get('/raw-sample', async (req, res) => {
+  try {
+    const samples = await Prescription.find({}).limit(3).select('_id patient patientId doctor doctorId medicationName createdAt').lean();
+    res.json(samples);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET all prescriptions
 router.get('/', async (req, res) => {
   try {
