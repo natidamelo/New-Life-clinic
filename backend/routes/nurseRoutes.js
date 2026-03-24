@@ -10,8 +10,8 @@ const asyncHandler = require('../middleware/async');
 
 // @route   GET /api/nurse/all
 // @desc    Get all nurses
-// @access  Public
-router.get('/all', asyncHandler(async (req, res) => {
+// @access  Private
+router.get('/all', auth, asyncHandler(async (req, res) => {
   try {
     const nurses = await User.find({ 
       role: 'nurse', 

@@ -11,9 +11,9 @@ const User = require('../models/User');
 /**
  * @route   GET /api/nurse/all
  * @desc    Get all nurses
- * @access  Public
+ * @access  Private
  */
-router.get('/all', asyncHandler(async (req, res) => {
+router.get('/all', auth, asyncHandler(async (req, res) => {
   try {
     const nurses = await User.find({ 
       role: 'nurse', 
