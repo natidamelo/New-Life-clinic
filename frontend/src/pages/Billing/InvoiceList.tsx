@@ -118,7 +118,15 @@ const InvoiceList: React.FC = () => {
   const baseInvoices = useMemo(() => {
     const statusPriority: Record<string, number> = { pending: 1, partial: 2, overdue: 3, paid: 4, cancelled: 5, disputed: 6 };
     return [...invoices]
-      .filter(inv => !((inv.balance ?? 0) <= 0 && (inv.total ?? 0) <= 0))
+      .filter(inv => {
+        const isZero = (inv.balance ?? 0) <= 0 && (inv.total ?? 0) <= 0;
+        if (!isZero) return true;
+        // Keep zero-total invoices that are still pending/active (e.g. newly registered patients
+        // whose daily consolidated invoice hasn't accumulated charges yet)
+        const activeStatus = inv.status === 'pending' || inv.status === 'partial';
+        const isConsolidated = inv.isConsolidated || inv.isDailyConsolidated;
+        return activeStatus && isConsolidated && !inv.finalized;
+      })
       .sort((a, b) => {
         const pA = statusPriority[a.status as string] || 99;
         const pB = statusPriority[b.status as string] || 99;

@@ -422,19 +422,35 @@ router.post('/', auth, async (req, res) => {
       const dailyInvoice = await billingService.createOrUpdateConsolidatedInvoice(invoiceData, req.user._id);
       console.log(`✅ Daily consolidated invoice created/updated: ${dailyInvoice.invoiceNumber} for patient ${patient._id}`);
       
-      // Add invoice reference to patient
-      patient.registrationInvoiceId = dailyInvoice._id;
-      await patient.save();
-      
+      // Persist the invoice reference on the patient document
+      try {
+        await Patient.findByIdAndUpdate(patient._id, { registrationInvoiceId: dailyInvoice._id });
+      } catch (refErr) {
+        console.warn('⚠️ Could not save registrationInvoiceId on patient:', refErr.message);
+      }
+
+      return res.status(201).json({
+        success: true,
+        data: patient,
+        invoice: {
+          _id: dailyInvoice._id,
+          invoiceNumber: dailyInvoice.invoiceNumber,
+          total: dailyInvoice.total,
+          status: dailyInvoice.status
+        }
+      });
     } catch (invoiceError) {
       console.error('❌ Error creating daily consolidated invoice:', invoiceError);
-      // Don't fail patient creation if invoice creation fails
+      console.error('❌ Invoice error details:', invoiceError.stack || invoiceError.message);
+      // Patient was created but invoice failed — still return the patient
+      // but signal the frontend that the invoice was not created
+      return res.status(201).json({
+        success: true,
+        data: patient,
+        invoiceError: 'Invoice could not be created automatically. Please create it manually from Patient Billing.',
+        invoiceErrorDetail: invoiceError.message
+      });
     }
-    
-    res.status(201).json({
-      success: true,
-      data: patient
-    });
   } catch (error) {
     console.error('Error creating patient:', error);
     res.status(500).json({

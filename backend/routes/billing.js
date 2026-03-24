@@ -2539,7 +2539,7 @@ router.get('/invoices', auth, async (req, res) => {
 
     const [invoices, total] = await Promise.all([
       MedicalInvoice.find(filter)
-        .select('invoiceNumber patient patientId patientName status total balance amountPaid issueDate dateIssued dueDate items.description items.serviceName items.itemType items.category isDailyConsolidated finalized createdAt')
+        .select('invoiceNumber patient patientId patientName status total balance amountPaid issueDate dateIssued dueDate items.description items.serviceName items.itemType items.category isConsolidated isDailyConsolidated finalized createdAt')
         .populate('patient', 'firstName lastName patientId')
         .sort({ issueDate: -1, dateIssued: -1, createdAt: -1 })
         .skip(skip)

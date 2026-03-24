@@ -133,7 +133,8 @@ const RegisterPatient: React.FC = () => {
         };
         
         console.log("Submitting new patient data:", newPatientData);
-        const createdPatient = await patientService.createPatient(newPatientData);
+        const registrationResponse = await patientService.createPatient(newPatientData);
+        const createdPatient = registrationResponse?.data || registrationResponse;
         
         if (createdPatient) {
           // Find selected card type details
@@ -145,6 +146,12 @@ const RegisterPatient: React.FC = () => {
             duration: 4000,
             position: 'top-right',
           });
+
+          // Warn if invoice creation failed on the backend
+          if (registrationResponse?.invoiceError) {
+            toast.error(registrationResponse.invoiceError, { duration: 8000, position: 'top-right' });
+            console.error('Invoice creation failed:', registrationResponse.invoiceErrorDetail);
+          }
           
           // Reset form
           resetForm();

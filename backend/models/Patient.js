@@ -254,6 +254,10 @@ const patientSchema = new mongoose.Schema({
   },
   reopenReason: {
     type: String
+  },
+  registrationInvoiceId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'MedicalInvoice'
   }
 
 }, {
