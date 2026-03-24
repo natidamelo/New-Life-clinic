@@ -394,6 +394,8 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
         }
         
         if (!isAssignedToThisNurse && hasActiveStatus) {
+          return false;
+        }
         return false;
       });
       
