@@ -2974,69 +2974,26 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
     </div>
   );
 
-  // Memo: group prescriptions by patient
+  // Each prescription is its own row (grouped by prescription _id)
   const groupedPrescriptions = useMemo(() => {
-    const map = new Map<string, { patientName: string; meds: Prescription[] }>();
-    prescriptions.forEach(p => {
-      // Extract proper patientId (handle cases where it might be an object)
-      const patientId = typeof p.patientId === 'object'
-        ? (p.patientId as any)?.id || (p.patientId as any)?._id
-        : p.patientId;
+    const result = prescriptions.map((p: any) => {
+      const patientNameFinal =
+        (p.patient && typeof p.patient === 'object' && (p.patient.firstName || p.patient.lastName))
+          ? `${p.patient.firstName || ''} ${p.patient.lastName || ''}`.trim()
+          : (p.patientName && p.patientName !== 'Unknown Patient' && p.patientName !== 'Patient Name')
+            ? p.patientName
+            : 'Unknown Patient';
 
-      // Also try to get patientId from the patient field if patientId is not available
-      const finalPatientId = patientId || (typeof p.patient === 'object'
-        ? (p.patient as any)?.id || (p.patient as any)?._id
-        : p.patient);
-
-      const patientNameFinal = (() => {
-        // Try to get name from populated patient object first (backend populates this)
-        if (p.patient && typeof p.patient === 'object' && (p.patient.firstName || p.patient.lastName)) {
-          return `${p.patient.firstName || ''} ${p.patient.lastName || ''}`.trim();
-        }
-        // Try to get name from patientId populated object (backup)
-        if (p.patientId && typeof p.patientId === 'object' && (p.patientId.firstName || p.patientId.lastName)) {
-          return `${p.patientId.firstName || ''} ${p.patientId.lastName || ''}`.trim();
-        }
-        // Try to get name from patientDetails (legacy)
-        if (p.patientDetails && (p.patientDetails.firstName || p.patientDetails.lastName)) {
-          return `${p.patientDetails.firstName || ''} ${p.patientDetails.lastName || ''}`.trim();
-        }
-        // Try to get name from patientName field (if already processed)
-        if (p.patientName && p.patientName !== 'Unknown Patient' && p.patientName !== 'Patient Name') {
-          return p.patientName;
-        }
-        // Fall back to finding in patients array
-        const pat = patients.find(pt => pt.id === finalPatientId || pt._id === finalPatientId);
-        return pat ? `${pat.firstName || ''} ${pat.lastName || ''}`.trim() : 'Unknown Patient';
-      })();
-
-      // Group by patient ID only, but ensure we have a valid patient ID
-      const key = finalPatientId || 'unknown';
-
-      console.log('Grouping prescription:', {
-        prescriptionId: (p as any)._id || (p as any).id,
-        patientId: finalPatientId,
+      const prescriptionId = p._id || p.id;
+      return {
+        key: prescriptionId,
+        patientId: p.patientId || (typeof p.patient === 'object' ? p.patient?._id : p.patient),
         patientName: patientNameFinal,
-        medication: (p as any).medicationName,
-        key,
-        patientData: p.patient,
-        patientIdData: p.patientId,
-        fullPrescription: p
-      });
-
-      if (!map.has(key)) {
-        map.set(key, { patientName: patientNameFinal, meds: [p] });
-      } else {
-        map.get(key)!.meds.push(p);
-      }
+        meds: [p],
+      };
     });
 
-    const result = Array.from(map.entries()).map(([grpKey, data]) => {
-      return { key: grpKey, patientId: grpKey, patientName: data.patientName, meds: data.meds };
-    });
-
-    console.log('Grouped prescriptions result:', result);
-    // Update total pages for prescriptions (10 per page)
+    // Update total pages (10 per page)
     const total = Math.max(1, Math.ceil(result.length / 10));
     if (prescriptionsTotalPages !== total) {
       setPrescriptionsTotalPages(total);
@@ -3530,19 +3487,19 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                     {groupedPrescriptions
                       .slice((prescriptionsPage - 1) * 10, (prescriptionsPage - 1) * 10 + 10)
                       .map(group => {
-                        const latest = group.meds[0];
-                        const status = group.meds.some(m => m.status.toLowerCase() === 'pending') ? 'pending' : 'active';
+                        const latest = group.meds[0] as any;
+                        const status = (latest.status || '').toLowerCase() === 'pending' ? 'pending' : 'active';
+                        const medNames = latest.medications && latest.medications.length > 0
+                          ? latest.medications.map((m: any) => m.name || m.medication || m.medicationName).filter(Boolean).join(', ')
+                          : (latest.medicationName || 'Unknown medication');
                         return (
-                          <tr key={group.key}>
-                            <td className="px-4 py-2">{
-                              group.meds.length === 1 ? (latest.medications[0]?.name || 'Unknown medication') : `${group.meds.length} medications`
-                            }</td>
-                            <td className="px-4 py-2">{group.patientName}</td>
-                            <td className="px-4 py-2">{formatDate(latest.createdAt)}</td>
+                          <tr key={group.key} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-2 text-sm">{medNames}</td>
+                            <td className="px-4 py-2 text-sm">{group.patientName}</td>
+                            <td className="px-4 py-2 text-sm">{formatDate(latest.createdAt || latest.datePrescribed)}</td>
                             <td className="px-4 py-2">
-                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                                }`}>
-                                {status}
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                {latest.status || status}
                               </span>
                             </td>
                             <td className="px-4 py-2">
