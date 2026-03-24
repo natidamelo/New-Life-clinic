@@ -1632,6 +1632,15 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
     try {
       const response = await prescriptionService.getPrescriptionsByDoctor(currentDoctorId);
 
+      // Log raw first prescription to diagnose field names
+      if (response && response[0]) {
+        console.log('🔬 [RX RAW] Keys:', Object.keys(response[0]));
+        console.log('🔬 [RX RAW] patient:', response[0].patient);
+        console.log('🔬 [RX RAW] patientId:', response[0].patientId);
+        console.log('🔬 [RX RAW] patientSnapshot:', (response[0] as any).patientSnapshot);
+        console.log('🔬 [RX RAW] Full:', JSON.stringify(response[0]).slice(0, 500));
+      }
+
       // Helper: extract the raw patient ObjectId string from a prescription
       const extractPatientId = (prescription: any): string | null => {
         if (prescription.patient && typeof prescription.patient === 'object') {
