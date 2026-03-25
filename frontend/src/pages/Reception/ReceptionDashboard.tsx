@@ -2494,18 +2494,17 @@ const ReceptionDashboard: React.FC = () => {
         <div className="flex flex-wrap gap-2">
           <Button
             onClick={() => {
-              formik.resetForm();
               setPatientToEdit(null);
-              setRegistrationTab('new');
+              setRegistrationTab('renew');
               setExpiredCardSearchQuery('');
               setExpiredCardSearchResults([]);
               setIsNewPatientModalOpen(true);
             }}
-            className="flex items-center flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-primary-foreground shadow-md text-sm"
+            className="flex items-center flex-1 sm:flex-none bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md text-sm"
             type="button"
           >
-            <Icon icon={UserPlusIcon} className="w-4 h-4 mr-1.5" />
-            New Patient
+            <Icon icon={ArrowPathIcon} className="w-4 h-4 mr-1.5" />
+            Renew Existing Card
           </Button>
           <Button
             variant="outline"
