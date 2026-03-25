@@ -1,8 +1,50 @@
-// Global configuration for the application
-// Empty string means "use the Vite proxy" — this works on any network/IP
-// because the proxy runs on the same origin as the frontend and forwards
-// /api requests to localhost:5002 on the server machine.
-export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+// Global configuration for the application.
+// Resolve API URL from both build-time and runtime env sources.
+// Runtime sources are useful for static deployments where env is injected via script.
+const normalizeBaseUrl = (url: string): string =>
+  url.trim().replace(/\/+$/, '');
+
+const resolveApiBaseUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    const runtimeWindow = window as any;
+    const fromWindowConfig =
+      runtimeWindow.API_BASE_URL ||
+      runtimeWindow?.envConfig?.API_BASE_URL ||
+      runtimeWindow?._env_?.VITE_API_URL ||
+      runtimeWindow?._env_?.VITE_API_BASE_URL ||
+      runtimeWindow?._env_?.API_BASE_URL ||
+      runtimeWindow?._env_?.REACT_APP_API_URL;
+
+    if (fromWindowConfig && String(fromWindowConfig).trim()) {
+      return normalizeBaseUrl(String(fromWindowConfig));
+    }
+  }
+
+  const fromBuildEnv = (
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    ''
+  );
+
+  if (fromBuildEnv && String(fromBuildEnv).trim()) {
+    return normalizeBaseUrl(String(fromBuildEnv));
+  }
+
+  // In local dev we intentionally use relative /api with Vite proxy.
+  if (import.meta.env.DEV) {
+    return '';
+  }
+
+  // In production, empty API URL causes requests to hit the frontend origin
+  // and often return HTML (index/404), which surfaces as JSON parse errors.
+  console.error(
+    '[Config] API base URL is empty in production. Set window._env_.REACT_APP_API_URL (via /env-config.js) or VITE_API_URL.'
+  );
+  return '';
+};
+
+// Empty string means "use the Vite proxy" in local dev.
+export const API_BASE_URL = resolveApiBaseUrl();
 export const API_URL = API_BASE_URL;
 export const WS_BASE_URL = API_BASE_URL
   ? API_BASE_URL.replace(/^http/, 'ws')

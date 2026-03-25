@@ -2350,70 +2350,88 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
         
         // Check if the record is already finalized
         const recordStatus = savedRecord.data?.status || savedRecord.status;
-        if (recordStatus === 'Finalized') {
-          console.log('⚠️ Record is already finalized, skipping finalization');
-          alert('This medical record has already been finalized.');
-          return;
-        }
-        
-        // Get the record ID from the saved record
-        const recordId = savedRecord.data?._id || savedRecord._id || savedRecord.id || currentRecordId;
-        
-        if (!recordId) {
-          console.error('❌ No record ID available for finalization');
-          console.error('🔍 Saved record data:', savedRecord);
-          console.error('🔍 Current record ID:', currentRecordId);
-          alert('Medical record saved but could not finalize - missing record ID. Please try again.');
-          return;
-        }
-        
-        // Validate that the record ID is a valid MongoDB ObjectId format
-        if (!/^[0-9a-fA-F]{24}$/.test(recordId)) {
-          console.error('❌ Invalid record ID format for finalization:', recordId);
-          alert('Medical record saved but could not finalize - invalid record ID format. Please try again.');
-          return;
-        }
-        
-        console.log('🔍 Using record ID for finalization:', recordId);
-        
-        try {
-          const finalizeResponse = await fetch(`${API_BASE_URL}/api/medical-records/${recordId}/finalize`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${getAuthToken()}`
-            }
+        const normalizedStatus = typeof recordStatus === 'string' ? recordStatus.toLowerCase() : recordStatus;
+        if (normalizedStatus === 'finalized') {
+          // The back-end create/update flow already finalizes when the request status is `Finalized`,
+          // so calling the dedicated `/finalize` endpoint again is redundant and can produce "already finalized".
+          console.log('✅ Record is already finalized from create/update; skipping /finalize endpoint');
+          toast.success('🎉 Medical record finalized successfully', {
+            position: 'top-center',
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true
           });
+        } else {
+          // Get the record ID from the saved record
+          const recordId = savedRecord.data?._id || savedRecord._id || savedRecord.id || currentRecordId;
           
-          if (finalizeResponse.ok) {
-            const finalizeData = await finalizeResponse.json();
-            console.log('✅ Medical record finalized successfully:', finalizeData);
-            toast.success('🎉 Medical record finalized! Patient moved to "Completed Patient Histories" tab.', {
-              position: 'top-center',
-              autoClose: 5000,
-              hideProgressBar: false,
-              closeOnClick: true,
-              pauseOnHover: true,
-              draggable: true
-            });
-          } else {
-            const errorData = await finalizeResponse.json().catch(() => ({}));
-            console.warn('⚠️ Failed to finalize record:', errorData);
-            
-            // Check if the record is already finalized
-            if (finalizeResponse.status === 400 && errorData.message?.includes('already be finalized')) {
-              alert('This medical record has already been finalized and cannot be finalized again.');
-            } else {
-              // Reset finalized state on failure
-              setIsFinalized(false);
-              alert(`Medical record saved but finalization failed: ${errorData.message || 'Unknown error'}. Please try again.`);
-            }
+          if (!recordId) {
+            console.error('❌ No record ID available for finalization');
+            console.error('🔍 Saved record data:', savedRecord);
+            console.error('🔍 Current record ID:', currentRecordId);
+            setIsFinalized(false);
+            alert('Medical record saved but could not finalize - missing record ID. Please try again.');
+            return;
           }
-        } catch (finalizeError) {
-          console.error('❌ Error finalizing record:', finalizeError);
-          // Reset finalized state on error
-          setIsFinalized(false);
-          alert('Medical record saved but finalization failed. Please try again.');
+          
+          // Validate that the record ID is a valid MongoDB ObjectId format
+          if (!/^[0-9a-fA-F]{24}$/.test(recordId)) {
+            console.error('❌ Invalid record ID format for finalization:', recordId);
+            setIsFinalized(false);
+            alert('Medical record saved but could not finalize - invalid record ID format. Please try again.');
+            return;
+          }
+          
+          console.log('🔍 Using record ID for finalization:', recordId);
+          
+          try {
+            const finalizeResponse = await fetch(`${API_BASE_URL}/api/medical-records/${recordId}/finalize`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+              }
+            });
+            
+            if (finalizeResponse.ok) {
+              const finalizeData = await finalizeResponse.json();
+              console.log('✅ Medical record finalized successfully:', finalizeData);
+              toast.success('🎉 Medical record finalized! Patient moved to "Completed Patient Histories" tab.', {
+                position: 'top-center',
+                autoClose: 5000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true
+              });
+            } else {
+              const errorData = await finalizeResponse.json().catch(() => ({}));
+              console.warn('⚠️ Failed to finalize record:', errorData);
+              
+              // Check if the record is already finalized
+              if (finalizeResponse.status === 400 && errorData.message?.includes('already be finalized')) {
+                toast.success('🎉 Medical record already finalized', {
+                  position: 'top-center',
+                  autoClose: 5000,
+                  hideProgressBar: false,
+                  closeOnClick: true,
+                  pauseOnHover: true,
+                  draggable: true
+                });
+              } else {
+                // Reset finalized state on failure
+                setIsFinalized(false);
+                alert(`Medical record saved but finalization failed: ${errorData.message || 'Unknown error'}. Please try again.`);
+              }
+            }
+          } catch (finalizeError) {
+            console.error('❌ Error finalizing record:', finalizeError);
+            // Reset finalized state on error
+            setIsFinalized(false);
+            alert('Medical record saved but finalization failed. Please try again.');
+          }
         }
         
         // Refresh the patient history to include the newly finalized record
