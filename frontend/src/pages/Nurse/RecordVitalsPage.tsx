@@ -203,11 +203,34 @@ const RecordVitalsPage: React.FC = () => {
       const list: Patient[] = Array.isArray(data)
         ? data
         : (data as any)?.patients ?? (data as any)?.data ?? [];
-      // Sort: Admitted patients (just sent from reception) first, then by creation date
+      const getVitalsTimestamp = (p: Patient): number => {
+        const vitals: any = (p as any).vitals || {};
+        // Prefer vitals timestamp if present; fall back to patient timestamps if the UI uses them.
+        const ts =
+          vitals.timestamp ||
+          (p as any).vitalsTimestamp ||
+          (p as any).lastVitalsTimestamp ||
+          (p as any).lastUpdated ||
+          (p as any).updatedAt ||
+          (p as any).createdAt;
+        const t = ts ? new Date(ts).getTime() : 0;
+        return Number.isFinite(t) ? t : 0;
+      };
+
+      // Sort: Admitted patients first, then most-recent vitals on top.
       const sorted = [...list].sort((a, b) => {
         const aAdmitted = (a as any).status === 'Admitted' ? 0 : 1;
         const bAdmitted = (b as any).status === 'Admitted' ? 0 : 1;
-        return aAdmitted - bAdmitted;
+        if (aAdmitted !== bAdmitted) return aAdmitted - bAdmitted;
+
+        const aTs = getVitalsTimestamp(a);
+        const bTs = getVitalsTimestamp(b);
+        if (aTs !== bTs) return bTs - aTs;
+
+        // Stable-ish fallback so ordering doesn't randomly change.
+        const aCreated = new Date((a as any).createdAt || 0).getTime();
+        const bCreated = new Date((b as any).createdAt || 0).getTime();
+        return bCreated - aCreated;
       });
       setPatients(sorted);
       setFilteredPatients(sorted);
