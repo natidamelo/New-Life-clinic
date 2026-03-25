@@ -96,21 +96,25 @@ const WorkloadAnalytics: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Workload Analytics</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-            <div className="md:col-span-2">
+    <div className="flex flex-col lg:flex-row gap-4">
+      {/* Left sidebar */}
+      <aside className="w-full lg:w-84 lg:max-w-84 lg:sticky lg:top-4 self-start">
+        <Card>
+          <CardHeader>
+            <CardTitle>Workload Analytics</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground">Search by path</label>
               <Input
-                placeholder="Search by path"
+                placeholder="e.g. /doctor/appointments"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground">Role</label>
               <Select value={role || 'all'} onValueChange={(v) => setRole(v === 'all' ? '' : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filter by role" />
@@ -127,137 +131,151 @@ const WorkloadAnalytics: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            </div>
-            <div className="flex gap-2">
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-              <Select value={interval} onValueChange={(v) => setInterval(v as any)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Interval" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="day">Day</SelectItem>
-                  <SelectItem value="week">Week</SelectItem>
-                  <SelectItem value="month">Month</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button onClick={load} disabled={loading}>Apply</Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader><CardTitle>Visits Over Time</CardTitle></CardHeader>
-          <CardContent>
-            <Line
-              data={{
-                labels: series.map((s) => format(new Date(s.bucket), 'yyyy-MM-dd')),
-                datasets: [
-                  {
-                    label: 'Visits',
-                    data: series.map((s) => s.visits || 0),
-                    borderColor: 'rgb(59, 130, 246)',
-                    backgroundColor: 'rgba(59, 130, 246, 0.3)',
-                    tension: 0.3,
-                    fill: true,
-                  },
-                ],
-              }}
-              options={{
-                responsive: true,
-                plugins: { legend: { display: true } },
-                scales: { x: { ticks: { maxRotation: 0 } }, y: { beginAtZero: true } },
-              }}
-            />
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground">Date range</label>
+              <div className="grid grid-cols-1 gap-2">
+                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground">Interval</label>
+              <div className="flex items-center gap-2">
+                <Select value={interval} onValueChange={(v) => setInterval(v as any)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Interval" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="day">Day</SelectItem>
+                    <SelectItem value="week">Week</SelectItem>
+                    <SelectItem value="month">Month</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button onClick={load} disabled={loading} className="whitespace-nowrap">
+                  {loading ? 'Loading…' : 'Apply'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="pt-2 space-y-3 border-t border-border/60">
+              <div className="space-y-1">
+                <div className="text-xs text-muted-foreground">Total Visits</div>
+                <div className="text-2xl font-semibold">{totalVisits}</div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs text-muted-foreground">Total Clicks</div>
+                <div className="text-2xl font-semibold">{totalClicks}</div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs text-muted-foreground">Total Time</div>
+                <div className="text-2xl font-semibold">{msToHuman(totalDuration)}</div>
+              </div>
+            </div>
+
+            {error && <div className="text-red-600 text-sm">{error}</div>}
           </CardContent>
         </Card>
+      </aside>
+
+      {/* Right content */}
+      <div className="flex-1 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader><CardTitle>Visits Over Time</CardTitle></CardHeader>
+            <CardContent>
+              <Line
+                data={{
+                  labels: series.map((s) => format(new Date(s.bucket), 'yyyy-MM-dd')),
+                  datasets: [
+                    {
+                      label: 'Visits',
+                      data: series.map((s) => s.visits || 0),
+                      borderColor: 'rgb(59, 130, 246)',
+                      backgroundColor: 'rgba(59, 130, 246, 0.3)',
+                      tension: 0.3,
+                      fill: true,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  plugins: { legend: { display: true } },
+                  scales: { x: { ticks: { maxRotation: 0 } }, y: { beginAtZero: true } },
+                }}
+              />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle>Top Paths by Visits</CardTitle></CardHeader>
+            <CardContent>
+              <Bar
+                data={{
+                  labels: topPaths.map((t) => t.path),
+                  datasets: [
+                    {
+                      label: 'Visits',
+                      data: topPaths.map((t) => t.visits || 0),
+                      backgroundColor: 'rgba(34, 197, 94, 0.6)',
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  plugins: { legend: { display: true } },
+                  scales: { x: { ticks: { maxRotation: 0, autoSkip: true } }, y: { beginAtZero: true } },
+                }}
+              />
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
-          <CardHeader><CardTitle>Top Paths by Visits</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Per Path</CardTitle>
+          </CardHeader>
           <CardContent>
-            <Bar
-              data={{
-                labels: topPaths.map((t) => t.path),
-                datasets: [
-                  {
-                    label: 'Visits',
-                    data: topPaths.map((t) => t.visits || 0),
-                    backgroundColor: 'rgba(34, 197, 94, 0.6)',
-                  },
-                ],
-              }}
-              options={{
-                responsive: true,
-                plugins: { legend: { display: true } },
-                scales: { x: { ticks: { maxRotation: 0, autoSkip: true } }, y: { beginAtZero: true } },
-              }}
-            />
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader><CardTitle>Total Visits</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-semibold">{totalVisits}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Total Clicks</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-semibold">{totalClicks}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Total Time</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-semibold">{msToHuman(totalDuration)}</CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Per Path</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {error && <div className="text-red-600 mb-2">{error}</div>}
-          {loading ? (
-            <div>Loading...</div>
-          ) : (
-            <div className="overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left border-b">
-                  <tr>
-                    <th className="py-2 pr-3">Path</th>
-                    <th className="py-2 pr-3">Role</th>
-                    <th className="py-2 pr-3">Visits</th>
-                    <th className="py-2 pr-3">Clicks</th>
-                    <th className="py-2 pr-3">Avg Time</th>
-                    <th className="py-2 pr-3">Total Time</th>
-                    <th className="py-2 pr-3">Last Seen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((r) => (
-                    <tr key={`${r.path}-${r.role || 'all'}`} className="border-b last:border-b-0">
-                      <td className="py-2 pr-3 font-medium">{r.path}</td>
-                      <td className="py-2 pr-3">{r.role || '-'}</td>
-                      <td className="py-2 pr-3">{r.visits}</td>
-                      <td className="py-2 pr-3">{r.clicks}</td>
-                      <td className="py-2 pr-3">{msToHuman(r.avgDurationMs)}</td>
-                      <td className="py-2 pr-3">{msToHuman(r.totalDurationMs)}</td>
-                      <td className="py-2 pr-3">{r.lastSeen ? format(new Date(r.lastSeen), 'yyyy-MM-dd HH:mm') : '-'}</td>
-                    </tr>
-                  ))}
-                  {filtered.length === 0 && (
+            {loading ? (
+              <div>Loading...</div>
+            ) : (
+              <div className="overflow-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left border-b">
                     <tr>
-                      <td colSpan={7} className="py-4 text-center text-muted-foreground">No data</td>
+                      <th className="py-2 pr-3">Path</th>
+                      <th className="py-2 pr-3">Role</th>
+                      <th className="py-2 pr-3">Visits</th>
+                      <th className="py-2 pr-3">Clicks</th>
+                      <th className="py-2 pr-3">Avg Time</th>
+                      <th className="py-2 pr-3">Total Time</th>
+                      <th className="py-2 pr-3">Last Seen</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </thead>
+                  <tbody>
+                    {filtered.map((r) => (
+                      <tr key={`${r.path}-${r.role || 'all'}`} className="border-b last:border-b-0">
+                        <td className="py-2 pr-3 font-medium">{r.path}</td>
+                        <td className="py-2 pr-3">{r.role || '-'}</td>
+                        <td className="py-2 pr-3">{r.visits}</td>
+                        <td className="py-2 pr-3">{r.clicks}</td>
+                        <td className="py-2 pr-3">{msToHuman(r.avgDurationMs)}</td>
+                        <td className="py-2 pr-3">{msToHuman(r.totalDurationMs)}</td>
+                        <td className="py-2 pr-3">{r.lastSeen ? format(new Date(r.lastSeen), 'yyyy-MM-dd HH:mm') : '-'}</td>
+                      </tr>
+                    ))}
+                    {filtered.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="py-4 text-center text-muted-foreground">No data</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
