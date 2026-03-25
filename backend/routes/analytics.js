@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { auth } = require('../middleware/auth');
 const RouteUsage = require('../models/RouteUsage');
+const { cacheMiddleware } = require('../middleware/cacheMiddleware');
 
 // Simple health check to verify router is mounted
 router.get('/ping', (req, res) => {
@@ -35,7 +36,7 @@ router.post('/route-usage', auth, async (req, res) => {
 });
 
 // Basic workload summary per dashboard path
-router.get('/route-usage/summary', auth, async (req, res) => {
+router.get('/route-usage/summary', auth, cacheMiddleware(30000), async (req, res) => {
   try {
     const { startDate, endDate, role } = req.query;
     const match = {};
@@ -85,7 +86,7 @@ router.get('/route-usage/summary', auth, async (req, res) => {
 });
 
 // Chart-friendly: time-series usage by interval (day/week/month), optionally filtered by path/role
-router.get('/route-usage/timeseries', auth, async (req, res) => {
+router.get('/route-usage/timeseries', auth, cacheMiddleware(30000), async (req, res) => {
   try {
     const { startDate, endDate, role, path, interval = 'day', limit } = req.query;
     const match = {};
@@ -140,7 +141,7 @@ router.get('/route-usage/timeseries', auth, async (req, res) => {
 });
 
 // Chart-friendly: top breakdowns by path or user for admin dashboards
-router.get('/route-usage/top', auth, async (req, res) => {
+router.get('/route-usage/top', auth, cacheMiddleware(30000), async (req, res) => {
   try {
     const { startDate, endDate, role, by = 'path', limit = 10 } = req.query;
     const match = {};
