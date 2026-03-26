@@ -73,7 +73,7 @@ class UserService {
    */
   async getAllDoctors(): Promise<Doctor[]> {
     try {
-      const response = await api.get<Doctor[]>('/api/doctors/all');
+      const response = await api.get<Doctor[]>('/api/doctor/all');
       return response.data;
     } catch (error) {
       console.error('Error fetching doctors:', error);

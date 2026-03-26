@@ -209,7 +209,7 @@ const doctorService = {
   // Get all doctors
   async getAllDoctors(): Promise<GetAllDoctorsResponse | Doctor[]> { // Flexible return type for now
     try {
-      const response = await api.get<GetAllDoctorsResponse | Doctor[]>('/api/doctors');
+      const response = await api.get<GetAllDoctorsResponse | Doctor[]>('/api/doctor/all');
       // The actual structure might be response.data.doctors or just response.data if it's an array directly
       // For NewInvoicePage, it expects response.doctors or response directly if it's Doctor[]
       return response.data;

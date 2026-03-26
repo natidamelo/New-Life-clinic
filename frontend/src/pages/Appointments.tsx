@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -314,76 +315,59 @@ const Appointments: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-6 p-3 sm:p-6">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-8 max-w-[1600px] mx-auto"
+    >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20 p-6 rounded-2xl border border-blue-100/50 dark:border-blue-900/50 shadow-sm backdrop-blur-sm">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Appointments</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage and track all patient appointments</p>
+          <h1 className="text-3xl sm:text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-600 dark:from-blue-400 dark:to-indigo-300">
+            Appointments
+          </h1>
+          <p className="text-muted-foreground mt-2 text-sm font-medium">Manage and track all patient appointments effortlessly</p>
         </div>
-        <Button onClick={() => setIsScheduleModalOpen(true)} className="gap-2 w-full sm:w-auto">
-          <PlusIcon className="w-4 h-4" />
-          Schedule Appointment
-        </Button>
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <Button onClick={() => setIsScheduleModalOpen(true)} className="gap-2 w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-500/20 border-0">
+            <PlusIcon className="w-5 h-5" />
+            Schedule Appointment
+          </Button>
+        </motion.div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setDateFilter('today')}>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        {[
+          { label: "Today's Schedule", count: todaysCount, icon: CalendarOutlineIcon, color: "blue", onClick: () => setDateFilter('today') },
+          { label: "Upcoming", count: upcomingCount, icon: ClockIcon, color: "purple", onClick: () => setDateFilter('upcoming') },
+          { label: "Scheduled", count: scheduledCount, icon: CalendarOutlineIcon, color: "yellow", onClick: () => setStatusFilter('Scheduled') },
+          { label: "Completed", count: completedCount, icon: CheckCircleIcon, color: "green", onClick: () => setStatusFilter('Completed') },
+        ].map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1, duration: 0.5 }}
+            whileHover={{ y: -5, scale: 1.02 }}
+            onClick={stat.onClick}
+            className={`cursor-pointer group relative overflow-hidden rounded-2xl border bg-card p-6 shadow-sm hover:shadow-lg transition-all duration-300 border-${stat.color}-100 dark:border-${stat.color}-900/30`}
+          >
+            <div className={`absolute top-0 right-0 p-4 opacity-10 transition-transform duration-500 group-hover:scale-150 group-hover:rotate-12`}>
+              <stat.icon className={`w-24 h-24 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+            </div>
+            <div className="relative z-10 flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Today's Schedule</p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">{todaysCount}</h3>
+                <p className="text-sm font-semibold tracking-wider text-muted-foreground uppercase">{stat.label}</p>
+                <h3 className="text-4xl font-extrabold text-foreground mt-2">{stat.count}</h3>
               </div>
-              <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-full">
-                <CalendarOutlineIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <div className={`bg-${stat.color}-100 dark:bg-${stat.color}-900/30 p-4 rounded-xl shadow-inner group-hover:bg-${stat.color}-200 transition-colors`}>
+                <stat.icon className={`w-8 h-8 text-${stat.color}-600 dark:text-${stat.color}-400`} />
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setDateFilter('upcoming')}>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Upcoming</p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">{upcomingCount}</h3>
-              </div>
-              <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded-full">
-                <ClockIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('Scheduled')}>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Scheduled</p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">{scheduledCount}</h3>
-              </div>
-              <div className="bg-yellow-100 dark:bg-yellow-900/30 p-3 rounded-full">
-                <CalendarOutlineIcon className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('Completed')}>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Completed</p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">{completedCount}</h3>
-              </div>
-              <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-full">
-                <CheckCircleIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* Filters */}
@@ -464,17 +448,22 @@ const Appointments: React.FC = () => {
       </Card>
 
       {/* Appointments Table */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle>
-              {dateFilter === 'today' ? "Today's Schedule" : dateFilter === 'upcoming' ? 'Upcoming Appointments' : 'All Appointments'}
-            </CardTitle>
-            <span className="text-sm text-muted-foreground">
-              {filteredAppointments.length} appointment{filteredAppointments.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-        </CardHeader>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.3, duration: 0.5 }}
+      >
+        <Card className="rounded-2xl shadow-md border-border/50 overflow-hidden backdrop-blur-sm bg-card/90">
+          <CardHeader className="pb-4 bg-muted/20 border-b border-border/50">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+                {dateFilter === 'today' ? "Today's Schedule" : dateFilter === 'upcoming' ? 'Upcoming Appointments' : 'All Appointments'}
+              </CardTitle>
+              <Badge variant="secondary" className="px-3 py-1 font-semibold rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+                {filteredAppointments.length} Appointment{filteredAppointments.length !== 1 && 's'}
+              </Badge>
+            </div>
+          </CardHeader>
         <CardContent className="p-0">
           <div className="rounded-b-lg overflow-x-auto">
             <Table className="min-w-[600px]">
@@ -509,130 +498,145 @@ const Appointments: React.FC = () => {
                       </div>
                     </TableCell>
                   </TableRow>
-                ) : (
-                  filteredAppointments
-                    .sort((a, b) => new Date(b.appointmentDateTime).getTime() - new Date(a.appointmentDateTime).getTime())
-                    .map(appt => {
-                      const apptId = appt._id || appt.id;
-                      const apptDate = new Date(appt.appointmentDateTime);
-                      const isToday = apptDate.toDateString() === new Date().toDateString();
-                      return (
-                        <TableRow key={apptId} className="hover:bg-muted/30 transition-colors">
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className={`text-sm font-medium ${isToday ? 'text-primary' : 'text-foreground'}`}>
-                                {isToday ? 'Today' : apptDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  ) : (
+                  <AnimatePresence>
+                    {filteredAppointments
+                      .sort((a, b) => new Date(b.appointmentDateTime).getTime() - new Date(a.appointmentDateTime).getTime())
+                      .map((appt, i) => {
+                        const apptId = appt._id || appt.id;
+                        const apptDate = new Date(appt.appointmentDateTime);
+                        const isToday = apptDate.toDateString() === new Date().toDateString();
+                        return (
+                          <motion.tr
+                            key={apptId}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 10 }}
+                            transition={{ delay: i * 0.05, duration: 0.3 }}
+                            className="hover:bg-muted/30 transition-colors group"
+                          >
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className={`text-sm font-semibold ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-foreground'}`}>
+                                  {isToday ? 'Today' : apptDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </span>
+                                <span className="text-xs font-medium text-muted-foreground">
+                                  {apptDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs ring-1 ring-primary/20">
+                                  {getPatientName(appt).charAt(0)}
+                                </div>
+                                <span className="font-semibold text-sm">{getPatientName(appt)}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <TypeBadge type={appt.type} />
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm font-medium">{getDoctorName(appt)}</span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-muted-foreground truncate max-w-[140px] block" title={appt.reason}>
+                                {appt.reason || '—'}
                               </span>
-                              <span className="text-xs text-muted-foreground">
-                                {apptDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-medium text-sm">{getPatientName(appt)}</span>
-                          </TableCell>
-                          <TableCell>
-                            <TypeBadge type={appt.type} />
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm">{getDoctorName(appt)}</span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm text-muted-foreground truncate max-w-[140px] block">
-                              {appt.reason || '—'}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge status={appt.status} />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              {/* View */}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                                onClick={() => handleViewAppointment(appt)}
-                                title="View Details"
-                              >
-                                <EyeIcon className="w-4 h-4" />
-                              </Button>
-
-                              {/* Check In */}
-                              {appt.status === 'Scheduled' && (
+                            </TableCell>
+                            <TableCell>
+                              <StatusBadge status={appt.status} />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                                {/* View */}
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                  onClick={() => handleCheckInAppointment(appt)}
-                                  title="Check In"
+                                  className="h-8 w-8 p-0 text-muted-foreground hover:bg-secondary/80 hover:text-foreground rounded-full transition-all"
+                                  onClick={() => handleViewAppointment(appt)}
+                                  title="View Details"
                                 >
-                                  <CheckCircleIcon className="w-4 h-4" />
+                                  <EyeIcon className="w-4 h-4" />
                                 </Button>
-                              )}
 
-                              {/* Mark Complete */}
-                              {(appt.status === 'Checked In') && (
+                                {/* Check In */}
+                                {appt.status === 'Scheduled' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-100 rounded-full transition-all"
+                                    onClick={() => handleCheckInAppointment(appt)}
+                                    title="Check In"
+                                  >
+                                    <CheckCircleIcon className="w-4 h-4" />
+                                  </Button>
+                                )}
+
+                                {/* Mark Complete */}
+                                {(appt.status === 'Checked In') && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-full transition-all"
+                                    onClick={() => handleUpdateStatus(apptId, 'Completed')}
+                                    title="Mark as Completed"
+                                    disabled={isUpdating}
+                                  >
+                                    <CheckCircleIcon className="w-4 h-4" />
+                                  </Button>
+                                )}
+
+                                {/* Edit */}
+                                {(appt.status === 'Scheduled' || appt.status === 'Checked In') && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-muted-foreground hover:bg-secondary/80 hover:text-foreground rounded-full transition-all"
+                                    onClick={() => handleOpenEditModal(appt)}
+                                    title="Edit Appointment"
+                                  >
+                                    <PencilIcon className="w-4 h-4" />
+                                  </Button>
+                                )}
+
+                                {/* Cancel */}
+                                {(appt.status === 'Scheduled') && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-orange-500 hover:text-orange-600 hover:bg-orange-100 rounded-full transition-all"
+                                    onClick={() => handleUpdateStatus(apptId, 'Cancelled')}
+                                    title="Cancel Appointment"
+                                    disabled={isUpdating}
+                                  >
+                                    <XCircleIcon className="w-4 h-4" />
+                                  </Button>
+                                )}
+
+                                {/* Delete */}
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                  onClick={() => handleUpdateStatus(apptId, 'Completed')}
-                                  title="Mark as Completed"
-                                  disabled={isUpdating}
+                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-all"
+                                  onClick={() => handleDeleteAppointment(apptId)}
+                                  title="Delete Appointment"
                                 >
-                                  <CheckCircleIcon className="w-4 h-4" />
+                                  <TrashIcon className="w-4 h-4" />
                                 </Button>
-                              )}
-
-                              {/* Edit */}
-                              {(appt.status === 'Scheduled' || appt.status === 'Checked In') && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                                  onClick={() => handleOpenEditModal(appt)}
-                                  title="Edit Appointment"
-                                >
-                                  <PencilIcon className="w-4 h-4" />
-                                </Button>
-                              )}
-
-                              {/* Cancel */}
-                              {(appt.status === 'Scheduled') && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-orange-500 hover:text-orange-600 hover:bg-orange-50"
-                                  onClick={() => handleUpdateStatus(apptId, 'Cancelled')}
-                                  title="Cancel Appointment"
-                                  disabled={isUpdating}
-                                >
-                                  <XCircleIcon className="w-4 h-4" />
-                                </Button>
-                              )}
-
-                              {/* Delete */}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => handleDeleteAppointment(apptId)}
-                                title="Delete Appointment"
-                              >
-                                <TrashIcon className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
+                              </div>
+                            </TableCell>
+                          </motion.tr>
+                        );
+                      })}
+                  </AnimatePresence>
                 )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </motion.div>
 
       {/* Schedule Modal */}
       <SharedAppointmentForm
@@ -781,7 +785,7 @@ const Appointments: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 };
 

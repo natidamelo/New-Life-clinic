@@ -176,8 +176,8 @@ export const appointmentsAPI = {
 // Doctors API calls
 const getDoctors = async (): Promise<Doctor[]> => {
   try {
-    const response = await api.get('/api/doctors');
-    return response.data.data;
+    const response = await api.get('/api/doctor/all');
+    return response.data.data || response.data;
   } catch (error) {
     console.error('Error fetching doctors:', error);
     // Return mock data for now
