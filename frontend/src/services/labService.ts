@@ -66,6 +66,10 @@ interface StandardLabResult {
   priority?: string;
   sentToDoctor?: boolean;
   sentDate?: string;
+  gender?: string;
+  age?: number;
+  dob?: string;
+  phone?: string;
 }
 
 // New interface for grouped lab results by patient
@@ -141,6 +145,12 @@ const standardizeLabResult = (labOrder: any): StandardLabResult => {
       : JSON.stringify(labOrder.normalRanges);
   }
   
+  // Extract demographic values (they might be on labOrder or inside patientId object)
+  const gender = labOrder.gender || (labOrder.patientId && labOrder.patientId.gender);
+  const age = labOrder.age || (labOrder.patientId && labOrder.patientId.age);
+  const dob = labOrder.dob || labOrder.dateOfBirth || (labOrder.patientId && (labOrder.patientId.dateOfBirth || labOrder.patientId.dob));
+  const phone = labOrder.phone || labOrder.contactNumber || (labOrder.patientId && (labOrder.patientId.contactNumber || labOrder.patientId.phone));
+
   // Create a standard format regardless of the source
   return {
     _id: labOrder._id || labOrder.id || '',
@@ -153,6 +163,10 @@ const standardizeLabResult = (labOrder: any): StandardLabResult => {
     patientName: (labOrder.patientId && typeof labOrder.patientId === 'object') 
       ? `${labOrder.patientId.firstName || ''} ${labOrder.patientId.lastName || ''}`.trim() 
       : (labOrder.patientName || 'Unknown Patient'),
+    gender,
+    age,
+    dob,
+    phone,
     orderedBy: (labOrder.orderingDoctorId && typeof labOrder.orderingDoctorId === 'object')
       ? `Dr. ${labOrder.orderingDoctorId.firstName || ''} ${labOrder.orderingDoctorId.lastName || ''}`.trim()
       : (labOrder.orderedBy || 'Unknown Doctor'),
@@ -629,6 +643,10 @@ const groupLabResultsByPatient = (labResults: StandardLabResult[]): PatientLabRe
       patientId,
       patientName,
       latestDate,
+      gender: tests[0].gender,
+      age: tests[0].age,
+      dob: tests[0].dob,
+      phone: tests[0].phone,
       testCount: tests.length,
       tests,
       status
