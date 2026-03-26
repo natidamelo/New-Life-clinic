@@ -122,8 +122,17 @@ exports.createPrescription = asyncHandler(async (req, res, next) => {
 
   // Create prescription
   const prescription = await Prescription.create({
-    patientId,
+    patient: patientId,
     doctorId,
+    patientName: `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Unknown Patient',
+    patientSnapshot: {
+      firstName: patient.firstName,
+      lastName: patient.lastName,
+      patientId: patient.patientId || patient._id.toString(),
+      age: patient.age,
+      gender: patient.gender,
+      phoneNumber: patient.contactNumber || patient.phone
+    },
     diagnosis,
     medications: processedMedications,
     instructions,
@@ -274,8 +283,8 @@ exports.createPrescription = asyncHandler(async (req, res, next) => {
 // @access  Private
 exports.getPrescriptions = asyncHandler(async (req, res, next) => {
   const prescriptions = await Prescription.find()
-    .populate('patientId', 'fullName')
-    .populate('doctorId', 'fullName')
+    .populate('patient', 'firstName lastName patientId')
+    .populate('doctor', 'firstName lastName')
     .sort('-createdAt');
 
   res.status(200).json({
@@ -290,8 +299,8 @@ exports.getPrescriptions = asyncHandler(async (req, res, next) => {
 // @access  Private
 exports.getPrescription = asyncHandler(async (req, res, next) => {
       const prescription = await Prescription.findById(req.params.id)
-    .populate('patientId', 'fullName')
-    .populate('doctorId', 'fullName');
+    .populate('patient', 'firstName lastName patientId')
+    .populate('doctor', 'firstName lastName');
 
       if (!prescription) {
     return next(new ErrorResponse('Prescription not found', 404));
@@ -347,7 +356,7 @@ exports.deletePrescription = asyncHandler(async (req, res, next) => {
 // @access  Private
 exports.getPrescriptionsByPatient = asyncHandler(async (req, res, next) => {
   const prescriptions = await Prescription.find({ patientId: req.params.patientId })
-    .populate('doctorId', 'fullName')
+    .populate('doctor', 'firstName lastName')
     .sort('-createdAt');
 
   res.status(200).json({
@@ -362,7 +371,7 @@ exports.getPrescriptionsByPatient = asyncHandler(async (req, res, next) => {
 // @access  Private
 exports.getPrescriptionsByDoctor = asyncHandler(async (req, res, next) => {
   const prescriptions = await Prescription.find({ doctorId: req.params.doctorId })
-    .populate('patientId', 'fullName')
+    .populate('patient', 'firstName lastName patientId')
     .sort('-createdAt');
 
   res.status(200).json({

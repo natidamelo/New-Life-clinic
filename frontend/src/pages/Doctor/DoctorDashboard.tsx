@@ -2976,13 +2976,26 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
 
   // Each prescription is its own row (grouped by prescription _id)
   const groupedPrescriptions = useMemo(() => {
-    const result = prescriptions.map((p: any) => {
+    const result = (prescriptions || []).map((p: any) => {
+      // 1. Try to find the patient from the 'patients' master list (most up-to-date)
+      const pId = p.patientId || (typeof p.patient === 'object' ? p.patient?._id || p.patient?.id : p.patient);
+      const masterPatient = pId && patients && patients.length > 0 
+        ? patients.find((pat: any) => {
+            const patId = pat._id || pat.id;
+            return patId && patId.toString() === pId.toString();
+          }) 
+        : null;
+
+      const patientObj = masterPatient || p.patient;
+
       const patientNameFinal =
-        (p.patient && typeof p.patient === 'object' && (p.patient.firstName || p.patient.lastName))
-          ? `${p.patient.firstName || ''} ${p.patient.lastName || ''}`.trim()
-          : (p.patientName && p.patientName !== 'Unknown Patient' && p.patientName !== 'Patient Name')
-            ? p.patientName
-            : 'Unknown Patient';
+        (patientObj && typeof patientObj === 'object' && (patientObj.firstName || patientObj.lastName))
+          ? `${patientObj.firstName || ''} ${patientObj.lastName || ''}`.trim()
+          : (p.patientSnapshot && p.patientSnapshot.firstName)
+            ? `${p.patientSnapshot.firstName || ''} ${p.patientSnapshot.lastName || ''}`.trim()
+            : (p.patientName && p.patientName !== 'Unknown Patient' && p.patientName !== 'Patient Name')
+              ? p.patientName
+              : 'Unknown Patient';
 
       const prescriptionId = p._id || p.id;
       return {

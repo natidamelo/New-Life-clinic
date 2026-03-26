@@ -7,6 +7,10 @@ const PrescriptionSchema = new Schema({
     ref: 'Patient',
     required: true
   },
+  patientName: {
+    type: String,
+    required: false
+  },
   // For backwards compatibility with patientId
   patientId: {
     type: Schema.Types.ObjectId,
