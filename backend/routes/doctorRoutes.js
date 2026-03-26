@@ -13,8 +13,7 @@ const asyncHandler = require('../middleware/async');
 router.get('/all', asyncHandler(async (req, res) => {
   try {
     const doctors = await User.find({ 
-      role: 'doctor', 
-      isActive: true 
+      role: 'doctor'
     }).select('firstName lastName email username role specialization');
     
     const formattedDoctors = doctors.map(doctor => ({
