@@ -331,7 +331,7 @@ const deleteNurseTask = async (taskId: string, token: string): Promise<boolean> 
 
 /**
  * Get all medication tasks (doctor-prescribed medications only)
- * Fetches all pages to ensure no tasks are missing
+ * Fetches every page — a single page was hiding older tasks when the clinic has 100+ open medication rows.
  */
 const getMedicationTasks = async (token: string, params?: {
   status?: string;
@@ -341,28 +341,44 @@ const getMedicationTasks = async (token: string, params?: {
   page?: number;
 }): Promise<NurseTask[]> => {
   try {
-    const queryParams = new URLSearchParams();
-    queryParams.append('taskType', 'MEDICATION');
-    queryParams.append('_t', Date.now().toString());
-    if (params?.status) queryParams.append('status', params.status);
-    if (params?.nurseId) queryParams.append('assignedTo', params.nurseId);
-    if (params?.patientId) queryParams.append('patientId', params.patientId);
+    const pageSize = Math.min(250, Math.max(50, params?.limit || 100));
+    const all: NurseTask[] = [];
+    let page = 1;
+    let hasMore = true;
+    const maxPages = 200;
 
-    const limit = params?.limit || 100;
-    const page = params?.page || 1;
-    queryParams.append('limit', limit.toString());
-    queryParams.append('page', page.toString());
-    queryParams.append('paginated', 'true');
+    while (hasMore && page <= maxPages) {
+      const queryParams = new URLSearchParams();
+      queryParams.append('taskType', 'MEDICATION');
+      queryParams.append('_t', `${Date.now()}-${page}`);
+      if (params?.status) queryParams.append('status', params.status);
+      if (params?.nurseId) queryParams.append('assignedTo', params.nurseId);
+      if (params?.patientId) queryParams.append('patientId', params.patientId);
+      queryParams.append('limit', pageSize.toString());
+      queryParams.append('page', String(page));
+      queryParams.append('paginated', 'true');
 
-    const url = `/api/nurse-tasks?${queryParams.toString()}`;
-    const response = await api.get<any>(url);
+      const url = `/api/nurse-tasks?${queryParams.toString()}`;
+      const response = await api.get<any>(url);
 
-    if (Array.isArray(response.data)) {
-      return response.data;
-    } else if (response.data && response.data.success && Array.isArray(response.data.data)) {
-      return response.data.data;
+      let batch: NurseTask[] = [];
+      if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        batch = response.data.data;
+        const pag = response.data.pagination;
+        hasMore = pag?.hasMore === true && batch.length > 0;
+      } else if (Array.isArray(response.data)) {
+        batch = response.data;
+        hasMore = false;
+      } else {
+        hasMore = false;
+      }
+
+      all.push(...batch);
+      if (batch.length === 0) hasMore = false;
+      page += 1;
     }
-    return [];
+
+    return all;
   } catch (error: any) {
     console.error('Error fetching medication tasks:', error.response?.data || error.message);
     throw error;

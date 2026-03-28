@@ -32,6 +32,10 @@ interface NurseTask {
   medicationName?: string;
 }
 
+/** Mongo patient ids sometimes arrive as ObjectId vs string — compare normalized */
+const patientIdEquals = (a: string | undefined, b: string | undefined) =>
+  String(a || '') === String(b || '');
+
 const CheckboxMedicationsPage: React.FC = () => {
   const { user, getToken } = useAuth();
   const [tasks, setTasks] = useState<NurseTask[]>([]);
@@ -396,7 +400,7 @@ const CheckboxMedicationsPage: React.FC = () => {
     const matchesStatus = statusFilter === 'all' || actualStatus === statusFilter.toLowerCase();
     
     const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
-    const matchesPatientFilter = selectedPatientFilter === '' || task.patientId === selectedPatientFilter;
+    const matchesPatientFilter = selectedPatientFilter === '' || patientIdEquals(task.patientId, selectedPatientFilter);
     
     // NEW: If a specific task is selected, show only that task
     const matchesTaskSelection = selectedTaskId === '' || (task._id || task.id) === selectedTaskId;
@@ -424,9 +428,9 @@ const CheckboxMedicationsPage: React.FC = () => {
   }), [filteredTasks, sortField, sortDirection]);
 
   const groupedByPatient = useMemo(() => sortedTasks.reduce((groups: Record<string, { patientId: string; patientName: string; tasks: NurseTask[] }>, task) => {
-    const key = task.patientId;
+    const key = String(task.patientId);
     if (!groups[key]) {
-      groups[key] = { patientId: task.patientId, patientName: task.patientName, tasks: [] };
+      groups[key] = { patientId: String(task.patientId), patientName: task.patientName, tasks: [] };
     }
     groups[key].tasks.push(task);
     return groups;
@@ -703,7 +707,7 @@ const CheckboxMedicationsPage: React.FC = () => {
         <>
           {/* Patient Filter Info + Payment Summary */}
           {(() => {
-            const patientTasks = tasks.filter(t => t.patientId === selectedPatientFilter);
+            const patientTasks = tasks.filter(t => patientIdEquals(t.patientId, selectedPatientFilter));
             const patientStatuses = patientTasks.map(t => getTaskCompletionStatus(t));
             let summaryPaid = 0, summaryCost = 0;
             patientTasks.forEach((task, i) => {
@@ -713,7 +717,7 @@ const CheckboxMedicationsPage: React.FC = () => {
             const summaryRemaining = Math.max(0, summaryCost - summaryPaid);
             const summaryAllPaid = summaryCost > 0 && summaryPaid >= summaryCost;
             const summaryPartial = !summaryAllPaid && summaryPaid > 0;
-            const patientName = tasks.find(t => t.patientId === selectedPatientFilter)?.patientName;
+            const patientName = tasks.find(t => patientIdEquals(t.patientId, selectedPatientFilter))?.patientName;
 
             return (
               <div className="mb-5 bg-white border border-slate-200 rounded-2xl px-5 py-3.5 flex items-center justify-between shadow-sm gap-4">
@@ -758,7 +762,7 @@ const CheckboxMedicationsPage: React.FC = () => {
           <div className="grid gap-6 grid-cols-1 w-full">
             {(() => {
               // Get all tasks for this patient
-              const patientTasks = tasks.filter(task => task.patientId === selectedPatientFilter);
+              const patientTasks = tasks.filter(task => patientIdEquals(task.patientId, selectedPatientFilter));
               
               // Categorize medications for this patient
               const medicationCounts: { [key: string]: number } = {};

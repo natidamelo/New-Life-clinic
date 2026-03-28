@@ -1050,6 +1050,7 @@ const billingService = {
               metadata: {
                 ...serviceData.metadata,
                 prescriptionId: serviceData.prescriptionId,
+                medicationName: serviceData.medicationName || medServiceName,
                 dosage: serviceData.dosage,
                 frequency: serviceData.frequency,
                 duration: serviceData.duration,
@@ -1205,6 +1206,7 @@ const billingService = {
             serviceId: serviceData.metadata?.serviceId, // Add serviceId for inventory deduction
             metadata: {
               prescriptionId: serviceData.prescriptionId,
+              medicationName: serviceData.medicationName || medServiceName,
               dosage: serviceData.dosage,
               frequency: serviceData.frequency,
               duration: serviceData.duration,
