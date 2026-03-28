@@ -234,7 +234,8 @@ const CheckboxMedicationsPage: React.FC = () => {
         throw new Error('No authentication token available');
       }
 
-      const timeoutMs = 30000;
+      // Medication list can require large/paginated API payloads; 30s was too tight on slow links.
+      const timeoutMs = 120000;
       const withTimeout = <T,>(p: Promise<T>) => Promise.race([
         p,
         new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))

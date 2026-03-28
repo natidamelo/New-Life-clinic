@@ -331,7 +331,7 @@ const deleteNurseTask = async (taskId: string, token: string): Promise<boolean> 
 
 /**
  * Get all medication tasks (doctor-prescribed medications only)
- * Fetches every page — a single page was hiding older tasks when the clinic has 100+ open medication rows.
+ * Uses large page size + parallel follow-up pages to avoid 100-row gaps without 30s+ serial pagination timeouts.
  */
 const getMedicationTasks = async (token: string, params?: {
   status?: string;
@@ -340,42 +340,62 @@ const getMedicationTasks = async (token: string, params?: {
   limit?: number;
   page?: number;
 }): Promise<NurseTask[]> => {
+  const PAGE_SIZE = Math.min(3000, Math.max(500, params?.limit || 2000));
+
+  const fetchPage = async (page: number): Promise<{ batch: NurseTask[]; totalPages: number; hasMore: boolean }> => {
+    const queryParams = new URLSearchParams();
+    queryParams.append('taskType', 'MEDICATION');
+    queryParams.append('_t', `${Date.now()}-p${page}`);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.nurseId) queryParams.append('assignedTo', params.nurseId);
+    if (params?.patientId) queryParams.append('patientId', params.patientId);
+    queryParams.append('limit', String(PAGE_SIZE));
+    queryParams.append('page', String(page));
+    queryParams.append('paginated', 'true');
+
+    const response = await api.get<any>(`/api/nurse-tasks?${queryParams.toString()}`);
+
+    if (response.data && response.data.success && Array.isArray(response.data.data)) {
+      const pag = response.data.pagination || {};
+      return {
+        batch: response.data.data,
+        totalPages: Math.max(1, Number(pag.totalPages) || 1),
+        hasMore: pag.hasMore === true
+      };
+    }
+    if (Array.isArray(response.data)) {
+      return { batch: response.data, totalPages: 1, hasMore: false };
+    }
+    return { batch: [], totalPages: 1, hasMore: false };
+  };
+
   try {
-    const pageSize = Math.min(250, Math.max(50, params?.limit || 100));
-    const all: NurseTask[] = [];
-    let page = 1;
-    let hasMore = true;
-    const maxPages = 200;
+    const first = await fetchPage(1);
+    const all: NurseTask[] = [...first.batch];
+    let totalPages = first.totalPages;
 
-    while (hasMore && page <= maxPages) {
-      const queryParams = new URLSearchParams();
-      queryParams.append('taskType', 'MEDICATION');
-      queryParams.append('_t', `${Date.now()}-${page}`);
-      if (params?.status) queryParams.append('status', params.status);
-      if (params?.nurseId) queryParams.append('assignedTo', params.nurseId);
-      if (params?.patientId) queryParams.append('patientId', params.patientId);
-      queryParams.append('limit', pageSize.toString());
-      queryParams.append('page', String(page));
-      queryParams.append('paginated', 'true');
-
-      const url = `/api/nurse-tasks?${queryParams.toString()}`;
-      const response = await api.get<any>(url);
-
-      let batch: NurseTask[] = [];
-      if (response.data && response.data.success && Array.isArray(response.data.data)) {
-        batch = response.data.data;
-        const pag = response.data.pagination;
-        hasMore = pag?.hasMore === true && batch.length > 0;
-      } else if (Array.isArray(response.data)) {
-        batch = response.data;
-        hasMore = false;
-      } else {
-        hasMore = false;
+    if (first.hasMore && totalPages > 1) {
+      const remaining = totalPages - 1;
+      const CONCURRENCY = 4;
+      for (let i = 0; i < remaining; i += CONCURRENCY) {
+        const pageNums = Array.from(
+          { length: Math.min(CONCURRENCY, remaining - i) },
+          (_, j) => 2 + i + j
+        );
+        const chunks = await Promise.all(pageNums.map((p) => fetchPage(p)));
+        for (const ch of chunks) {
+          all.push(...ch.batch);
+        }
       }
-
-      all.push(...batch);
-      if (batch.length === 0) hasMore = false;
-      page += 1;
+    } else if (first.hasMore && first.batch.length === PAGE_SIZE) {
+      let p = 2;
+      const maxExtraPages = 40;
+      while (p <= maxExtraPages) {
+        const next = await fetchPage(p);
+        all.push(...next.batch);
+        if (!next.hasMore || next.batch.length === 0) break;
+        p += 1;
+      }
     }
 
     return all;

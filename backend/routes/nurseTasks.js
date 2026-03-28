@@ -41,9 +41,10 @@ router.get('/', auth, async (req, res) => {
     
     console.log('Nurse tasks query:', query);
     
-    // Pagination support - default limit to prevent loading too many tasks
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 100; // Default limit of 100 tasks
+    // Pagination — allow larger pages for medication dashboard (clamped for safety)
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const rawLimit = parseInt(req.query.limit, 10);
+    const limit = Math.min(Math.max(Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 100, 1), 3000);
     const skip = (page - 1) * limit;
     
     // Projection: for list views exclude the heavy nested arrays unless a single patient is requested
