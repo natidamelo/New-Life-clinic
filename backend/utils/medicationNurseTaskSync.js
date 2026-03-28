@@ -21,15 +21,20 @@ const { processPaymentAndCreateNurseTasks } = require('./nurseTaskCreation');
 async function checkNurseTaskExists(prescriptionId, medicationName = null) {
   try {
     const query = {
-      prescriptionId: prescriptionId,
+      $or: [
+        { prescriptionId: prescriptionId },
+        { 'medicationDetails.prescriptionId': prescriptionId }
+      ],
       taskType: 'MEDICATION',
       status: { $in: ['PENDING', 'IN_PROGRESS'] }
     };
     
-    // If medication name is provided, check for specific medication
-    if (medicationName) {
-      query['medicationDetails.medicationName'] = medicationName;
+    const normalizedName = medicationName && String(medicationName).trim();
+    if (!normalizedName) {
+      return { exists: false, task: null };
     }
+    const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    query['medicationDetails.medicationName'] = new RegExp(`^${escapeRe(normalizedName)}$`, 'i');
     
     const existingTask = await NurseTask.findOne(query);
     
@@ -54,8 +59,13 @@ function extractMedicationsFromPrescription(prescription) {
   // Check for multiple medications in medications array
   if (prescription.medications && Array.isArray(prescription.medications) && prescription.medications.length > 0) {
     prescription.medications.forEach(med => {
+      const name = med.name || med.medicationName || med.medication;
+      if (!name || !String(name).trim()) {
+        console.warn('[extractMedicationsFromPrescription] Skipping entry with no medication name');
+        return;
+      }
       medications.push({
-        name: med.name || med.medicationName,
+        name: String(name).trim(),
         dosage: med.dosage,
         frequency: med.frequency,
         duration: med.duration,

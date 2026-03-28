@@ -1178,21 +1178,30 @@ exports.addPaymentToInvoice = asyncHandler(async (req, res) => {
     }
 
     // 6.5. Update associated prescription payment status
+    // Must be visible to step 6.7 nurse-task sync (block scope bug previously left `prescriptions` undefined there)
+    let prescriptionsLinkedToInvoice = [];
     console.log(`[addPaymentToInvoice] Step 6.5: Updating prescription payment status...`);
     try {
         const Prescription = require('../models/Prescription');
 
-        // Find prescriptions associated with this invoice
-        const prescriptions = await Prescription.find({
+        // Find prescriptions associated with this invoice (linked on prescription or on line item metadata)
+        const prescriptionIdsFromItems = [...new Set(
+            (invoice.items || [])
+                .map((item) => item.metadata && item.metadata.prescriptionId)
+                .filter((id) => id != null && String(id).length > 0)
+        )];
+
+        prescriptionsLinkedToInvoice = await Prescription.find({
             $or: [
                 { invoiceId: invoice._id },
-                { 'medications.invoiceId': invoice._id }
+                { 'medications.invoiceId': invoice._id },
+                ...(prescriptionIdsFromItems.length > 0 ? [{ _id: { $in: prescriptionIdsFromItems } }] : [])
             ]
         });
 
-        console.log(`[addPaymentToInvoice] Found ${prescriptions.length} prescriptions to update`);
+        console.log(`[addPaymentToInvoice] Found ${prescriptionsLinkedToInvoice.length} prescriptions to update`);
 
-        for (const prescription of prescriptions) {
+        for (const prescription of prescriptionsLinkedToInvoice) {
             // Update prescription payment status based on invoice status
             const prescriptionPaymentStatus = invoice.balance <= 0 ? 'paid' : 'partial';
 
@@ -1356,7 +1365,7 @@ exports.addPaymentToInvoice = asyncHandler(async (req, res) => {
         // Fetch patient for better task creation (optional but recommended)
         const patientData = await Patient.findById(invoice.patient || invoice.patientId);
 
-        for (const prescription of prescriptions) {
+        for (const prescription of prescriptionsLinkedToInvoice) {
             console.log(`[addPaymentToInvoice] Syncing nurse tasks for prescription ${prescription._id}`);
             try {
                 // processPaymentAndCreateNurseTasks handles both updating existing tasks

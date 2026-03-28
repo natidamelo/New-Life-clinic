@@ -291,6 +291,13 @@ async function processPaymentAndCreateNurseTasks(prescription, patient = null, r
           if (existingTask) {
             const isPaid = ['paid', 'fully_paid', 'partially_paid', 'partial'].includes((prescription.paymentStatus || '').toLowerCase());
             const duration = parseInt(medication.duration) || 1;
+            const pid = prescription._id;
+            if (pid) {
+              if (!existingTask.prescriptionId) existingTask.prescriptionId = pid;
+              if (existingTask.medicationDetails && !existingTask.medicationDetails.prescriptionId) {
+                existingTask.medicationDetails.prescriptionId = pid;
+              }
+            }
             
             existingTask.paymentAuthorization = {
               ...existingTask.paymentAuthorization,

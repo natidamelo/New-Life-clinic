@@ -81,16 +81,42 @@ async function ensureNurseTaskCreation(prescription, assignedNurseId = null) {
       console.log(`ℹ️ [NURSE TASK] Note: This task will not deduct from inventory but will track administration`);
     }
 
-    // Check if nurse task already exists
-    const existingTask = await NurseTask.findOne({
+    // Check if nurse task already exists (prefer same prescription so multi-med orders each get a row)
+    const escapeRe = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const medNamePattern = new RegExp(`^${escapeRe(prescription.medicationName)}$`, 'i');
+    const baseFind = {
       patientId: prescription.patient,
-      'medicationDetails.medicationName': { $regex: new RegExp(prescription.medicationName, 'i') },
-      taskType: 'MEDICATION'
-    });
+      'medicationDetails.medicationName': medNamePattern,
+      taskType: 'MEDICATION',
+      status: { $in: ['PENDING', 'IN_PROGRESS'] }
+    };
+    let existingTask = null;
+    const prescriptionObjectId = prescription._id || prescription.id;
+    if (prescriptionObjectId) {
+      existingTask = await NurseTask.findOne({
+        ...baseFind,
+        $or: [
+          { prescriptionId: prescriptionObjectId },
+          { 'medicationDetails.prescriptionId': prescriptionObjectId }
+        ]
+      });
+    }
+    if (!existingTask) {
+      existingTask = await NurseTask.findOne(baseFind);
+    }
 
     if (existingTask) {
       // Update existing task if needed
       let updated = false;
+
+      const rxIdForLink = prescription._id || prescription.id;
+      if (rxIdForLink && String(existingTask.prescriptionId || '') !== String(rxIdForLink)) {
+        existingTask.prescriptionId = rxIdForLink;
+        if (existingTask.medicationDetails) {
+          existingTask.medicationDetails.prescriptionId = rxIdForLink;
+        }
+        updated = true;
+      }
       
       if (!existingTask.assignedNurse && assignedNurseId) {
         existingTask.assignedNurse = assignedNurseId;
@@ -199,6 +225,7 @@ async function ensureNurseTaskCreation(prescription, assignedNurseId = null) {
       assignedNurse: nurseId,
       assignedBy: doctorId,
       dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+      prescriptionId: prescriptionObjectId || undefined,
       medicationDetails: {
         medicationName: prescription.medicationName,
         dosage: prescription.dosage,
@@ -206,7 +233,8 @@ async function ensureNurseTaskCreation(prescription, assignedNurseId = null) {
         duration: duration,
         route: prescription.route || 'Oral',
         instructions: prescription.instructions,
-        doseRecords: doseRecords
+        doseRecords: doseRecords,
+        prescriptionId: prescriptionObjectId || undefined
       },
       description: `Administer ${prescription.medicationName} ${prescription.dosage} ${prescription.frequency} for ${prescription.duration}`,
       notes: `Prescription created by doctor on ${prescription.datePrescribed || new Date()}`

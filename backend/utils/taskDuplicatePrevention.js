@@ -87,12 +87,13 @@ async function checkForDuplicateTask(criteria, session = null) {
       status: { $in: ['PENDING', 'IN_PROGRESS'] } // Only check active tasks
     };
 
-    // FIXED: Use prescription-specific criteria instead of medication name to allow multiple prescriptions
-    // This allows multiple prescriptions for the same medication with different schedules
+    // Same prescription can list multiple different drugs — always scope by medication name when known
     if (prescriptionId) {
       duplicateQuery['medicationDetails.prescriptionId'] = prescriptionId;
+      if (medicationName) {
+        duplicateQuery['medicationDetails.medicationName'] = medicationName;
+      }
     } else if (medicationName) {
-      // Only use medication name if no prescription ID (fallback for older logic)
       duplicateQuery['medicationDetails.medicationName'] = medicationName;
     }
 

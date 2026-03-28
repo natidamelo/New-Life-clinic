@@ -2736,6 +2736,23 @@ router.post('/process-payment/:prescriptionId', auth, syncPaymentData, async (re
       console.warn('⚠️ Failed to mark medication notifications as read:', nErr?.message || nErr);
     }
 
+    // Final guarantee: DB-fresh prescription + nurse tasks (fixes stale in-memory doc / partial sync)
+    try {
+      const { processPaymentAndCreateNurseTasks } = require('../utils/nurseTaskCreation');
+      const freshRx = await Prescription.findById(prescriptionId)
+        .populate('patient', 'firstName lastName assignedNurseId patientId');
+      if (freshRx) {
+        const pat =
+          freshRx.patient && freshRx.patient._id
+            ? freshRx.patient
+            : await Patient.findById(freshRx.patient);
+        const syncFinal = await processPaymentAndCreateNurseTasks(freshRx, pat);
+        console.log(`🔧 [PROCESS-PAYMENT] Final nurse task sync: created=${syncFinal.tasksCreated}, skipped=${syncFinal.tasksSkipped}, err=${syncFinal.errors.length}`);
+      }
+    } catch (finalSyncErr) {
+      console.error('⚠️ [PROCESS-PAYMENT] Final nurse task sync failed (non-fatal):', finalSyncErr?.message || finalSyncErr);
+    }
+
     res.json({
       success: true,
       message: 'Prescription payment processed successfully',
