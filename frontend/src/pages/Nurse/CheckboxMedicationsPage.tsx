@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import { RefreshCw, Search, Filter, Pill, AlertCircle, Grid3X3, Zap } from 'lucide-react';
 import SimplifiedMedicationAdmin from '../../components/nurse/SimplifiedMedicationAdmin';
 import prescriptionService, { Prescription } from '../../services/prescriptionService';
+import { formatPatientGroupOrderSummary } from '../../utils/nurseTaskOrderDate';
 
 interface NurseTask {
   _id?: string;
@@ -924,6 +925,7 @@ const CheckboxMedicationsPage: React.FC = () => {
                     };
 
                     const categorizedMeds = categorizeMedications(group.tasks);
+                    const groupOrderSummary = formatPatientGroupOrderSummary(group.tasks);
                     const isOpening = openingPatientId === group.patientId;
 
                     // Initials avatar
@@ -973,6 +975,14 @@ const CheckboxMedicationsPage: React.FC = () => {
                                   ? categorizedMeds.categorizedNames.slice(0, 40) + '…'
                                   : categorizedMeds.categorizedNames || 'No medications'}
                               </div>
+                              {groupOrderSummary && (
+                                <div
+                                  className="text-xs text-slate-500 mt-1 font-medium"
+                                  title="Order time(s) — helps separate another visit or same-day orders"
+                                >
+                                  Order · {groupOrderSummary}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>

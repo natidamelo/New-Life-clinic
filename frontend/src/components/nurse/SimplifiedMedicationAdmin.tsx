@@ -11,6 +11,7 @@ import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import authService from '../../services/authService';
 import patientService from '../../services/patientService';
+import { formatNurseTaskOrderLine } from '../../utils/nurseTaskOrderDate';
 
 interface DoseStatus {
   day: number;
@@ -57,6 +58,7 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
   const frequency = task?.medicationDetails?.frequency || 'Once daily';
   const route = task?.medicationDetails?.route || 'Oral';
   const displayMedicationName = displayName || medicationName;
+  const orderContextLine = formatNurseTaskOrderLine(task);
 
   const prescriptionDependencies = task?.prescriptionDependencies;
   const isBlocked = prescriptionDependencies?.isBlocked || false;
@@ -587,6 +589,15 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
                 </span>
               )}
             </div>
+            {orderContextLine && (
+              <div
+                className="flex items-center gap-1.5 mt-1 text-xs text-slate-500"
+                title="Use date and time to tell apart another visit or a second order the same day"
+              >
+                <Clock size={12} className="text-slate-400 shrink-0" />
+                <span>{orderContextLine}</span>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-slate-500">
               <span className="flex items-center gap-1">
                 <User size={13} className="text-slate-400" />
