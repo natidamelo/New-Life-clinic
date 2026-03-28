@@ -506,18 +506,16 @@ router.post('/quick-order', auth, async (req, res) => {
     });
     await newPrescription.save();
 
-    // ALWAYS create nurse task for new prescriptions (even if unpaid)
+    // ALWAYS create nurse tasks for new prescriptions (even if unpaid)
     if (sendToNurse !== false) {
       try {
-        const { createNurseTaskFromPrescription } = require('../utils/nurseTaskCreation');
+        const { processPaymentAndCreateNurseTasks } = require('../utils/nurseTaskCreation');
         const Patient = require('../models/Patient');
         const patient = await Patient.findById(patientId);
-        const taskResult = await createNurseTaskFromPrescription(newPrescription, patient);
+        const taskResults = await processPaymentAndCreateNurseTasks(newPrescription, patient);
         
-        if (taskResult.created) {
-          console.log(`✅ [PRESCRIPTION] Nurse task created for ${medicationName}: ${taskResult.task._id}`);
-        } else {
-          console.log(`⚠️ [PRESCRIPTION] Nurse task not created: ${taskResult.reason}`);
+        if (taskResults.success) {
+          console.log(`✅ [PRESCRIPTION] Nurse tasks created/synced: ${taskResults.tasksCreated} created, ${taskResults.tasksSkipped} skipped`);
         }
       } catch (taskError) {
         console.error(`❌ [PRESCRIPTION] Failed to create nurse task for ${medicationName}:`, taskError);
@@ -841,14 +839,14 @@ router.post('/', auth, async (req, res) => {
     // ENSURE nurse task is created if validation didn't create one
     if (!validationResult.taskCreated && prescription.sendToNurse !== false) {
       try {
-        const { createNurseTaskFromPrescription } = require('../utils/nurseTaskCreation');
+        const { processPaymentAndCreateNurseTasks } = require('../utils/nurseTaskCreation');
         const Patient = require('../models/Patient');
         const patient = await Patient.findById(effectivePatientId);
-        const taskResult = await createNurseTaskFromPrescription(prescription, patient);
+        const taskResults = await processPaymentAndCreateNurseTasks(prescription, patient);
         
-        if (taskResult.created) {
-          console.log(`✅ [PRESCRIPTION] Nurse task created after validation: ${taskResult.task._id}`);
-          validationResult.taskCreated = true;
+        if (taskResults.success) {
+          console.log(`✅ [PRESCRIPTION] Nurse tasks created/synced: ${taskResults.tasksCreated} created, ${taskResults.tasksSkipped} skipped`);
+          validationResult.taskCreated = taskResults.tasksCreated > 0;
         }
       } catch (taskError) {
         console.error(`❌ [PRESCRIPTION] Failed to create nurse task after validation:`, taskError);

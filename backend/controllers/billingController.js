@@ -1350,62 +1350,26 @@ exports.addPaymentToInvoice = asyncHandler(async (req, res) => {
     // 6.7. Update associated nurse tasks
     console.log(`[addPaymentToInvoice] Step 6.6: Updating nurse tasks...`);
     try {
-        const NurseTask = require('../models/NurseTask');
+        const { processPaymentAndCreateNurseTasks } = require('../utils/nurseTaskCreation');
+        const Patient = require('../models/Patient');
+        
+        // Fetch patient for better task creation (optional but recommended)
+        const patientData = await Patient.findById(invoice.patient || invoice.patientId);
 
         for (const prescription of prescriptions) {
-            // Find nurse tasks for this prescription
-            let nurseTasks = await NurseTask.find({
-                'medicationDetails.prescriptionId': prescription._id
-            });
-
-            // Fallback matching when historical tasks are missing prescriptionId
-            if (!nurseTasks || nurseTasks.length === 0) {
-                nurseTasks = await NurseTask.find({
-                    patientId: prescription.patient,
-                    $or: [
-                        { 'medicationDetails.medicationName': { $regex: prescription.medicationName, $options: 'i' } },
-                        { description: { $regex: prescription.medicationName, $options: 'i' } }
-                    ]
+            console.log(`[addPaymentToInvoice] Syncing nurse tasks for prescription ${prescription._id}`);
+            try {
+                // processPaymentAndCreateNurseTasks handles both updating existing tasks
+                // and creating missing ones for all medications in the prescription
+                const syncResult = await processPaymentAndCreateNurseTasks(prescription, patientData);
+                console.log(`[addPaymentToInvoice] Task sync results for ${prescription._id}:`, {
+                    success: syncResult.success,
+                    created: syncResult.tasksCreated,
+                    updated: syncResult.tasksSkipped,
+                    errors: syncResult.errors.length
                 });
-            }
-
-            console.log(`[addPaymentToInvoice] Found ${nurseTasks.length} nurse tasks for prescription ${prescription._id}`);
-
-            for (const task of nurseTasks) {
-                // Update task payment authorization
-                if (task.paymentAuthorization) {
-                    task.paymentAuthorization.paidDays = prescription.paymentAuthorization?.paidDays || 0;
-                    task.paymentAuthorization.totalDays = prescription.paymentAuthorization?.totalDays || 0;
-                    task.paymentAuthorization.paymentStatus = prescription.paymentAuthorization?.paymentStatus || 'unpaid';
-                    task.paymentAuthorization.canAdminister = (prescription.paymentAuthorization?.paidDays || 0) > 0;
-                    task.paymentAuthorization.authorizedDoses = prescription.paymentAuthorization?.authorizedDoses || 0;
-                    task.paymentAuthorization.unauthorizedDoses = prescription.paymentAuthorization?.unauthorizedDoses || 0;
-                    task.paymentAuthorization.outstandingAmount = prescription.paymentAuthorization?.outstandingAmount || 0;
-                    task.paymentAuthorization.lastUpdated = new Date();
-
-                    // Update restriction message
-                    if (prescription.paymentStatus === 'paid') {
-                        task.paymentAuthorization.restrictionMessage = '';
-                    } else if (prescription.paymentStatus === 'partial') {
-                        task.paymentAuthorization.restrictionMessage = 'Partial payment - limited doses authorized';
-                    } else {
-                        task.paymentAuthorization.restrictionMessage = 'Payment required before administration';
-                    }
-                }
-
-                await task.save();
-                console.log(`[addPaymentToInvoice] Updated nurse task ${task._id} payment authorization`);
-            }
-
-            // If still no tasks and prescription is paid, create a new nurse task
-            if ((!nurseTasks || nurseTasks.length === 0) && (prescription.paymentStatus === 'paid')) {
-                try {
-                    const { createNurseTaskFromPrescription } = require('../utils/nurseTaskCreation');
-                    await createNurseTaskFromPrescription(prescription);
-                    console.log(`[addPaymentToInvoice] Created nurse task for prescription ${prescription._id} (was missing)`);
-                } catch (createErr) {
-                    console.warn(`[addPaymentToInvoice] Failed to auto-create nurse task for prescription ${prescription._id}:`, createErr?.message || createErr);
-                }
+            } catch (err) {
+                console.error(`[addPaymentToInvoice] Error syncing tasks for prescription ${prescription._id}:`, err);
             }
         }
 

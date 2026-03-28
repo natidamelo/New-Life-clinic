@@ -95,94 +95,29 @@ function extractMedicationsFromPrescription(prescription) {
  */
 async function createNurseTaskForPaidMedication(prescription, medicationData = null, options = {}) {
   try {
-    const medications = medicationData ? [medicationData] : extractMedicationsFromPrescription(prescription);
+    console.log(`🏥 [PAID MED SYNC] Processing synchronization for: ${prescription._id}`);
     
-    console.log(`🏥 [PAID MED SYNC] Processing ${medications.length} medications for prescription: ${prescription._id}`);
-    
-    const results = {
-      success: true,
-      tasksCreated: 0,
-      tasksSkipped: 0,
-      tasks: [],
-      errors: []
-    };
-    
-    // Get patient information
-    let patient = null;
-    if (prescription.patient) {
-      if (typeof prescription.patient === 'object') {
-        patient = prescription.patient;
-      } else {
-        patient = await Patient.findById(prescription.patient);
-      }
+    // If specific medicationData is provided, create a temporary prescription-like object
+    if (medicationData) {
+      const medicationPrescription = {
+        ...prescription.toObject ? prescription.toObject() : prescription,
+        medicationName: medicationData.name || medicationData.medicationName,
+        dosage: medicationData.dosage,
+        frequency: medicationData.frequency,
+        duration: medicationData.duration,
+        route: medicationData.route,
+        medications: undefined
+      };
+      return await processPaymentAndCreateNurseTasks(medicationPrescription);
     }
-    
-    // Get doctor information for assignedBy
-    let doctorInfo = null;
-    if (prescription.doctor || prescription.doctorId) {
-      try {
-        const User = require('../models/User');
-        doctorInfo = await User.findById(prescription.doctor || prescription.doctorId);
-      } catch (error) {
-        console.warn(`⚠️ [PAID MED SYNC] Could not fetch doctor: ${error.message}`);
-      }
-    }
-    
-    for (const medication of medications) {
-      try {
-        console.log(`💊 [PAID MED SYNC] Processing medication: ${medication.name}`);
-        
-        // Check if task already exists for this specific medication
-        const taskCheck = await checkNurseTaskExists(prescription._id, medication.name);
-        if (taskCheck.exists) {
-          console.log(`⚠️ [PAID MED SYNC] Task already exists for ${medication.name}`);
-          results.tasksSkipped++;
-          continue;
-        }
-        
-        // Create a prescription-like object for this medication with required fields
-        const medicationPrescription = {
-          _id: prescription._id,
-          medicationName: medication.name,
-          dosage: medication.dosage,
-          frequency: medication.frequency,
-          duration: medication.duration,
-          route: medication.route,
-          instructions: medication.instructions,
-          patient: prescription.patient || prescription.patientId,
-          patientName: prescription.patientName,
-          doctor: prescription.doctor || prescription.doctorId || (doctorInfo ? doctorInfo._id : null),
-          paymentStatus: prescription.paymentStatus,
-          medications: medication.isMultipleMedication ? [medication] : undefined
-        };
-        
-        // Create nurse task using robust creation logic
-        const result = await processPaymentAndCreateNurseTasks(medicationPrescription, patient);
-        
-        if (result.success && result.tasksCreated > 0) {
-          console.log(`✅ [PAID MED SYNC] Successfully created nurse task for ${medication.name}`);
-          results.tasksCreated += result.tasksCreated;
-          if (result.tasks) {
-            results.tasks.push(...result.tasks);
-          }
-        } else {
-          console.error(`❌ [PAID MED SYNC] Failed to create task for ${medication.name}:`, result.errors);
-          results.errors.push(...(result.errors || [`Failed to create task for ${medication.name}`]));
-        }
-        
-      } catch (medicationError) {
-        console.error(`💥 [PAID MED SYNC] Error processing medication ${medication.name}:`, medicationError);
-        results.errors.push(`Error processing ${medication.name}: ${medicationError.message}`);
-      }
-    }
-    
-    // Determine overall success
-    results.success = results.tasksCreated > 0 || (results.tasksSkipped > 0 && results.errors.length === 0);
+
+    // Default: Process the whole prescription
+    const results = await processPaymentAndCreateNurseTasks(prescription);
+    console.log(`📊 [PAID MED SYNC] Sync completed: ${results.tasksCreated} created, ${results.tasksSkipped} updated/skipped`);
     
     return results;
-    
   } catch (error) {
-    console.error(`💥 [PAID MED SYNC] Error creating tasks for prescription ${prescription._id}:`, error);
+    console.error(`💥 [PAID MED SYNC] Fatal error in createNurseTaskForPaidMedication:`, error);
     return {
       success: false,
       tasksCreated: 0,

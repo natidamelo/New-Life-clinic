@@ -270,89 +270,84 @@ async function processPaymentAndCreateNurseTasks(prescription, patient = null, r
   
   try {
     console.log(`💰 [PAYMENT PROCESSING] Processing prescription: ${prescription._id}`);
-    console.log(`💊 [PAYMENT PROCESSING] Medication: ${prescription.medicationName} - ${prescription.frequency}`);
     
-    // Handle single medication (most common case)
-    if (prescription.medicationName) {
-      for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-          console.log(`🔄 [RETRY] Attempt ${attempt}/${retries} for ${prescription.medicationName}`);
+    // Extract medications using the enhanced utility to handle both formats correctly
+    const { extractMedicationsFromPrescription, checkNurseTaskExists } = require('./medicationNurseTaskSync');
+    const medications = extractMedicationsFromPrescription(prescription);
+    
+    console.log(`📋 [PAYMENT PROCESSING] Extracted ${medications.length} medications for processing`);
+    
+    for (const medication of medications) {
+      try {
+        console.log(`💊 [PAYMENT PROCESSING] Processing: ${medication.name}`);
+        
+        // 1. Check if task already exists for this specific medication from this prescription
+        const taskCheck = await checkNurseTaskExists(prescription._id, medication.name);
+        if (taskCheck.exists) {
+          console.log(`⚠️ [PAYMENT PROCESSING] Task already exists for ${medication.name}, updating payment info instead`);
           
-          const result = await createNurseTaskFromPrescription(prescription, patient);
-          
-          if (result.created) {
-            results.tasksCreated++;
-            results.tasks.push(result.task);
-            console.log(`✅ [PAYMENT PROCESSING] Task created successfully on attempt ${attempt}`);
-            break; // Success, no need to retry
-          } else {
+          // Update payment authorization on existing task
+          const existingTask = taskCheck.task;
+          if (existingTask) {
+            const isPaid = ['paid', 'fully_paid', 'partially_paid', 'partial'].includes((prescription.paymentStatus || '').toLowerCase());
+            const duration = parseInt(medication.duration) || 1;
+            
+            existingTask.paymentAuthorization = {
+              ...existingTask.paymentAuthorization,
+              paidDays: isPaid ? duration : 0,
+              totalDays: duration,
+              paymentStatus: isPaid ? 'fully_paid' : 'unpaid',
+              canAdminister: isPaid,
+              authorizedDoses: isPaid ? (existingTask.medicationDetails?.doseRecords?.length || 0) : 0,
+              lastUpdated: new Date()
+            };
+            await existingTask.save();
             results.tasksSkipped++;
-            console.log(`⚠️ [PAYMENT PROCESSING] Task skipped: ${result.reason}`);
-            break; // Skipped is not an error, no need to retry
+            results.tasks.push(existingTask);
           }
-          
-        } catch (error) {
-          console.error(`❌ [RETRY] Attempt ${attempt}/${retries} failed:`, error.message);
-          results.errors.push(`Attempt ${attempt}: ${error.message}`);
-          
-          if (attempt === retries) {
-            // Final attempt failed
-            console.error(`💥 [PAYMENT PROCESSING] All ${retries} attempts failed for ${prescription.medicationName}`);
-          } else {
-            // Wait before retrying
-            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-          }
+          continue;
         }
-      }
-    }
-    
-    // Handle multiple medications (if prescription has medications array)
-    if (prescription.medications && Array.isArray(prescription.medications)) {
-      console.log(`📋 [PAYMENT PROCESSING] Processing ${prescription.medications.length} medications`);
-      
-      for (const medication of prescription.medications) {
-        // Create a prescription-like object for each medication
+
+        // 2. Create mission-critical prescription-like object for this medication
         const medicationPrescription = {
-          _id: prescription._id,
+          ...prescription.toObject ? prescription.toObject() : prescription,
           medicationName: medication.name,
+          dosage: medication.dosage,
           frequency: medication.frequency,
           duration: medication.duration,
-          dosage: medication.dosage,
           route: medication.route,
-          patient: prescription.patient || prescription.patientId,
-          patientName: prescription.patientName
+          instructions: medication.instructions,
+          medications: undefined // Prevent recursive processing
         };
-        
+
+        // 3. Create nurse task with retries
         for (let attempt = 1; attempt <= retries; attempt++) {
           try {
             console.log(`🔄 [RETRY] Attempt ${attempt}/${retries} for ${medication.name}`);
-            
             const result = await createNurseTaskFromPrescription(medicationPrescription, patient);
             
             if (result.created) {
               results.tasksCreated++;
               results.tasks.push(result.task);
-              console.log(`✅ [PAYMENT PROCESSING] Task created successfully on attempt ${attempt}`);
+              console.log(`✅ [PAYMENT PROCESSING] Task created successfully for ${medication.name}`);
               break;
             } else {
               results.tasksSkipped++;
-              console.log(`⚠️ [PAYMENT PROCESSING] Task skipped: ${result.reason}`);
+              console.log(`⚠️ [PAYMENT PROCESSING] Task creation skipped: ${result.reason}`);
               break;
             }
-            
           } catch (error) {
-            console.error(`❌ [RETRY] Attempt ${attempt}/${retries} failed:`, error.message);
-            results.errors.push(`${medication.name} attempt ${attempt}: ${error.message}`);
-            
-            if (attempt < retries) {
-              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-            }
+            console.error(`❌ [RETRY] Attempt ${attempt}/${retries} failed for ${medication.name}:`, error.message);
+            if (attempt === retries) results.errors.push(`${medication.name} failed: ${error.message}`);
+            if (attempt < retries) await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
           }
         }
+      } catch (medError) {
+        console.error(`💥 Error processing medication ${medication.name}:`, medError);
+        results.errors.push(`${medication.name}: ${medError.message}`);
       }
     }
     
-    // Determine overall success
     results.success = results.tasksCreated > 0 || (results.tasksSkipped > 0 && results.errors.length === 0);
     
     console.log(`📊 [PAYMENT PROCESSING] Final results:`, {
