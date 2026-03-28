@@ -1360,10 +1360,19 @@ exports.addPaymentToInvoice = asyncHandler(async (req, res) => {
     console.log(`[addPaymentToInvoice] Step 6.6: Updating nurse tasks...`);
     try {
         const { processPaymentAndCreateNurseTasks } = require('../utils/nurseTaskCreation');
+        const { ensureNurseTasksFromInvoiceMedicationItems } = require('../utils/invoiceNurseTaskEnsure');
         const Patient = require('../models/Patient');
-        
-        // Fetch patient for better task creation (optional but recommended)
-        const patientData = await Patient.findById(invoice.patient || invoice.patientId);
+
+        let patientData = null;
+        if (invoice.patient) {
+            patientData = await Patient.findById(invoice.patient);
+        }
+        if (!patientData && invoice.patientId) {
+            patientData = await Patient.findOne({ patientId: invoice.patientId });
+            if (!patientData && /^[0-9a-fA-F]{24}$/.test(String(invoice.patientId))) {
+                patientData = await Patient.findById(invoice.patientId);
+            }
+        }
 
         for (const prescription of prescriptionsLinkedToInvoice) {
             console.log(`[addPaymentToInvoice] Syncing nurse tasks for prescription ${prescription._id}`);
@@ -1381,6 +1390,10 @@ exports.addPaymentToInvoice = asyncHandler(async (req, res) => {
                 console.error(`[addPaymentToInvoice] Error syncing tasks for prescription ${prescription._id}:`, err);
             }
         }
+
+        // One row per paid medication line (fixes multi-med invoices with only one nurse task)
+        const ensureResult = await ensureNurseTasksFromInvoiceMedicationItems(invoice, patientData);
+        console.log(`[addPaymentToInvoice] Invoice line task ensure:`, ensureResult);
 
         console.log(`[addPaymentToInvoice] Step 6.6: Nurse tasks updated successfully`);
     } catch (nurseTaskError) {

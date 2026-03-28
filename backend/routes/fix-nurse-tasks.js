@@ -917,4 +917,39 @@ router.post('/restore-missing-tasks', async (req, res) => {
   }
 });
 
+// POST /api/fix-nurse-tasks/ensure-from-invoice  { invoiceId } — backfill nurse tasks from paid medication lines
+router.post('/ensure-from-invoice', async (req, res) => {
+  try {
+    const { invoiceId } = req.body || {};
+    if (!invoiceId) {
+      return res.status(400).json({ success: false, error: 'invoiceId is required' });
+    }
+    const MedicalInvoice = require('../models/MedicalInvoice');
+    const Patient = require('../models/Patient');
+    const { ensureNurseTasksFromInvoiceMedicationItems } = require('../utils/invoiceNurseTaskEnsure');
+
+    const invoice = await MedicalInvoice.findById(invoiceId);
+    if (!invoice) {
+      return res.status(404).json({ success: false, error: 'Invoice not found' });
+    }
+
+    let patientData = null;
+    if (invoice.patient) {
+      patientData = await Patient.findById(invoice.patient);
+    }
+    if (!patientData && invoice.patientId) {
+      patientData = await Patient.findOne({ patientId: invoice.patientId });
+      if (!patientData && /^[0-9a-fA-F]{24}$/.test(String(invoice.patientId))) {
+        patientData = await Patient.findById(invoice.patientId);
+      }
+    }
+
+    const result = await ensureNurseTasksFromInvoiceMedicationItems(invoice, patientData);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('❌ [ENSURE FROM INVOICE]', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;
