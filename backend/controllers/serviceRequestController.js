@@ -212,6 +212,41 @@ const createServiceRequest = async (req, res) => {
         });
       }
     } else if (patientInfo) {
+      // Duplicate check: same person by name and phone number
+      const firstName = (patientInfo.firstName || '').trim();
+      const lastName = (patientInfo.lastName || '').trim();
+      const contactNumber = (patientInfo.contactNumber || patientInfo.phone || '').trim();
+      
+      const duplicateConditions = [];
+      if (firstName && lastName && contactNumber) {
+        duplicateConditions.push({
+          firstName: new RegExp('^' + firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i'),
+          lastName: new RegExp('^' + lastName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i'),
+          contactNumber: contactNumber
+        });
+      }
+      
+      if (duplicateConditions.length > 0) {
+        const existing = await Patient.findOne({
+          isActive: true,
+          $or: duplicateConditions
+        }).select('firstName lastName contactNumber patientId _id').lean();
+        
+        if (existing) {
+          console.warn('⚠️ [Service Request] Duplicate patient registration blocked:', {
+            name: `${firstName} ${lastName}`,
+            phone: contactNumber,
+            existingId: existing.patientId
+          });
+          return res.status(409).json({
+            success: false,
+            message: 'A patient with the same name and phone number is already registered.',
+            code: 'PATIENT_DUPLICATE',
+            existingPatient: existing
+          });
+        }
+      }
+
       // Create new patient
       const patientCount = await Patient.countDocuments();
       const patientIdNumber = `P${String(patientCount + 1).padStart(6, '0')}`;

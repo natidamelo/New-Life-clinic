@@ -215,7 +215,7 @@ const RegisterPatient: React.FC = () => {
         if (isDuplicate) {
           const who = existing
             ? `${existing.firstName} ${existing.lastName}${existing.contactNumber ? ` (${existing.contactNumber})` : ''}`
-            : 'matching name, email, or Fayda ID';
+            : 'matching name, phone number, email, or Fayda ID';
           toast.error(`Patient already registered: ${who}. Use search to find and update the existing record.`, {
             duration: 6000,
             position: 'top-right',

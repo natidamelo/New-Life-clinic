@@ -272,17 +272,19 @@ router.post('/', auth, async (req, res) => {
       sanitizedData.status = 'scheduled';
     }
     
-    // Duplicate check: same person by name, email, or Fayda ID only (phone is not used—families share numbers)
+    // Duplicate check: same person by name and phone number
     const firstName = (sanitizedData.firstName || '').trim();
     const lastName = (sanitizedData.lastName || '').trim();
+    const contactNumber = (sanitizedData.contactNumber || '').trim();
     const email = (sanitizedData.email || '').trim().toLowerCase();
     const faydaId = (sanitizedData.faydaId || '').trim();
     
     const duplicateConditions = [];
-    if (firstName && lastName) {
+    if (firstName && lastName && contactNumber) {
       duplicateConditions.push({
         firstName: new RegExp('^' + firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i'),
-        lastName: new RegExp('^' + lastName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i')
+        lastName: new RegExp('^' + lastName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i'),
+        contactNumber: contactNumber // Phone must also match for it to be a duplicate
       });
     }
     if (email) {
@@ -301,7 +303,7 @@ router.post('/', auth, async (req, res) => {
       if (existing) {
         return res.status(409).json({
           success: false,
-          message: 'A patient with the same name, email, or Fayda ID is already registered.',
+          message: 'A patient with the same name and phone number (or same email/Fayda ID) is already registered.',
           code: 'PATIENT_DUPLICATE',
           existingPatient: {
             _id: existing._id,
