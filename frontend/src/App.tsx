@@ -25,6 +25,22 @@ const App: React.FC = () => {
     }
   }, [user]);
 
+  // Handle chunk loading errors (e.g. "Failed to fetch dynamically imported module")
+  useEffect(() => {
+    const handleChunkError = (event: ErrorEvent) => {
+      const isChunkError = /dynamically imported module|Loading chunk|chunk load/i.test(event.message || '');
+      if (isChunkError) {
+        console.warn('Chunk loading error detected. Refreshing page in 2s...', event.message);
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      }
+    };
+
+    window.addEventListener('error', handleChunkError);
+    return () => window.removeEventListener('error', handleChunkError);
+  }, []);
+
   return (
     <AttendanceOverlay>
       <PrimaryColorInitializer />
