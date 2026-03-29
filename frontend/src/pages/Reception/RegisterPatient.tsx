@@ -74,6 +74,7 @@ const validationSchema = Yup.object().shape({
 const RegisterPatient: React.FC = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<{message: string, patient?: any} | null>(null);
   const [currentFormTab, setCurrentFormTab] = useState<'personal' | 'medical'>('personal');
   const { cardTypes } = useCardTypes();
 
@@ -104,6 +105,7 @@ const RegisterPatient: React.FC = () => {
     validationSchema,
     onSubmit: async (values, { resetForm }) => {
       setIsSubmitting(true);
+      setSubmissionError(null);
       try {
         const normalizeAgeToYears = (ageValue: any, unit: string) => {
           const numericAge = Number(ageValue);
@@ -216,7 +218,13 @@ const RegisterPatient: React.FC = () => {
           const who = existing
             ? `${existing.firstName} ${existing.lastName}${existing.contactNumber ? ` (${existing.contactNumber})` : ''}`
             : 'matching name, phone number, email, or Fayda ID';
-          toast.error(`Patient already registered: ${who}. Use search to find and update the existing record.`, {
+          
+          setSubmissionError({
+            message: `Patient already registered: ${who}. Please use search to find their existing records.`,
+            patient: existing
+          });
+
+          toast.error(`Patient already registered: ${who}.`, {
             duration: 6000,
             position: 'top-right',
           });
@@ -224,6 +232,7 @@ const RegisterPatient: React.FC = () => {
             window.dispatchEvent(new CustomEvent('patientDuplicateFound', { detail: { existingPatient: existing } }));
           }
         } else {
+          setSubmissionError({ message: apiMessage || error?.message || 'Failed to register patient. Please try again.' });
           toast.error(apiMessage || error?.message || 'Failed to register patient. Please try again.', {
             duration: 5000,
             position: 'top-right',
@@ -238,6 +247,41 @@ const RegisterPatient: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto p-8">
       <h1 className="text-2xl font-bold mb-6">Register New Patient</h1>
+
+      {submissionError && (
+        <div className="mb-6 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-xl p-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div className="ml-4 flex-1">
+              <h3 className="text-lg font-semibold text-red-800 dark:text-red-300">Registration Error</h3>
+              <div className="mt-2 text-sm text-red-700 dark:text-red-400">
+                {submissionError.message}
+              </div>
+              {submissionError.patient && (
+                <div className="mt-4 flex gap-3">
+                  <button
+                    onClick={() => navigate(`/app/patients?search=${submissionError.patient.patientId}`)}
+                    className="inline-flex items-center px-4 py-2 border border-red-300 dark:border-red-800 text-sm font-medium rounded-lg text-red-700 dark:text-red-300 bg-white dark:bg-black/20 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    View Existing Patient
+                  </button>
+                  <button
+                    onClick={() => setSubmissionError(null)}
+                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-500 transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={formik.handleSubmit} className="space-y-6 bg-primary-foreground p-6 rounded-xl shadow border">
         {/* Tab Navigation */}
         <div className="flex justify-between bg-muted/10 rounded-lg p-1 mb-4">
