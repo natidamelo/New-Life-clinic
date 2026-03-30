@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { isAuthenticated, getAuthToken, getAuthHeaders, clearAuthData, handleAuthError } from '../../utils/authUtils';
+import { API_BASE_URL } from '../../config';
 
 interface MedicalCertificate {
   _id: string;
@@ -291,7 +292,7 @@ const MedicalCertificates: React.FC = () => {
       }
 
       // Request all certificates (limit=0 means "no limit" on the backend)
-      const response = await fetch('/api/medical-certificates?limit=0', {
+      const response = await fetch(`${API_BASE_URL}/api/medical-certificates?limit=0`, {
         method: 'GET',
         headers: authHeaders
       });
@@ -330,7 +331,7 @@ const MedicalCertificates: React.FC = () => {
         return;
       }
 
-      const response = await fetch('/api/medical-certificates/stats', {
+      const response = await fetch(`${API_BASE_URL}/api/medical-certificates/stats`, {
         method: 'GET',
         headers: authHeaders
       });
@@ -375,7 +376,7 @@ const MedicalCertificates: React.FC = () => {
       }
 
       // Use the correct API endpoint with proper authentication
-      const response = await fetch(`/api/patients/search?q=${encodeURIComponent(searchTerm)}&limit=10`, {
+      const response = await fetch(`${API_BASE_URL}/api/patients/search?q=${encodeURIComponent(searchTerm)}&limit=10`, {
         method: 'GET',
         headers: authHeaders
       });
@@ -470,7 +471,7 @@ const MedicalCertificates: React.FC = () => {
     }
     setLoading(true);
     try {
-      const response = await fetch(`/api/medical-certificates/${certificateId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/medical-certificates/${certificateId}`, {
         method: 'GET',
         headers: authHeaders
       });
@@ -636,7 +637,7 @@ const MedicalCertificates: React.FC = () => {
           if (k === 'notes') return; // always send notes so Additional Notes edits persist
           if (payload[k] === null || payload[k] === '') delete payload[k];
         });
-        const response = await fetch(`/api/medical-certificates/${editingCertificateId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/medical-certificates/${editingCertificateId}`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -721,7 +722,7 @@ const MedicalCertificates: React.FC = () => {
         console.log(`  ${key}:`, value);
       }
       
-      const response = await fetch('/api/medical-certificates', {
+      const response = await fetch(`${API_BASE_URL}/api/medical-certificates`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
