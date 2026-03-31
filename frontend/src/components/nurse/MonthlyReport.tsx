@@ -1023,16 +1023,14 @@ const NurseReport: React.FC = () => {
                       <TableCell className="text-sm py-1.5 w-14">{diagnosis.percentage.toFixed(1)}%</TableCell>
                       {(user?.role?.toLowerCase() === 'doctor' || user?.role?.toLowerCase() === 'admin') && (
                         <TableCell className="text-sm py-1.5 w-14">
-                          {diagnosis.recordId && (
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => handleDeleteRecord(diagnosis.recordId!)}
+                              onClick={() => handleDeleteRecord(diagnosis.recordId || 'missing')}
                               className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7 p-0"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
-                          )}
                         </TableCell>
                       )}
                     </TableRow>
