@@ -204,7 +204,7 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
           category,
           severity,
           status: isPending ? 'pending' : 'finalized',
-          recordId: "STATIC-DEBUG-ID",
+          recordId: record._id.toString(),
           id: record._id.toString(),
           _id: record._id.toString()
         });
@@ -266,7 +266,7 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
         category: 'Pending Review',
         severity: 'mild',
         status: 'pending',
-        recordId: "STATIC-DEBUG-ID-PENDING",
+        recordId: patient._id.toString(),
         id: patient._id.toString(),
         _id: patient._id.toString()
       });
