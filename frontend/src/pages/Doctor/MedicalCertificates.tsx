@@ -816,7 +816,7 @@ const MedicalCertificates: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`/api/medical-certificates/print/${certificateId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/medical-certificates/print/${certificateId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
