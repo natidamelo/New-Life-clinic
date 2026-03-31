@@ -11,7 +11,7 @@ import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Calendar, Download, TrendingUp, Users, Activity, FileText, BarChart3, PieChart, Clock, AlertTriangle, Pill, Stethoscope } from 'lucide-react';
+import { Calendar, Download, TrendingUp, Users, Activity, FileText, BarChart3, PieChart, Clock, AlertTriangle, Pill, Stethoscope, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
@@ -39,6 +39,7 @@ interface MonthlyReportData {
     age: string | number;
     chiefComplaint: string;
     status: 'pending' | 'finalized';
+    recordId?: string;
   }>;
   diagnosisCategories: Array<{
     category: string;
@@ -283,6 +284,21 @@ const NurseReport: React.FC = () => {
       setReportData(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteRecord = async (recordId: string) => {
+    if (!window.confirm('Are you sure you want to remove this record? This will mark it as deleted and remove it from calculations.')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/api/nurse/monthly-report/${recordId}`);
+      // Re-fetch report data to refresh the list
+      fetchReport();
+    } catch (error) {
+      console.error('Error deleting record:', error);
+      alert('Failed to delete record. Please try again.');
     }
   };
 
@@ -972,6 +988,9 @@ const NurseReport: React.FC = () => {
                     <TableHead className="py-1.5 text-xs min-w-[140px]">Diagnosis</TableHead>
                     <TableHead className="py-1.5 text-xs w-14">Count</TableHead>
                     <TableHead className="py-1.5 text-xs w-14">%</TableHead>
+                    {user?.role === 'doctor' && (
+                      <TableHead className="py-1.5 text-xs w-14">Actions</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                                  <TableBody>
@@ -1002,6 +1021,20 @@ const NurseReport: React.FC = () => {
                       </TableCell>
                       <TableCell className="text-sm py-1.5 w-14">{diagnosis.count}</TableCell>
                       <TableCell className="text-sm py-1.5 w-14">{diagnosis.percentage.toFixed(1)}%</TableCell>
+                      {user?.role === 'doctor' && (
+                        <TableCell className="text-sm py-1.5 w-14">
+                          {diagnosis.recordId && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleDeleteRecord(diagnosis.recordId!)}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7 p-0"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>

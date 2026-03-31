@@ -237,7 +237,8 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
           chiefComplaint: (!record.chiefComplaint || !record.chiefComplaint.description || isPending) ? 'Pending' : record.chiefComplaint.description,
           category,
           severity,
-          status: isPending ? 'pending' : 'finalized'
+          status: isPending ? 'pending' : 'finalized',
+          recordId: record._id
         });
       }
 
@@ -288,7 +289,8 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
         sex: detail.sex,
         age: detail.age,
         chiefComplaint: detail.chiefComplaint,
-        status: detail.status || 'finalized'
+        status: detail.status || 'finalized',
+        recordId: detail.recordId
       }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -633,7 +635,8 @@ router.get('/weekly-report', auth, asyncHandler(async (req, res) => {
           chiefComplaint: (!record.chiefComplaint || !record.chiefComplaint.description || isPending) ? 'Pending' : record.chiefComplaint.description,
           category,
           severity,
-          status: isPending ? 'pending' : 'finalized'
+          status: isPending ? 'pending' : 'finalized',
+          recordId: record._id
         });
       }
 
@@ -681,7 +684,8 @@ router.get('/weekly-report', auth, asyncHandler(async (req, res) => {
         sex: detail.sex,
         age: detail.age,
         chiefComplaint: detail.chiefComplaint,
-        status: detail.status || 'finalized'
+        status: detail.status || 'finalized',
+        recordId: detail.recordId
       }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -892,5 +896,48 @@ router.post('/', auth, async (req, res) => {
     });
   }
 });
+
+// @route   DELETE /api/nurse/monthly-report/:recordId
+// @desc    Mark a medical record as deleted (to remove duplicates from report)
+// @access  Private (Doctor only)
+router.delete('/monthly-report/:recordId', auth, asyncHandler(async (req, res) => {
+  if (req.user.role !== 'doctor' && req.user.role !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Not authorized to delete medical records. Only doctors can remove duplicate records.'
+    });
+  }
+
+  try {
+    const MedicalRecord = require('../models/MedicalRecord');
+    const record = await MedicalRecord.findById(req.params.recordId);
+    
+    if (!record) {
+      return res.status(404).json({
+        success: false,
+        message: 'Medical record not found'
+      });
+    }
+
+    // Soft delete
+    record.isDeleted = true;
+    record.lastUpdatedBy = req.user._id;
+    await record.save();
+
+    console.log(`[Monthly Report] Record ${req.params.recordId} marked as deleted by ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Medical record removed successfully'
+    });
+  } catch (error) {
+    console.error('[Monthly Report] Error deleting record:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete medical record',
+      error: error.message
+    });
+  }
+}));
 
 module.exports = router;
