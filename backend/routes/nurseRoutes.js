@@ -238,7 +238,7 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
           category,
           severity,
           status: isPending ? 'pending' : 'finalized',
-          recordId: record._id
+          recordId: record._id.toString()
         });
       }
 
@@ -290,7 +290,7 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
         age: detail.age,
         chiefComplaint: detail.chiefComplaint,
         status: detail.status || 'finalized',
-        recordId: detail.recordId
+        recordId: detail.recordId ? detail.recordId.toString() : null
       }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -636,7 +636,7 @@ router.get('/weekly-report', auth, asyncHandler(async (req, res) => {
           category,
           severity,
           status: isPending ? 'pending' : 'finalized',
-          recordId: record._id
+          recordId: record._id.toString()
         });
       }
 
@@ -685,7 +685,7 @@ router.get('/weekly-report', auth, asyncHandler(async (req, res) => {
         age: detail.age,
         chiefComplaint: detail.chiefComplaint,
         status: detail.status || 'finalized',
-        recordId: detail.recordId
+        recordId: detail.recordId ? detail.recordId.toString() : null
       }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 

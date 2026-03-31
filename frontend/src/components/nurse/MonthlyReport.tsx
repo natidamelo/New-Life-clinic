@@ -988,7 +988,7 @@ const NurseReport: React.FC = () => {
                     <TableHead className="py-1.5 text-xs min-w-[140px]">Diagnosis</TableHead>
                     <TableHead className="py-1.5 text-xs w-14">Count</TableHead>
                     <TableHead className="py-1.5 text-xs w-14">%</TableHead>
-                    {user?.role === 'doctor' && (
+                    {(user?.role?.toLowerCase() === 'doctor' || user?.role?.toLowerCase() === 'admin') && (
                       <TableHead className="py-1.5 text-xs w-14">Actions</TableHead>
                     )}
                   </TableRow>
@@ -1021,7 +1021,7 @@ const NurseReport: React.FC = () => {
                       </TableCell>
                       <TableCell className="text-sm py-1.5 w-14">{diagnosis.count}</TableCell>
                       <TableCell className="text-sm py-1.5 w-14">{diagnosis.percentage.toFixed(1)}%</TableCell>
-                      {user?.role === 'doctor' && (
+                      {(user?.role?.toLowerCase() === 'doctor' || user?.role?.toLowerCase() === 'admin') && (
                         <TableCell className="text-sm py-1.5 w-14">
                           {diagnosis.recordId && (
                             <Button 
