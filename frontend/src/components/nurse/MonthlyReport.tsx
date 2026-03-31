@@ -1028,9 +1028,9 @@ const NurseReport: React.FC = () => {
                               variant="ghost" 
                               size="sm" 
                               onClick={() => handleDeleteRecord(String(diagnosis.recordId || diagnosis.id || (diagnosis as any)._id))}
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7 p-0"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-20 p-0"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              Action (DEL)
                             </Button>
                           )}
                         </TableCell>
