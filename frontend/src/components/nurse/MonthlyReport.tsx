@@ -1023,6 +1023,7 @@ const NurseReport: React.FC = () => {
                       <TableCell className="text-sm py-1.5 w-14">{diagnosis.percentage.toFixed(1)}%</TableCell>
                       {(user?.role?.toLowerCase() === 'doctor' || user?.role?.toLowerCase() === 'admin') && (
                         <TableCell className="text-sm py-1.5 w-14">
+                            TEST
                             <Button 
                               variant="ghost" 
                               size="sm" 
