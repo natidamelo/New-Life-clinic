@@ -204,7 +204,7 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
           category,
           severity,
           status: isPending ? 'pending' : 'finalized',
-          recordId: record._id.toString(),
+          recordId: "STATIC-DEBUG-ID",
           id: record._id.toString(),
           _id: record._id.toString()
         });
@@ -266,7 +266,7 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
         category: 'Pending Review',
         severity: 'mild',
         status: 'pending',
-        recordId: patient._id.toString(),
+        recordId: "STATIC-DEBUG-ID-PENDING",
         id: patient._id.toString(),
         _id: patient._id.toString()
       });
@@ -300,8 +300,8 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
         age: detail.age,
         chiefComplaint: detail.chiefComplaint,
         status: detail.status || 'finalized',
-        recordId: detail.recordId ? detail.recordId.toString() : (detail.id ? detail.id.toString() : null),
-        id: detail.recordId || detail.id
+        recordId: detail.recordId,
+        id: detail.recordId
       }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 

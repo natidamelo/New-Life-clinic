@@ -238,8 +238,8 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
           category,
           severity,
           status: isPending ? 'pending' : 'finalized',
-          recordId: record._id.toString(),
-          id: record._id.toString(),
+          recordId: "STATIC-DEBUG-ID-R",
+          id: "STATIC-DEBUG-ID-R",
           _id: record._id.toString()
         });
         console.log(`[Nurse Report] Attached ID ${record._id} to record for patient ${patient.firstName}`);
@@ -293,8 +293,8 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
         age: detail.age,
         chiefComplaint: detail.chiefComplaint,
         status: detail.status || 'finalized',
-        recordId: detail.recordId ? detail.recordId.toString() : (detail.id ? detail.id.toString() : null),
-        id: detail.recordId || detail.id
+        recordId: "STATIC-DEBUG-ID-R-MAP",
+        id: "STATIC-DEBUG-ID-R-MAP"
       }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -640,8 +640,8 @@ router.get('/weekly-report', auth, asyncHandler(async (req, res) => {
           category,
           severity,
           status: isPending ? 'pending' : 'finalized',
-          recordId: record._id.toString(),
-          id: record._id.toString(),
+          recordId: "STATIC-DEBUG-ID-R",
+          id: "STATIC-DEBUG-ID-R",
           _id: record._id.toString()
         });
         console.log(`[Nurse Report] Attached ID ${record._id} to weekly record for patient ${patient.firstName}`);
@@ -692,8 +692,8 @@ router.get('/weekly-report', auth, asyncHandler(async (req, res) => {
         age: detail.age,
         chiefComplaint: detail.chiefComplaint,
         status: detail.status || 'finalized',
-        recordId: detail.recordId ? detail.recordId.toString() : (detail.id ? detail.id.toString() : null),
-        id: detail.recordId || detail.id
+        recordId: "STATIC-DEBUG-ID-R-MAP",
+        id: "STATIC-DEBUG-ID-R-MAP"
       }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
