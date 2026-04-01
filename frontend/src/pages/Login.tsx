@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSafeTheme } from '../hooks/useSafeTheme';
 import { Moon, Sun, Eye, EyeOff } from 'lucide-react';
 import { getClinicTenantId } from '../utils/authToken';
+import api from '../services/apiService';
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string().required('Username or email is required'),
@@ -21,12 +22,47 @@ const stats = [
   { value: '24/7', label: 'Support' },
 ];
 
+// Cold-start warm-up: max 5 minutes in 1-second ticks
+const WARMUP_MAX_SECONDS = 300;
+
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login, getRoleBasedRoute } = useAuth();
   const { isDarkMode, toggleTheme } = useSafeTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isWarmingUp, setIsWarmingUp] = useState(false);
+  const [warmupSeconds, setWarmupSeconds] = useState(0);
+  const warmupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clean up the warm-up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (warmupTimerRef.current) clearInterval(warmupTimerRef.current);
+    };
+  }, []);
+
+  const startWarmup = () => {
+    setIsWarmingUp(true);
+    setWarmupSeconds(0);
+    if (warmupTimerRef.current) clearInterval(warmupTimerRef.current);
+    warmupTimerRef.current = setInterval(() => {
+      setWarmupSeconds(s => s + 1);
+    }, 1000);
+  };
+
+  const stopWarmup = () => {
+    setIsWarmingUp(false);
+    setWarmupSeconds(0);
+    if (warmupTimerRef.current) {
+      clearInterval(warmupTimerRef.current);
+      warmupTimerRef.current = null;
+    }
+  };
+
+  const isTimeoutError = (err: any): boolean =>
+    err?.name === 'TimeoutError' ||
+    (typeof err?.message === 'string' && err.message.toLowerCase().includes('timeout'));
 
   const savedClinicId = getClinicTenantId();
   const hasRememberedClinic = savedClinicId && savedClinicId !== 'default';
@@ -40,6 +76,7 @@ const Login: React.FC = () => {
       try {
         const tenant = (values.clinicId || '').trim() || 'default';
         const loggedInUser = await login(values.email, values.password, tenant);
+        stopWarmup();
         toast.success(`Welcome back, ${loggedInUser.firstName || loggedInUser.name}!`);
         const isAdmin =
           loggedInUser.role === 'admin' ||
@@ -47,8 +84,14 @@ const Login: React.FC = () => {
           (loggedInUser.email && loggedInUser.email.toLowerCase().includes('admin')) ||
           (loggedInUser.username && loggedInUser.username.toLowerCase().includes('admin'));
         navigate(isAdmin ? '/app/dashboard' : getRoleBasedRoute(loggedInUser.role));
-      } catch {
-        // errors handled by AuthContext
+      } catch (err: any) {
+        if (isTimeoutError(err)) {
+          // Server cold-start: show warming banner and auto-retry
+          startWarmup();
+          toast.loading('Server is warming up… retrying in a moment.', { duration: 4000 });
+          setTimeout(() => formik.submitForm(), 5000);
+        }
+        // other errors handled by AuthContext
       } finally {
         setIsLoading(false);
       }
@@ -370,10 +413,42 @@ const Login: React.FC = () => {
               </button>
             )}
 
+            {/* Cold-start warming banner */}
+            {isWarmingUp && (
+              <div
+                className="rounded-xl p-4 space-y-2"
+                style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)' }}
+              >
+                <div className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4 flex-shrink-0" style={{ color: '#fbbf24' }} fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <p className="text-xs font-semibold" style={{ color: '#fcd34d' }}>
+                    Server is waking up — please wait ({warmupSeconds}s)
+                  </p>
+                </div>
+                <p className="text-[10px] leading-snug" style={{ color: 'rgba(253,211,77,0.65)' }}>
+                  The server was asleep to save resources. It will be ready in &lt;2 minutes.
+                  Login will retry automatically.
+                </p>
+                {/* Progress bar */}
+                <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(251,191,36,0.15)' }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-1000"
+                    style={{
+                      width: `${Math.min((warmupSeconds / WARMUP_MAX_SECONDS) * 100, 100)}%`,
+                      background: 'linear-gradient(90deg, #f59e0b, #fbbf24)',
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Submit button */}
             <button
               type="submit"
-              disabled={isLoading || !formik.isValid || !formik.dirty}
+              disabled={isLoading || isWarmingUp || !formik.isValid || !formik.dirty}
               className="relative w-full h-12 rounded-xl text-white text-sm font-bold tracking-wide transition-all duration-300 overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:ring-offset-2 focus:ring-offset-transparent mt-2"
               style={{ background: 'linear-gradient(135deg, #0284c7 0%, #4f46e5 100%)', boxShadow: '0 4px 20px rgba(14,165,233,0.3)' }}
             >
@@ -387,6 +462,14 @@ const Login: React.FC = () => {
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
                     Signing in…
+                  </>
+                ) : isWarmingUp ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Waiting for server…
                   </>
                 ) : (
                   <>

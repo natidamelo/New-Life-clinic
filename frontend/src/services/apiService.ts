@@ -70,10 +70,10 @@ class ApiService {
    * Create axios instance with default configuration
    */
   private createAxiosInstance(): AxiosInstance {
-    // Render free tier and similar hosts often need 30–60s+ on cold start; 30s trips false timeouts.
+    // Render free tier and similar hosts often need 30-120s+ on cold start; max 5 mins to be safe
     const instance = axios.create({
       baseURL: this.baseURL,
-      timeout: 120000,
+      timeout: 300000, // 5 minutes
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -117,7 +117,8 @@ class ApiService {
         }
 
         // Add authentication token (skip if explicitly disabled)
-        const skipAuth = config.skipAuth || false;
+        const extendedConfig = config as InternalAxiosRequestConfig & ExtendedAxiosRequestConfig;
+        const skipAuth = extendedConfig.skipAuth || false;
         if (!skipAuth) {
           const token = this.getAuthToken();
           if (token && config.headers) {
