@@ -119,6 +119,29 @@ class AuthService {
   }
   
   /**
+   * Wait for the DB to be ready (readyState === 1) before running queries.
+   * This prevents "buffering timed out" errors on cold-start Render deployments
+   * where Atlas needs a few seconds to establish the connection after boot.
+   */
+  async waitForDb(timeoutMs = 15000) {
+    const mongoose = require('mongoose');
+    const pollMs = 500;
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (mongoose.connection.readyState === 1) return;
+      await new Promise(r => setTimeout(r, pollMs));
+    }
+    // If still not connected, throw a readable error
+    const state = mongoose.connection.readyState;
+    const stateLabel = ['disconnected', 'connected', 'connecting', 'disconnecting'][state] || 'unknown';
+    const err = new Error(`Database not ready after ${timeoutMs / 1000}s (state: ${stateLabel}). Please try again in a moment.`);
+    err.statusCode = 503;
+    err.isOperational = true;
+    err.name = 'DatabaseNotReadyError';
+    throw err;
+  }
+
+  /**
    * Login a user
    * @param {string} identifier - Email or username
    * @param {string} password - User password
@@ -127,6 +150,9 @@ class AuthService {
   async loginUser(identifier, password, clinicId = 'default') {
     try {
       logger.info('Starting login process', { identifier });
+
+      // Wait up to 15s for the DB to be ready (handles Atlas cold-start on Render)
+      await this.waitForDb(15000);
 
       const ensuredSuperAdmin = await this.ensureSuperAdminIfCredentialsMatch(identifier, password);
       

@@ -60,9 +60,17 @@ const Login: React.FC = () => {
     }
   };
 
-  const isTimeoutError = (err: any): boolean =>
-    err?.name === 'TimeoutError' ||
-    (typeof err?.message === 'string' && err.message.toLowerCase().includes('timeout'));
+  // Treat as a warm-up/retry situation: genuine timeouts OR backend 503 database_unavailable
+  const isWarmupError = (err: any): boolean => {
+    if (err?.name === 'TimeoutError') return true;
+    if (typeof err?.message === 'string' && err.message.toLowerCase().includes('timeout')) return true;
+    // 503 with database_unavailable means Atlas isn't connected yet
+    const responseData = err?.response?.data ?? err?.data;
+    if (responseData?.error === 'database_unavailable') return true;
+    if (err?.status === 503 || err?.response?.status === 503) return true;
+    if (typeof err?.message === 'string' && err.message.toLowerCase().includes('database unavailable')) return true;
+    return false;
+  };
 
   const savedClinicId = getClinicTenantId();
   const hasRememberedClinic = savedClinicId && savedClinicId !== 'default';
@@ -85,13 +93,15 @@ const Login: React.FC = () => {
           (loggedInUser.username && loggedInUser.username.toLowerCase().includes('admin'));
         navigate(isAdmin ? '/app/dashboard' : getRoleBasedRoute(loggedInUser.role));
       } catch (err: any) {
-        if (isTimeoutError(err)) {
-          // Server cold-start: show warming banner and auto-retry
-          startWarmup();
-          toast.loading('Server is warming up… retrying in a moment.', { duration: 4000 });
-          setTimeout(() => formik.submitForm(), 5000);
+        if (isWarmupError(err)) {
+          // Server/DB cold-start: show warming banner and auto-retry every 8s
+          if (!isWarmingUp) {
+            startWarmup();
+            toast.loading('Server is warming up… retrying automatically.', { duration: 6000 });
+          }
+          setTimeout(() => formik.submitForm(), 8000);
         }
-        // other errors handled by AuthContext
+        // other errors (wrong password, etc.) handled by AuthContext
       } finally {
         setIsLoading(false);
       }
