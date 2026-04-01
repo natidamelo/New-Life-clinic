@@ -307,17 +307,38 @@ const connectDB = async () => {
 
   const opts = {
     // Atlas + Render cold start often needs >5s to pick a server
-    serverSelectionTimeoutMS: 45000,
-    connectTimeoutMS: 20000,
-    socketTimeoutMS: 45000,
+    serverSelectionTimeoutMS: 60000,   // 60s to find a server
+    connectTimeoutMS: 30000,           // 30s to establish TCP
+    socketTimeoutMS: 60000,            // 60s idle socket timeout
+    heartbeatFrequencyMS: 10000,       // Ping Atlas every 10s (keeps connection alive)
     bufferCommands: false,
     maxPoolSize: 10,
+    minPoolSize: 2,                    // Keep at least 2 connections alive
+    retryWrites: true,
+    retryReads: true,
   };
 
-  const attempts = 3;
-  const delayMs = 4000;
+  const attempts = 5;   // Increased from 3
+  const delayMs = 5000; // 5s between retries
 
   console.log(`📦 MongoDB config: using ${mongoUriSource()} → ${maskMongoUri(mongoURI)}`);
+
+  // Auto-reconnect if the connection drops after initial connect
+  mongoose.connection.on('disconnected', () => {
+    console.warn('⚠️  MongoDB disconnected. Attempting to reconnect in 5s...');
+    setTimeout(async () => {
+      try {
+        await mongoose.connect(mongoURI, opts);
+        console.log('✅ MongoDB reconnected successfully');
+      } catch (err) {
+        console.error('❌ MongoDB reconnection failed:', err.message);
+      }
+    }, 5000);
+  });
+
+  mongoose.connection.on('error', (err) => {
+    console.error('❌ MongoDB connection error:', err.message);
+  });
 
   for (let i = 1; i <= attempts; i++) {
     try {
