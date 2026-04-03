@@ -300,8 +300,7 @@ const maskMongoUri = (uri) =>
 // Connect to MongoDB and start server
 const connectDB = async () => {
   // Atlas / Render typically use MONGODB_URI; local .env often uses MONGO_URI
-  const mongoURI =
-    process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/clinic-cms';
+  const mongoURI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/clinic-cms';
 
   mongoose.set('bufferCommands', false);
 
