@@ -12,6 +12,7 @@ const { apiLimiter, authLimiter } = require('./middleware/rateLimitMiddleware');
 const { setupCacheRoutes } = require('./middleware/cacheMiddleware');
 const { initializeDefaultCardTypes } = require('./controllers/cardTypeController');
 const { tenantContextMiddleware } = require('./middleware/tenantContext');
+const { auth } = require('./middleware/auth');
 // Temporarily disabled to fix server startup issues
 // const { validatePaymentStatusData, logPaymentStatusCorrections } = require('./middleware/paymentStatusValidationMiddleware');
 
@@ -845,6 +846,7 @@ const createApp = () => {
   // Doctor routes
   app.use('/api/doctors', require('./routes/doctors'));
   app.use('/api/doctor', require('./routes/doctorRoutes'));
+
   
   // Service routes
   app.use('/api/services', require('./routes/services'));

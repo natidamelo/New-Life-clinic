@@ -5,6 +5,8 @@ const { auth } = require('../middleware/auth');
 const User = require('../models/User');
 const VitalSigns = require('../models/VitalSigns');
 const Patient = require('../models/Patient');
+const Appointment = require('../models/Appointment');
+const LabOrder = require('../models/LabOrder');
 const asyncHandler = require('../middleware/async');
 
 // @route   GET /api/doctor/all

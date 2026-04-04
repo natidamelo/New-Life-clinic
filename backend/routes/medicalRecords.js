@@ -205,7 +205,9 @@ router.get('/dashboard-lite', auth, asyncHandler(async (req, res) => {
       query.patient = { $nin: finalizedPatientIds };
     }
 
-    // Doctors only see their own records
+    // Doctors can see all records in their clinic (tenant isolation handles the boundary)
+    // Removed strict self-filtering:
+    /*
     if (req.user.role === 'doctor') {
       query.$or = [
         { createdBy: req.user._id },
@@ -213,6 +215,7 @@ router.get('/dashboard-lite', auth, asyncHandler(async (req, res) => {
         { doctorId: req.user._id }
       ];
     }
+    */
     
     // If patient filter is provided - support both patientId and patient field
     if (req.query.patientId) {
@@ -355,11 +358,13 @@ router.get('/dashboard', [auth,
       ] 
     };
     
-    // If user is a doctor, only show their records
+    // Doctors can see all records in their clinic (tenant isolation handles the boundary)
+    /*
     if (req.user.role === 'doctor') {
       query.doctorId = req.user._id;
       console.log(`[DEBUG DASHBOARD] Doctor query - doctorId: ${req.user._id}`);
     }
+    */
     
     // If patient filter is provided - support both patient and patientId fields
     if (req.query.patientId) {
@@ -368,13 +373,17 @@ router.get('/dashboard', [auth,
         { patientId: req.query.patientId }
       ];
       console.log(`[DEBUG DASHBOARD] Filtering by patient: ${req.query.patientId}`);
+    }
+    /*
+    // Removed: Only get very recent records (last 7 days) for dashboard
+    // This was hiding older but relevant records, especially after migrations.
     } else {
-      // Only get very recent records (last 7 days) for dashboard
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       query.createdAt = { $gte: sevenDaysAgo };
       console.log(`[DEBUG DASHBOARD] Recent records filter - last 7 days from: ${sevenDaysAgo.toISOString()}`);
     }
+    */
     
     console.log(`[DEBUG DASHBOARD] Final query filters:`, JSON.stringify(query, null, 2));
     
@@ -719,10 +728,12 @@ router.get('/finalized', [auth,
     } 
   };
   
-  // If user is a doctor, only show their records
+  // Doctors can see all finalized records in their clinic (tenant isolation handles the boundary)
+  /*
   if (req.user.role === 'doctor') {
     query.createdBy = req.user._id;
   }
+  */
   
   // If patient filter is provided, add it to the query
   if (req.query.patientId) {
