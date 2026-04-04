@@ -30,7 +30,12 @@ router.get('/', (req, res) => {
       database: {
         status: getConnectionStatusText(dbStatus),
         statusCode: dbStatus,
-        connected: dbStatus === 1
+        connected: dbStatus === 1,
+        // Helps verify Atlas is not using default "test" DB (connection string must end with /clinic-cms)
+        name:
+          dbStatus === 1 && mongoose.connection.db
+            ? mongoose.connection.db.databaseName
+            : null
       }
     };
     

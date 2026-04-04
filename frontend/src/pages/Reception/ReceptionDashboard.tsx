@@ -444,7 +444,7 @@ const ReceptionDashboard: React.FC = () => {
     setIsLoading(true);
     try {
       // Fetch all patients - include search parameter to search ALL patients in database
-      let apiUrl = `/api/patients/quick-load?limit=${searchTerm && searchTerm.trim() ? 1000 : pageSize}`;
+      let apiUrl = `/api/patients/quick-load?limit=${searchTerm && searchTerm.trim() ? 1000 : pageSize}&includeCompleted=true`;
       if (searchTerm && searchTerm.trim()) {
         apiUrl += `&search=${encodeURIComponent(searchTerm.trim())}`;
       }
@@ -3349,7 +3349,10 @@ const ReceptionDashboard: React.FC = () => {
               <div className="space-y-4">
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 flex items-start gap-2">
                   <Icon icon={MagnifyingGlassIcon} className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-500" />
-                  <span>Search for any patient by name, ID, or phone. Only <strong>expired</strong> cards can be renewed — patients in their grace period still have an active card.</span>
+                  <span>
+                    Search <strong>registered patients only</strong> (name, patient ID, or phone). Staff and doctors are not listed here.
+                    Only <strong>expired</strong> cards can be renewed — patients in their grace period still have an active card.
+                  </span>
                 </div>
 
                 {/* Live search input */}
@@ -3380,7 +3383,7 @@ const ReceptionDashboard: React.FC = () => {
                         searchExpiredCards();
                       }
                     }}
-                    placeholder="Type name, patient ID, or phone number…"
+                    placeholder="Patient name, patient ID (e.g. P12345), or phone…"
                     className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-border/40 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 text-sm"
                     autoFocus
                   />
@@ -3488,7 +3491,9 @@ const ReceptionDashboard: React.FC = () => {
                 {!isSearchingExpiredCards && expiredCardSearchResults.length === 0 && expiredCardSearchQuery.trim().length >= 2 && (
                   <div className="text-center py-8 border border-dashed rounded-lg">
                     <p className="text-sm font-medium text-muted-foreground">No patients found</p>
-                    <p className="text-xs text-muted-foreground mt-1">Try a different name, ID, or phone number</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Try a patient name from your dashboard or notifications (e.g. first or last name). Doctor or staff names will not appear — this list is only for patients.
+                    </p>
                   </div>
                 )}
 

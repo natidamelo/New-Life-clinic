@@ -1,4 +1,4 @@
-const { runWithTenantContext } = require('../config/tenantContext');
+const { runWithTenantContext, bindTenantRequest } = require('../config/tenantContext');
 
 /**
  * Initialise AsyncLocalStorage with a tenant id.
@@ -11,7 +11,10 @@ const { runWithTenantContext } = require('../config/tenantContext');
  * ignores it for non-super-admin roles.
  */
 function tenantContextMiddleware(req, res, next) {
-  runWithTenantContext('default', () => next());
+  runWithTenantContext('default', () => {
+    bindTenantRequest(req);
+    next();
+  });
 }
 
 module.exports = {

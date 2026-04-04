@@ -9,6 +9,7 @@ const dailyRevenueService = require('./services/dailyRevenueService');
 const autoInventoryDeductionMonitor = require('./services/autoInventoryDeductionMonitor');
 const patientStatusSyncService = require('./services/patientStatusSyncService');
 const { bootstrapSuperAdmin } = require('./services/superAdminBootstrapService');
+const { backfillMissingClinicIds } = require('./services/clinicIdBackfillService');
 const net = require('net');
 require('dotenv').config();
 
@@ -346,6 +347,12 @@ const connectDB = async () => {
       }
       await mongoose.connect(mongoURI, opts);
       console.log('✅ Connected to MongoDB');
+
+      try {
+        await backfillMissingClinicIds();
+      } catch (err) {
+        console.error('❌ clinicId backfill failed:', err.message);
+      }
 
       try {
         await initializeDefaultCardTypes();

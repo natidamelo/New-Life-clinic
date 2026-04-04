@@ -43,6 +43,27 @@ const clinicService = {
   async assignClinicAdmin(clinicRef: string, payload: { userId?: string; identifier?: string; makeAdmin?: boolean }) {
     const response = await api.post<ApiResponse<any>>(`/api/clinics/${clinicRef}/assign-admin`, payload);
     return response.data.data;
+  },
+
+  /** Dry-run: preview counts. Apply: dryRun false + confirmationCode REHOME_ALL_TO_CLINIC */
+  async rehomeAllData(
+    clinicRef: string,
+    payload: { dryRun: boolean; confirmationCode?: string }
+  ): Promise<{
+    targetClinicId: string;
+    dryRun: boolean;
+    totalDocuments: number;
+    perCollection: { collection: string; count: number; error?: string }[];
+  }> {
+    const response = await api.post<
+      ApiResponse<{
+        targetClinicId: string;
+        dryRun: boolean;
+        totalDocuments: number;
+        perCollection: { collection: string; count: number; error?: string }[];
+      }>
+    >(`/api/clinics/${encodeURIComponent(clinicRef)}/rehome-all-data`, payload);
+    return response.data.data;
   }
 };
 

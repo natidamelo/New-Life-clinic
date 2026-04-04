@@ -58,6 +58,11 @@ function configureCorsOptions() {
         return callback(null, origin);
       }
 
+      // Vercel-hosted SPA (preview + production) — not practical to list every preview URL in env
+      if (/^https:\/\/[^/]+\.vercel\.app$/i.test(origin)) {
+        return callback(null, origin);
+      }
+
       // In non-production environments, be generous to prevent dev blocks
       if ((process.env.NODE_ENV || '').toLowerCase() !== 'production') {
         logger.warn(`⚠️ [CORS] Allowing non-whitelisted origin in ${process.env.NODE_ENV}: ${origin}`);

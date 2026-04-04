@@ -4,9 +4,7 @@ import DeviceInfo from 'react-native-device-info';
 import { Platform } from 'react-native';
 
 // Base API configuration
-const API_BASE_URL = __DEV__ 
-  ? 'http://192.168.7.157:3000/api' // Development server
-  : 'https://your-production-api.com/api'; // Production server
+const API_BASE_URL = 'http://192.168.1.14:5002/api';
 
 // Create axios instance
 const apiClient = axios.create({

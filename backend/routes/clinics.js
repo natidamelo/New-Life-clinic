@@ -251,10 +251,101 @@ router.post('/:clinicRef/assign-admin', auth, requireSuperAdmin, async (req, res
   }
 });
 
+// POST /api/clinics/:clinicRef/rehome-all-data
+// Sets clinicId to this clinic's slug on every document (all collections) that is not already that slug,
+// including missing/null/empty clinicId and legacy values (default, clinicnew, etc.).
+// For single-organization databases only. Super admins are not modified on the users collection.
+// Body: { dryRun?: boolean, confirmationCode: "REHOME_ALL_TO_CLINIC" }
+router.post('/:clinicRef/rehome-all-data', auth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { clinicRef } = req.params;
+    const { dryRun = true, confirmationCode } = req.body || {};
+
+    if (!dryRun && confirmationCode !== 'REHOME_ALL_TO_CLINIC') {
+      return res.status(400).json({
+        success: false,
+        message: 'To apply changes, set confirmationCode to REHOME_ALL_TO_CLINIC and dryRun: false.'
+      });
+    }
+
+    const clinic = await resolveClinic(clinicRef);
+    if (!clinic) {
+      return res.status(404).json({ success: false, message: 'Clinic not found' });
+    }
+
+    const target = clinic.slug;
+    if (!target) {
+      return res.status(400).json({ success: false, message: 'Clinic has no slug' });
+    }
+
+    const notYetThisClinic = {
+      $or: [
+        { clinicId: { $exists: false } },
+        { clinicId: null },
+        { clinicId: '' },
+        { clinicId: { $ne: target } }
+      ]
+    };
+
+    const db = mongoose.connection.db;
+    const listed = await db.listCollections().toArray();
+    const names = listed.map((c) => c.name).filter(Boolean);
+
+    const perCollection = [];
+    let totalWouldModify = 0;
+
+    for (const name of names) {
+      const lower = name.toLowerCase();
+      if (lower.startsWith('system.')) continue;
+      if (lower === 'clinics') continue;
+
+      const coll = db.collection(name);
+      let filter = notYetThisClinic;
+      if (name === User.collection.collectionName) {
+        filter = { $and: [notYetThisClinic, { role: { $ne: 'super_admin' } }] };
+      }
+
+      try {
+        const count = await coll.countDocuments(filter);
+        if (count > 0) {
+          perCollection.push({ collection: name, count });
+          totalWouldModify += count;
+        }
+        if (!dryRun && count > 0) {
+          await coll.updateMany(filter, { $set: { clinicId: target } });
+        }
+      } catch (err) {
+        perCollection.push({ collection: name, count: 0, error: err.message });
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: dryRun
+        ? 'Dry run — no data changed. Review counts, then call with dryRun: false.'
+        : 'All eligible documents updated to this clinic slug.',
+      data: {
+        targetClinicId: target,
+        dryRun: Boolean(dryRun),
+        totalDocuments: totalWouldModify,
+        perCollection
+      }
+    });
+  } catch (error) {
+    console.error('Error rehoming clinic data:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to rehome clinic data',
+      error: error.message
+    });
+  }
+});
+
 // POST /api/clinics/:clinicRef/migrate-default-data
 // Body:
 // {
 //   sourceClinicId?: "default",
+//   sourceClinicIds?: ["default", "clinicnew"],
 //   dryRun?: true,
 //   includeUsers?: true,
 //   confirmationCode: "YES_MIGRATE"
@@ -264,6 +355,7 @@ router.post('/:clinicRef/migrate-default-data', auth, requireSuperAdmin, async (
     const { clinicRef } = req.params;
     const {
       sourceClinicId = 'default',
+      sourceClinicIds,
       dryRun = true,
       includeUsers = true,
       confirmationCode
@@ -284,15 +376,18 @@ router.post('/:clinicRef/migrate-default-data', auth, requireSuperAdmin, async (
       });
     }
 
-    const source = String(sourceClinicId || 'default').trim();
     const target = clinic.slug;
-    if (!source || !target) {
+    const sources = Array.isArray(sourceClinicIds) && sourceClinicIds.length > 0
+      ? sourceClinicIds.map((s) => String(s).trim()).filter(Boolean)
+      : [String(sourceClinicId || 'default').trim()].filter(Boolean);
+
+    if (!target) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid source/target clinic id'
+        message: 'Invalid target clinic id'
       });
     }
-    if (source === target) {
+    if (sources.length === 1 && sources[0] === target) {
       return res.status(400).json({
         success: false,
         message: 'Source and target clinic ids are the same'
@@ -300,7 +395,12 @@ router.post('/:clinicRef/migrate-default-data', auth, requireSuperAdmin, async (
     }
 
     const tenantSourceFilter = {
-      $or: [{ clinicId: source }, { clinicId: null }, { clinicId: '' }, { clinicId: { $exists: false } }]
+      $or: [
+        ...sources.map((s) => ({ clinicId: s })),
+        { clinicId: null },
+        { clinicId: '' },
+        { clinicId: { $exists: false } }
+      ]
     };
     const userFilter = { ...tenantSourceFilter, role: { $ne: 'super_admin' } };
     const dataFilter = tenantSourceFilter;
@@ -323,7 +423,7 @@ router.post('/:clinicRef/migrate-default-data', auth, requireSuperAdmin, async (
         success: true,
         message: 'Dry run complete. No data changed.',
         data: {
-          sourceClinicId: source,
+          sourceClinicIds: sources,
           targetClinicId: target,
           dryRun: true,
           wouldMove: counts
@@ -344,7 +444,7 @@ router.post('/:clinicRef/migrate-default-data', auth, requireSuperAdmin, async (
       success: true,
       message: 'Migration completed successfully',
       data: {
-        sourceClinicId: source,
+        sourceClinicIds: sources,
         targetClinicId: target,
         dryRun: false,
         beforeCounts: counts,

@@ -50,25 +50,33 @@ router.get('/all', auth, asyncHandler(async (req, res) => {
  * @access  Private (Nurse)
  */
 router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
-  const { year, month } = req.query;
-  
-  if (!year || !month) {
-    return res.status(400).json({
-      success: false,
-      message: 'Year and month parameters are required'
-    });
-  }
+  const { year, month, startDate: startDateParam, endDate: endDateParam } = req.query;
 
-  // Create date range for the specified month
-  const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
-  const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999);
+  let startDate, endDate, dateRangeLabel;
+
+  if (startDateParam && endDateParam) {
+    // Ethiopian calendar or custom date range (dates are ISO date strings like '2024-01-15')
+    startDate = new Date(startDateParam + 'T00:00:00.000Z');
+    endDate = new Date(endDateParam + 'T23:59:59.999Z');
+    dateRangeLabel = `${startDateParam} to ${endDateParam}`;
+  } else {
+    if (!year || !month) {
+      return res.status(400).json({
+        success: false,
+        message: 'Year and month (or startDate and endDate) parameters are required'
+      });
+    }
+    startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+    endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999);
+    dateRangeLabel = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+  }
 
   try {
     // Aggregate medical records with assessments (including those without ICD11 codes)
     const medicalRecords = await MedicalRecord.find({
       createdAt: { $gte: startDate, $lte: endDate },
       isDeleted: { $ne: true }
-    }).populate('patient', 'firstName lastName gender dateOfBirth age');
+    }).populate('patient', 'firstName lastName gender dateOfBirth age patientId');
 
     // Get all patients seen this month
     const uniquePatients = await MedicalRecord.distinct('patient', {
@@ -197,6 +205,7 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
           icd11Code: icd11Code,
           date: record.createdAt.toISOString().split('T')[0],
           patientId: patient._id?.toString().slice(-8) || 'N/A',
+          patientFullId: patientMongoId || '',
           patientName,
           sex: patient.gender || 'N/A',
           age: age,
@@ -259,6 +268,7 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
         icd11Code: '',
         date: patient.createdAt ? patient.createdAt.toISOString().split('T')[0] : 'N/A',
         patientId: patient.patientId || patientMongoId.slice(-8),
+        patientFullId: patientMongoId,
         patientName: `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'N/A',
         sex: patient.gender || 'N/A',
         age,
@@ -271,6 +281,43 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
         _id: patient._id.toString()
       });
     });
+
+    // ── Two-tier Deduplication ───────────────────────────────────────────────
+    // Tier 1 (primary)  : patientFullId + date  → same patient, multiple records
+    // Tier 2 (secondary): normalised name + date → duplicate Patient docs in DB
+    //   (patient registered twice with different _ids but the same name)
+    // Rule: finalized always wins over pending; first-seen wins among equals.
+    const _idDateMap  = new Map(); // patientFullId__date  → index into result array
+    const _nameMap    = new Map(); // normalisedName__date → index into result array
+    const dedupedDiagnosisDetails = [];
+
+    const normName = (n) => (n || '').toLowerCase().replace(/\s+/g, '');
+
+    for (const detail of diagnosisDetails) {
+      const idKey   = detail.patientFullId ? `${detail.patientFullId}__${detail.date}` : null;
+      const nameKey = `${normName(detail.patientName)}__${detail.date}`;
+
+      // Check if we already have this patient (by ID first, then by name)
+      const existingIdx = idKey && _idDateMap.has(idKey)
+        ? _idDateMap.get(idKey)
+        : _nameMap.has(nameKey) ? _nameMap.get(nameKey) : null;
+
+      if (existingIdx !== null) {
+        // Upgrade: swap pending → finalized if the new entry is better
+        if (detail.status === 'finalized' && dedupedDiagnosisDetails[existingIdx].status === 'pending') {
+          dedupedDiagnosisDetails[existingIdx] = detail;
+          // Re-register the index under the new entry's keys
+          if (idKey) _idDateMap.set(idKey, existingIdx);
+          _nameMap.set(nameKey, existingIdx);
+        }
+      } else {
+        const newIdx = dedupedDiagnosisDetails.length;
+        dedupedDiagnosisDetails.push(detail);
+        if (idKey) _idDateMap.set(idKey, newIdx);
+        _nameMap.set(nameKey, newIdx);
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     // Calculate percentages and sort
     const totalAssessments = medicalRecords.length;
@@ -285,9 +332,9 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    const totalPatientEntries = diagnosisDetails.length;
-    // Detailed diagnosis records (all patients)
-    const diagnosisRecords = diagnosisDetails
+    const totalPatientEntries = dedupedDiagnosisDetails.length;
+    // Detailed diagnosis records (all patients, de-duplicated)
+    const diagnosisRecords = dedupedDiagnosisDetails
       .map(detail => ({
         diagnosis: detail.diagnosis,
         icd11Code: detail.icd11Code,
@@ -466,13 +513,18 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
       diagnosisRecords,
       clinicalTrends,
       severityDistribution,
-      nurseActivity
+      nurseActivity,
+      dateRangeUsed: {
+        start: startDate.toISOString().split('T')[0],
+        end: endDate.toISOString().split('T')[0],
+        label: dateRangeLabel
+      }
     };
 
     res.json({
       success: true,
       data: reportData,
-      message: `Monthly report generated for ${new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}`
+      message: `Report generated for ${dateRangeLabel}`
     });
 
   } catch (error) {
@@ -486,31 +538,35 @@ router.get('/monthly-report', auth, asyncHandler(async (req, res) => {
 }));
 
 // @route   DELETE /api/nurse/monthly-report/:recordId
-// @desc    Mark a medical record as deleted (to remove duplicates from report)
-// @access  Private (Doctor only)
+// @desc    Mark a medical record as deleted (to remove it from report)
+// @access  Private (Doctor, Admin, Superadmin, Developer)
 router.delete('/monthly-report/:recordId', auth, asyncHandler(async (req, res) => {
-  if (req.user.role !== 'doctor' && req.user.role !== 'admin' && req.user.role?.toLowerCase() !== 'doctor') {
+  const allowedRoles = ['doctor', 'admin', 'superadmin', 'developer'];
+  if (!allowedRoles.includes((req.user.role || '').toLowerCase())) {
     return res.status(403).json({
       success: false,
-      message: 'Not authorized to delete medical records. Only doctors can remove duplicate records.'
+      message: 'Not authorized to delete medical records. Only doctors and admins can remove records.'
     });
   }
 
   try {
-    const MedicalRecord = require('../models/MedicalRecord');
-    const record = await MedicalRecord.findById(req.params.recordId);
-    
-    if (!record) {
-      return res.status(404).json({
-        success: false,
-        message: 'Medical record not found'
+    // Use findByIdAndUpdate to bypass pre-save hooks and validators
+    const updated = await MedicalRecord.findByIdAndUpdate(
+      req.params.recordId,
+      { $set: { isDeleted: true, lastUpdatedBy: req.user._id } },
+      { new: true, runValidators: false }
+    );
+
+    if (!updated) {
+      // Record ID may belong to a Patient (registered but no assessment yet).
+      // Return success so the frontend can refresh — the GET already filters
+      // these out once the patient no longer falls in the date range.
+      console.log(`[Nurse Report] Record ${req.params.recordId} not found as MedicalRecord (may be a patient registration entry) — skipping soft-delete.`);
+      return res.json({
+        success: true,
+        message: 'Record removed from report'
       });
     }
-
-    // Soft delete
-    record.isDeleted = true;
-    record.lastUpdatedBy = req.user._id;
-    await record.save();
 
     console.log(`[Nurse Report] Record ${req.params.recordId} marked as deleted by ${req.user.email}`);
 

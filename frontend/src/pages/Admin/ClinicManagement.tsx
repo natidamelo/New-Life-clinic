@@ -82,6 +82,47 @@ const ClinicManagement: React.FC = () => {
     }
   };
 
+  const handleRehomeAllData = async (clinic: Clinic) => {
+    if (
+      !window.confirm(
+        `Preview only: count how many documents in clinic-cms would get clinicId "${clinic.slug}"?`
+      )
+    ) {
+      return;
+    }
+    try {
+      const preview = await clinicService.rehomeAllData(clinic.slug, { dryRun: true });
+      const n = preview.totalDocuments ?? 0;
+      toast.success(
+        `Dry run: ${n} document(s) would be updated across ${preview.perCollection?.filter((p) => p.count > 0).length ?? 0} collection(s).`
+      );
+      if (
+        n === 0 ||
+        !window.confirm(
+          `Apply now? This sets clinicId to "${clinic.slug}" on all those documents (except super_admin users). Type OK in the next prompt must match exactly.`
+        )
+      ) {
+        if (n === 0) toast('Nothing to change.');
+        return;
+      }
+      const code = window.prompt(
+        'Type REHOME_ALL_TO_CLINIC exactly to apply (case-sensitive):'
+      );
+      if (code !== 'REHOME_ALL_TO_CLINIC') {
+        toast.error('Cancelled — confirmation text did not match.');
+        return;
+      }
+      await clinicService.rehomeAllData(clinic.slug, {
+        dryRun: false,
+        confirmationCode: 'REHOME_ALL_TO_CLINIC'
+      });
+      toast.success(`All data is now tagged with clinic "${clinic.slug}". Refresh other pages.`);
+      await loadClinics();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || error?.message || 'Rehome failed');
+    }
+  };
+
   const handleAssignAdmin = async (clinic: Clinic) => {
     const identifier = (assignInputs[clinic.slug] || '').trim();
     if (!identifier) {
@@ -113,6 +154,11 @@ const ClinicManagement: React.FC = () => {
         <h1 className="text-2xl font-bold text-foreground">Clinic Management</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Create clinics, activate/deactivate them, and assign a clinic admin.
+        </p>
+        <p className="text-xs text-violet-700 dark:text-violet-300 mt-2 rounded-md bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 px-3 py-2">
+          <strong>Attach Atlas data:</strong> use <strong>“Attach all data to this clinic”</strong> in the Actions column so every document’s{' '}
+          <code className="text-[11px]">clinicId</code> matches this clinic’s <strong>slug</strong> (e.g. <code className="text-[11px]">new-life</code>).
+          Then user counts and dashboards line up with <strong>clinic-cms</strong>.
         </p>
       </div>
 
@@ -157,7 +203,7 @@ const ClinicManagement: React.FC = () => {
               <th className="text-left px-4 py-3">Status</th>
               <th className="text-left px-4 py-3">Users</th>
               <th className="text-left px-4 py-3">Assign Admin</th>
-              <th className="text-left px-4 py-3">Actions</th>
+              <th className="text-left px-4 py-3 whitespace-nowrap">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -185,7 +231,7 @@ const ClinicManagement: React.FC = () => {
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       <input
-                        className="border rounded-md px-2 py-1 bg-background w-56"
+                        className="border rounded-md px-2 py-1 bg-background w-full max-w-[10rem] sm:max-w-[14rem]"
                         placeholder="username or email"
                         value={assignInputs[clinic.slug] || ''}
                         onChange={(e) => setAssignInputs((p) => ({ ...p, [clinic.slug]: e.target.value }))}
@@ -200,14 +246,24 @@ const ClinicManagement: React.FC = () => {
                       </button>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <button
-                      className={`px-3 py-1 rounded-md text-white ${clinic.isActive ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'}`}
-                      onClick={() => handleToggleClinic(clinic)}
-                      type="button"
-                    >
-                      {clinic.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
+                  <td className="px-4 py-3 align-top">
+                    <div className="flex flex-col gap-2 min-w-[11rem]">
+                      <button
+                        className="px-3 py-2 rounded-md bg-violet-600 text-white hover:bg-violet-700 text-xs font-semibold text-left leading-snug"
+                        onClick={() => handleRehomeAllData(clinic)}
+                        type="button"
+                        title="Sets clinicId to this clinic slug on all collections (single-clinic database)"
+                      >
+                        Attach all data to this clinic
+                      </button>
+                      <button
+                        className={`px-3 py-2 rounded-md text-white text-xs font-medium ${clinic.isActive ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                        onClick={() => handleToggleClinic(clinic)}
+                        type="button"
+                      >
+                        {clinic.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

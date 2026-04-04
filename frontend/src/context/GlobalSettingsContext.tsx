@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import GlobalSettingsService from '../services/globalSettingsService';
+import { getAuthToken } from '../utils/authToken';
 import { toast } from 'react-hot-toast';
 
 // Types
@@ -124,8 +125,7 @@ export const GlobalSettingsProvider: React.FC<GlobalSettingsProviderProps> = ({ 
         return;
       }
       
-      // Check if we have a valid authentication token
-      const token = localStorage.getItem('auth_token') || localStorage.getItem('AUTH_TOKEN_KEY');
+      const token = getAuthToken();
       if (!token) {
         console.warn('No authentication token found, skipping global settings load');
         setLoading(false);

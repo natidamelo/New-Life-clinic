@@ -1,6 +1,29 @@
 const mongoose = require('mongoose');
 const { getCurrentTenantId } = require('./tenantContext');
 
+function primaryClinicId() {
+  const p = (process.env.PRIMARY_CLINIC_ID || 'default').trim();
+  return p || 'default';
+}
+
+/**
+ * Rows for this tenant + PRIMARY_CLINIC_ID (e.g. clinicnew) + "default" + unstamped.
+ * Set PRIMARY_CLINIC_ID on Render to match your users’ clinicId when it is not "default".
+ */
+function clinicIdOrLegacyMatch(tenantId) {
+  const primary = primaryClinicId();
+  const slugSet = new Set(
+    [tenantId, primary, 'default'].filter((s) => s != null && String(s).trim() !== '')
+  );
+  const or = [...slugSet].map((id) => ({ clinicId: id }));
+  or.push(
+    { clinicId: { $exists: false } },
+    { clinicId: null },
+    { clinicId: '' }
+  );
+  return { $or: or };
+}
+
 function tenantScopePlugin(schema) {
   if (!schema.path('clinicId')) {
     return;
@@ -33,7 +56,10 @@ function tenantScopePlugin(schema) {
     if (tenantId === '*') {
       return;
     }
-    this.where({ clinicId: tenantId });
+
+    // Always merge tenant slug + PRIMARY_CLINIC_ID + "default" + unstamped rows.
+    // Invoices/patients in Atlas often have no clinicId field; an exact { clinicId: user } filter hides them.
+    this.and([clinicIdOrLegacyMatch(tenantId)]);
   };
 
   scopedQueryHooks.forEach((hook) => {
@@ -53,8 +79,8 @@ function tenantScopePlugin(schema) {
     const pipeline = this.pipeline();
     const hasClinicMatch = pipeline.some((stage) => stage.$match && stage.$match.clinicId);
 
-    if (!hasClinicMatch) {
-      pipeline.unshift({ $match: { clinicId: tenantId } });
+    if (!hasClinicMatch && tenantId !== '*') {
+      pipeline.unshift({ $match: clinicIdOrLegacyMatch(tenantId) });
     }
   });
 

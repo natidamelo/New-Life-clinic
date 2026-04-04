@@ -7,7 +7,7 @@
     "dev:local": "vite --port 5175 --strictPort --host localhost",
     "dev:network": "cross-env NETWORK_ACCESS=true vite --port 5175 --strictPort --host 192.168.118.157",
     "start": "vite --port 5175 --strictPort",
-    "build": "vite build",
+    "build": "node scripts/generate-env-config.mjs && vite build",
     "typecheck": "cross-env NODE_OPTIONS=\"--max-old-space-size=8192\" tsc --noEmit",
     "preview": "vite preview",
     "clean": "rm -rf node_modules package-lock.json",

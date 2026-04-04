@@ -4,6 +4,23 @@
 const normalizeBaseUrl = (url: string): string =>
   url.trim().replace(/\/+$/, '');
 
+/** LAN / loopback API URLs work on a clinic network but break on public HTTPS hosts (Vercel, etc.). */
+const isNonPublicApiHost = (url: string): boolean => {
+  try {
+    const { hostname } = new URL(url);
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+    const parts = hostname.split('.').map((p) => parseInt(p, 10));
+    if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return false;
+    const [a, b] = parts;
+    if (a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    return false;
+  } catch {
+    return false;
+  }
+};
+
 const resolveApiBaseUrl = (): string => {
   if (typeof window !== 'undefined') {
     const runtimeWindow = window as any;
@@ -16,7 +33,15 @@ const resolveApiBaseUrl = (): string => {
       runtimeWindow?._env_?.REACT_APP_API_URL;
 
     if (fromWindowConfig && String(fromWindowConfig).trim()) {
-      return normalizeBaseUrl(String(fromWindowConfig));
+      const candidate = normalizeBaseUrl(String(fromWindowConfig));
+      if (import.meta.env.PROD && isNonPublicApiHost(candidate)) {
+        console.warn(
+          '[Config] Ignoring non-public API URL from env-config in production:',
+          candidate
+        );
+      } else {
+        return candidate;
+      }
     }
   }
 
