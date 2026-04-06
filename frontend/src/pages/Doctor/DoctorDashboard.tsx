@@ -739,97 +739,27 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
         ? assignedPatientsData
         : assignedPatientsData.filter(p => {
           // Check if patient is assigned to current doctor
-          const isAssignedToCurrentDoctor = p.assignedDoctor?.id?.toString() === currentDoctorId?.toString();
+          const patientDoctorId = p.assignedDoctor?.id || p.assignedDoctor?._id || p.assignedDoctorId;
+          const isAssignedToCurrentDoctor = patientDoctorId?.toString() === currentDoctorId?.toString();
 
-          // Check if patient has been sent by nurse (status should be 'scheduled')
-          const isSentByNurse = p.status === 'scheduled' || p.status === 'Admitted';
+          // Check if patient is in an active workflow status
+          const isActiveStatus = ['scheduled', 'Admitted', 'waiting', 'Admitted Patient', 'Observation'].includes(p.status);
 
-          // EXCLUDE completed patients from "My Patients" list (only when not searching)
-          const isNotCompleted = p.status !== 'completed';
+          // EXCLUDE completed patients from "My Patients" list
+          const isNotCompleted = p.status !== 'completed' && p.status !== 'discharged';
 
-          // EXCLUDE only when there is a finalized medical record (not when only lab/medication was sent)
+          // EXCLUDE only when there is a finalized medical record
           const hasNoFinalizedRecords = !p.hasFinalizedRecord;
 
-          // Check if patient has consultation services (these don't need vitals)
-          const hasConsultationService = p.serviceRequests?.some((sr: any) =>
-            sr.service?.category === 'consultation' || sr.service?.category === 'follow-up'
-          );
-
-          // Check if patient has vitals (sent from nurses) - only required for non-consultation services
-          const hasVitals = p.vitals && (
-            p.vitals.temperature ||
-            p.vitals.heartRate ||
-            p.vitals.bloodPressure ||
-            p.vitals.respiratoryRate ||
-            p.vitals.oxygenSaturation
-          );
-
-          // For consultation patients: only need assignment, scheduled status, not completed, and no finalized records
-          if (hasConsultationService && isAssignedToCurrentDoctor && isSentByNurse && isNotCompleted && hasNoFinalizedRecords) {
-            console.log(`[DoctorDashboard] Including consultation patient: ${p.firstName} ${p.lastName}`, {
-              hasConsultationService: true,
-              doctorId: p.assignedDoctorId,
-              status: p.status,
-              currentDoctorId: currentDoctorId,
-              workflowComplete: true,
-              notCompleted: true
-            });
+          // RELAXED CRITERIA: Show assigned patients in any active status before completion
+          if (isAssignedToCurrentDoctor && isActiveStatus && isNotCompleted && hasNoFinalizedRecords) {
             return true;
           }
 
-          // For non-consultation patients: need vitals, assignment, scheduled status, not completed, and no finalized records
-          if (!hasConsultationService && hasVitals && isAssignedToCurrentDoctor && isSentByNurse && isNotCompleted && hasNoFinalizedRecords) {
-            console.log(`[DoctorDashboard] Including non-consultation patient (complete workflow): ${p.firstName} ${p.lastName}`, {
-              vitals: !!p.vitals,
-              doctorId: p.assignedDoctorId,
-              status: p.status,
-              currentDoctorId: currentDoctorId,
-              workflowComplete: true,
-              notCompleted: true
-            });
-            return true;
-          }
-
-          // Log patients that don't meet criteria for debugging
-          if (hasConsultationService && isAssignedToCurrentDoctor && !isSentByNurse) {
-            console.log(`[DoctorDashboard] Excluding consultation patient (not sent by nurse): ${p.firstName} ${p.lastName}`, {
-              status: p.status,
-              expectedStatus: 'scheduled'
-            });
-          }
-
-          if (hasConsultationService && !isAssignedToCurrentDoctor) {
-            console.log(`[DoctorDashboard] Excluding consultation patient (not assigned to this doctor): ${p.firstName} ${p.lastName}`, {
-              doctorId: p.assignedDoctorId,
-              currentDoctorId: currentDoctorId
-            });
-          }
-
-          if (!hasConsultationService && hasVitals && isAssignedToCurrentDoctor && !isSentByNurse) {
-            console.log(`[DoctorDashboard] Excluding non-consultation patient (not sent by nurse): ${p.firstName} ${p.lastName}`, {
-              status: p.status,
-              expectedStatus: 'scheduled'
-            });
-          }
-
-          if (!hasConsultationService && !hasVitals && isAssignedToCurrentDoctor) {
-            console.log(`[DoctorDashboard] Excluding non-consultation patient (no vitals yet): ${p.firstName} ${p.lastName}`, {
+          // Debug logs for excluded assigned patients
+          if (isAssignedToCurrentDoctor && !isActiveStatus) {
+            console.log(`[DoctorDashboard] Excluding assigned patient due to status: ${p.firstName} ${p.lastName}`, {
               status: p.status
-            });
-          }
-
-          if (!hasConsultationService && hasVitals && !isAssignedToCurrentDoctor) {
-            console.log(`[DoctorDashboard] Excluding non-consultation patient (not assigned to this doctor): ${p.firstName} ${p.lastName}`, {
-              doctorId: p.assignedDoctorId,
-              currentDoctorId: currentDoctorId
-            });
-          }
-
-          // Log completed patients that are being excluded
-          if (isAssignedToCurrentDoctor && !isNotCompleted) {
-            console.log(`[DoctorDashboard] Excluding completed patient: ${p.firstName} ${p.lastName}`, {
-              status: p.status,
-              reason: 'Patient has completed treatment'
             });
           }
 
