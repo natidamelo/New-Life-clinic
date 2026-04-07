@@ -43,33 +43,27 @@ const ALLOWED_CORS_HEADERS = [
 ];
 
 function configureCorsOptions() {
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // server-to-server etc
+  
   const allowedOrigins = getAllowedOrigins();
+  if (allowedOrigins.includes(origin)) return true;
+  
+  // Vercel-hosted SPA (preview + production)
+  if (/^https:\/\/[^/]+\.vercel\.app$/i.test(origin)) return true;
+  
+  // In non-production environments, be generous
+  if ((process.env.NODE_ENV || '').toLowerCase() !== 'production') return true;
+  
+  return false;
+}
 
+function configureCorsOptions() {
   return {
     origin(origin, callback) {
-      if (!origin) {
-        // Allow server-to-server or curl requests with no origin header
-        return callback(null, true);
+      if (isAllowedOrigin(origin)) {
+        return callback(null, origin || true);
       }
-
-      // Check if origin is in allowed list
-      if (allowedOrigins.includes(origin)) {
-        // Return the origin so cors sets it correctly
-        return callback(null, origin);
-      }
-
-      // Vercel-hosted SPA (preview + production) — not practical to list every preview URL in env
-      if (/^https:\/\/[^/]+\.vercel\.app$/i.test(origin)) {
-        return callback(null, origin);
-      }
-
-      // In non-production environments, be generous to prevent dev blocks
-      if ((process.env.NODE_ENV || '').toLowerCase() !== 'production') {
-        logger.warn(`⚠️ [CORS] Allowing non-whitelisted origin in ${process.env.NODE_ENV}: ${origin}`);
-        // Return the origin so cors sets it correctly
-        return callback(null, origin);
-      }
-
       logger.warn(`🚫 [CORS] Blocked origin: ${origin}`);
       return callback(new Error('Not allowed by CORS'));
     },
@@ -107,10 +101,7 @@ const handleOptions = (req = {}, res) => {
   // Determine which origin to use
   let originToUse = '*';
   if (requestOrigin) {
-    if (allowedOrigins.includes(requestOrigin)) {
-      originToUse = requestOrigin;
-    } else if ((process.env.NODE_ENV || '').toLowerCase() !== 'production') {
-      // In dev mode, allow the request origin
+    if (isAllowedOrigin(requestOrigin)) {
       originToUse = requestOrigin;
     } else {
       originToUse = allowedOrigins[0] || '*';

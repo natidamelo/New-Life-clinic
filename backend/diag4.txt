@@ -1,0 +1,3 @@
+Total Completed: 122
+Without isActive=true: 0
+With isActive=true: 122

@@ -1,0 +1,127 @@
+[
+  {
+    "_id": "6823301cdefc7776bf7537b3",
+    "username": "DR Natan",
+    "role": "doctor",
+    "firstName": "DR",
+    "lastName": "Natan",
+    "isActive": true
+  },
+  {
+    "_id": "6823859485e2a37d8cb420ed",
+    "username": "Semhal",
+    "role": "nurse",
+    "firstName": "Semhal",
+    "lastName": "Melaku",
+    "isActive": true
+  },
+  {
+    "_id": "682461b58a2bfb0a7539984c",
+    "username": "Reception desk",
+    "role": "reception",
+    "firstName": "Reception",
+    "lastName": "reception",
+    "isActive": true
+  },
+  {
+    "_id": "684591465e30c62e5dc23a55",
+    "username": "Mahlet",
+    "role": "imaging",
+    "firstName": "Mahlet",
+    "lastName": "Yohannes",
+    "isActive": true
+  },
+  {
+    "_id": "68946a3f861ea34c0eee6ac3",
+    "username": "admin",
+    "role": "admin",
+    "firstName": "Admin",
+    "lastName": "User",
+    "isActive": true
+  },
+  {
+    "_id": "6895c62e640a5abe8c3d5bbd",
+    "username": "Nuhamin",
+    "role": "nurse",
+    "firstName": "Nuhamin",
+    "lastName": "Yohannes",
+    "isActive": true
+  },
+  {
+    "_id": "689b17170ce11636ac1f5cbd",
+    "username": "Girum",
+    "role": "doctor",
+    "firstName": "Girum",
+    "lastName": "Assegidew",
+    "isActive": false
+  },
+  {
+    "_id": "694abe5503917df0d8ee4dc3",
+    "username": "Selam",
+    "role": "nurse",
+    "firstName": "Selam",
+    "lastName": "Nurse",
+    "isActive": true
+  },
+  {
+    "_id": "69663118cf5b28506cba063e",
+    "username": "Medina",
+    "role": "lab",
+    "firstName": "Medina",
+    "lastName": "Negash",
+    "isActive": true
+  },
+  {
+    "_id": "6969f6493bd7375c22fc4c90",
+    "username": "Almaz G",
+    "role": "lab",
+    "firstName": "Almaz",
+    "lastName": "girmaye",
+    "isActive": true
+  },
+  {
+    "_id": "697341aa153c8b9da977215c",
+    "role": "admin",
+    "isActive": true
+  },
+  {
+    "_id": "697485e330349def037dae92",
+    "firstName": "Nurse",
+    "lastName": "Sarah",
+    "username": "Nurse Sarah",
+    "role": "nurse",
+    "isActive": false
+  },
+  {
+    "_id": "697485e430349def037dae95",
+    "firstName": "Reception",
+    "lastName": "Meron",
+    "username": "Reception Meron",
+    "role": "reception",
+    "isActive": false
+  },
+  {
+    "_id": "697485e530349def037dae98",
+    "firstName": "Lab",
+    "lastName": "Technician",
+    "username": "Lab Tech",
+    "role": "lab",
+    "isActive": false
+  },
+  {
+    "_id": "697485e630349def037dae9b",
+    "firstName": "Imaging",
+    "lastName": "Specialist",
+    "username": "Imaging Specialist",
+    "role": "imaging",
+    "isActive": false
+  },
+  {
+    "_id": "69c1427a516bf39b2877945c",
+    "username": "superadmin",
+    "role": "super_admin",
+    "firstName": "Super",
+    "lastName": "Admin",
+    "isActive": true
+  }
+]

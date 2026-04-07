@@ -1,0 +1,7 @@
+Assigned Doctor IDs in Patient Records:
+6823301cdefc7776bf7537b3 -> DR Natan
+689b17170ce11636ac1f5cbd -> Girum Assegidew
+
+Assigned Doctor IDs in Medical Records:
+6823301cdefc7776bf7537b3 -> DR Natan
+689b17170ce11636ac1f5cbd -> Girum Assegidew

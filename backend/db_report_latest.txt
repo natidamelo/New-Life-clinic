@@ -1,0 +1,36 @@
+Connected to MongoDB
+--- patients ---
+Total: 565
+With clinicId 'new-life': 565
+Latest record createdAt: Sat Apr 04 2026 18:44:44 GMT+0300 (East Africa Time)
+Patient statuses: [{"_id":"completed","count":118},{"_id":"scheduled","count":19},{"_id":"waiting","count":13},{"_id":"Admitted","count":1},{"_id":null,"count":414}]
+--- prescriptions ---
+Total: 529
+With clinicId 'new-life': 528
+Latest record createdAt: Sat Apr 04 2026 18:48:07 GMT+0300 (East Africa Time)
+--- medicalcertificates ---
+Total: 82
+With clinicId 'new-life': 82
+Latest record createdAt: 2026-03-17T16:02:43.005Z
+--- labrequests ---
+Total: 0
+With clinicId 'new-life': 0
+--- medicalrecords ---
+Total: 203
+With clinicId 'new-life': 203
+Latest record createdAt: 2026-04-03T08:01:42.852Z
+--- visits ---
+Total: 0
+With clinicId 'new-life': 0
+--- consultations ---
+Total: 0
+With clinicId 'new-life': 0
+--- medicalinvoices ---
+Total: 746
+With clinicId 'new-life': 746
+Latest record createdAt: Sat Apr 04 2026 18:44:44 GMT+0300 (East Africa Time)
+--- servicerequests ---
+Total: 230
+With clinicId 'new-life': 230
+Latest record createdAt: 2026-03-18T14:43:47.881Z
+Done checking

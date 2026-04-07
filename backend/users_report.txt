@@ -1,0 +1,19 @@
+Connected to MongoDB
+Total users: 16
+Username: DR Natan, Role: doctor, ClinicId: new-life
+Username: Semhal, Role: nurse, ClinicId: new-life
+Username: Mahlet, Role: imaging, ClinicId: new-life
+Username: Reception desk, Role: reception, ClinicId: new-life
+Username: admin, Role: admin, ClinicId: new-life
+Username: Girum, Role: doctor, ClinicId: new-life
+Username: Almaz G, Role: lab, ClinicId: new-life
+Username: undefined, Role: admin, ClinicId: new-life
+Username: Imaging Specialist, Role: imaging, ClinicId: new-life
+Username: Nurse Sarah, Role: nurse, ClinicId: new-life
+Username: Reception Meron, Role: reception, ClinicId: new-life
+Username: Nuhamin, Role: nurse, ClinicId: new-life
+Username: Selam, Role: nurse, ClinicId: new-life
+Username: Medina, Role: lab, ClinicId: new-life
+Username: Lab Tech, Role: lab, ClinicId: new-life
+Username: superadmin, Role: super_admin, ClinicId: new-life
+Done

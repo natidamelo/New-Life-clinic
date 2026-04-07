@@ -1,0 +1,442 @@
+Connected to MongoDB
+--- patients ---
+Total: 565
+With clinicId 'new-life': 565
+Sample from patients: {
+  "_id": "68ed0909c177c0f8f5a51093",
+  "firstName": "Biruk",
+  "lastName": "Belay",
+  "age": 7,
+  "gender": "male",
+  "contactNumber": "0953945298",
+  "email": "",
+  "address": "Addis ababa",
+  "department": "general",
+  "priority": "normal",
+  "status": "scheduled",
+  "vitals": {
+    "temperature": "36.3",
+    "bloodPressure": "120/80",
+    "heartRate": "75",
+    "respiratoryRate": "16",
+    "bloodSugar": "98",
+    "oxygenSaturation": "98",
+    "pain": "00",
+    "height": "170",
+    "weight": "60",
+    "bmi": "20.8",
+    "timestamp": "2025-10-23T05:54:06.604Z"
+  },
+  "medications": [],
+  "treatments": [],
+  "woundCare": [],
+  "medicalHistory": [],
+  "allergies": [],
+  "imaging": [],
+  "doctorOrders": [],
+  "diabetic": false,
+  "isActive": true,
+  "cardType": null,
+  "cardStatus": "active",
+  "faydaId": "",
+  "createdAt": "2025-10-13T14:13:29.689Z",
+  "updatedAt": "2025-10-23T05:57:02.587Z",
+  "patientId": "P99690-9690",
+  "__v": 0,
+  "assignedDoctorId": "6823301cdefc7776bf7537b3",
+  "assignedNurseId": "6895c62e640a5abe8c3d5bbd",
+  "lastUpdated": "2025-10-23T05:57:02.587Z",
+  "hasPaidCardFee": true,
+  "hasUnpaidCardInvoice": false,
+  "clinicId": "new-life"
+}
+--- prescriptions ---
+Total: 529
+With clinicId 'new-life': 528
+Sample from prescriptions: {
+  "_id": "68ed3d2bf36790a3fc1395e3",
+  "patient": "68ed3078c177c0f8f5a555ee",
+  "doctor": "6823301cdefc7776bf7537b3",
+  "doctorId": "6823301cdefc7776bf7537b3",
+  "medicationName": "Diclofenac",
+  "medicationItem": "68e780faf35885fb2db5ecc2",
+  "dosage": "75mg",
+  "frequency": "Once daily (QD)",
+  "duration": "1 day",
+  "route": "Intramuscular",
+  "refills": 0,
+  "instructions": "",
+  "notes": "",
+  "status": "Active",
+  "datePrescribed": "2025-10-13T17:55:55.036Z",
+  "dispensed": false,
+  "quantity": 1,
+  "sendToNurse": true,
+  "administeredByNurse": false,
+  "paymentStatus": "paid",
+  "totalCost": 0,
+  "medications": [
+    {
+      "inventoryItem": "68e780faf35885fb2db5ecc2",
+      "name": "Diclofenac",
+      "dosage": "75mg",
+      "frequency": "Once daily (QD)",
+      "duration": "1 day",
+      "route": "Intramuscular",
+      "notes": "",
+      "sendToNurse": true,
+      "assignedNurseId": "6823859485e2a37d8cb420ed",
+      "_id": "68ed3d2bf36790a3fc1395e4"
+    },
+    {
+      "inventoryItem": "68e780faf35885fb2db5ecc1",
+      "name": "Dexamethasone",
+      "dosage": "8mg",
+      "frequency": "Once daily (QD)",
+      "duration": "1 day",
+      "route": "Intramuscular",
+      "notes": "",
+      "sendToNurse": true,
+      "assignedNurseId": "6823859485e2a37d8cb420ed",
+      "_id": "68ed3d2bf36790a3fc1395e5"
+    },
+    {
+      "inventoryItem": "68e780faf35885fb2db5ecbb",
+      "name": "Normal Saline (0.9% NaCl)",
+      "dosage": "As directed",
+      "frequency": "Once daily (QD)",
+      "duration": "1 day",
+      "route": "Intravenous",
+      "notes": "",
+      "sendToNurse": true,
+      "assignedNurseId": "6823859485e2a37d8cb420ed",
+      "_id": "68ed3d2bf36790a3fc1395e6"
+    },
+    {
+      "inventoryItem": "68e780faf35885fb2db5ecc0",
+      "name": "Vitamin B Complex",
+      "dosage": "1 tablet daily",
+      "frequency": "Once daily (QD)",
+      "duration": "1 day",
+      "route": "Intravenous",
+      "notes": "",
+      "sendToNurse": true,
+      "assignedNurseId": "6823859485e2a37d8cb420ed",
+      "_id": "68ed3d2bf36790a3fc1395e7"
+    },
+    {
+      "inventoryItem": "68e780faf35885fb2db5ecc4",
+      "name": "Cimetidine",
+      "dosage": "As directed",
+      "frequency": "Once daily (QD)",
+      "duration": "1 day",
+      "route": "Intravenous",
+      "notes": "",
+      "sendToNurse": true,
+      "assignedNurseId": "6823859485e2a37d8cb420ed",
+      "_id": "68ed3d2bf36790a3fc1395e8"
+    },
+    {
+      "inventoryItem": "68e780faf35885fb2db5ecc3",
+      "name": "Metoclopramide",
+      "dosage": "10mg",
+      "frequency": "Once daily (QD)",
+      "duration": "1 day",
+      "route": "Intravenous",
+      "notes": "",
+      "sendToNurse": true,
+      "assignedNurseId": "6823859485e2a37d8cb420ed",
+      "_id": "68ed3d2bf36790a3fc1395e9"
+    },
+    {
+      "inventoryItem": "68e780faf35885fb2db5ecbf",
+      "name": "Glucose 40%",
+      "dosage": "As directed",
+      "frequency": "Once daily (QD)",
+      "duration": "1 day",
+      "route": "Intravenous",
+      "notes": "",
+      "sendToNurse": true,
+      "assignedNurseId": "6823859485e2a37d8cb420ed",
+      "_id": "68ed3d2bf36790a3fc1395ea"
+    }
+  ],
+  "paymentAuthorization": {
+    "paidDays": 1,
+    "totalDays": 1,
+    "paymentStatus": "fully_paid",
+    "authorizedDoses": 1,
+    "unauthorizedDoses": 0,
+    "outstandingAmount": 0,
+    "lastUpdated": "2025-10-13T17:57:48.511Z"
+  },
+  "ePrescribing": {
+    "enabled": false,
+    "status": "pending"
+  },
+  "externalReferences": {
+    "icd10Codes": [],
+    "cptCodes": []
+  },
+  "monitoring": {
+    "required": false,
+    "monitoringType": [],
+    "alerts": []
+  },
+  "patientEducation": {
+    "provided": false,
+    "materials": [],
+    "topics": []
+  },
+  "createdAt": "2025-10-13T17:55:55.043Z",
+  "drugInteractions": [],
+  "allergyAlerts": [],
+  "clinicalAlerts": [],
+  "prescriptionHistory": [],
+  "printHistory": [],
+  "updatedAt": "2025-10-13T17:57:48.514Z",
+  "__v": 0,
+  "invoiceId": "68ed3d2bf36790a3fc139620",
+  "paidAt": "2025-10-13T17:57:48.511Z",
+  "clinicId": "new-life"
+}
+--- medicalcertificates ---
+Total: 82
+With clinicId 'new-life': 82
+Sample from medicalcertificates: {
+  "_id": "68ef519ac621f19349302ef0",
+  "patientId": "68ef4ff4c621f19349302b02",
+  "patientName": "Roza Asrat",
+  "patientDisplayId": "P16285-6285",
+  "patientAge": 39,
+  "patientGender": "Female",
+  "patientAddress": "Addis Ababa",
+  "patientPhone": "0925959219",
+  "doctorId": "6823301cdefc7776bf7537b3",
+  "doctorName": "DR Natan",
+  "doctorLicenseNumber": "N/A",
+  "doctorSpecialization": "General Medicine",
+  "diagnosis": "Flu (Influenza)",
+  "symptoms": "Headache",
+  "treatment": "Rest and Fluids",
+  "prescription": "1.Aztromycin 500mg qd for 3 days\r\n2.loratidine syrup 10ml Tid for 7 days",
+  "recommendations": "Follow up in 1 week",
+  "followUpDate": "2025-10-22T00:00:00.000Z",
+  "restPeriod": "3 Days",
+  "workRestriction": "Light Duty Only",
+  "certificateType": "Sick Leave Certificate",
+  "certificateNumber": "MC20250001458677",
+  "validFrom": "2025-10-15T00:00:00.000Z",
+  "validUntil": "2025-11-14T00:00:00.000Z",
+  "isActive": true,
+  "clinicName": "New Life Medium Clinic PLC",
+  "clinicAddress": "Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia",
+  "clinicPhone": "+251925959219",
+  "clinicLicense": "CL-001",
+  "digitalSignature": null,
+  "createdBy": "6823301cdefc7776bf7537b3",
+  "status": "Issued",
+  "dateIssued": "2025-10-15T07:47:38.702Z",
+  "attachments": [],
+  "createdAt": "2025-10-15T07:47:38.703Z",
+  "updatedAt": "2025-10-15T07:47:38.703Z",
+  "__v": 0,
+  "clinicId": "new-life"
+}
+--- labrequests ---
+Total: 0
+With clinicId 'new-life': 0
+--- medicalrecords ---
+Total: 203
+With clinicId 'new-life': 203
+Sample from medicalrecords: {
+  "_id": "68ed110cc177c0f8f5a52023",
+  "patient": "68ed0d67c177c0f8f5a517f6",
+  "patientId": "68ed0d67c177c0f8f5a517f6",
+  "doctor": "6823301cdefc7776bf7537b3",
+  "doctorId": "6823301cdefc7776bf7537b3",
+  "doctorName": "DR Natan",
+  "chiefComplaint": {
+    "description": "pain over the back of the head",
+    "duration": "3 hours",
+    "severity": "Mild",
+    "onsetPattern": "Acute",
+    "progression": "Stable",
+    "location": "head",
+    "aggravatingFactors": [],
+    "relievingFactors": [],
+    "associatedSymptoms": [],
+    "impactOnDailyLife": "",
+    "previousEpisodes": false,
+    "previousEpisodesDetails": "",
+    "recordedAt": "2025-10-13T15:40:55.056Z",
+    "recordedBy": "6823301cdefc7776bf7537b3"
+  },
+  "diagnosis": "Unspecified injury of head",
+  "assessment": {
+    "primaryDiagnosis": "Unspecified injury of head",
+    "plan": "Follow-up:\n• Return if symptoms worsen\n• Follow up in 1 week if not improved\n• Seek immediate care for red flag symptoms\n• Rest and increased fluid intake",
+    "followUp": ""
+  },
+  "treatment": "",
+  "plan": "Follow-up:\n• Return if symptoms worsen\n• Follow up in 1 week if not improved\n• Seek immediate care for red flag symptoms\n• Rest and increased fluid intake",
+  "treatmentPlan": "Follow-up:\n• Return if symptoms worsen\n• Follow up in 1 week if not improved\n• Seek immediate care for red flag symptoms\n• Rest and increased fluid intake",
+  "notes": "",
+  "historyOfPresentIllness": "HPI Template for 34-year-old female:\n\nChief Complaint: pain over the back of the head\n\nHistory of Present Illness:\nThis is a 34-year-old female who presents with pain over the back of the head.\n\nAdditional History:\n• Past medical history: [Relevant conditions]\n• Medications: [Current medications and allergies]\n• Social history: [Smoking, alcohol, occupation]\n• Family history: [Relevant family conditions]\n• Review of systems: [Other symptoms to consider]\n\nAssessment and Plan:\n• Primary diagnosis: [Most likely diagnosis]\n• Differential diagnoses: [Other possibilities]\n• Plan: [Treatment, follow-up, patient education]\n\n\nClinical Considerations:\n• Consider pregnancy status\n• Review menstrual history if relevant\n• Consider contraception history\n• Ensure complete documentation\n• Document assessment and plan clearly\n• Consider patient education needs",
+  "physicalExamination": {
+    "general": "Alert",
+    "heent": {
+      "head": "",
+      "eyes": "PERRLA (Pupils Equal, Round, Reactive to Light and Accommodation)",
+      "ears": "No otitis media",
+      "nose": "No rhinorrhea",
+      "throat": "No pharyngitis"
+    },
+    "cardiovascular": "Regular rate and rhythm",
+    "respiratory": "Clear to auscultation bilaterally",
+    "gastrointestinal": "Soft",
+    "neurological": "Alert and oriented x3",
+    "musculoskeletal": "Full range of motion",
+    "skin": "Warm",
+    "summary": ""
+  },
+  "vitalSigns": {
+    "temperature": "37",
+    "bloodPressure": "",
+    "heartRate": "",
+    "respiratoryRate": "16",
+    "oxygenSaturation": "",
+    "height": "165",
+    "weight": "60",
+    "bmi": "22"
+  },
+  "prescriptions": [],
+  "labRequests": [],
+  "status": "Finalized",
+  "recordType": "regular",
+  "visitDate": "2025-10-13T15:40:54.314Z",
+  "createdBy": "6823301cdefc7776bf7537b3",
+  "lastUpdatedBy": "6823301cdefc7776bf7537b3",
+  "isDeleted": false,
+  "followUpPlan": {
+    "instructions": "",
+    "timing": "",
+    "appointmentNeeded": false
+  },
+  "createdAt": "2025-10-13T15:40:54.646Z",
+  "updatedAt": "2025-10-13T15:40:55.083Z",
+  "diagnoses": [],
+  "__v": 0,
+  "clinicId": "new-life"
+}
+--- visits ---
+Total: 0
+With clinicId 'new-life': 0
+--- consultations ---
+Total: 0
+With clinicId 'new-life': 0
+--- medicalinvoices ---
+Total: 746
+With clinicId 'new-life': 746
+Sample from medicalinvoices: {
+  "_id": "68ed0d67c177c0f8f5a517fa",
+  "invoiceNumber": "INV-25-10-0002-239",
+  "patient": "68ed0d67c177c0f8f5a517f6",
+  "patientId": "P47201-7201",
+  "patientName": "Hyaw Solomon",
+  "items": [
+    {
+      "itemType": "card",
+      "category": "card",
+      "description": "Basic patient card membership",
+      "quantity": 1,
+      "unitPrice": 200,
+      "discount": 0,
+      "tax": 0,
+      "total": 200,
+      "metadata": {
+        "cardTypeId": "68e2401c4edf254ccaa84190",
+        "cardTypeName": "Basic",
+        "patientId": "68ed0d67c177c0f8f5a517f6"
+      },
+      "_id": "68ed0d67c177c0f8f5a517fb",
+      "addedAt": "2025-10-13T14:32:07.241Z"
+    }
+  ],
+  "subtotal": 200,
+  "taxTotal": 0,
+  "discountTotal": 0,
+  "total": 200,
+  "amountPaid": 200,
+  "balance": 0,
+  "paymentAnalytics": {
+    "totalPayments": 0,
+    "averagePaymentAmount": 0,
+    "largestPayment": 0,
+    "smallestPayment": 0,
+    "paymentFrequency": 0,
+    "partialPaymentCount": 0,
+    "fullPaymentCount": 0
+  },
+  "status": "paid",
+  "paymentStatus": {
+    "current": "fully_paid",
+    "percentage": 100,
+    "paymentPlan": "single_payment",
+    "lastUpdated": "2025-10-13T14:32:41.735Z"
+  },
+  "dueDate": "2025-11-12T14:32:07.239Z",
+  "notes": "Registration invoice for Hyaw Solomon with Basic card",
+  "createdBy": "682461b58a2bfb0a7539984c",
+  "isConsolidated": false,
+  "isDailyConsolidated": false,
+  "isExtension": false,
+  "extensionDetails": {
+    "extensionType": "day-based"
+  },
+  "paymentHistory": [],
+  "payments": [
+    {
+      "amount": 200,
+      "method": "cash",
+      "reference": "",
+      "date": "2025-10-13T14:32:41.633Z",
+      "notes": "Cash - Payment for Invoice INV-25-10-0002-239",
+      "processedBy": "682461b58a2bfb0a7539984c",
+      "bankDetails": {
+        "transferType": "domestic"
+      },
+      "_id": "68ed0d89c177c0f8f5a51851",
+      "createdAt": "2025-10-13T14:32:41.655Z",
+      "updatedAt": "2025-10-13T14:32:41.655Z"
+    }
+  ],
+  "issueDate": "2025-10-13T14:32:07.242Z",
+  "lastUpdated": "2025-10-13T14:32:07.242Z",
+  "createdAt": "2025-10-13T14:32:07.244Z",
+  "updatedAt": "2025-10-13T14:32:41.734Z",
+  "__v": 1,
+  "paidDate": "2025-10-13T14:32:41.732Z",
+  "paymentMethod": "cash",
+  "clinicId": "new-life"
+}
+--- servicerequests ---
+Total: 230
+With clinicId 'new-life': 230
+Sample from servicerequests: {
+  "_id": "68f0a4370714722df9f53250",
+  "patient": "68f0a4370714722df9f5324e",
+  "service": "68e3c6976bffcd96932d0ad6",
+  "status": "pending",
+  "requestDate": "2025-10-16T07:52:23.475Z",
+  "assignedNurse": "6895c62e640a5abe8c3d5bbd",
+  "notes": "Service request for Glucose, Fasting",
+  "source": "reception",
+  "orderedBy": "682461b58a2bfb0a7539984c",
+  "invoice": "68f0a4370714722df9f53255",
+  "createdAt": "2025-10-16T07:52:25.517Z",
+  "updatedAt": "2025-10-16T07:52:25.517Z",
+  "__v": 0,
+  "clinicId": "new-life"
+}
+Done checking

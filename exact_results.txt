@@ -1,0 +1,203 @@
+﻿Patients assigned to Natan with isActive:true and not completed: 25
+[
+  {
+    "_id": "68ed0909c177c0f8f5a51093",
+    "firstName": "Biruk",
+    "lastName": "Belay",
+    "status": "scheduled",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69aef7776512e446f6612788",
+    "firstName": "Abebech",
+    "lastName": "Abdurahman",
+    "status": "waiting",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69aefab06512e446f661b971",
+    "firstName": "debora",
+    "lastName": "fikadu",
+    "status": "scheduled",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69afd1fe63c621cce89db3c4",
+    "firstName": "Mohammed",
+    "lastName": "Bedasa",
+    "status": "scheduled",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b050751f2eea6337feb181",
+    "firstName": "Selma",
+    "lastName": "murad",
+    "status": "waiting",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b056bd195a4a6af205111b",
+    "firstName": "hermon",
+    "lastName": "zeresenay",
+    "status": "waiting",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b13897f94d381a11564dda",
+    "firstName": "Hiwot",
+    "lastName": "Ayalaw",
+    "status": "waiting",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b1399ef94d381a115696c5",
+    "firstName": "Yidnekachew",
+    "lastName": "Solomon",
+    "status": "waiting",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b2cc8d98fd8284b15eb969",
+    "firstName": "Abrham",
+    "lastName": "Zeray",
+    "status": "scheduled",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b5917171913c3ee2fc39d9",
+    "firstName": "Habhe",
+    "lastName": "Mehari",
+    "status": "scheduled",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b67e20de8ad7d675d1d545",
+    "firstName": "nardose",
+    "lastName": "hiyalay",
+    "status": "scheduled",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b67f61de8ad7d675d21e44",
+    "firstName": "yemaria",
+    "lastName": "firew",
+    "status": "scheduled",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b6a358de8ad7d675d357b8",
+    "firstName": "amar",
+    "lastName": "jemal",
+    "status": "waiting",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b6a918de8ad7d675d3ba5e",
+    "firstName": "kidus",
+    "lastName": "alemu",
+    "status": "Admitted",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b7a582a8f44e446d062d0d",
+    "firstName": "Nebiyu",
+    "lastName": "Fante",
+    "status": "scheduled",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b7a61da8f44e446d0662a2",
+    "firstName": "Almaz",
+    "lastName": "Wendafersh",
+    "status": "waiting",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b7cdafa8f44e446d0870a4",
+    "firstName": "Rabiya",
+    "lastName": "Awel",
+    "status": "scheduled",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b8f3a88a50b8eff886298d",
+    "firstName": "Shufaru",
+    "lastName": "Buka",
+    "status": "scheduled",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b8f4068a50b8eff8865e6f",
+    "firstName": "Kidsit",
+    "lastName": "Melese",
+    "status": "scheduled",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b96e688a50b8eff8887656",
+    "firstName": "Ababo",
+    "lastName": "demeise",
+    "status": "waiting",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b981c68a50b8eff8898c32",
+    "firstName": "milka",
+    "lastName": "surafel",
+    "status": "scheduled",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69b994418a50b8eff88a1112",
+    "firstName": "barok",
+    "lastName": "wondmu",
+    "status": "scheduled",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69ba5f30d9bef90c0ba6d6e0",
+    "firstName": "Nahom",
+    "lastName": "Tadesse",
+    "status": "scheduled",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69bcf936d9bef90c0baa5d31",
+    "firstName": "Dereja",
+    "lastName": "Mekonin",
+    "status": "waiting",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  },
+  {
+    "_id": "69bd00fbd9bef90c0baafa4d",
+    "firstName": "Zerihun",
+    "lastName": "Alemayehu",
+    "status": "waiting",
+    "assignedDoctorId": "6823301cdefc7776bf7537b3",
+    "clinicId": "new-life"
+  }
+]

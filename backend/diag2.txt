@@ -1,0 +1,3 @@
+completed_star: 122
+completed_newlife: 122
+records_star: 209

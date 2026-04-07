@@ -498,7 +498,7 @@
             
             try {
                 // Try real backend login
-                const response = await fetch('http://192.168.7.157:3000/api/auth/login', {
+                const response = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -709,7 +709,7 @@
             if (!currentUser) return;
             
             try {
-                const response = await fetch(`http://192.168.7.157:3000/api/qr/staff-registration-status/${currentUser.id}`, {
+                const response = await fetch(`/api/qr/staff-registration-status/${currentUser.id}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1277,7 +1277,7 @@
         function enterQRManually() {
             closeScanningOptions();
             
-            const qrData = prompt('Enter QR code data:\n\n🔹 For REGISTRATION: Paste the full URL from staff management\n🔹 For CHECK-IN/OUT: Paste the QR code data\n\nExample registration URL:\nhttp://192.168.7.157:5175/verify-qr?type=staff-registration&userId=...');
+            const qrData = prompt('Enter QR code data:\n\n🔹 For REGISTRATION: Paste the full URL from staff management\n🔹 For CHECK-IN/OUT: Paste the QR code data\n\nExample registration URL:\n/verify-qr?type=staff-registration&userId=...');
             
             if (qrData && qrData.trim()) {
                 processQRData(qrData.trim());
@@ -1301,7 +1301,7 @@
                         
                         try {
                             // Try real backend registration
-                            const response = await fetch('http://192.168.7.157:3000/api/qr/register-device', {
+                            const response = await fetch('/api/qr/register-device', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',
