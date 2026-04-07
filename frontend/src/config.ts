@@ -62,10 +62,10 @@ const resolveApiBaseUrl = (): string => {
 
   // In production, empty API URL causes requests to hit the frontend origin
   // and often return HTML (index/404), which surfaces as JSON parse errors.
-  console.error(
-    '[Config] API base URL is empty in production. Set window._env_.REACT_APP_API_URL (via /env-config.js) or VITE_API_URL.'
+  console.warn(
+    '[Config] API base URL is empty or missing in production. Falling back to default Render backend URL.'
   );
-  return '';
+  return 'https://new-life-clinic.onrender.com';
 };
 
 // Empty string means "use the Vite proxy" in local dev.
