@@ -229,7 +229,9 @@ router.get('/patient/:patientId', async (req, res) => {
         { status: 'Completed' },
         { status: 'In Progress' },
         { results: { $exists: true, $ne: null } },
-        { resultsSummary: { $exists: true, $ne: null } }
+        { resultsSummary: { $exists: true, $ne: null } },
+        // Legacy/new workflow compatibility: status may remain older value while report is finalized/sent
+        { 'reportWorkflow.status': { $in: ['Finalized', 'Sent'] } }
       ]
     })
     .populate('patientId')

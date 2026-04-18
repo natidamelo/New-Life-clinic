@@ -314,7 +314,20 @@ router.get('/', async (req, res) => {
     if (req.query.doctorId) {
       try {
         const doctorObjId = new mongoose.Types.ObjectId(req.query.doctorId);
-        andClauses.push({ $or: [{ doctor: doctorObjId }, { doctorId: doctorObjId }] });
+        // Legacy compatibility:
+        // Older prescriptions may miss doctor/doctorId but still belong to patients assigned to this doctor.
+        const assignedPatients = await Patient.find({ assignedDoctorId: doctorObjId })
+          .select('_id')
+          .lean();
+        const assignedPatientIds = assignedPatients.map((p) => p._id);
+
+        const doctorOrAssignedPatientFilter = [{ doctor: doctorObjId }, { doctorId: doctorObjId }];
+        if (assignedPatientIds.length > 0) {
+          doctorOrAssignedPatientFilter.push({ patient: { $in: assignedPatientIds } });
+          doctorOrAssignedPatientFilter.push({ patientId: { $in: assignedPatientIds } });
+        }
+
+        andClauses.push({ $or: doctorOrAssignedPatientFilter });
       } catch (err) {
         andClauses.push({ $or: [{ doctor: req.query.doctorId }, { doctorId: req.query.doctorId }] });
       }

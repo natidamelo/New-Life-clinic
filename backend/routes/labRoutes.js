@@ -759,13 +759,26 @@ router.get('/doctor/:doctorId', auth, async (req, res) => {
       });
     }
     
-    // Find all lab orders that have been sent to this doctor OR ordered by this doctor
-    const labOrders = await LabOrder.find({
+    // Legacy compatibility:
+    // Older lab orders may not have sentToDoctor fields set even though they belong to this doctor's patients.
+    const assignedPatients = await Patient.find({ assignedDoctorId: doctorObjectId })
+      .select('_id')
+      .lean();
+    const assignedPatientIds = assignedPatients.map((p) => p._id);
+
+    const doctorLabQuery = {
       $or: [
         { sentToDoctorId: doctorObjectId, sentToDoctor: true },
         { orderingDoctorId: doctorObjectId }
       ]
-    })
+    };
+
+    if (assignedPatientIds.length > 0) {
+      doctorLabQuery.$or.push({ patientId: { $in: assignedPatientIds } });
+    }
+
+    // Find all lab orders that are sent to/ordered by this doctor, with fallback to assigned patients
+    const labOrders = await LabOrder.find(doctorLabQuery)
     .populate('orderingDoctorId', 'firstName lastName')
     .sort({ orderDateTime: -1 });
     
