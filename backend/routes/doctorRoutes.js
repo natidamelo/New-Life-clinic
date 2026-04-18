@@ -5,6 +5,7 @@ const { auth } = require('../middleware/auth');
 const User = require('../models/User');
 const VitalSigns = require('../models/VitalSigns');
 const Patient = require('../models/Patient');
+const MedicalRecord = require('../models/MedicalRecord');
 const Appointment = require('../models/Appointment');
 const LabOrder = require('../models/LabOrder');
 const asyncHandler = require('../middleware/async');
@@ -255,17 +256,51 @@ router.get('/patients/active', auth, async (req, res) => {
 router.get('/patients/completed', auth, async (req, res) => {
   try {
     const { page = 1, limit = 50, search = '', dateFrom, dateTo } = req.query;
-    const skip = (page - 1) * limit;
+    const parsedLimit = Math.min(parseInt(limit, 10) || 50, 500);
+    const skip = (parseInt(page, 10) - 1) * parsedLimit;
     
     // Get the current doctor ID from the authenticated user
     const currentDoctorId = req.user._id;
     console.log(`[Doctor Completed Patients] Fetching completed patients for doctor: ${currentDoctorId}`);
-    
-    // Build query for completed patients assigned to this doctor only
+
+    // Finalized statuses used across medical record history endpoints
+    const FINALIZED_STATUSES = [
+      'Finalized', 'finalized', 'FINALIZED',
+      'Completed', 'completed', 'COMPLETED',
+      'Closed', 'closed', 'CLOSED',
+      'Archived', 'archived', 'ARCHIVED',
+      'Not specified', 'not specified', 'NOT SPECIFIED'
+    ];
+
+    // Include legacy/older patients by looking at finalized records authored by this doctor.
+    // This handles records where assignedDoctorId or patient status was not reliably synced.
+    const finalizedRecords = await MedicalRecord.find({
+      status: { $in: FINALIZED_STATUSES },
+      isDeleted: { $ne: true },
+      $or: [
+        { doctorId: currentDoctorId },
+        { doctor: currentDoctorId },
+        { createdBy: currentDoctorId }
+      ]
+    }).select('patient patientId').lean();
+
+    const finalizedPatientIds = [
+      ...new Set(
+        finalizedRecords
+          .map((rec) => (rec.patient || rec.patientId)?.toString())
+          .filter(Boolean)
+      )
+    ];
+
+    const doctorScopedConditions = [{ assignedDoctorId: currentDoctorId, status: 'completed' }];
+    if (finalizedPatientIds.length > 0) {
+      doctorScopedConditions.push({ _id: { $in: finalizedPatientIds } });
+    }
+
+    // Build query for completed/doctor-finalized patients
     const query = {
-      status: 'completed',
       isActive: true,
-      assignedDoctorId: currentDoctorId
+      $or: doctorScopedConditions
     };
     
     // Add date range filter if provided
@@ -297,7 +332,7 @@ router.get('/patients/completed', auth, async (req, res) => {
       .populate('assignedNurseId', 'firstName lastName')
       .sort({ lastUpdated: -1, completedAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parsedLimit);
     
     // Get total count for pagination
     const totalPatients = await Patient.countDocuments(query);
@@ -332,9 +367,9 @@ router.get('/patients/completed', auth, async (req, res) => {
       data: formattedPatients,
       pagination: {
         currentPage: parseInt(page),
-        totalPages: Math.ceil(totalPatients / limit),
+        totalPages: Math.ceil(totalPatients / parsedLimit),
         totalPatients,
-        hasNextPage: page < Math.ceil(totalPatients / limit),
+        hasNextPage: page < Math.ceil(totalPatients / parsedLimit),
         hasPrevPage: page > 1
       }
     });
