@@ -42,7 +42,6 @@ const ALLOWED_CORS_HEADERS = [
   'Access-Control-Request-Headers'
 ];
 
-function configureCorsOptions() {
 function isAllowedOrigin(origin) {
   if (!origin) return true; // server-to-server etc
   
