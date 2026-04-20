@@ -43,7 +43,8 @@ import {
   AlertTriangle,
   Info,
   DollarSign,
-  Trash2
+  Trash2,
+  Printer
 } from 'lucide-react';
 
 // Enhanced interfaces for better type safety
@@ -1219,6 +1220,161 @@ const NurseTasksNew: React.FC = () => {
     console.log('🔄 Filters cleared');
   };
 
+  const escapeHtml = (value: string): string =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const handlePrintInProgressMedications = () => {
+    const currentlyFilteredTasks = getFilteredTasks();
+
+    const inProgressMedicationTasks = currentlyFilteredTasks
+      .filter((task) => task.status === 'IN_PROGRESS' && isMedicationRelatedTask(task))
+      .map((task) => {
+        const details = task.medicationDetails || createMedicationDetailsForInjection(task);
+        if (!details) return null;
+
+        const parsedStartDate = details.startDate ? new Date(details.startDate) : new Date();
+        const safeStartDate = isNaN(parsedStartDate.getTime()) ? new Date() : parsedStartDate;
+
+        const normalizedMedicationDetails = {
+          ...details,
+          startDate: safeStartDate,
+          duration: typeof details.duration === 'number' && details.duration > 0 ? details.duration : 1
+        };
+
+        const doseSchedule = generateDoseSchedule(normalizedMedicationDetails);
+        const totalDoses = doseSchedule.reduce((sum, day) => sum + day.timeSlots.length, 0);
+        const administeredDoses = doseSchedule.reduce(
+          (sum, day) => sum + day.timeSlots.filter((slot) => slot.administered).length,
+          0
+        );
+        const remainingDoses = Math.max(totalDoses - administeredDoses, 0);
+
+        const sortedSlots = doseSchedule.flatMap((day) =>
+          day.timeSlots.map((slot) => ({ day, slot }))
+        );
+        const nextPending = sortedSlots.find((item) => !item.slot.administered);
+        const nextDoseText = nextPending
+          ? `${format(nextPending.day.date, 'MMM dd, yyyy')} ${nextPending.slot.time}`
+          : 'Completed';
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const daysLeft = doseSchedule.filter((day) => {
+          const date = new Date(day.date);
+          date.setHours(0, 0, 0, 0);
+          return date >= today && day.timeSlots.some((slot) => !slot.administered);
+        }).length;
+
+        const startDateText = format(safeStartDate, 'MMM dd, yyyy');
+        const endDateText = doseSchedule.length
+          ? format(doseSchedule[doseSchedule.length - 1].date, 'MMM dd, yyyy')
+          : startDateText;
+
+        return {
+          patientName: task.patientName || 'Unknown Patient',
+          medicationName: details.medicationName || 'Unknown Medication',
+          dosage: details.dosage || 'N/A',
+          frequency: details.frequency || 'N/A',
+          route: details.route || 'N/A',
+          startDateText,
+          endDateText,
+          totalDays: doseSchedule.length || details.duration || 1,
+          totalDoses,
+          administeredDoses,
+          remainingDoses,
+          daysLeft,
+          nextDoseText
+        };
+      })
+      .filter((task): task is NonNullable<typeof task> => Boolean(task));
+
+    if (inProgressMedicationTasks.length === 0) {
+      toast.info('No in-progress medications in the current filtered view.');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank', 'width=1200,height=800');
+    if (!printWindow) {
+      toast.error('Unable to open print window. Please allow pop-ups and try again.');
+      return;
+    }
+
+    const reportDate = format(new Date(), 'MMM dd, yyyy HH:mm');
+    const rows = inProgressMedicationTasks
+      .map(
+        (task) => `
+          <tr>
+            <td>${escapeHtml(task.patientName)}</td>
+            <td>${escapeHtml(task.medicationName)}</td>
+            <td>${escapeHtml(task.dosage)}</td>
+            <td>${escapeHtml(task.frequency)}</td>
+            <td>${escapeHtml(task.route)}</td>
+            <td>${escapeHtml(task.startDateText)}</td>
+            <td>${escapeHtml(task.endDateText)}</td>
+            <td>${task.totalDays}</td>
+            <td>${task.administeredDoses}/${task.totalDoses}</td>
+            <td>${task.remainingDoses}</td>
+            <td>${task.daysLeft}</td>
+            <td>${escapeHtml(task.nextDoseText)}</td>
+          </tr>
+        `
+      )
+      .join('');
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>In-Progress Medication Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
+            h1 { margin: 0 0 8px; font-size: 20px; }
+            p.meta { margin: 0 0 16px; color: #4b5563; font-size: 13px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
+            th { background: #f3f4f6; font-weight: 700; }
+            .note { margin-top: 14px; color: #6b7280; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <h1>In-Progress Medication Administration Report</h1>
+          <p class="meta">Generated: ${escapeHtml(reportDate)} | Total medications: ${inProgressMedicationTasks.length}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Medication</th>
+                <th>Dosage</th>
+                <th>Frequency</th>
+                <th>Route</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Total Days</th>
+                <th>Doses Given</th>
+                <th>Doses Left</th>
+                <th>Days Left</th>
+                <th>Next Dose</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <p class="note">Days Left counts future/today schedule days that still have unadministered doses.</p>
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   // Quick filter functions
   const showAllTasks = () => setSelectedTaskType('ALL');
   const showMedicationTasks = () => setSelectedTaskType('MEDICATION');
@@ -2374,6 +2530,15 @@ const NurseTasksNew: React.FC = () => {
                 title="Refresh payment status"
               >
                 <RefreshCw className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={handlePrintInProgressMedications}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 transition-all duration-200 text-xs font-medium"
+                title="Print all in-progress medications"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print In-Progress</span>
               </button>
               
               <button
