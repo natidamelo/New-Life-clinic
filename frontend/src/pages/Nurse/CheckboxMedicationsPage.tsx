@@ -4,7 +4,7 @@ import nurseTaskService from '../../services/nurseTaskService';
 import inventoryService from '../../services/inventoryService';
 import { api } from '../../services/api';
 import { toast } from 'react-toastify';
-import { RefreshCw, Search, Filter, Pill, AlertCircle, Grid3X3, Zap } from 'lucide-react';
+import { RefreshCw, Search, Filter, Pill, AlertCircle, Grid3X3, Zap, Printer } from 'lucide-react';
 import SimplifiedMedicationAdmin from '../../components/nurse/SimplifiedMedicationAdmin';
 import prescriptionService, { Prescription } from '../../services/prescriptionService';
 import { formatPatientGroupOrderSummary } from '../../utils/nurseTaskOrderDate';
@@ -391,6 +391,162 @@ const CheckboxMedicationsPage: React.FC = () => {
     return task.status?.toLowerCase() || 'pending';
   };
 
+  const escapeHtml = (value: string): string =>
+    String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const parseDurationDays = (duration: any): number => {
+    if (typeof duration === 'number' && duration > 0) return duration;
+    if (typeof duration === 'string') {
+      const match = duration.match(/(\d+)/);
+      if (match) return Math.max(parseInt(match[1], 10), 1);
+    }
+    return 1;
+  };
+
+  const countDosesPerDay = (frequency: string): number => {
+    const f = (frequency || '').toLowerCase();
+    if (f.includes('qid') || f.includes('4x') || f.includes('four')) return 4;
+    if (f.includes('tid') || f.includes('3x') || f.includes('three')) return 3;
+    if (f.includes('bid') || f.includes('2x') || f.includes('twice')) return 2;
+    const match = f.match(/(\d+)\s*times?/);
+    if (match) return Math.max(parseInt(match[1], 10), 1);
+    return 1;
+  };
+
+  const formatDate = (dateValue: any): string => {
+    const d = new Date(dateValue);
+    if (Number.isNaN(d.getTime())) return 'N/A';
+    return d.toLocaleDateString();
+  };
+
+  const handlePrintInProgress = () => {
+    const source = filteredTasks;
+    const printTasks = source.filter((task) => getActualTaskStatus(task) === 'in progress');
+
+    if (printTasks.length === 0) {
+      toast.info('No in-progress medications in the current filtered view.');
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const rows = printTasks.map((task) => {
+      const md = task.medicationDetails || {};
+      const doseRecords = Array.isArray(md.doseRecords) ? md.doseRecords : [];
+      const dosesPerDay = countDosesPerDay(md.frequency || '');
+      const durationDays = parseDurationDays(md.duration);
+      const totalDoses = doseRecords.length > 0 ? doseRecords.length : durationDays * dosesPerDay;
+      const administeredDoses = doseRecords.filter((d: any) => d?.administered).length;
+      const remainingDoses = Math.max(totalDoses - administeredDoses, 0);
+
+      const startBase = task.createdAt || task.dueDate || new Date().toISOString();
+      const startDate = new Date(startBase);
+      if (Number.isNaN(startDate.getTime())) {
+        startDate.setTime(Date.now());
+      }
+
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + Math.max(durationDays - 1, 0));
+
+      const daysLeft = Math.max(
+        Math.ceil((new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()).getTime() - today.getTime()) / (24 * 60 * 60 * 1000)) + 1,
+        0
+      );
+
+      const nextPending = doseRecords.find((d: any) => !d?.administered);
+      const nextDose = nextPending
+        ? `Day ${nextPending.day || '-'} ${nextPending.timeSlot || ''}`.trim()
+        : 'See schedule';
+
+      return {
+        patientName: task.patientName || 'Unknown Patient',
+        medicationName: md.medicationName || task.medicationName || 'Unknown Medication',
+        dosage: md.dosage || 'N/A',
+        frequency: md.frequency || 'N/A',
+        route: md.route || 'N/A',
+        startDate: formatDate(startDate),
+        endDate: formatDate(endDate),
+        totalDays: durationDays,
+        dosesGiven: `${administeredDoses}/${totalDoses}`,
+        dosesLeft: remainingDoses,
+        daysLeft,
+        nextDose
+      };
+    });
+
+    const printWindow = window.open('', '_blank', 'width=1200,height=800');
+    if (!printWindow) {
+      toast.error('Unable to open print window. Please allow pop-ups and try again.');
+      return;
+    }
+
+    const generatedAt = new Date().toLocaleString();
+    const bodyRows = rows.map((row) => `
+      <tr>
+        <td>${escapeHtml(row.patientName)}</td>
+        <td>${escapeHtml(row.medicationName)}</td>
+        <td>${escapeHtml(row.dosage)}</td>
+        <td>${escapeHtml(row.frequency)}</td>
+        <td>${escapeHtml(row.route)}</td>
+        <td>${escapeHtml(row.startDate)}</td>
+        <td>${escapeHtml(row.endDate)}</td>
+        <td>${row.totalDays}</td>
+        <td>${escapeHtml(row.dosesGiven)}</td>
+        <td>${row.dosesLeft}</td>
+        <td>${row.daysLeft}</td>
+        <td>${escapeHtml(row.nextDose)}</td>
+      </tr>
+    `).join('');
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+      <head>
+        <title>In-Progress Medication Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; color: #111827; }
+          h1 { margin: 0 0 6px; font-size: 20px; }
+          .meta { margin: 0 0 14px; color: #6b7280; font-size: 12px; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; }
+          th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
+          th { background: #f3f4f6; font-weight: 700; }
+        </style>
+      </head>
+      <body>
+        <h1>In-Progress Medication Administration Report</h1>
+        <p class="meta">Generated: ${escapeHtml(generatedAt)} | Total medications: ${rows.length}</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Medication</th>
+              <th>Dosage</th>
+              <th>Frequency</th>
+              <th>Route</th>
+              <th>Start Date</th>
+              <th>End Date</th>
+              <th>Total Days</th>
+              <th>Doses Given</th>
+              <th>Doses Left</th>
+              <th>Days Left</th>
+              <th>Next Dose</th>
+            </tr>
+          </thead>
+          <tbody>${bodyRows}</tbody>
+        </table>
+        <script>window.onload = function () { window.print(); };</script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   const filteredTasks = useMemo(() => tasks.filter(task => {
     const matchesSearch = 
       task.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -618,6 +774,14 @@ const CheckboxMedicationsPage: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handlePrintInProgress}
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors"
+            title="Print in-progress medications in current view"
+          >
+            <Printer className="w-4 h-4 text-slate-400" />
+            Print In Progress
+          </button>
           <button
             onClick={handleRefreshPayments}
             disabled={paymentStatusesLoading || refreshing}
