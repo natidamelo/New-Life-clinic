@@ -109,7 +109,7 @@ const Login: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen flex overflow-hidden relative" style={{ background: 'linear-gradient(135deg, #020818 0%, #0a1628 40%, #0d1f3c 70%, #071320 100%)' }}>
+    <div className="min-h-screen flex overflow-hidden relative" style={{ background: 'linear-gradient(135deg, #030914 0%, #07152a 42%, #0a1d38 70%, #071320 100%)' }}>
 
       {/* ── Animated ambient orbs ── */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
@@ -135,7 +135,7 @@ const Login: React.FC = () => {
       <button
         onClick={toggleTheme}
         className="absolute top-5 right-5 z-30 p-2.5 rounded-xl border transition-all duration-200 hover:scale-105"
-        style={{ background: 'rgba(255,255,255,0.07)', borderColor: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}
+        style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}
         aria-label="Toggle dark mode"
       >
         {isDarkMode
@@ -146,11 +146,11 @@ const Login: React.FC = () => {
       {/* ══════════════════════════════════════════════
           LEFT PANEL — branding
       ══════════════════════════════════════════════ */}
-      <div className="hidden lg:flex lg:w-[55%] flex-col justify-between px-16 py-14 relative z-10">
+      <div className="hidden lg:flex lg:w-[58%] flex-col justify-between px-14 xl:px-16 py-10 relative z-10">
 
         {/* Logo */}
         <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl overflow-hidden flex-shrink-0 ring-1 ring-white/20 shadow-xl shadow-sky-500/10">
+          <div className="h-12 w-12 rounded-2xl overflow-hidden flex-shrink-0 ring-1 ring-white/20 shadow-xl shadow-sky-500/10">
             <img
               src="/assets/images/logo.jpg"
               alt="New Life Clinic"
@@ -167,13 +167,13 @@ const Login: React.FC = () => {
             />
           </div>
           <div>
-            <p className="text-white font-bold text-xl leading-tight tracking-tight">New Life Clinic</p>
+            <p className="text-white font-bold text-lg leading-tight tracking-tight">New Life Clinic</p>
             <p className="text-sky-400/70 text-xs font-medium tracking-wider uppercase mt-0.5">Healthcare Management System</p>
           </div>
         </div>
 
         {/* Hero text */}
-        <div className="space-y-8 max-w-[480px]">
+        <div className="space-y-7 max-w-[520px]">
           {/* Pill badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-semibold tracking-wide"
             style={{ background: 'rgba(56,189,248,0.1)', borderColor: 'rgba(56,189,248,0.3)', color: '#7dd3fc' }}>
@@ -182,29 +182,29 @@ const Login: React.FC = () => {
           </div>
 
           <div>
-            <h1 className="font-black text-white leading-[1.08] tracking-tighter" style={{ fontSize: 'clamp(2.8rem,4.2vw,4rem)' }}>
+            <h1 className="font-black text-white leading-[1.04] tracking-tighter" style={{ fontSize: 'clamp(2.9rem,4.3vw,4.2rem)' }}>
               Smarter Care,
             </h1>
-            <h1 className="font-black leading-[1.08] tracking-tighter" style={{
-              fontSize: 'clamp(2.8rem,4.2vw,4rem)',
+            <h1 className="font-black leading-[1.04] tracking-tighter" style={{
+              fontSize: 'clamp(2.9rem,4.3vw,4.2rem)',
               background: 'linear-gradient(90deg, #38bdf8, #818cf8)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}>
               Better Outcomes.
             </h1>
-            <p className="mt-5 text-slate-400 text-[0.96rem] leading-relaxed">
+            <p className="mt-5 text-slate-400 text-[0.93rem] leading-relaxed">
               A unified platform for your entire clinic — patient registration,<br />
               lab results, billing, and real-time monitoring.
             </p>
           </div>
 
           {/* Stat cards */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-3.5">
             {stats.map(({ value, label }) => (
-              <div key={label} className="rounded-2xl p-4 text-center border"
+              <div key={label} className="rounded-2xl p-3.5 text-center border"
                 style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)' }}>
-                <p className="text-white font-extrabold text-xl leading-none">{value}</p>
+                <p className="text-white font-extrabold text-lg leading-none">{value}</p>
                 <p className="text-slate-500 text-[10px] mt-1.5 leading-tight">{label}</p>
               </div>
             ))}
@@ -232,16 +232,16 @@ const Login: React.FC = () => {
       {/* ══════════════════════════════════════════════
           RIGHT PANEL — form
       ══════════════════════════════════════════════ */}
-      <div className="flex-1 flex items-center justify-center px-6 py-10 relative z-10">
+      <div className="flex-1 flex items-center justify-center lg:justify-end px-6 lg:pr-20 xl:pr-28 py-10 relative z-10">
 
         {/* Glass card */}
         <div
-          className="auth-login-card w-full max-w-[400px] rounded-3xl p-8 sm:p-10 space-y-8 shadow-2xl"
+          className="auth-login-card w-full max-w-[385px] rounded-[26px] p-7 sm:p-8 space-y-7 shadow-2xl"
           style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.10)',
+            background: 'linear-gradient(180deg, rgba(23,36,67,0.9) 0%, rgba(17,30,60,0.9) 100%)',
+            border: '1px solid rgba(255,255,255,0.09)',
             backdropFilter: 'blur(24px)',
-            boxShadow: '0 25px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
+            boxShadow: '0 20px 55px rgba(0,0,0,0.52), inset 0 1px 0 rgba(255,255,255,0.07)',
           }}
         >
           {/* Mobile logo */}
@@ -263,8 +263,8 @@ const Login: React.FC = () => {
               <div className="h-0.5 w-8 rounded-full bg-gradient-to-r from-sky-400 to-indigo-500" />
               <span className="text-sky-400 text-xs font-semibold uppercase tracking-widest">Secure Login</span>
             </div>
-            <h2 className="text-white text-3xl font-extrabold tracking-tight">Welcome back</h2>
-            <p className="text-slate-400 text-sm mt-1.5">Sign in to access your clinic dashboard</p>
+            <h2 className="text-white text-[2.05rem] font-extrabold tracking-tight">Welcome back</h2>
+            <p className="text-slate-400 text-[13px] mt-1.5">Sign in to access your clinic dashboard</p>
           </div>
 
           {/* Form */}
@@ -288,32 +288,26 @@ const Login: React.FC = () => {
                   autoComplete="off"
                   placeholder="dr.smith or admin@clinic.com"
                   {...formik.getFieldProps('email')}
-                  className="auth-login-input w-full h-12 pl-10 pr-4 text-sm rounded-xl outline-none transition-all duration-200"
+                  className="auth-login-input w-full h-12 pl-10 pr-4 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-sky-500/20"
                   style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    color: '#000000',
-                    caretColor: '#000000',
-                    WebkitTextFillColor: '#000000',
+                    background: '#f8fafc',
+                    color: '#0f172a',
+                    caretColor: '#0f172a',
+                    WebkitTextFillColor: '#0f172a',
                     border: formik.touched.email && formik.errors.email
                       ? '1px solid rgba(248,113,113,0.6)'
-                      : '1px solid rgba(255,255,255,0.09)',
+                      : '1px solid rgba(148,163,184,0.35)',
                     boxShadow: formik.touched.email && !formik.errors.email && formik.values.email
                       ? '0 0 0 1px rgba(56,189,248,0.4)'
                       : 'none',
                   }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.border = '1px solid rgba(56,189,248,0.5)';
-                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(56,189,248,0.12)';
-                    e.currentTarget.style.color = '#000000';
-                    e.currentTarget.style.webkitTextFillColor = '#000000';
-                  }}
                   onBlur={(e) => {
                     e.currentTarget.style.border = formik.errors.email
                       ? '1px solid rgba(248,113,113,0.6)'
-                      : '1px solid rgba(255,255,255,0.09)';
+                      : '1px solid rgba(148,163,184,0.35)';
                     e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.color = '#000000';
-                    e.currentTarget.style.webkitTextFillColor = '#000000';
+                    e.currentTarget.style.color = '#0f172a';
+                    e.currentTarget.style.webkitTextFillColor = '#0f172a';
                     formik.handleBlur(e);
                   }}
                 />
@@ -343,29 +337,23 @@ const Login: React.FC = () => {
                   autoComplete="off"
                   placeholder="Enter your password"
                   {...formik.getFieldProps('password')}
-                  className="auth-login-input w-full h-12 pl-10 pr-11 text-sm rounded-xl outline-none transition-all duration-200"
+                  className="auth-login-input w-full h-12 pl-10 pr-11 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-sky-500/20"
                   style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    color: '#000000',
-                    caretColor: '#000000',
-                    WebkitTextFillColor: '#000000',
+                    background: '#f8fafc',
+                    color: '#0f172a',
+                    caretColor: '#0f172a',
+                    WebkitTextFillColor: '#0f172a',
                     border: formik.touched.password && formik.errors.password
                       ? '1px solid rgba(248,113,113,0.6)'
-                      : '1px solid rgba(255,255,255,0.09)',
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.border = '1px solid rgba(56,189,248,0.5)';
-                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(56,189,248,0.12)';
-                    e.currentTarget.style.color = '#000000';
-                    e.currentTarget.style.webkitTextFillColor = '#000000';
+                      : '1px solid rgba(148,163,184,0.35)',
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.border = formik.errors.password
                       ? '1px solid rgba(248,113,113,0.6)'
-                      : '1px solid rgba(255,255,255,0.09)';
+                      : '1px solid rgba(148,163,184,0.35)';
                     e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.color = '#000000';
-                    e.currentTarget.style.webkitTextFillColor = '#000000';
+                    e.currentTarget.style.color = '#0f172a';
+                    e.currentTarget.style.webkitTextFillColor = '#0f172a';
                     formik.handleBlur(e);
                   }}
                 />
@@ -400,13 +388,13 @@ const Login: React.FC = () => {
                   autoComplete="off"
                   placeholder="e.g. clinicnew"
                   {...formik.getFieldProps('clinicId')}
-                  className="auth-login-input w-full h-11 px-4 text-sm rounded-xl outline-none transition-all duration-200"
+                  className="auth-login-input w-full h-11 px-4 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-sky-500/20"
                   style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    color: '#000000',
-                    caretColor: '#000000',
-                    WebkitTextFillColor: '#000000',
-                    border: '1px solid rgba(255,255,255,0.09)',
+                    background: '#f8fafc',
+                    color: '#0f172a',
+                    caretColor: '#0f172a',
+                    WebkitTextFillColor: '#0f172a',
+                    border: '1px solid rgba(148,163,184,0.35)',
                   }}
                 />
                 <p className="text-[10px] text-slate-500 leading-snug">
@@ -460,7 +448,7 @@ const Login: React.FC = () => {
               type="submit"
               disabled={isLoading || isWarmingUp || !formik.isValid || !formik.dirty}
               className="relative w-full h-12 rounded-xl text-white text-sm font-bold tracking-wide transition-all duration-300 overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:ring-offset-2 focus:ring-offset-transparent mt-2"
-              style={{ background: 'linear-gradient(135deg, #0284c7 0%, #4f46e5 100%)', boxShadow: '0 4px 20px rgba(14,165,233,0.3)' }}
+              style={{ background: 'linear-gradient(90deg, #0284c7 0%, #4f46e5 100%)', boxShadow: '0 4px 20px rgba(14,165,233,0.3)' }}
             >
               {/* Shimmer hover layer */}
               <span className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-200 rounded-xl" />
@@ -501,13 +489,13 @@ const Login: React.FC = () => {
           </div>
 
           {/* Footer trust badges */}
-          <div className="flex items-center justify-center gap-4">
-            {['🔐 SSL Encrypted', '🛡 HIPAA Ready', '⚡ 99.9% Uptime'].map(badge => (
-              <span key={badge} className="text-[10px] text-slate-600 font-medium">{badge}</span>
+          <div className="flex items-center justify-center gap-3">
+            {['SSL Encrypted', 'HIPAA Ready', '99.9% Uptime'].map(badge => (
+              <span key={badge} className="text-[10px] text-slate-500 font-medium">{badge}</span>
             ))}
           </div>
 
-          <p className="text-center text-xs text-slate-600">
+          <p className="text-center text-xs text-slate-500">
             Having trouble? Contact your{' '}
             <span className="text-sky-400/80 cursor-pointer hover:text-sky-300 transition-colors">system administrator</span>.
           </p>
