@@ -109,141 +109,63 @@ const Login: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen flex overflow-hidden relative" style={{ background: 'linear-gradient(135deg, #030914 0%, #07152a 42%, #0a1d38 70%, #071320 100%)' }}>
+    <div className="min-h-screen relative overflow-hidden bg-slate-950">
+      <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 12% 18%, rgba(59,130,246,0.32), transparent 40%), radial-gradient(circle at 85% 75%, rgba(14,165,233,0.18), transparent 45%), linear-gradient(140deg, #020617 0%, #050d1e 50%, #081126 100%)' }} />
+      <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(rgba(148,163,184,0.22) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.22) 1px, transparent 1px)', backgroundSize: '44px 44px' }} />
 
-      {/* ── Animated ambient orbs ── */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full animate-pulse"
-          style={{ background: 'radial-gradient(circle, rgba(56,189,248,0.12) 0%, transparent 70%)', animationDuration: '4s' }} />
-        <div className="absolute top-1/3 -right-32 w-[500px] h-[500px] rounded-full animate-pulse"
-          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.10) 0%, transparent 70%)', animationDuration: '6s', animationDelay: '1s' }} />
-        <div className="absolute -bottom-20 left-1/3 w-[400px] h-[400px] rounded-full animate-pulse"
-          style={{ background: 'radial-gradient(circle, rgba(20,184,166,0.08) 0%, transparent 70%)', animationDuration: '5s', animationDelay: '2s' }} />
-        {/* Dot-grid overlay */}
-        <div className="absolute inset-0 opacity-[0.04]"
-          style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.8) 1px, transparent 0)', backgroundSize: '32px 32px' }} />
-        {/* ECG / heartbeat line */}
-        <svg className="absolute bottom-0 left-0 w-full opacity-[0.06]" viewBox="0 0 1440 120" fill="none" preserveAspectRatio="none">
-          <polyline
-            points="0,60 120,60 160,10 200,110 240,60 320,60 360,30 400,90 440,60 560,60 600,20 640,100 680,60 800,60 840,40 880,80 920,60 1040,60 1080,15 1120,105 1160,60 1280,60 1320,35 1360,85 1400,60 1440,60"
-            stroke="rgba(56,189,248,1)" strokeWidth="2" fill="none"
-          />
-        </svg>
-      </div>
-
-      {/* ── Theme toggle ── */}
       <button
         onClick={toggleTheme}
         className="absolute top-5 right-5 z-30 p-2.5 rounded-xl border transition-all duration-200 hover:scale-105"
-        style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}
+        style={{ background: 'rgba(15,23,42,0.65)', borderColor: 'rgba(148,163,184,0.35)', backdropFilter: 'blur(10px)' }}
         aria-label="Toggle dark mode"
       >
-        {isDarkMode
-          ? <Sun className="h-4 w-4 text-yellow-300" />
-          : <Moon className="h-4 w-4 text-sky-300" />}
+        {isDarkMode ? <Sun className="h-4 w-4 text-amber-300" /> : <Moon className="h-4 w-4 text-cyan-300" />}
       </button>
 
-      {/* ══════════════════════════════════════════════
-          LEFT PANEL — branding
-      ══════════════════════════════════════════════ */}
-      <div className="hidden lg:flex lg:w-[58%] flex-col justify-between px-14 xl:px-16 py-10 relative z-10">
+      <div className="relative z-10 min-h-screen grid lg:grid-cols-[1.2fr_0.9fr]">
+        <section className="hidden lg:flex flex-col justify-between px-14 py-12">
+          <div className="space-y-8">
+            <div className="inline-flex items-center gap-3 rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-2 text-cyan-200">
+              <span className="inline-block h-2 w-2 rounded-full bg-cyan-300 animate-pulse" />
+              <span className="text-xs font-semibold tracking-[0.12em] uppercase">Clinical Operations Ready</span>
+            </div>
 
-        {/* Logo */}
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-2xl overflow-hidden flex-shrink-0 ring-1 ring-white/20 shadow-xl shadow-sky-500/10">
-            <img
-              src="/assets/images/logo.jpg"
-              alt="New Life Clinic"
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                const el = e.currentTarget as HTMLImageElement;
-                el.style.display = 'none';
-                const p = el.parentElement;
-                if (p) {
-                  p.style.background = 'linear-gradient(135deg,#0ea5e9,#6366f1)';
-                  p.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 m-auto mt-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v16m8-8H4"/></svg>`;
-                }
-              }}
-            />
-          </div>
-          <div>
-            <p className="text-white font-bold text-lg leading-tight tracking-tight">New Life Clinic</p>
-            <p className="text-sky-400/70 text-xs font-medium tracking-wider uppercase mt-0.5">Healthcare Management System</p>
-          </div>
-        </div>
+            <div>
+              <p className="text-slate-300/80 text-sm uppercase tracking-[0.2em] mb-4">New Life Clinic Platform</p>
+              <h1 className="text-white font-black leading-[1.02] tracking-tight text-[clamp(3rem,4.7vw,4.8rem)]">
+                A brand-new
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-indigo-300">
+                  login experience
+                </span>
+              </h1>
+              <p className="mt-6 text-slate-300/85 max-w-[560px] text-[15px] leading-relaxed">
+                Designed for modern care teams with faster access, cleaner visuals, and a focused sign-in flow that keeps staff moving.
+              </p>
+            </div>
 
-        {/* Hero text */}
-        <div className="space-y-7 max-w-[520px]">
-          {/* Pill badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-semibold tracking-wide"
-            style={{ background: 'rgba(56,189,248,0.1)', borderColor: 'rgba(56,189,248,0.3)', color: '#7dd3fc' }}>
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
-            Live System Active
+            <div className="grid grid-cols-2 gap-4 max-w-[520px]">
+              {stats.map(({ value, label }) => (
+                <div key={label} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-sm">
+                  <p className="text-cyan-200 font-extrabold text-2xl">{value}</p>
+                  <p className="text-slate-300/70 text-xs mt-1">{label}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div>
-            <h1 className="font-black text-white leading-[1.04] tracking-tighter" style={{ fontSize: 'clamp(2.9rem,4.3vw,4.2rem)' }}>
-              Smarter Care,
-            </h1>
-            <h1 className="font-black leading-[1.04] tracking-tighter" style={{
-              fontSize: 'clamp(2.9rem,4.3vw,4.2rem)',
-              background: 'linear-gradient(90deg, #38bdf8, #818cf8)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}>
-              Better Outcomes.
-            </h1>
-            <p className="mt-5 text-slate-400 text-[0.93rem] leading-relaxed">
-              A unified platform for your entire clinic — patient registration,<br />
-              lab results, billing, and real-time monitoring.
-            </p>
-          </div>
+          <div className="text-xs text-slate-400/80">© {new Date().getFullYear()} New Life Clinic. Built for better outcomes.</div>
+        </section>
 
-          {/* Stat cards */}
-          <div className="grid grid-cols-4 gap-3.5">
-            {stats.map(({ value, label }) => (
-              <div key={label} className="rounded-2xl p-3.5 text-center border"
-                style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)' }}>
-                <p className="text-white font-extrabold text-lg leading-none">{value}</p>
-                <p className="text-slate-500 text-[10px] mt-1.5 leading-tight">{label}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Feature rows */}
-          <div className="space-y-3">
-            {[
-              { color: '#0ea5e9', icon: '🩺', text: 'Full EMR with real-time patient records' },
-              { color: '#6366f1', icon: '🔒', text: 'HIPAA-compliant data security & encryption' },
-              { color: '#14b8a6', icon: '⚡', text: 'Instant alerts, vitals monitoring & billing' },
-            ].map(({ color, icon, text }) => (
-              <div key={text} className="flex items-center gap-3.5">
-                <span className="text-base flex-shrink-0">{icon}</span>
-                <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, ${color}40, transparent)` }} />
-                <p className="text-slate-400 text-xs text-right max-w-[240px]">{text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <p className="text-slate-600 text-xs">© {new Date().getFullYear()} New Life Clinic. All rights reserved.</p>
-      </div>
-
-      {/* ══════════════════════════════════════════════
-          RIGHT PANEL — form
-      ══════════════════════════════════════════════ */}
-      <div className="flex-1 flex items-center justify-center lg:justify-end px-6 lg:pr-20 xl:pr-28 py-10 relative z-10">
-
-        {/* Glass card */}
-        <div
-          className="auth-login-card w-full max-w-[385px] rounded-[26px] p-7 sm:p-8 space-y-7 shadow-2xl"
-          style={{
-            background: 'linear-gradient(180deg, rgba(23,36,67,0.9) 0%, rgba(17,30,60,0.9) 100%)',
-            border: '1px solid rgba(255,255,255,0.09)',
-            backdropFilter: 'blur(24px)',
-            boxShadow: '0 20px 55px rgba(0,0,0,0.52), inset 0 1px 0 rgba(255,255,255,0.07)',
-          }}
-        >
+        <section className="flex items-center justify-center px-5 py-10 sm:px-8">
+          <div
+            className="auth-login-card w-full max-w-[440px] rounded-3xl p-7 sm:p-9 space-y-7"
+            style={{
+              background: 'linear-gradient(170deg, rgba(8,15,33,0.94) 0%, rgba(11,24,48,0.94) 60%, rgba(7,16,34,0.94) 100%)',
+              border: '1px solid rgba(148,163,184,0.28)',
+              backdropFilter: 'blur(16px)',
+              boxShadow: '0 30px 90px rgba(2,6,23,0.7)',
+            }}
+          >
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl overflow-hidden ring-1 ring-white/20 flex-shrink-0"
@@ -260,19 +182,19 @@ const Login: React.FC = () => {
           {/* Heading */}
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="h-0.5 w-8 rounded-full bg-gradient-to-r from-sky-400 to-indigo-500" />
-              <span className="text-sky-400 text-xs font-semibold uppercase tracking-widest">Secure Login</span>
+              <div className="h-0.5 w-10 rounded-full bg-gradient-to-r from-cyan-300 via-blue-300 to-indigo-300" />
+              <span className="text-cyan-300 text-xs font-semibold uppercase tracking-widest">Secure Sign In</span>
             </div>
-            <h2 className="text-white text-[2.05rem] font-extrabold tracking-tight">Welcome back</h2>
-            <p className="text-slate-400 text-[13px] mt-1.5">Sign in to access your clinic dashboard</p>
+            <h2 className="text-white text-[2rem] sm:text-[2.2rem] font-extrabold tracking-tight">Welcome back</h2>
+            <p className="text-slate-300/75 text-[13px] mt-1.5">Sign in to continue to your clinic workspace</p>
           </div>
 
           {/* Form */}
           <form onSubmit={formik.handleSubmit} className="space-y-5">
 
             {/* Username field */}
-            <div className="space-y-1.5">
-              <label htmlFor="email" className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-xs font-semibold text-slate-200 uppercase tracking-wider">
                 Username or Email
               </label>
               <div className="relative group">
@@ -288,26 +210,26 @@ const Login: React.FC = () => {
                   autoComplete="off"
                   placeholder="dr.smith or admin@clinic.com"
                   {...formik.getFieldProps('email')}
-                  className="auth-login-input w-full h-12 pl-10 pr-4 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-sky-500/20"
+                  className="auth-login-input w-full h-12 pl-10 pr-4 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-cyan-300/25"
                   style={{
-                    background: '#f8fafc',
-                    color: '#0f172a',
-                    caretColor: '#0f172a',
-                    WebkitTextFillColor: '#0f172a',
+                    background: 'rgba(15,23,42,0.75)',
+                    color: '#f8fafc',
+                    caretColor: '#f8fafc',
+                    WebkitTextFillColor: '#f8fafc',
                     border: formik.touched.email && formik.errors.email
                       ? '1px solid rgba(248,113,113,0.6)'
-                      : '1px solid rgba(148,163,184,0.35)',
+                      : '1px solid rgba(148,163,184,0.28)',
                     boxShadow: formik.touched.email && !formik.errors.email && formik.values.email
-                      ? '0 0 0 1px rgba(56,189,248,0.4)'
+                      ? '0 0 0 1px rgba(103,232,249,0.5)'
                       : 'none',
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.border = formik.errors.email
                       ? '1px solid rgba(248,113,113,0.6)'
-                      : '1px solid rgba(148,163,184,0.35)';
+                      : '1px solid rgba(148,163,184,0.28)';
                     e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.color = '#0f172a';
-                    e.currentTarget.style.webkitTextFillColor = '#0f172a';
+                    e.currentTarget.style.color = '#f8fafc';
+                    e.currentTarget.style.webkitTextFillColor = '#f8fafc';
                     formik.handleBlur(e);
                   }}
                 />
@@ -320,8 +242,8 @@ const Login: React.FC = () => {
             </div>
 
             {/* Password field */}
-            <div className="space-y-1.5">
-              <label htmlFor="password" className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+            <div className="space-y-2">
+              <label htmlFor="password" className="block text-xs font-semibold text-slate-200 uppercase tracking-wider">
                 Password
               </label>
               <div className="relative group">
@@ -337,23 +259,23 @@ const Login: React.FC = () => {
                   autoComplete="off"
                   placeholder="Enter your password"
                   {...formik.getFieldProps('password')}
-                  className="auth-login-input w-full h-12 pl-10 pr-11 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-sky-500/20"
+                  className="auth-login-input w-full h-12 pl-10 pr-11 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-cyan-300/25"
                   style={{
-                    background: '#f8fafc',
-                    color: '#0f172a',
-                    caretColor: '#0f172a',
-                    WebkitTextFillColor: '#0f172a',
+                    background: 'rgba(15,23,42,0.75)',
+                    color: '#f8fafc',
+                    caretColor: '#f8fafc',
+                    WebkitTextFillColor: '#f8fafc',
                     border: formik.touched.password && formik.errors.password
                       ? '1px solid rgba(248,113,113,0.6)'
-                      : '1px solid rgba(148,163,184,0.35)',
+                      : '1px solid rgba(148,163,184,0.28)',
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.border = formik.errors.password
                       ? '1px solid rgba(248,113,113,0.6)'
-                      : '1px solid rgba(148,163,184,0.35)';
+                      : '1px solid rgba(148,163,184,0.28)';
                     e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.color = '#0f172a';
-                    e.currentTarget.style.webkitTextFillColor = '#0f172a';
+                    e.currentTarget.style.color = '#f8fafc';
+                    e.currentTarget.style.webkitTextFillColor = '#f8fafc';
                     formik.handleBlur(e);
                   }}
                 />
@@ -361,7 +283,7 @@ const Login: React.FC = () => {
                   type="button"
                   tabIndex={-1}
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-cyan-300 transition-colors"
                 >
                   {showPassword
                     ? <EyeOff className="h-4 w-4" />
@@ -377,8 +299,8 @@ const Login: React.FC = () => {
 
             {/* Clinic code — remembered after first login; collapsible for returning users */}
             {showClinicField ? (
-              <div className="space-y-1.5">
-                <label htmlFor="clinicId" className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+              <div className="space-y-2">
+                <label htmlFor="clinicId" className="block text-xs font-semibold text-slate-200 uppercase tracking-wider">
                   Clinic code
                 </label>
                 <input
@@ -388,24 +310,24 @@ const Login: React.FC = () => {
                   autoComplete="off"
                   placeholder="e.g. clinicnew"
                   {...formik.getFieldProps('clinicId')}
-                  className="auth-login-input w-full h-11 px-4 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-sky-500/20"
+                  className="auth-login-input w-full h-11 px-4 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-cyan-300/25"
                   style={{
-                    background: '#f8fafc',
-                    color: '#0f172a',
-                    caretColor: '#0f172a',
-                    WebkitTextFillColor: '#0f172a',
-                    border: '1px solid rgba(148,163,184,0.35)',
+                    background: 'rgba(15,23,42,0.75)',
+                    color: '#f8fafc',
+                    caretColor: '#f8fafc',
+                    WebkitTextFillColor: '#f8fafc',
+                    border: '1px solid rgba(148,163,184,0.28)',
                   }}
                 />
-                <p className="text-[10px] text-slate-500 leading-snug">
-                  Your clinic <strong className="text-slate-400">slug</strong> from Clinic Management. Leave blank if unsure.
+                <p className="text-[10px] text-slate-400/80 leading-snug">
+                  Your clinic <strong className="text-slate-200">slug</strong> from Clinic Management. Leave blank if unsure.
                 </p>
               </div>
             ) : (
               <button
                 type="button"
                 onClick={() => setShowClinicField(true)}
-                className="text-xs text-sky-400/70 hover:text-sky-300 transition-colors"
+                className="text-xs text-cyan-300/80 hover:text-cyan-200 transition-colors"
               >
                 Change clinic ({savedClinicId})
               </button>
@@ -447,11 +369,11 @@ const Login: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading || isWarmingUp || !formik.isValid || !formik.dirty}
-              className="relative w-full h-12 rounded-xl text-white text-sm font-bold tracking-wide transition-all duration-300 overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:ring-offset-2 focus:ring-offset-transparent mt-2"
-              style={{ background: 'linear-gradient(90deg, #0284c7 0%, #4f46e5 100%)', boxShadow: '0 4px 20px rgba(14,165,233,0.3)' }}
+              className="relative w-full h-12 rounded-xl text-slate-950 text-sm font-bold tracking-wide transition-all duration-300 overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-cyan-300/50 focus:ring-offset-2 focus:ring-offset-transparent mt-2"
+              style={{ background: 'linear-gradient(90deg, #67e8f9 0%, #93c5fd 50%, #a5b4fc 100%)', boxShadow: '0 8px 24px rgba(6,182,212,0.35)' }}
             >
               {/* Shimmer hover layer */}
-              <span className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-200 rounded-xl" />
+              <span className="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors duration-200 rounded-xl" />
               <span className="relative flex items-center justify-center gap-2">
                 {isLoading ? (
                   <>
@@ -483,23 +405,24 @@ const Login: React.FC = () => {
 
           {/* Divider */}
           <div className="flex items-center gap-3">
-            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
-            <span className="text-slate-600 text-xs">secured by</span>
-            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
+            <div className="flex-1 h-px bg-slate-700/60" />
+            <span className="text-slate-400 text-xs">secured by</span>
+            <div className="flex-1 h-px bg-slate-700/60" />
           </div>
 
           {/* Footer trust badges */}
           <div className="flex items-center justify-center gap-3">
             {['SSL Encrypted', 'HIPAA Ready', '99.9% Uptime'].map(badge => (
-              <span key={badge} className="text-[10px] text-slate-500 font-medium">{badge}</span>
+              <span key={badge} className="text-[10px] text-slate-400 font-medium">{badge}</span>
             ))}
           </div>
 
-          <p className="text-center text-xs text-slate-500">
+          <p className="text-center text-xs text-slate-400">
             Having trouble? Contact your{' '}
-            <span className="text-sky-400/80 cursor-pointer hover:text-sky-300 transition-colors">system administrator</span>.
+            <span className="text-cyan-300/80 cursor-pointer hover:text-cyan-200 transition-colors">system administrator</span>.
           </p>
         </div>
+        </section>
       </div>
     </div>
   );
