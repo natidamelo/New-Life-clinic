@@ -112,6 +112,20 @@ const Login: React.FC = () => {
     <div className="min-h-screen relative overflow-hidden bg-slate-950">
       <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 12% 18%, rgba(59,130,246,0.32), transparent 40%), radial-gradient(circle at 85% 75%, rgba(14,165,233,0.18), transparent 45%), linear-gradient(140deg, #020617 0%, #050d1e 50%, #081126 100%)' }} />
       <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(rgba(148,163,184,0.22) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.22) 1px, transparent 1px)', backgroundSize: '44px 44px' }} />
+      <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
+        <img
+          src="/assets/images/logo.jpg"
+          alt=""
+          aria-hidden="true"
+          className="hidden lg:block absolute left-[6%] top-1/2 -translate-y-1/2 w-[520px] h-[520px] object-cover rounded-full opacity-[0.055] blur-[1px]"
+        />
+        <img
+          src="/assets/images/logo.jpg"
+          alt=""
+          aria-hidden="true"
+          className="absolute -right-20 -bottom-20 w-[280px] h-[280px] object-cover rounded-full opacity-[0.05] blur-[1px]"
+        />
+      </div>
 
       <button
         onClick={toggleTheme}
