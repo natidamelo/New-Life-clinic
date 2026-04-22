@@ -117,13 +117,13 @@ const Login: React.FC = () => {
           src="/assets/images/logo.jpg"
           alt=""
           aria-hidden="true"
-          className="hidden lg:block absolute left-[6%] top-1/2 -translate-y-1/2 w-[520px] h-[520px] object-cover rounded-full opacity-[0.055] blur-[1px]"
+          className="hidden lg:block absolute left-[6%] top-1/2 -translate-y-1/2 w-[520px] h-[520px] object-cover rounded-full opacity-[0.1] blur-[1px]"
         />
         <img
           src="/assets/images/logo.jpg"
           alt=""
           aria-hidden="true"
-          className="absolute -right-20 -bottom-20 w-[280px] h-[280px] object-cover rounded-full opacity-[0.05] blur-[1px]"
+          className="absolute -right-20 -bottom-20 w-[280px] h-[280px] object-cover rounded-full opacity-[0.09] blur-[1px]"
         />
       </div>
 
