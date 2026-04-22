@@ -145,15 +145,17 @@ const Login: React.FC = () => {
             </div>
 
             <div>
-              <p className="text-slate-300/80 text-sm uppercase tracking-[0.2em] mb-4">New Life Clinic Platform</p>
-              <h1 className="text-white font-black leading-[1.02] tracking-tight text-[clamp(3rem,4.7vw,4.8rem)]">
-                A brand-new
+              <p className="text-slate-300/80 text-sm uppercase tracking-[0.2em] mb-4">
+                <span className="font-black text-white">New Life Clinic</span> Platform
+              </p>
+              <h1 className="text-white font-black leading-[1.02] tracking-tight text-[clamp(2.9rem,4.5vw,4.6rem)]">
+                Smarter access for
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-indigo-300">
-                  login experience
+                  every care team
                 </span>
               </h1>
               <p className="mt-6 text-slate-300/85 max-w-[560px] text-[15px] leading-relaxed">
-                Designed for modern care teams with faster access, cleaner visuals, and a focused sign-in flow that keeps staff moving.
+                A fresh login experience for New Life Clinic, designed for speed, clarity, and secure daily operations across your staff.
               </p>
             </div>
 
