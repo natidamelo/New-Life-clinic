@@ -37,6 +37,8 @@ const Patients: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const { user } = useAuth();
   const [showHiddenPatients, setShowHiddenPatients] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const [isSendNurseModalOpen, setIsSendNurseModalOpen] = useState(false);
   const [patientToSend, setPatientToSend] = useState<Patient | null>(null);
@@ -87,15 +89,36 @@ const Patients: React.FC = () => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // This useEffect hook filters patients based on whether they are hidden (archived)
-  // and whether the user has toggled the "Show Archived" button
+  // Filter patients by archive toggle, search text, and status
   useEffect(() => {
-    if (showHiddenPatients) {
-      setFilteredPatients(patients);
-    } else {
-      setFilteredPatients(patients.filter(patient => !patient.hidden));
-    }
-  }, [patients, showHiddenPatients]);
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+
+    const nextPatients = patients.filter((patient) => {
+      if (!showHiddenPatients && patient.hidden) {
+        return false;
+      }
+
+      if (statusFilter !== 'all' && String(patient.status || '').toLowerCase() !== statusFilter) {
+        return false;
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const fullName = `${patient.firstName || ''} ${patient.lastName || ''}`.toLowerCase();
+      const patientId = String(patient.patientId || '').toLowerCase();
+      const contact = String(patient.contactNumber || '').toLowerCase();
+
+      return (
+        fullName.includes(normalizedSearch) ||
+        patientId.includes(normalizedSearch) ||
+        contact.includes(normalizedSearch)
+      );
+    });
+
+    setFilteredPatients(nextPatients);
+  }, [patients, showHiddenPatients, searchQuery, statusFilter]);
 
   useEffect(() => {
     if (isSendNurseModalOpen) {
@@ -226,6 +249,41 @@ const Patients: React.FC = () => {
     navigate('/appointments', { state: { patientId: patient.id } });
   };
 
+  const handleExportPatients = () => {
+    if (filteredPatients.length === 0) {
+      toast.error('No patients available to export.');
+      return;
+    }
+
+    const csvHeader = ['Patient ID', 'Name', 'Contact', 'Last Visit', 'Status'];
+    const csvRows = filteredPatients.map((patient) => [
+      patient.patientId || '',
+      `${patient.firstName || ''} ${patient.lastName || ''}`.trim(),
+      patient.contactNumber || '',
+      formatDate(patient.lastVisit),
+      patient.status || 'N/A'
+    ]);
+
+    const csvContent = [csvHeader, ...csvRows]
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+          .join(',')
+      )
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `patients-export-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('Patients exported successfully.');
+  };
+
   // Refresh patients list
   const refreshPatients = async () => {
     setIsLoading(true);
@@ -348,7 +406,10 @@ const Patients: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold">Patients</h1>
           <div className="flex gap-2 flex-wrap">
-            <Button className="flex items-center flex-1 sm:flex-none">
+            <Button
+              className="flex items-center flex-1 sm:flex-none"
+              onClick={() => navigate('/app/reception/register')}
+            >
               Add Patient
             </Button>
             <Button variant="outline" onClick={refreshPatients} className="flex-1 sm:flex-none">Refresh</Button>
@@ -362,6 +423,8 @@ const Patients: React.FC = () => {
                 type="text"
                 placeholder="Search patients..."
                 className="pl-4 pr-4 py-2 border rounded-lg w-full sm:w-64"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -372,10 +435,27 @@ const Patients: React.FC = () => {
               >
                 {showHiddenPatients ? "Hide Archived" : "Show Archived"}
               </Button>
-              <Button variant="outline" className="flex-1 sm:flex-none">Filter</Button>
-              <Button variant="outline" className="flex-1 sm:flex-none">Export</Button>
+              <select
+                className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Statuses</option>
+                <option value="admitted">Admitted</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="waiting">Waiting</option>
+                <option value="in-progress">In Progress</option>
+                <option value="discharged">Discharged</option>
+                <option value="outpatient">Outpatient</option>
+                <option value="emergency">Emergency</option>
+              </select>
+              <Button variant="outline" className="flex-1 sm:flex-none" onClick={handleExportPatients}>Export</Button>
             </div>
           </div>
+
+          <p className="text-sm text-muted-foreground mb-4">
+            Showing {filteredPatients.length} of {patients.length} patients
+          </p>
 
           <div className="overflow-x-auto">
             <table className="w-full">
