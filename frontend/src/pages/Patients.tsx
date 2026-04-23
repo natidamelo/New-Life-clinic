@@ -39,6 +39,7 @@ const Patients: React.FC = () => {
   const [showHiddenPatients, setShowHiddenPatients] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [insuranceFilter, setInsuranceFilter] = useState('all');
 
   const [isSendNurseModalOpen, setIsSendNurseModalOpen] = useState(false);
   const [patientToSend, setPatientToSend] = useState<Patient | null>(null);
@@ -102,6 +103,22 @@ const Patients: React.FC = () => {
         return false;
       }
 
+      const hasInsuranceInfo = Boolean(
+        String(patient.insuranceProvider || '').trim() ||
+        String(patient.insuranceNumber || '').trim()
+      );
+      const hasInsuranceCard = String(patient.cardType?.name || '').toLowerCase() === 'insurance' ||
+        String(patient.cardType?.value || '').toLowerCase() === 'insurance' ||
+        String(patient.cardStatus || '').toLowerCase() === 'insurance';
+      const isInsurancePatient = hasInsuranceInfo || hasInsuranceCard;
+
+      if (insuranceFilter === 'insured' && !isInsurancePatient) {
+        return false;
+      }
+      if (insuranceFilter === 'non_insured' && isInsurancePatient) {
+        return false;
+      }
+
       if (!normalizedSearch) {
         return true;
       }
@@ -118,7 +135,7 @@ const Patients: React.FC = () => {
     });
 
     setFilteredPatients(nextPatients);
-  }, [patients, showHiddenPatients, searchQuery, statusFilter]);
+  }, [patients, showHiddenPatients, searchQuery, statusFilter, insuranceFilter]);
 
   useEffect(() => {
     if (isSendNurseModalOpen) {
@@ -448,6 +465,15 @@ const Patients: React.FC = () => {
                 <option value="discharged">Discharged</option>
                 <option value="outpatient">Outpatient</option>
                 <option value="emergency">Emergency</option>
+              </select>
+              <select
+                className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={insuranceFilter}
+                onChange={(e) => setInsuranceFilter(e.target.value)}
+              >
+                <option value="all">All Patients</option>
+                <option value="insured">Insurance Only</option>
+                <option value="non_insured">Non-Insurance</option>
               </select>
               <Button variant="outline" className="flex-1 sm:flex-none" onClick={handleExportPatients}>Export</Button>
             </div>
