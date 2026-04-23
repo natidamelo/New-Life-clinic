@@ -54,6 +54,7 @@ const doctorMenuItems = [
 const receptionMenuItems = [
   { path: '/app/reception', icon: DashboardIcon, label: 'Reception Dashboard' },
   { path: '/app/reception/register', icon: UserPlusIcon, label: 'Register Patient' },
+  { path: '/app/patients', icon: PatientsIcon, label: 'Patients' },
   { path: '/app/reception/service-request', icon: CogIcon, label: 'Request Service' },
   { path: '/app/appointments', icon: AppointmentsIcon, label: 'Manage Appointments' },
   { path: '/app/billing/invoices', icon: CurrencyDollarIcon, label: 'Patient Billing' },
