@@ -184,6 +184,22 @@ const LabDashboard: React.FC = () => {
         const patientName = patient 
           ? `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || `Unknown Patient (ID: ${orderPatientId || 'N/A'})`
           : `Unknown Patient (ID: ${orderPatientId || 'N/A'})`;
+
+        const derivedAge = patient?.age ?? (() => {
+          if (!patient?.dateOfBirth) return 0;
+          const birthDate = new Date(patient.dateOfBirth);
+          if (Number.isNaN(birthDate.getTime())) return 0;
+
+          const today = new Date();
+          let age = today.getFullYear() - birthDate.getFullYear();
+          const monthDiff = today.getMonth() - birthDate.getMonth();
+
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age -= 1;
+          }
+
+          return age > 0 ? age : 0;
+        })();
         
         let orderedByText = 'Unknown Doctor';
         if (order.source === 'reception') {
@@ -197,7 +213,7 @@ const LabDashboard: React.FC = () => {
           testName: order.testName || 'Unknown Test',
           patientId: orderPatientId || 'unknown',
           patientName,
-          patientAge: patient ? (patient.age || 0) : 0,
+          patientAge: derivedAge,
           patientGender: patient ? (patient.gender || 'Unknown') : 'Unknown',
           orderedBy: orderedByText,
           status: order.status || 'Ordered',

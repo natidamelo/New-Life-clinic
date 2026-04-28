@@ -54,7 +54,7 @@ const getLabOrders = async (req, res) => {
     
     // Fetch lab orders with populated fields
     const labOrders = await LabOrder.find(filter)
-      .populate('patient', 'firstName lastName patientId')
+      .populate('patient', 'firstName lastName patientId age gender dateOfBirth contactNumber')
       .populate('orderingDoctorId', 'firstName lastName')
       .sort({ createdAt: -1 })
       .limit(100); // Limit to prevent performance issues
@@ -91,13 +91,13 @@ const getLabOrders = async (req, res) => {
         console.log(`Patient data not populated for order ${order._id}, attempting manual fetch...`);
         const patientId = order.patientId;
         if (patientId && typeof patientId === 'object' && patientId._id) {
-          patientData = await Patient.findById(patientId._id).select('firstName lastName patientId');
+          patientData = await Patient.findById(patientId._id).select('firstName lastName patientId age gender dateOfBirth contactNumber');
         } else if (patientId && typeof patientId === 'string' && patientId.startsWith('P')) {
           // If it's a patient ID string, find by patientId
-          patientData = await Patient.findOne({ patientId: patientId }).select('firstName lastName patientId');
+          patientData = await Patient.findOne({ patientId: patientId }).select('firstName lastName patientId age gender dateOfBirth contactNumber');
         } else if (mongoose.Types.ObjectId.isValid(patientId)) {
           // If it's a valid ObjectId, find by _id
-          patientData = await Patient.findById(patientId).select('firstName lastName patientId');
+          patientData = await Patient.findById(patientId).select('firstName lastName patientId age gender dateOfBirth contactNumber');
         }
         
         console.log(`Manual patient fetch result for order ${order._id}:`, {
@@ -114,7 +114,11 @@ const getLabOrders = async (req, res) => {
           _id: order.patientId,
           firstName: 'Unknown',
           lastName: 'Patient',
-          patientId: order.patientId
+          patientId: order.patientId,
+          age: null,
+          gender: null,
+          dateOfBirth: null,
+          contactNumber: null
         };
       }
       
