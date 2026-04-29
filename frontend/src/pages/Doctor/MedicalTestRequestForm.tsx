@@ -12,9 +12,11 @@ import {
   MagnifyingGlassIcon,
   PrinterIcon
 } from '@heroicons/react/24/outline';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 interface Patient {
-  _id: string;
+  _id?: string;
   id?: string;
   firstName: string;
   lastName: string;
@@ -52,6 +54,7 @@ const MedicalTestRequestForm: React.FC = () => {
   const bodyPartDropdownRef = useRef<HTMLDivElement>(null);
   const [bodyPartDropdownOpen, setBodyPartDropdownOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   // Form state for each test type
   const [formData, setFormData] = useState<TestRequest>({
@@ -534,6 +537,15 @@ const MedicalTestRequestForm: React.FC = () => {
     'Other'
   ];
 
+  const escapeHtml = (unsafe: string) => {
+    return unsafe
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
   const handlePrint = () => {
     if (!selectedPatient) {
       toast.error('Please select a patient first');
@@ -568,6 +580,30 @@ const MedicalTestRequestForm: React.FC = () => {
       hour: '2-digit', 
       minute: '2-digit' 
     });
+
+    const allLabTestNames = getAllSelectedTestNames();
+    const labTestsTableHtml = activeTab === 'lab'
+      ? `
+        <table class="tests-table">
+          <thead>
+            <tr>
+              <th style="width: 48px;">#</th>
+              <th>Lab Test</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${allLabTestNames
+              .map((testName, index) => `
+                <tr>
+                  <td>${index + 1}</td>
+                  <td>${escapeHtml(testName)}</td>
+                </tr>
+              `)
+              .join('')}
+          </tbody>
+        </table>
+      `
+      : '';
 
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     if (printWindow) {
@@ -742,6 +778,26 @@ const MedicalTestRequestForm: React.FC = () => {
               line-height: 1.5;
               font-size: 0.95rem;
             }
+
+            .tests-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 6px;
+              background: white;
+            }
+            .tests-table th,
+            .tests-table td {
+              border: 1px solid #dee2e6;
+              padding: 6px 8px;
+              font-size: 0.95rem;
+              vertical-align: top;
+            }
+            .tests-table th {
+              background: #f0f3f7;
+              color: #2c5aa0;
+              font-weight: 800;
+              text-align: left;
+            }
             .request-footer { 
               display: flex; 
               justify-content: space-between; 
@@ -850,6 +906,11 @@ const MedicalTestRequestForm: React.FC = () => {
                 font-size: 0.9rem;
                 line-height: 1.4;
               }
+              .tests-table th,
+              .tests-table td {
+                padding: 5px 7px;
+                font-size: 0.9rem;
+              }
               .request-footer {
                 margin-top: auto;
                 padding-top: 8px;
@@ -932,7 +993,7 @@ const MedicalTestRequestForm: React.FC = () => {
                   <span class="info-label">Test Type:</span>
                   <span class="info-value">${testTypeLabel}</span>
                 </div>
-                ${formData.bodyPart ? `
+                ${['ultrasound', 'xray', 'mri', 'ctscan'].includes(activeTab) && formData.bodyPart ? `
                 <div class="info-item">
                   <span class="info-label">Body Part:</span>
                   <span class="info-value">${formData.bodyPart}</span>
@@ -941,7 +1002,9 @@ const MedicalTestRequestForm: React.FC = () => {
                 ${activeTab === 'lab' ? `
                 <div class="info-item" style="grid-column: 1 / -1;">
                   <span class="info-label">Selected Lab Tests:</span>
-                  <span class="info-value">${getAllSelectedTestNames().join(', ')}</span>
+                  <div class="info-value" style="padding: 0;">
+                    ${labTestsTableHtml}
+                  </div>
                 </div>
                 ` : formData.specificTest ? `
                 <div class="info-item">
@@ -1010,6 +1073,129 @@ const MedicalTestRequestForm: React.FC = () => {
           printWindow.print();
         }, 250);
       };
+    }
+  };
+
+  const handleExportToExcel = async () => {
+    if (!selectedPatient) {
+      toast.error('Please select a patient first');
+      return;
+    }
+
+    if (!formData.clinicalInfo.trim()) {
+      toast.error('Please fill in the clinical information');
+      return;
+    }
+
+    if (activeTab === 'lab' && getTotalSelectedTests() === 0) {
+      toast.error('Please select at least one lab test');
+      return;
+    }
+
+    if (activeTab === 'mammography' && !mammographyLaterality) {
+      toast.error('Please select which breast (Left, Right, or Bilateral) before exporting');
+      return;
+    }
+
+    const testTypeLabel = testTabs.find(t => t.id === activeTab)?.label || activeTab;
+    const mammographyBodyPartLabel = activeTab === 'mammography' && mammographyLaterality
+      ? `Breast - ${mammographyLaterality === 'left' ? 'Left' : mammographyLaterality === 'right' ? 'Right' : 'Bilateral'}`
+      : '';
+
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    const currentTime = new Date().toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const requestingPhysician = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'N/A';
+    const patientName = `${selectedPatient.firstName} ${selectedPatient.lastName}`.trim();
+    const patientMr = selectedPatient.patientId || 'N/A';
+    const patientAge = selectedPatient.age ? `${selectedPatient.age} years` : '';
+    const patientGender = selectedPatient.gender || '';
+
+    const bodyPartForExcel =
+      activeTab === 'lab'
+        ? ''
+        : activeTab === 'ecg' || activeTab === 'echocardiography'
+          ? 'Heart/Cardiac'
+          : activeTab === 'mammography'
+            ? mammographyBodyPartLabel
+            : formData.bodyPart || '';
+
+    const commonColumns = {
+      'Request Date': currentDate,
+      'Request Time': currentTime,
+      'Priority': formData.priority,
+      'Patient Name': patientName,
+      'Medical Record #': patientMr,
+      'Age': patientAge,
+      'Gender': patientGender,
+      'Test Type': testTypeLabel,
+      'Body Part': bodyPartForExcel,
+      'Clinical Information / Indication': formData.clinicalInfo,
+      'Additional Notes': formData.notes || '',
+      'Requesting Physician': requestingPhysician
+    };
+
+    setExportingExcel(true);
+    try {
+      const rows =
+        activeTab === 'lab'
+          ? getAllSelectedTestNames().map((testName, index) => ({
+              'No.': index + 1,
+              'Lab Test': testName,
+              ...commonColumns
+            }))
+          : [
+              {
+                'No.': 1,
+                'Lab Test': '',
+                ...commonColumns
+              }
+            ];
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+
+      // Basic column sizing for readability when opened in Excel.
+      worksheet['!cols'] = [
+        { wch: 6 },  // No.
+        { wch: 34 }, // Lab Test
+        { wch: 18 }, // Request Date
+        { wch: 14 }, // Request Time
+        { wch: 12 }, // Priority
+        { wch: 24 }, // Patient Name
+        { wch: 18 }, // Medical Record #
+        { wch: 10 }, // Age
+        { wch: 12 }, // Gender
+        { wch: 18 }, // Test Type
+        { wch: 18 }, // Body Part
+        { wch: 38 }, // Clinical Information / Indication
+        { wch: 30 }, // Additional Notes
+        { wch: 22 }  // Requesting Physician
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Request Form');
+
+      const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8'
+      });
+
+      const safePatientId = (selectedPatient.patientId || selectedPatient._id || 'patient').toString().replace(/[^\w-]+/g, '');
+      saveAs(blob, `Lab-Request-${safePatientId}-${Date.now()}.xlsx`);
+      toast.success('Excel exported successfully');
+    } catch (error) {
+      console.error('Excel export failed:', error);
+      toast.error('Failed to export to Excel');
+    } finally {
+      setExportingExcel(false);
     }
   };
 
@@ -1396,15 +1582,33 @@ const MedicalTestRequestForm: React.FC = () => {
 
             {/* Submit Button */}
             <div className="flex justify-between gap-4 pt-4 border-t border-border">
-              <button
-                type="button"
-                onClick={handlePrint}
-                disabled={!selectedPatient || !formData.clinicalInfo.trim() || (activeTab === 'lab' && getTotalSelectedTests() === 0) || (activeTab === 'mammography' && !mammographyLaterality)}
-                className="flex items-center gap-2 px-6 py-2 border border-border rounded-lg text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <PrinterIcon className="w-5 h-5" />
-                Print Request
-              </button>
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  disabled={!selectedPatient || !formData.clinicalInfo.trim() || (activeTab === 'lab' && getTotalSelectedTests() === 0) || (activeTab === 'mammography' && !mammographyLaterality)}
+                  className="flex items-center gap-2 px-6 py-2 border border-border rounded-lg text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <PrinterIcon className="w-5 h-5" />
+                  {activeTab === 'lab' ? 'Print (Paper)' : 'Print Request'}
+                </button>
+                {activeTab === 'lab' && (
+                  <button
+                    type="button"
+                    onClick={handleExportToExcel}
+                    disabled={
+                      exportingExcel ||
+                      !selectedPatient ||
+                      !formData.clinicalInfo.trim() ||
+                      (activeTab === 'lab' && getTotalSelectedTests() === 0)
+                    }
+                    className="flex items-center gap-2 px-6 py-2 bg-muted/30 border border-border rounded-lg text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <DocumentTextIcon className="w-5 h-5" />
+                    {exportingExcel ? 'Exporting...' : 'Export to Excel'}
+                  </button>
+                )}
+              </div>
               <div className="flex gap-4">
                 <button
                   type="button"
