@@ -798,6 +798,10 @@ const MedicalTestRequestForm: React.FC = () => {
               font-weight: 800;
               text-align: left;
             }
+
+            .tests-table tbody tr:nth-child(even) {
+              background: #fbfcfe;
+            }
             .request-footer { 
               display: flex; 
               justify-content: space-between; 
@@ -835,13 +839,11 @@ const MedicalTestRequestForm: React.FC = () => {
                 border: 2px solid #2c5aa0; 
                 padding: 12px;
                 width: 100%;
-                height: 204mm;
-                max-height: 204mm;
+                min-height: 204mm;
+                height: auto;
                 box-sizing: border-box;
-                page-break-inside: avoid;
-                break-inside: avoid;
                 margin: 0;
-                overflow: hidden;
+                overflow: visible;
               }
               .clinic-header {
                 margin-bottom: 9px;
@@ -911,6 +913,13 @@ const MedicalTestRequestForm: React.FC = () => {
                 padding: 5px 7px;
                 font-size: 0.9rem;
               }
+
+              .tests-table thead {
+                display: table-header-group;
+              }
+              .tests-table tbody {
+                display: table-row-group;
+              }
               .request-footer {
                 margin-top: auto;
                 padding-top: 8px;
@@ -933,7 +942,7 @@ const MedicalTestRequestForm: React.FC = () => {
           <div class="request-container">
             <div class="clinic-header">
               <div class="clinic-header-content">
-                <img src="/assets/images/logo.jpg" alt="New Life Medium Clinic Logo" class="clinic-logo" onerror="this.style.display='none'">
+                <img src="/assets/images/logo.jpg" alt="New Life Medium Clinic Logo" class="clinic-logo" onerror="this.onerror=null;this.src='/assets/images/logo-placeholder.svg';">
                 <div>
                   <div class="clinic-name">New Life Medium Clinic PLC</div>
                 </div>
@@ -1136,6 +1145,7 @@ const MedicalTestRequestForm: React.FC = () => {
       'Medical Record #': patientMr,
       'Age': patientAge,
       'Gender': patientGender,
+      'Contact Number': selectedPatient.contactNumber || '',
       'Test Type': testTypeLabel,
       'Body Part': bodyPartForExcel,
       'Clinical Information / Indication': formData.clinicalInfo,
@@ -1145,43 +1155,121 @@ const MedicalTestRequestForm: React.FC = () => {
 
     setExportingExcel(true);
     try {
-      const rows =
-        activeTab === 'lab'
-          ? getAllSelectedTestNames().map((testName, index) => ({
-              'No.': index + 1,
-              'Lab Test': testName,
-              ...commonColumns
-            }))
-          : [
-              {
-                'No.': 1,
-                'Lab Test': '',
-                ...commonColumns
-              }
-            ];
-
-      const worksheet = XLSX.utils.json_to_sheet(rows);
-
-      // Basic column sizing for readability when opened in Excel.
-      worksheet['!cols'] = [
-        { wch: 6 },  // No.
-        { wch: 34 }, // Lab Test
-        { wch: 18 }, // Request Date
-        { wch: 14 }, // Request Time
-        { wch: 12 }, // Priority
-        { wch: 24 }, // Patient Name
-        { wch: 18 }, // Medical Record #
-        { wch: 10 }, // Age
-        { wch: 12 }, // Gender
-        { wch: 18 }, // Test Type
-        { wch: 18 }, // Body Part
-        { wch: 38 }, // Clinical Information / Indication
-        { wch: 30 }, // Additional Notes
-        { wch: 22 }  // Requesting Physician
-      ];
-
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Request Form');
+
+      if (activeTab === 'lab') {
+        // 1) Summary sheet
+        const summaryWorksheet = XLSX.utils.json_to_sheet([{
+          ...commonColumns,
+          'Lab Category': '',
+          'Lab Test': ''
+        }]);
+
+        (summaryWorksheet as any)['!cols'] = [
+          { wch: 18 }, // Request Date
+          { wch: 14 }, // Request Time
+          { wch: 12 }, // Priority
+          { wch: 24 }, // Patient Name
+          { wch: 18 }, // Medical Record #
+          { wch: 10 }, // Age
+          { wch: 12 }, // Gender
+          { wch: 18 }, // Contact Number
+          { wch: 18 }, // Test Type
+          { wch: 12 }, // Body Part
+          { wch: 38 }, // Clinical Information / Indication
+          { wch: 30 }, // Additional Notes
+          { wch: 22 }, // Requesting Physician
+          { wch: 22 }, // Lab Category
+          { wch: 34 }, // Lab Test
+        ];
+
+        const summaryName = 'Request Summary';
+        XLSX.utils.book_append_sheet(workbook, summaryWorksheet, summaryName);
+
+        // 2) Lab tests sheet (with category + each selected test row)
+        const labRows: Array<Record<string, any>> = [];
+        let no = 1;
+
+        Object.entries(labTests).forEach(([mainTest, subTests]) => {
+          const selectedSet = selectedLabTests[mainTest];
+          if (!selectedSet) return;
+
+          subTests.forEach((subTest) => {
+            if (!selectedSet.has(subTest)) return;
+            labRows.push({
+              'No.': no++,
+              'Lab Category': mainTest,
+              'Lab Test': subTest,
+              'Request Date': currentDate,
+              'Request Time': currentTime,
+              'Priority': formData.priority,
+              'Patient Name': patientName,
+              'Medical Record #': patientMr,
+              'Age': patientAge,
+              'Gender': patientGender,
+              'Contact Number': selectedPatient.contactNumber || '',
+              'Clinical Information / Indication': formData.clinicalInfo,
+              'Additional Notes': formData.notes || '',
+              'Requesting Physician': requestingPhysician
+            });
+          });
+        });
+
+        const labWorksheet = XLSX.utils.json_to_sheet(labRows);
+        (labWorksheet as any)['!cols'] = [
+          { wch: 6 }, // No.
+          { wch: 22 }, // Lab Category
+          { wch: 34 }, // Lab Test
+          { wch: 18 }, // Request Date
+          { wch: 14 }, // Request Time
+          { wch: 12 }, // Priority
+          { wch: 24 }, // Patient Name
+          { wch: 18 }, // Medical Record #
+          { wch: 10 }, // Age
+          { wch: 12 }, // Gender
+          { wch: 18 }, // Contact Number
+          { wch: 38 }, // Clinical info
+          { wch: 30 }, // Additional Notes
+          { wch: 22 } // Requesting Physician
+        ];
+
+        // Freeze header row (best-effort).
+        (labWorksheet as any)['!freeze'] = { xSplit: 0, ySplit: 1, topRow: 1 };
+
+        XLSX.utils.book_append_sheet(workbook, labWorksheet, 'Lab Tests');
+      } else {
+        // For imaging requests: keep one clean sheet.
+        const rows = [
+          {
+            'No.': 1,
+            'Lab Test': '',
+            ...commonColumns,
+          }
+        ];
+
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+        (worksheet as any)['!cols'] = [
+          { wch: 6 }, // No.
+          { wch: 34 }, // Lab Test
+          { wch: 18 }, // Request Date
+          { wch: 14 }, // Request Time
+          { wch: 12 }, // Priority
+          { wch: 24 }, // Patient Name
+          { wch: 18 }, // Medical Record #
+          { wch: 10 }, // Age
+          { wch: 12 }, // Gender
+          { wch: 18 }, // Contact Number
+          { wch: 18 }, // Test Type
+          { wch: 18 }, // Body Part
+          { wch: 38 }, // Clinical Information / Indication
+          { wch: 30 }, // Additional Notes
+          { wch: 22 }, // Requesting Physician
+        ];
+
+        (worksheet as any)['!freeze'] = { xSplit: 0, ySplit: 1, topRow: 1 };
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Request Form');
+      }
 
       const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
       const blob = new Blob([wbout], {
