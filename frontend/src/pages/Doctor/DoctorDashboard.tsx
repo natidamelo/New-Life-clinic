@@ -3372,20 +3372,6 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
           <TabsContent value="lab-results" className="mt-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-foreground">Patient Lab Reports</h2>
-              <div className="flex space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    console.log('[DoctorDashboard] Manual refresh clicked for lab results');
-                    fetchAllDoctorLabResults();
-                  }}
-                  disabled={labResultsLoading}
-                >
-                  <RefreshCw size={16} className={`mr-2 ${labResultsLoading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
-              </div>
             </div>
 
 
