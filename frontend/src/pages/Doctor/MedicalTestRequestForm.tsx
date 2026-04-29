@@ -581,28 +581,47 @@ const MedicalTestRequestForm: React.FC = () => {
       minute: '2-digit' 
     });
 
-    const allLabTestNames = getAllSelectedTestNames();
-    const labTestsTableHtml = activeTab === 'lab'
-      ? `
-        <table class="tests-table">
-          <thead>
-            <tr>
-              <th style="width: 48px;">#</th>
-              <th>Lab Test</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${allLabTestNames
-              .map((testName, index) => `
+    const labMasterTableHtml = activeTab === 'lab'
+      ? (() => {
+        let rowNo = 1;
+        const rows = Object.entries(labTests)
+          .flatMap(([mainTest, subTests]) =>
+            subTests.map((subTest) => {
+              const isSelected = !!selectedLabTests[mainTest]?.has(subTest);
+              const category = escapeHtml(mainTest);
+              const test = escapeHtml(subTest);
+
+              return `
                 <tr>
-                  <td>${index + 1}</td>
-                  <td>${escapeHtml(testName)}</td>
+                  <td class="lab-row-no">${rowNo++}</td>
+                  <td class="lab-test-cell">
+                    <div class="lab-test-category">${category}</div>
+                    <div class="lab-test-name">${test}</div>
+                  </td>
+                  <td class="lab-icd-cell">&nbsp;</td>
+                  <td class="lab-selected-cell">${isSelected ? 'X' : '&nbsp;'}</td>
                 </tr>
-              `)
-              .join('')}
-          </tbody>
-        </table>
-      `
+              `;
+            })
+          );
+
+        return `
+          <div class="lab-instruction">Please circle the selected tests and provide relevant ICD-10 Codes</div>
+          <table class="lab-master-table">
+            <thead>
+              <tr>
+                <th style="width: 32px;">#</th>
+                <th>SPECIALTY TESTS</th>
+                <th style="width: 92px;">ICD-10 Codes</th>
+                <th style="width: 44px;">Mark</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.join('')}
+            </tbody>
+          </table>
+        `;
+      })()
       : '';
 
     const printWindow = window.open('', '_blank', 'width=800,height=600');
@@ -615,7 +634,7 @@ const MedicalTestRequestForm: React.FC = () => {
           <meta charset="UTF-8">
           <style>
             @page {
-              size: A5 portrait;
+              size: letter portrait;
               margin: 3mm;
             }
             * {
@@ -635,7 +654,7 @@ const MedicalTestRequestForm: React.FC = () => {
             .request-container {
               width: 100%;
               max-width: 100%;
-              height: 204mm;
+              height: auto;
               margin: 0;
               border: 2px solid #2c5aa0;
               padding: 12px;
@@ -799,6 +818,77 @@ const MedicalTestRequestForm: React.FC = () => {
               text-align: left;
             }
 
+            .lab-print-table {
+              margin-top: 6px;
+            }
+            .lab-instruction {
+              font-size: 0.85rem;
+              color: #444;
+              margin: 2px 0 6px 0;
+              font-weight: 600;
+            }
+            .lab-master-table {
+              width: 100%;
+              border-collapse: collapse;
+              background: white;
+            }
+            .lab-master-table th,
+            .lab-master-table td {
+              border: 1px solid #cfd8e3;
+              padding: 3px 5px;
+              vertical-align: top;
+            }
+            .lab-master-table th {
+              background: #eaf2ff;
+              color: #1f3a6d;
+              font-weight: 800;
+              font-size: 0.8rem;
+              text-align: left;
+              white-space: nowrap;
+            }
+            .lab-master-table td {
+              font-size: 0.78rem;
+              color: #1f2937;
+            }
+            .lab-row-no {
+              width: 32px;
+              text-align: center;
+              font-weight: 700;
+            }
+            .lab-test-cell {
+              min-width: 220px;
+            }
+            .lab-test-category {
+              font-size: 0.72rem;
+              color: #6b7280;
+              font-weight: 700;
+              margin-bottom: 1px;
+            }
+            .lab-test-name {
+              font-size: 0.78rem;
+              font-weight: 500;
+            }
+            .lab-icd-cell {
+              width: 92px;
+              color: #9ca3af;
+            }
+            .lab-selected-cell {
+              width: 44px;
+              text-align: center;
+              font-weight: 900;
+              color: #2c5aa0;
+            }
+            .lab-request-container {
+              min-height: auto;
+            }
+
+            .lab-master-table thead {
+              display: table-header-group;
+            }
+            .lab-master-table tbody {
+              display: table-row-group;
+            }
+
             .tests-table tbody tr:nth-child(even) {
               background: #fbfcfe;
             }
@@ -831,15 +921,15 @@ const MedicalTestRequestForm: React.FC = () => {
                 margin: 0; 
                 padding: 0; 
                 font-size: 14px;
-                width: 148mm;
-                height: 210mm;
+                width: auto;
+                height: auto;
               }
               .request-container { 
                 box-shadow: none; 
                 border: 2px solid #2c5aa0; 
                 padding: 12px;
                 width: 100%;
-                min-height: 204mm;
+                min-height: auto;
                 height: auto;
                 box-sizing: border-box;
                 margin: 0;
@@ -939,7 +1029,7 @@ const MedicalTestRequestForm: React.FC = () => {
           </style>
         </head>
         <body>
-          <div class="request-container">
+          <div class="request-container${activeTab === 'lab' ? ' lab-request-container' : ''}">
             <div class="clinic-header">
               <div class="clinic-header-content">
                 <img src="/assets/images/logo.jpg" alt="New Life Medium Clinic Logo" class="clinic-logo" onerror="this.onerror=null;this.src='/assets/images/logo-placeholder.svg';">
@@ -1011,8 +1101,8 @@ const MedicalTestRequestForm: React.FC = () => {
                 ${activeTab === 'lab' ? `
                 <div class="info-item" style="grid-column: 1 / -1;">
                   <span class="info-label">Selected Lab Tests:</span>
-                  <div class="info-value" style="padding: 0;">
-                    ${labTestsTableHtml}
+                  <div class="info-value lab-print-table" style="padding: 0;">
+                    ${labMasterTableHtml}
                   </div>
                 </div>
                 ` : formData.specificTest ? `
