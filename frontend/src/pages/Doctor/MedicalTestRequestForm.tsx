@@ -76,6 +76,29 @@ const MedicalTestRequestForm: React.FC = () => {
   const [selectedLabTests, setSelectedLabTests] = useState<{[mainTest: string]: Set<string>}>({});
   const [expandedTests, setExpandedTests] = useState<Set<string>>(new Set());
 
+  const getLabSection = (mainTest: string): string => {
+    // Lab print sections requested by the user.
+    const map: Record<string, string> = {
+      'Complete Blood Count (CBC)': 'HEMATOLOGY',
+      'Basic Metabolic Panel (BMP)': 'CHEMISTRY',
+      'Comprehensive Metabolic Panel (CMP)': 'CHEMISTRY',
+      'Lipid Panel': 'CHEMISTRY',
+      'Liver Function Tests': 'CHEMISTRY',
+      'Urinalysis': 'URINALYSIS',
+      'Stool Analysis': 'PARASITOLOGY',
+      'Blood Culture': 'MICROBIOLOGY',
+      'Urine Culture': 'MICROBIOLOGY',
+      'Throat Culture': 'MICROBIOLOGY',
+      'Thyroid Function Tests': 'IMMUNOCHEMISTRY',
+      'Hemoglobin A1C': 'IMMUNOCHEMISTRY',
+      'Pap Smear': 'PATHOLOGY',
+      'Biopsy': 'PATHOLOGY',
+      'Other': 'OTHER'
+    };
+
+    return map[mainTest] || 'OTHER';
+  };
+
   // Close search results when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -581,48 +604,95 @@ const MedicalTestRequestForm: React.FC = () => {
       minute: '2-digit' 
     });
 
-    const labMasterTableHtml = activeTab === 'lab'
-      ? (() => {
-        let rowNo = 1;
-        const rows = Object.entries(labTests)
-          .flatMap(([mainTest, subTests]) =>
-            subTests.map((subTest) => {
-              const isSelected = !!selectedLabTests[mainTest]?.has(subTest);
-              const category = escapeHtml(mainTest);
-              const test = escapeHtml(subTest);
+    const labMasterTableHtml =
+      activeTab === 'lab'
+        ? (() => {
+            // To keep it on ONE A4 page, we print ONLY the selected rows,
+            // grouped into the requested sections. Selected rows are marked with "X".
+            const sectionOrder = [
+              'SEROLOGY',
+              'MICROBIOLOGY',
+              'CHEMISTRY',
+              'URINALYSIS',
+              'PARASITOLOGY',
+              'HEMATOLOGY',
+              'IMMUNOCHEMISTRY',
+              'PATHOLOGY',
+              'OTHER'
+            ];
 
-              return `
-                <tr>
-                  <td class="lab-row-no">${rowNo++}</td>
-                  <td class="lab-test-cell">
-                    <div class="lab-test-category">${category}</div>
-                    <div class="lab-test-name">${test}</div>
-                  </td>
-                  <td class="lab-icd-cell">&nbsp;</td>
-                  <td class="lab-selected-cell">${isSelected ? 'X' : '&nbsp;'}</td>
+            const selectedBySection: Record<string, Array<{ mainTest: string; subTest: string }>> = {};
+
+            Object.entries(selectedLabTests).forEach(([mainTest, subSet]) => {
+              if (!subSet || subSet.size === 0) return;
+
+              const section = getLabSection(mainTest);
+              if (!selectedBySection[section]) selectedBySection[section] = [];
+
+              // Preserve master ordering of sub-tests.
+              const masterSubTests = (labTests as any)[mainTest] || [];
+              masterSubTests.forEach((subTest: string) => {
+                if (subSet.has(subTest)) {
+                  selectedBySection[section].push({ mainTest, subTest });
+                }
+              });
+            });
+
+            const selectedCount = getTotalSelectedTests();
+            const compact = selectedCount >= 25;
+            const rowPadding = compact ? '1px 3px' : '2px 4px';
+            const tableFontSize = compact ? '9px' : '10.5px';
+
+            let rowNo = 1;
+            const bodyParts: string[] = [];
+
+            sectionOrder.forEach((section) => {
+              const rows = selectedBySection[section];
+              if (!rows || rows.length === 0) return;
+
+              bodyParts.push(`
+                <tr class="lab-section-row">
+                  <td colspan="4">${section}</td>
                 </tr>
-              `;
-            })
-          );
+              `);
 
-        return `
-          <div class="lab-instruction">Please circle the selected tests and provide relevant ICD-10 Codes</div>
-          <table class="lab-master-table">
-            <thead>
-              <tr>
-                <th style="width: 32px;">#</th>
-                <th>SPECIALTY TESTS</th>
-                <th style="width: 92px;">ICD-10 Codes</th>
-                <th style="width: 44px;">Mark</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows.join('')}
-            </tbody>
-          </table>
-        `;
-      })()
-      : '';
+              rows.forEach(({ mainTest, subTest }) => {
+                bodyParts.push(`
+                  <tr class="lab-row">
+                    <td class="lab-row-no">${rowNo++}</td>
+                    <td class="lab-test-cell">
+                      <div class="lab-test-category">${escapeHtml(mainTest)}</div>
+                      <div class="lab-test-name">${escapeHtml(subTest)}</div>
+                    </td>
+                    <td class="lab-icd-cell">&nbsp;</td>
+                    <td class="lab-selected-cell">X</td>
+                  </tr>
+                `);
+              });
+            });
+
+            return `
+              <style>
+                .lab-master-table { font-size: ${tableFontSize}; }
+                .lab-master-table th, .lab-master-table td { padding: ${rowPadding}; }
+              </style>
+              <div class="lab-instruction">Provide relevant ICD-10 Codes. Selected tests are marked with an "X".</div>
+              <table class="lab-master-table">
+                <thead>
+                  <tr>
+                    <th style="width: 28px;">#</th>
+                    <th>SPECIALTY TESTS</th>
+                    <th style="width: 88px;">ICD-10 Codes</th>
+                    <th style="width: 40px;">Mark</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${bodyParts.join('')}
+                </tbody>
+              </table>
+            `;
+          })()
+        : '';
 
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     if (printWindow) {
@@ -634,7 +704,7 @@ const MedicalTestRequestForm: React.FC = () => {
           <meta charset="UTF-8">
           <style>
             @page {
-              size: letter portrait;
+              size: A4 portrait;
               margin: 3mm;
             }
             * {
@@ -850,6 +920,17 @@ const MedicalTestRequestForm: React.FC = () => {
               font-size: 0.78rem;
               color: #1f2937;
             }
+
+            .lab-section-row td {
+              background: #f2f6ff;
+              border-left: 0;
+              border-right: 0;
+              font-weight: 900;
+              color: #1f3a6d;
+              text-transform: uppercase;
+              font-size: 0.78rem;
+              padding: 4px 6px;
+            }
             .lab-row-no {
               width: 32px;
               text-align: center;
@@ -921,7 +1002,7 @@ const MedicalTestRequestForm: React.FC = () => {
                 margin: 0; 
                 padding: 0; 
                 font-size: 14px;
-                width: auto;
+                width: 148mm;
                 height: auto;
               }
               .request-container { 
