@@ -26,6 +26,7 @@ router.get('/available', auth, async (req, res) => {
       'Chemistry': [],
       'Hematology': [],
       'Parasitology': [],
+      'Mycology': [],
       'Immunology': [],
       'Urinalysis': [],
       'Endocrinology': [],
@@ -63,10 +64,16 @@ router.get('/available', auth, async (req, res) => {
         return 'Hematology';
       }
       
+      // Mycology / fungal tests
+      if (name.includes('koh') || name.includes('fung') || name.includes('mycolo') ||
+          name.includes('candida') || name.includes('dermatophyte')) {
+        return 'Mycology';
+      }
+
       // Parasitology tests (check before Immunology to catch H. pylori)
       if (name.includes('h. pylori') || name.includes('pylori') || name.includes('parasite') ||
           name.includes('stool') || name.includes('ova') || name.includes('occult blood') || 
-          name.includes('fobt') || name.includes('fecal occult') || name.includes('koh')) {
+          name.includes('fobt') || name.includes('fecal occult')) {
         return 'Parasitology';
       }
       
@@ -228,6 +235,7 @@ router.get('/categories', auth, async (req, res) => {
       'Chemistry',
       'Hematology', 
       'Parasitology',
+      'Mycology',
       'Immunology',
       'Urinalysis',
       'Endocrinology',

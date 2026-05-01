@@ -496,7 +496,7 @@ router.post('/', [auth,
 router.put('/:id', [auth,
   // checkRole(['admin']), // Temporarily disabled for testing
   body('name').notEmpty().withMessage('Item name is required'),
-  body('category').isIn(['medication', 'supplies', 'equipment', 'laboratory', 'imaging', 'office', 'service', 'other', 'chemistry', 'hematology', 'parasitology', 'immunology', 'urinalysis', 'endocrinology', 'cardiology', 'tumor-markers']).withMessage('Invalid category'),
+  body('category').isIn(['medication', 'supplies', 'equipment', 'laboratory', 'imaging', 'office', 'service', 'other', 'chemistry', 'hematology', 'parasitology', 'mycology', 'immunology', 'urinalysis', 'endocrinology', 'cardiology', 'tumor-markers']).withMessage('Invalid category'),
   body('unit').notEmpty().withMessage('Unit is required'),
   body('costPrice').isFloat({ min: 0 }).withMessage('Cost price must be a positive number')
 ], async (req, res) => {
@@ -516,7 +516,7 @@ router.put('/:id', [auth,
     
     // Map category: lab subcategories (parasitology, chemistry, etc.) must be stored as 'laboratory'
     // so lab pricing and billing always find the item by category.
-    const labSubcategories = ['chemistry', 'hematology', 'parasitology', 'immunology', 'urinalysis', 'endocrinology', 'cardiology', 'tumor-markers'];
+    const labSubcategories = ['chemistry', 'hematology', 'parasitology', 'mycology', 'immunology', 'urinalysis', 'endocrinology', 'cardiology', 'tumor-markers'];
     let categoryToSave = req.body.category;
     if (labSubcategories.includes((req.body.category || '').toLowerCase())) {
       categoryToSave = 'laboratory';

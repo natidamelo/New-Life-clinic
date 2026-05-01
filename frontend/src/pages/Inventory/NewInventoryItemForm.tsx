@@ -164,7 +164,7 @@ const TEST_TYPES = [
 ];
 
 // Map item types to categories
-const LAB_SERVICE_CATEGORIES = ['chemistry', 'hematology', 'parasitology', 'immunology', 'urinalysis', 'endocrinology', 'cardiology', 'tumor-markers'];
+const LAB_SERVICE_CATEGORIES = ['chemistry', 'hematology', 'parasitology', 'mycology', 'immunology', 'urinalysis', 'endocrinology', 'cardiology', 'tumor-markers'];
 const IMAGING_SERVICE_CATEGORIES = ['imaging', 'xray', 'ultrasound'];
 
 const ITEM_TYPE_CATEGORIES = {
@@ -177,7 +177,7 @@ const ITEM_TYPE_CATEGORIES = {
     'Antifungal', 'Antiviral', 'Antimalarial', 'Antidiabetic',
     'Antihypertensive', 'Anticoagulant', 'Immunosuppressant', 'Other Medication'
   ],
-  lab: ['chemistry', 'hematology', 'parasitology', 'immunology', 'urinalysis', 'endocrinology', 'cardiology', 'tumor-markers', 'other'],
+  lab: ['chemistry', 'hematology', 'parasitology', 'mycology', 'immunology', 'urinalysis', 'endocrinology', 'cardiology', 'tumor-markers', 'other'],
   equipment: ['Diagnostic', 'Monitoring', 'Surgical', 'Therapeutic', 'Other Equipment'],
   supplies: ['Disposable Supplies', 'Reusable Supplies', 'PPE', 'Cleaning Supplies', 'Office Supplies', 'Other Supply'],
   service: [
@@ -199,6 +199,7 @@ const formatServiceCategoryName = (category: string): string => {
     'chemistry': 'Chemistry',
     'hematology': 'Hematology',
     'parasitology': 'Parasitology',
+    'mycology': 'Mycology',
     'immunology': 'Immunology',
     'urinalysis': 'Urinalysis',
     'endocrinology': 'Endocrinology',
@@ -290,6 +291,19 @@ const getServiceSpecificFields = (category: string) => {
       serviceStorageTemperature: { label: 'Storage Temperature', type: 'text', placeholder: 'e.g., Room temp; examine ASAP', required: false },
       serviceSpecimenType: { label: 'Specimen Type', type: 'text', placeholder: 'e.g., Stool', required: false },
       serviceTestType: { label: 'Test Type', type: 'text', placeholder: 'e.g., Microscopy/Parasitology', required: false }
+    },
+    'mycology': {
+      serviceDuration: { label: 'Processing Time', type: 'text', placeholder: 'e.g., 1-2 hours', required: true },
+      serviceRequirements: { label: 'Sample Requirements', type: 'text', placeholder: 'e.g., Skin/nail/hair scraping, fresh sample', required: true },
+      serviceEquipment: { label: 'Lab Equipment', type: 'text', placeholder: 'e.g., Microscope, KOH prep materials', required: true },
+      serviceStaffRequired: { label: 'Staff Required', type: 'text', placeholder: 'e.g., Lab technician, microbiologist', required: true },
+      servicePreparation: { label: 'Sample Preparation', type: 'text', placeholder: 'e.g., KOH wet mount preparation', required: true },
+      serviceFollowUp: { label: 'Result Follow-up', type: 'text', placeholder: 'e.g., Report delivery, antifungal guidance', required: false },
+      serviceIndications: { label: 'Test Indications', type: 'text', placeholder: 'e.g., Suspected fungal infection', required: true },
+      serviceContraindications: { label: 'Contraindications', type: 'text', placeholder: 'e.g., Inadequate specimen quality', required: false },
+      serviceStorageTemperature: { label: 'Storage Temperature', type: 'text', placeholder: 'e.g., Room temperature; process ASAP', required: false },
+      serviceSpecimenType: { label: 'Specimen Type', type: 'text', placeholder: 'e.g., Skin/Nail/Hair scraping', required: false },
+      serviceTestType: { label: 'Test Type', type: 'text', placeholder: 'e.g., KOH Preparation', required: false }
     },
     'immunology': {
       serviceDuration: { label: 'Processing Time', type: 'text', placeholder: 'e.g., 2-4 hours', required: true },
@@ -613,6 +627,7 @@ const CATEGORY_MEDICATIONS = {
   'chemistry': ['Glucose, Fasting', 'Glucose Test Strips', 'Urea', 'Creatinine', 'Sodium', 'Potassium', 'Chloride', 'Bicarbonate', 'ALT (SGPT)', 'AST (SGOT)', 'Total Bilirubin', 'Albumin', 'Total Protein', 'Cholesterol, Total', 'Triglycerides', 'HDL Cholesterol', 'LDL Cholesterol', 'HbA1C', 'Calcium', 'Phosphorus', 'Magnesium', 'Uric Acid', 'Amylase', 'Lipase', 'Alkaline Phosphatase', 'GGT', 'Iron', 'TIBC', 'Ferritin', 'Other'],
   'hematology': ['Complete Blood Count (CBC)', 'Hemoglobin', 'Hematocrit', 'Red Blood Cell Count', 'White Blood Cell Count', 'Platelet Count', 'Blood Group Test (100 tests)', 'Blood Group Fluid/Reagent (100 tests)', 'Mean Corpuscular Volume (MCV)', 'Mean Corpuscular Hemoglobin (MCH)', 'Differential Count', 'Prothrombin Time (PT)', 'International Normalized Ratio (INR)', 'Partial Thromboplastin Time (PTT)', 'Reticulocyte Count', 'Erythrocyte Sedimentation Rate (ESR)', 'Neutrophils', 'Lymphocytes', 'Monocytes', 'Eosinophils', 'Basophils', 'D-Dimer', 'Fibrinogen', 'Other'],
   'parasitology': ['Stool Exam (Routine)', 'Fecal Occult Blood Test (FOBT)', 'Stool Culture', 'Ova and Parasite Examination', 'Malaria Smear', 'Malaria Blood Test (with Kit)', 'Filaria Smear', 'Schistosomiasis Test', 'Giardia Antigen', 'Cryptosporidium Antigen', 'Entamoeba histolytica Antigen', 'Helminth Antibody Panel', 'Other'],
+  'mycology': ['KOH Preparation', 'KOH Test', 'Fungal Microscopy', 'Other'],
   'immunology': ['HIV Antibody', 'Hepatitis B Surface Antigen (HBsAg)', 'Hepatitis C Antibody', 'COVID-19 PCR Test', 'C-Reactive Protein', 'CRP Fluid/Reagent (100 tests)', 'Rheumatoid Factor', 'ASO (Anti-Streptolysin O)', 'ASO Fluid/Reagent (100 tests)', 'ANA (Antinuclear Antibody)', 'Thyroid Peroxidase Antibody', 'H. pylori Antigen', 'H. pylori Antibody', 'H. pylori Ag/Ab Test', 'HCG (Pregnancy Test)', 'Serum HCG', 'Urine HCG', 'Widal O & H Test (100 tests)', 'Weil-Felix Test (100 tests)', 'IgE Total', 'IgG', 'IgM', 'IgA', 'Complement C3', 'Complement C4', 'Anti-dsDNA', 'Anti-CCP', 'Hepatitis B Core Antibody', 'Hepatitis B Surface Antibody', 'VDRL/RPR', 'Other'],
   'urinalysis': ['Complete Urinalysis', 'Urinalysis, Dipstick Only', 'Urinalysis, Microscopic Only', 'Urine Microalbumin', 'Urine Protein-to-Creatinine Ratio', 'Other'],
   'endocrinology': ['Thyroid Stimulating Hormone (TSH)', 'Free T4', 'Free T3', 'Cortisol', 'Testosterone', 'Estradiol', 'FSH', 'LH', 'Prolactin', 'ACTH', 'Parathyroid Hormone (PTH)', 'Insulin', 'C-Peptide', 'DHEA-S', 'Progesterone', 'Other'],
@@ -651,6 +666,9 @@ const SERVICE_NAMES: Record<string, string[]> = {
     'Stool Exam (Routine)', 'Fecal Occult Blood Test (FOBT)', 'Stool Culture', 'Ova and Parasite Examination', 
     'Malaria Smear', 'Malaria Blood Test (with Kit)', 'Filaria Smear', 'Schistosomiasis Test', 'Giardia Antigen', 
     'Cryptosporidium Antigen', 'Entamoeba histolytica Antigen', 'Helminth Antibody Panel', 'Other'
+  ],
+  'mycology': [
+    'KOH Preparation', 'KOH Test', 'Fungal Microscopy', 'Other'
   ],
   'immunology': [
     'HIV Antibody', 'Hepatitis B Surface Antigen (HBsAg)', 'Hepatitis C Antibody', 
@@ -2100,6 +2118,11 @@ const LAB_ITEM_TO_CATEGORY: Record<string, string> = {
   'Entamoeba histolytica Antigen': 'parasitology',
   'Helminth Antibody Panel': 'parasitology',
   
+  // Mycology
+  'KOH Preparation': 'mycology',
+  'KOH Test': 'mycology',
+  'Fungal Microscopy': 'mycology',
+  
   // Immunology
   'HIV Antibody': 'immunology',
   'Hepatitis B Surface Antigen (HBsAg)': 'immunology',
@@ -2358,6 +2381,11 @@ const SERVICE_TO_CATEGORY: Record<string, string> = {
   'Cryptosporidium Antigen': 'parasitology',
   'Entamoeba histolytica Antigen': 'parasitology',
   'Helminth Antibody Panel': 'parasitology',
+  
+  // Mycology services
+  'KOH Preparation': 'mycology',
+  'KOH Test': 'mycology',
+  'Fungal Microscopy': 'mycology',
   
   // Immunology services
   'HIV Antibody': 'immunology',
@@ -2656,6 +2684,12 @@ const LAB_CATEGORY_DEFAULTS: Record<string, {
     specimenType: 'Serum/Plasma',
     testType: 'Cardiac Markers',
     storageTemperature: '2–8°C',
+    processTime: '1–2 hours'
+  },
+  mycology: {
+    specimenType: 'Skin/Nail/Hair scraping',
+    testType: 'KOH Preparation',
+    storageTemperature: 'Room temperature; process ASAP',
     processTime: '1–2 hours'
   },
   'tumor-markers': {
@@ -4318,7 +4352,7 @@ const showStockSection = formData.itemType !== 'service' || isLabServiceCategory
                       </Grid>
                   </Paper>
                 )}
-                {(formData.itemType === 'lab' || (formData.itemType === 'service' && ['chemistry', 'hematology', 'parasitology', 'immunology', 'urinalysis', 'endocrinology', 'cardiology', 'tumor-markers'].includes(formData.category))) && (
+                {(formData.itemType === 'lab' || (formData.itemType === 'service' && ['chemistry', 'hematology', 'parasitology', 'mycology', 'immunology', 'urinalysis', 'endocrinology', 'cardiology', 'tumor-markers'].includes(formData.category))) && (
                   <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', borderLeft: '4px solid #8b5cf6' }}>
                     <Box display="flex" alignItems="center" mb={2.5}>
                       <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 1.5 }}>

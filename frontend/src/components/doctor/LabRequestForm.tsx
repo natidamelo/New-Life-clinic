@@ -37,7 +37,7 @@ interface TestPanel {
   category: TestCategory;
 }
 
-type TestCategory = 'chemistry' | 'hematology' | 'parasitology' | 'immunology' | 'other' | 'urinalysis' | 'endocrinology' | 'cardiology' | 'tumor-markers';
+type TestCategory = 'chemistry' | 'hematology' | 'parasitology' | 'mycology' | 'immunology' | 'other' | 'urinalysis' | 'endocrinology' | 'cardiology' | 'tumor-markers';
 
 interface LabRequestFormProps {
   patientId: string;
@@ -128,6 +128,11 @@ const categoryIcons: Record<TestCategory, React.ReactNode> = {
     </svg>
   ),
   parasitology: (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+    </svg>
+  ),
+  mycology: (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
     </svg>
@@ -264,7 +269,6 @@ const commonLabTests: Record<TestCategory, LabTest[]> = {
     { id: 202, name: 'Fecal Occult Blood Test (FOBT)', normalRange: 'Negative', selected: false },
     { id: 203, name: 'Stool Culture', normalRange: 'No growth', selected: false },
     { id: 204, name: 'Ova and Parasite Examination', normalRange: 'No ova or parasites seen', selected: false },
-    { id: 212, name: 'KOH Preparation', normalRange: 'No fungal elements seen', selected: false },
     { id: 205, name: 'Malaria Smear', normalRange: 'Negative', selected: false },
     { id: 206, name: 'Filaria Smear', normalRange: 'Negative', selected: false },
     { id: 207, name: 'Schistosomiasis Test', normalRange: 'Negative', selected: false },
@@ -272,6 +276,9 @@ const commonLabTests: Record<TestCategory, LabTest[]> = {
     { id: 209, name: 'Cryptosporidium Antigen', normalRange: 'Negative', selected: false },
     { id: 210, name: 'Entamoeba histolytica Antigen', normalRange: 'Negative', selected: false },
     { id: 211, name: 'Helminth Antibody Panel', normalRange: 'Negative', selected: false },
+  ],
+  mycology: [
+    { id: 212, name: 'KOH Preparation', normalRange: 'No fungal elements seen', selected: false },
   ],
   immunology: [
     { id: 301, name: 'HIV Antibody', normalRange: 'Non-reactive', selected: false },
@@ -402,6 +409,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
     chemistry: [],
     hematology: [],
     parasitology: [],
+    mycology: [],
     immunology: [],
     other: [],
     urinalysis: [],
@@ -413,6 +421,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
   const getTestsForCategory = (category: TestCategory): LabTest[] => {
     const categoryMap: Record<string, string> = {
       chemistry: 'Chemistry', hematology: 'Hematology', parasitology: 'Parasitology',
+      mycology: 'Mycology',
       immunology: 'Immunology', urinalysis: 'Urinalysis', endocrinology: 'Endocrinology',
       cardiology: 'Cardiology', 'tumor-markers': 'Tumor Markers', other: 'Other',
     };
@@ -525,6 +534,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
       chemistry: [...commonLabTests.chemistry],
       hematology: [...commonLabTests.hematology],
       parasitology: [...commonLabTests.parasitology],
+      mycology: [...commonLabTests.mycology],
       immunology: [...commonLabTests.immunology],
       other: [...commonLabTests.other],
       urinalysis: [...commonLabTests.urinalysis],
@@ -942,6 +952,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
 
   const categoryLabels: Record<TestCategory, string> = {
     chemistry: 'Chemistry', hematology: 'Hematology', parasitology: 'Parasitology',
+    mycology: 'Mycology',
     immunology: 'Immunology', urinalysis: 'Urinalysis', endocrinology: 'Endocrinology',
     cardiology: 'Cardiology', 'tumor-markers': 'Tumor Markers', other: 'Other',
   };
