@@ -4142,6 +4142,11 @@ const showStockSection = formData.itemType !== 'service' || isLabServiceCategory
                           options={filteredMeds}
                           value={formData.name}
                           onChange={(_, newValue) => setFormData({ ...formData, name: newValue || '' })}
+                          onInputChange={(_, newInputValue, reason) => {
+                            if (reason === 'input' || reason === 'clear') {
+                              setFormData({ ...formData, name: newInputValue || '' });
+                            }
+                          }}
                           sx={{ minWidth: 350, maxWidth: 500 }}
                           renderOption={(props, option) => {
                             const { key, ...otherProps } = props;
@@ -4184,7 +4189,9 @@ const showStockSection = formData.itemType !== 'service' || isLabServiceCategory
                                 'Medication'
                               } 
                               required 
-                              fullWidth 
+                              fullWidth
+                              error={!!errors.name}
+                              helperText={errors.name}
                             />
                           )}
                         />
@@ -4196,6 +4203,11 @@ const showStockSection = formData.itemType !== 'service' || isLabServiceCategory
                             options={filteredCategories}
                             value={formData.category}
                             onChange={(_, newValue) => setFormData({ ...formData, category: newValue || '' })}
+                            onInputChange={(_, newInputValue, reason) => {
+                              if (reason === 'input' || reason === 'clear') {
+                                setFormData({ ...formData, category: newInputValue || '' });
+                              }
+                            }}
                             sx={{ minWidth: 320, flex: 1 }}
                             getOptionLabel={(option) => {
                               if (formData.itemType === 'service' || formData.itemType === 'imaging' || formData.itemType === 'lab') {
@@ -4204,7 +4216,7 @@ const showStockSection = formData.itemType !== 'service' || isLabServiceCategory
                               return option;
                             }}
                             renderInput={(params) => (
-                              <TextField {...params} label="Category" required fullWidth />
+                              <TextField {...params} label="Category" required fullWidth error={!!errors.category} helperText={errors.category} />
                             )}
                           />
                           {formData.itemType === 'lab' && (
