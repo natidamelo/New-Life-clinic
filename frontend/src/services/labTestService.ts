@@ -39,6 +39,7 @@ export interface LabTestAvailableResponse {
 export interface LabCategoryOption {
   slug: string;
   label: string;
+  defaultItems?: string[];
 }
 
 class LabTestService {

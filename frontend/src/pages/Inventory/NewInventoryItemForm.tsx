@@ -3301,6 +3301,7 @@ const NewInventoryItemForm: React.FC = () => {
   const [currentAdminRouteOptions, setCurrentAdminRouteOptions] = useState<string[]>(ADMIN_ROUTES);
   const [customLabCategories, setCustomLabCategories] = useState<string[]>([]);
   const [labCategoryLabelMap, setLabCategoryLabelMap] = useState<Record<string, string>>({});
+  const [customLabCategoryItems, setCustomLabCategoryItems] = useState<Record<string, string[]>>({});
   const [addCategoryDialogOpen, setAddCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [addingCategory, setAddingCategory] = useState(false);
@@ -3315,8 +3316,16 @@ const NewInventoryItemForm: React.FC = () => {
         acc[category.slug] = category.label;
         return acc;
       }, {} as Record<string, string>);
+      const categoryItems = categories.reduce((acc, category) => {
+        const defaults = Array.isArray(category.defaultItems) && category.defaultItems.length > 0
+          ? category.defaultItems
+          : ['Other'];
+        acc[category.slug] = defaults;
+        return acc;
+      }, {} as Record<string, string[]>);
       setCustomLabCategories(customSlugs);
       setLabCategoryLabelMap(labels);
+      setCustomLabCategoryItems(categoryItems);
     } catch (categoryError) {
       console.error('Failed to load lab categories:', categoryError);
     }
@@ -3969,10 +3978,16 @@ const getItemNameOptions = () => {
     return CATEGORY_MEDICATIONS[formData.category] || MEDICATIONS;
   } else if (formData.itemType === 'service') {
     // Service names based on category
+    if (isLabCategory(formData.category) && customLabCategoryItems[formData.category]) {
+      return customLabCategoryItems[formData.category];
+    }
     return SERVICE_NAMES[formData.category] || SERVICE_NAMES['other'];
   } else if (formData.itemType === 'imaging') {
     return SERVICE_NAMES[formData.category] || SERVICE_NAMES['imaging'];
   } else if (formData.itemType === 'lab') {
+    if (customLabCategoryItems[formData.category]) {
+      return customLabCategoryItems[formData.category];
+    }
     return CATEGORY_MEDICATIONS[formData.category] || MEDICATIONS; // Reuse medication list for lab items
   } else if (formData.itemType === 'equipment') {
     return [

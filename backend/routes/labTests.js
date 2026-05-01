@@ -48,6 +48,11 @@ const getLabCategoryOptions = async () => {
   return merged;
 };
 
+const getLabCategoryItemsMap = async () => {
+  const itemsMap = await SystemSetting.getValue('lab_custom_category_items', {});
+  return itemsMap && typeof itemsMap === 'object' ? itemsMap : {};
+};
+
 /**
  * @route GET /api/lab-tests/available
  * @desc Get all available lab tests for ordering from inventory
@@ -299,7 +304,14 @@ router.get('/categories', auth, async (req, res) => {
 router.get('/category-options', auth, async (req, res) => {
   try {
     const categories = await getLabCategoryOptions();
-    res.json({ success: true, categories });
+    const categoryItemsMap = await getLabCategoryItemsMap();
+    const categoriesWithItems = categories.map(category => ({
+      ...category,
+      defaultItems: Array.isArray(categoryItemsMap[category.slug]) && categoryItemsMap[category.slug].length > 0
+        ? categoryItemsMap[category.slug]
+        : ['Other']
+    }));
+    res.json({ success: true, categories: categoriesWithItems });
   } catch (error) {
     console.error('❌ Error fetching lab category options:', error);
     res.status(500).json({ success: false, message: 'Error fetching lab category options', error: error.message });
@@ -334,8 +346,23 @@ router.post('/category-options', auth, async (req, res) => {
       'Custom lab categories for inventory and doctor lab ordering'
     );
 
+    // Seed default selectable lab items for the newly added category.
+    const customCategoryItems = await getLabCategoryItemsMap();
+    if (!Array.isArray(customCategoryItems[slug]) || customCategoryItems[slug].length === 0) {
+      customCategoryItems[slug] = [`${toLabel(slug)} Test`, 'Other'];
+      await SystemSetting.setValue(
+        'lab_custom_category_items',
+        customCategoryItems,
+        'Default selectable lab items for custom lab categories'
+      );
+    }
+
     const updatedCategories = await getLabCategoryOptions();
-    return res.status(201).json({ success: true, categories: updatedCategories, category: { slug, label: toLabel(slug) } });
+    return res.status(201).json({
+      success: true,
+      categories: updatedCategories,
+      category: { slug, label: toLabel(slug), defaultItems: customCategoryItems[slug] || ['Other'] }
+    });
   } catch (error) {
     console.error('❌ Error creating lab category option:', error);
     res.status(500).json({ success: false, message: 'Error creating lab category option', error: error.message });
