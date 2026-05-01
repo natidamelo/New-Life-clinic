@@ -3305,6 +3305,9 @@ const NewInventoryItemForm: React.FC = () => {
   const [addCategoryDialogOpen, setAddCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [addingCategory, setAddingCategory] = useState(false);
+  const [savedLabItemsDialogOpen, setSavedLabItemsDialogOpen] = useState(false);
+  const [savedLabItems, setSavedLabItems] = useState<any[]>([]);
+  const [loadingSavedLabItems, setLoadingSavedLabItems] = useState(false);
 
   const loadLabCategories = async () => {
     try {
@@ -3965,6 +3968,25 @@ const handleAddCategory = async () => {
   }
 };
 
+  const handleViewSavedLabItems = async () => {
+    setSavedLabItemsDialogOpen(true);
+    setLoadingSavedLabItems(true);
+    try {
+      const items = await inventoryService.getAllItems({ category: 'laboratory' });
+      const selectedCategory = (formData.category || '').toLowerCase().trim();
+      const filtered = selectedCategory && selectedCategory !== 'other'
+        ? items.filter((item: any) => ((item.labSubcategory || '').toLowerCase() === selectedCategory))
+        : items;
+      setSavedLabItems(filtered);
+    } catch (fetchError) {
+      console.error('Failed to load saved lab items:', fetchError);
+      setSavedLabItems([]);
+      setSnackbar({ open: true, message: 'Failed to load saved lab items', severity: 'error' });
+    } finally {
+      setLoadingSavedLabItems(false);
+    }
+  };
+
 // Filter categories by itemType
 const filteredCategories = formData.itemType === 'lab'
   ? [...getLabCategorySlugs(), 'other']
@@ -4220,14 +4242,24 @@ const showStockSection = formData.itemType !== 'service' || isLabServiceCategory
                             )}
                           />
                           {formData.itemType === 'lab' && (
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              onClick={() => setAddCategoryDialogOpen(true)}
-                              sx={{ height: 40, whiteSpace: 'nowrap' }}
-                            >
-                              Add Category
-                            </Button>
+                            <Box display="flex" gap={1}>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={handleViewSavedLabItems}
+                                sx={{ height: 40, whiteSpace: 'nowrap' }}
+                              >
+                                View Saved
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={() => setAddCategoryDialogOpen(true)}
+                                sx={{ height: 40, whiteSpace: 'nowrap' }}
+                              >
+                                Add Category
+                              </Button>
+                            </Box>
                           )}
                         </Box>
                       </Grid>
@@ -4719,6 +4751,51 @@ const showStockSection = formData.itemType !== 'service' || isLabServiceCategory
             <Button onClick={handleAddCategory} variant="contained" disabled={addingCategory || !newCategoryName.trim()}>
               {addingCategory ? 'Adding...' : 'Add'}
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={savedLabItemsDialogOpen} onClose={() => setSavedLabItemsDialogOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Saved Lab Items</DialogTitle>
+          <DialogContent>
+            {loadingSavedLabItems ? (
+              <Box display="flex" justifyContent="center" py={3}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : savedLabItems.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                No saved lab items found{formData.category ? ` for category "${getCategoryDisplayName(formData.category)}"` : ''}.
+              </Typography>
+            ) : (
+              <Box sx={{ maxHeight: 420, overflowY: 'auto', mt: 1 }}>
+                {savedLabItems.map((item, idx) => (
+                  <Box
+                    key={item._id || `${item.name}-${idx}`}
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      py: 1.25,
+                      px: 1,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider'
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="body2" fontWeight={600}>{item.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {item.labSubcategory ? getCategoryDisplayName(item.labSubcategory) : 'Uncategorized'}
+                      </Typography>
+                    </Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Qty: {item.quantity ?? 0}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSavedLabItemsDialogOpen(false)}>Close</Button>
           </DialogActions>
         </Dialog>
 
