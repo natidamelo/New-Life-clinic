@@ -58,6 +58,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({
     'Hemoglobin A1C',
     'Urinalysis',
     'Stool Analysis',
+    'KOH Preparation',
     'COVID-19 Test',
     'Chest X-Ray',
     'ECG/EKG',

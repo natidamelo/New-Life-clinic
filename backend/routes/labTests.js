@@ -66,7 +66,7 @@ router.get('/available', auth, async (req, res) => {
       // Parasitology tests (check before Immunology to catch H. pylori)
       if (name.includes('h. pylori') || name.includes('pylori') || name.includes('parasite') ||
           name.includes('stool') || name.includes('ova') || name.includes('occult blood') || 
-          name.includes('fobt') || name.includes('fecal occult')) {
+          name.includes('fobt') || name.includes('fecal occult') || name.includes('koh')) {
         return 'Parasitology';
       }
       

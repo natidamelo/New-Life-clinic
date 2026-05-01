@@ -89,6 +89,7 @@ const MedicalTestRequestForm: React.FC = () => {
       'Blood Culture': 'MICROBIOLOGY',
       'Urine Culture': 'MICROBIOLOGY',
       'Throat Culture': 'MICROBIOLOGY',
+      'Mycology': 'PARASITOLOGY',
       'Thyroid Function Tests': 'IMMUNOCHEMISTRY',
       'Hemoglobin A1C': 'IMMUNOCHEMISTRY',
       'Pap Smear': 'PATHOLOGY',
@@ -492,6 +493,9 @@ const MedicalTestRequestForm: React.FC = () => {
     'Throat Culture': [
       'Streptococcus Culture',
       'Other Bacterial Culture'
+    ],
+    'Mycology': [
+      'KOH Preparation'
     ],
     'Pap Smear': [
       'Conventional Pap Smear',

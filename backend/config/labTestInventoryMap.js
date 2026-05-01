@@ -183,6 +183,12 @@ module.exports = {
   'Stool R/E': { itemName: 'Stool Exam (Routine)', quantity: 1, category: 'laboratory' },
   'Stool R&M': { itemName: 'Stool Exam (Routine)', quantity: 1, category: 'laboratory' },
   'Fecal Exam': { itemName: 'Stool Exam (Routine)', quantity: 1, category: 'laboratory' },
+  // KOH (Potassium Hydroxide) prep
+  'KOH': { itemName: 'KOH Preparation', quantity: 1, category: 'laboratory' },
+  'KOH Test': { itemName: 'KOH Preparation', quantity: 1, category: 'laboratory' },
+  'KOH Preparation': { itemName: 'KOH Preparation', quantity: 1, category: 'laboratory' },
+  'KOH Prep': { itemName: 'KOH Preparation', quantity: 1, category: 'laboratory' },
+  'Potassium Hydroxide Prep': { itemName: 'KOH Preparation', quantity: 1, category: 'laboratory' },
   'Sputum Culture': { itemName: 'Sputum Culture', quantity: 1 },
   'Sputum Analysis': { itemName: 'Sputum Culture', quantity: 1 },
   'Blood Culture': { itemName: 'Blood Culture', quantity: 1 },
