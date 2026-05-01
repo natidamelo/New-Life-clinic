@@ -34,10 +34,20 @@ interface TestPanel {
   name: string;
   description: string;
   tests: number[];
-  category: TestCategory;
+  category: string;
 }
 
-type TestCategory = 'chemistry' | 'hematology' | 'parasitology' | 'mycology' | 'immunology' | 'other' | 'urinalysis' | 'endocrinology' | 'cardiology' | 'tumor-markers';
+type TestCategory = string;
+
+const normalizeCategoryKey = (value: string): string =>
+  value.toLowerCase().replace(/\s+/g, '-');
+
+const humanizeCategoryKey = (value: string): string =>
+  value
+    .split('-')
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 
 interface LabRequestFormProps {
   patientId: string;
@@ -116,7 +126,7 @@ const specimenTypeMap: Record<string, string> = {
 };
 
 // Category icons (SVG paths)
-const categoryIcons: Record<TestCategory, React.ReactNode> = {
+const categoryIcons: Record<string, React.ReactNode> = {
   chemistry: (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
@@ -210,7 +220,7 @@ const commonPanels: TestPanel[] = [
 ];
 
 // Common lab test presets with WHO standard reference ranges
-const commonLabTests: Record<TestCategory, LabTest[]> = {
+const commonLabTests: Record<string, LabTest[]> = {
   chemistry: [
     { id: 1, name: 'Glucose, Fasting', normalRange: '70-100 mg/dL', selected: false },
     { id: 2, name: 'Urea', normalRange: '6-20 mg/dL', selected: false },
@@ -405,7 +415,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
     return () => { isLabRequestFormRendered = false; };
   }, [onClose]);
 
-  const [tests, setTests] = useState<Record<TestCategory, LabTest[]>>({
+  const [tests, setTests] = useState<Record<string, LabTest[]>>({
     chemistry: [],
     hematology: [],
     parasitology: [],
@@ -418,15 +428,15 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
     'tumor-markers': [],
   });
 
-  const getTestsForCategory = (category: TestCategory): LabTest[] => {
+  const getTestsForCategory = (category: string): LabTest[] => {
     const categoryMap: Record<string, string> = {
       chemistry: 'Chemistry', hematology: 'Hematology', parasitology: 'Parasitology',
       mycology: 'Mycology',
       immunology: 'Immunology', urinalysis: 'Urinalysis', endocrinology: 'Endocrinology',
       cardiology: 'Cardiology', 'tumor-markers': 'Tumor Markers', other: 'Other',
     };
-    const mappedCategory = categoryMap[category] || category;
-    const dynamicTests = dynamicLabTests[mappedCategory] || [];
+    const mappedCategory = categoryMap[category] || humanizeCategoryKey(category);
+    const dynamicTests = dynamicLabTests[mappedCategory] || dynamicLabTests[category] || [];
     const staticTests = commonLabTests[category] || [];
 
     const inventoryBasedTests = dynamicTests.map((test: any, index: number) => ({
@@ -452,7 +462,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
   const [searchQuery, setSearchQuery] = useState('');
   const [urinalysisParams, setUrinalysisParams] = useState<UrinalysisParameter[]>([]);
   const [isUrinalysisDetailed, setIsUrinalysisDetailed] = useState(false);
-  const [activeTab, setActiveTab] = useState<TestCategory>('chemistry');
+  const [activeTab, setActiveTab] = useState<string>('chemistry');
   const [priority, setPriority] = useState<'Routine' | 'STAT' | 'ASAP'>('Routine');
   const [clinicalNotes, setClinicalNotes] = useState('');
   const [showSummary, setShowSummary] = useState(false);
@@ -501,11 +511,14 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
   useEffect(() => {
     if (Object.keys(dynamicLabTests).length > 0) {
       setTests(prevTests => {
-        const updated = {} as Record<TestCategory, LabTest[]>;
-        (Object.keys(prevTests) as TestCategory[]).forEach(cat => {
+        const updated = {} as Record<string, LabTest[]>;
+        const dynamicKeys = Object.keys(dynamicLabTests).map(normalizeCategoryKey);
+        const allKeys = new Set([...Object.keys(prevTests), ...dynamicKeys]);
+        allKeys.forEach(cat => {
           const newCatTests = getTestsForCategory(cat);
+          const previousTests = prevTests[cat] || [];
           updated[cat] = newCatTests.map(newTest => {
-            const prev = prevTests[cat].find(pt => pt.id === newTest.id || pt.name === newTest.name);
+            const prev = previousTests.find(pt => pt.id === newTest.id || pt.name === newTest.name);
             return prev?.selected ? { ...newTest, selected: true, value: prev.value || '' } : newTest;
           });
         });
@@ -605,7 +618,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
     return `Some tests unavailable: ${unavailable.slice(0, 2).join(', ')}${unavailable.length > 2 ? '...' : ''}`;
   };
 
-  const toggleTestSelection = (category: TestCategory, id: number) => {
+  const toggleTestSelection = (category: string, id: number) => {
     if (category === 'urinalysis' && id === 601) {
       if (!tests.urinalysis.find(t => t.id === 601)?.selected) setIsUrinalysisDetailed(true);
     }
@@ -619,7 +632,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
     setUrinalysisParams(prev => prev.map(p => p.id === paramId ? { ...p, selected: value } : p));
   };
 
-  const addCustomTest = (category: TestCategory) => {
+  const addCustomTest = (category: string) => {
     if (!searchQuery.trim()) return;
     const newTest: LabTest = { id: Date.now(), name: searchQuery, normalRange: '', selected: true };
     setTests(prev => ({ ...prev, [category]: [...prev[category], newTest] }));
@@ -641,7 +654,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
     }));
   };
 
-  const selectAllInCategory = (category: TestCategory) => {
+  const selectAllInCategory = (category: string) => {
     setTests(prev => ({
       ...prev,
       [category]: prev[category].map(t =>
@@ -650,22 +663,22 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
     }));
   };
 
-  const clearAllInCategory = (category: TestCategory) => {
+  const clearAllInCategory = (category: string) => {
     setTests(prev => ({
       ...prev,
       [category]: prev[category].map(t => ({ ...t, selected: false })),
     }));
   };
 
-  const getFilteredTests = (category: TestCategory) => {
+  const getFilteredTests = (category: string) => {
     const query = searchQuery.toLowerCase();
     if (!query) return tests[category];
     return tests[category].filter(t => t.name.toLowerCase().includes(query));
   };
 
   const selectedCounts = useMemo(() => {
-    const counts = {} as Record<TestCategory, number>;
-    (Object.keys(tests) as TestCategory[]).forEach(cat => {
+    const counts = {} as Record<string, number>;
+    Object.keys(tests).forEach(cat => {
       counts[cat] = tests[cat].filter(t => t.selected).length;
     });
     return counts;
@@ -677,7 +690,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
   );
 
   const allSelectedTests = useMemo(() => {
-    return (Object.keys(tests) as TestCategory[]).flatMap(cat =>
+    return Object.keys(tests).flatMap(cat =>
       tests[cat].filter(t => t.selected).map(t => ({ ...t, category: cat }))
     );
   }, [tests]);
@@ -688,8 +701,8 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
   );
 
   const handleSave = async () => {
-    const selectedTests = {} as Record<TestCategory, LabTest[]>;
-    (Object.keys(tests) as TestCategory[]).forEach(cat => {
+    const selectedTests = {} as Record<string, LabTest[]>;
+    Object.keys(tests).forEach(cat => {
       selectedTests[cat] = tests[cat].filter(t => t.selected);
     });
     const formData = {
@@ -709,7 +722,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
   };
 
   const handleSend = async () => {
-    const selectedLists = (Object.keys(tests) as TestCategory[])
+    const selectedLists = Object.keys(tests)
       .flatMap(cat => tests[cat].filter(t => t.selected));
     const formData = {
       patientId,
@@ -725,7 +738,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
     }
   };
 
-  const renderPanels = (category: TestCategory) => {
+  const renderPanels = (category: string) => {
     const relevantPanels = commonPanels.filter(p => p.category === category);
     if (relevantPanels.length === 0) return null;
     return (
@@ -760,7 +773,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
     );
   };
 
-  const renderTests = (category: TestCategory) => {
+  const renderTests = (category: string) => {
     const testsToRender = getFilteredTests(category);
 
     if (loadingLabTests) return <TestSkeleton />;
@@ -950,7 +963,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
     );
   };
 
-  const categoryLabels: Record<TestCategory, string> = {
+  const categoryLabels: Record<string, string> = {
     chemistry: 'Chemistry', hematology: 'Hematology', parasitology: 'Parasitology',
     mycology: 'Mycology',
     immunology: 'Immunology', urinalysis: 'Urinalysis', endocrinology: 'Endocrinology',
@@ -1047,7 +1060,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
               <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wider">Selected Tests Summary</h4>
               <button
                 onClick={() => {
-                  (Object.keys(tests) as TestCategory[]).forEach(cat => clearAllInCategory(cat));
+                  Object.keys(tests).forEach(cat => clearAllInCategory(cat));
                 }}
                 className="text-xs text-red-500 hover:text-red-700 font-medium"
               >
@@ -1059,7 +1072,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
                 <div key={`${test.category}-${test.id}`} className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-1.5 border border-blue-100">
                   <div className="flex items-center gap-2 min-w-0">
                     <button
-                      onClick={() => toggleTestSelection(test.category as TestCategory, test.id)}
+                      onClick={() => toggleTestSelection(test.category, test.id)}
                       className="text-red-400 hover:text-red-600 flex-shrink-0"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1088,7 +1101,7 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
           <div className="p-3">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-2 mb-2">Categories</p>
             <nav className="space-y-0.5">
-              {(Object.keys(tests) as TestCategory[]).map(category => {
+              {Object.keys(tests).map(category => {
                 const count = selectedCounts[category];
                 return (
                   <button
@@ -1102,9 +1115,9 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
                   >
                     <div className="flex items-center gap-2.5">
                       <span className={activeTab === category ? 'text-blue-200' : 'text-gray-400'}>
-                        {categoryIcons[category]}
+                        {categoryIcons[category] || categoryIcons.other}
                       </span>
-                      <span className="font-medium">{categoryLabels[category]}</span>
+                      <span className="font-medium">{categoryLabels[category] || humanizeCategoryKey(category)}</span>
                     </div>
                     {count > 0 && (
                       <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
@@ -1126,8 +1139,8 @@ const LabRequestForm: React.FC<LabRequestFormProps> = ({ patientId, onClose, onS
             {/* Category Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2">
-                <span className="text-blue-500">{categoryIcons[activeTab]}</span>
-                <h3 className="text-lg font-bold text-gray-800">{categoryLabels[activeTab]}</h3>
+                <span className="text-blue-500">{categoryIcons[activeTab] || categoryIcons.other}</span>
+                <h3 className="text-lg font-bold text-gray-800">{categoryLabels[activeTab] || humanizeCategoryKey(activeTab)}</h3>
                 <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
                   {getFilteredTests(activeTab).length} tests
                 </span>

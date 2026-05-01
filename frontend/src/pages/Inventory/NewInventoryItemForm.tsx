@@ -45,6 +45,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import inventoryService from '../../services/inventoryService';
 import serviceService from '../../services/serviceService';
+import labTestService from '../../services/labTestService';
 import { format } from 'date-fns';
 import Autocomplete from '@mui/material/Autocomplete';
 
@@ -3298,6 +3299,32 @@ const NewInventoryItemForm: React.FC = () => {
   const [errors, setErrors] = useState<Partial<Record<keyof InventoryItem, string>>>({});
   const [currentDosageOptions, setCurrentDosageOptions] = useState<string[]>(DOSAGES);
   const [currentAdminRouteOptions, setCurrentAdminRouteOptions] = useState<string[]>(ADMIN_ROUTES);
+  const [customLabCategories, setCustomLabCategories] = useState<string[]>([]);
+  const [labCategoryLabelMap, setLabCategoryLabelMap] = useState<Record<string, string>>({});
+  const [addCategoryDialogOpen, setAddCategoryDialogOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [addingCategory, setAddingCategory] = useState(false);
+
+  const loadLabCategories = async () => {
+    try {
+      const categories = await labTestService.getLabCategoryOptions();
+      const customSlugs = categories
+        .map(category => category.slug)
+        .filter(slug => !LAB_SERVICE_CATEGORIES.includes(slug));
+      const labels = categories.reduce((acc, category) => {
+        acc[category.slug] = category.label;
+        return acc;
+      }, {} as Record<string, string>);
+      setCustomLabCategories(customSlugs);
+      setLabCategoryLabelMap(labels);
+    } catch (categoryError) {
+      console.error('Failed to load lab categories:', categoryError);
+    }
+  };
+
+  useEffect(() => {
+    loadLabCategories();
+  }, []);
 
   // Effect to update item details when formData.name changes (for all item types)
   useEffect(() => {
@@ -3558,7 +3585,7 @@ const NewInventoryItemForm: React.FC = () => {
                   : item.category === 'supplies' 
                     ? 'supplies' 
                     : 'other',
-            category: item.category || '',
+            category: item.category === 'laboratory' ? ((item as any).labSubcategory || 'other') : (item.category || ''),
             quantity: item.quantity || 0,
             unitPrice: item.sellingPrice || item.costPrice || 0,
             costPrice: item.costPrice || 0,
@@ -3642,7 +3669,7 @@ const NewInventoryItemForm: React.FC = () => {
     }
 
     // Only validate stock fields for non-service items or lab services
-    const isLabService = formData.itemType === 'service' && LAB_SERVICE_CATEGORIES.includes(formData.category);
+    const isLabService = formData.itemType === 'service' && isLabCategory(formData.category);
     if (formData.itemType !== 'service' || isLabService || formData.itemType === 'imaging') {
       if (formData.quantity < 0) {
         newErrors.quantity = 'Quantity cannot be negative';
@@ -3745,7 +3772,7 @@ const NewInventoryItemForm: React.FC = () => {
       const isServiceItem = formData.itemType === 'service';
       const isImagingItem = formData.itemType === 'imaging';
       const isServiceLike = isServiceItem || isImagingItem;
-      const isLabService = isServiceItem && LAB_SERVICE_CATEGORIES.includes(formData.category);
+      const isLabService = isServiceItem && isLabCategory(formData.category);
       const usesVirtualStock = isServiceLike && !isLabService;
       
       // Map frontend form fields to backend field names
@@ -3786,7 +3813,8 @@ const NewInventoryItemForm: React.FC = () => {
         ...((formData.itemType === 'lab' || isLabService) && {
           storageTemperature: formData.storageTemperature,
           specimenType: formData.specimenType,
-          testType: formData.testType
+          testType: formData.testType,
+          labSubcategory: formData.itemType === 'lab' ? formData.category : (isLabService ? formData.category : undefined)
         }),
         notes: formData.notes,
         manufacturer: formData.manufacturer,
@@ -3904,8 +3932,36 @@ const NewInventoryItemForm: React.FC = () => {
     }
   };
 
+const getLabCategorySlugs = () => [...new Set([...LAB_SERVICE_CATEGORIES, ...customLabCategories])];
+const isLabCategory = (category: string) => getLabCategorySlugs().includes(category);
+const getCategoryDisplayName = (category: string) => labCategoryLabelMap[category] || formatServiceCategoryName(category);
+
+const handleAddCategory = async () => {
+  if (!newCategoryName.trim()) return;
+  setAddingCategory(true);
+  try {
+    const created = await labTestService.createLabCategory(newCategoryName.trim());
+    setSnackbar({ open: true, message: `Category "${created.label}" added`, severity: 'success' });
+    setAddCategoryDialogOpen(false);
+    setNewCategoryName('');
+    await loadLabCategories();
+    if (formData.itemType === 'lab') {
+      setFormData(prev => ({ ...prev, category: created.slug }));
+    }
+  } catch (createError: any) {
+    const message = createError?.response?.data?.message || 'Failed to add category';
+    setSnackbar({ open: true, message, severity: 'error' });
+  } finally {
+    setAddingCategory(false);
+  }
+};
+
 // Filter categories by itemType
-const filteredCategories = ITEM_TYPE_CATEGORIES[formData.itemType] || CATEGORIES;
+const filteredCategories = formData.itemType === 'lab'
+  ? [...getLabCategorySlugs(), 'other']
+  : formData.itemType === 'service'
+    ? ['consultation', 'procedure', ...getLabCategorySlugs(), 'imaging', 'injection', 'ultrasound', 'blood_test', 'rbs', 'other']
+    : ITEM_TYPE_CATEGORIES[formData.itemType] || CATEGORIES;
 
 // Get appropriate options based on item type
 const getItemNameOptions = () => {
@@ -3939,7 +3995,7 @@ const filteredMeds = getItemNameOptions();
 const isServiceItem = formData.itemType === 'service';
 const isImagingItem = formData.itemType === 'imaging';
 const isServiceLike = isServiceItem || isImagingItem;
-const isLabServiceCategory = isServiceItem && LAB_SERVICE_CATEGORIES.includes(formData.category);
+const isLabServiceCategory = isServiceItem && isLabCategory(formData.category);
 const showStockSection = formData.itemType !== 'service' || isLabServiceCategory || isImagingItem;
 
   // When category changes under Medication, apply category-level defaults if no specific preset is active
@@ -4119,23 +4175,34 @@ const showStockSection = formData.itemType !== 'service' || isLabServiceCategory
                         />
                       </Grid>
                       <Grid size={{ xs: 12, md: 5 }} sx={{ minWidth: 350, maxWidth: 500 }}> {/* Category Autocomplete */}
-                        <Autocomplete
-                          freeSolo
-                          options={filteredCategories}
-                          value={formData.category}
-                          onChange={(_, newValue) => setFormData({ ...formData, category: newValue || '' })}
-                          sx={{ minWidth: 350, maxWidth: 500 }}
-                          getOptionLabel={(option) => {
-                            // For service categories, use formatted names for display
-                            if (formData.itemType === 'service' || formData.itemType === 'imaging') {
-                              return formatServiceCategoryName(option);
-                            }
-                            return option;
-                          }}
-                          renderInput={(params) => (
-                            <TextField {...params} label="Category" required fullWidth />
+                        <Box display="flex" gap={1.2} alignItems="center">
+                          <Autocomplete
+                            freeSolo
+                            options={filteredCategories}
+                            value={formData.category}
+                            onChange={(_, newValue) => setFormData({ ...formData, category: newValue || '' })}
+                            sx={{ minWidth: 320, flex: 1 }}
+                            getOptionLabel={(option) => {
+                              if (formData.itemType === 'service' || formData.itemType === 'imaging' || formData.itemType === 'lab') {
+                                return getCategoryDisplayName(option);
+                              }
+                              return option;
+                            }}
+                            renderInput={(params) => (
+                              <TextField {...params} label="Category" required fullWidth />
+                            )}
+                          />
+                          {formData.itemType === 'lab' && (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => setAddCategoryDialogOpen(true)}
+                              sx={{ height: 40, whiteSpace: 'nowrap' }}
+                            >
+                              Add Category
+                            </Button>
                           )}
-                        />
+                        </Box>
                       </Grid>
 
                       {/* Basic Information Row 2: Description */}
@@ -4352,7 +4419,7 @@ const showStockSection = formData.itemType !== 'service' || isLabServiceCategory
                       </Grid>
                   </Paper>
                 )}
-                {(formData.itemType === 'lab' || (formData.itemType === 'service' && ['chemistry', 'hematology', 'parasitology', 'mycology', 'immunology', 'urinalysis', 'endocrinology', 'cardiology', 'tumor-markers'].includes(formData.category))) && (
+                {(formData.itemType === 'lab' || (formData.itemType === 'service' && isLabCategory(formData.category))) && (
                   <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', borderLeft: '4px solid #8b5cf6' }}>
                     <Box display="flex" alignItems="center" mb={2.5}>
                       <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 1.5 }}>
@@ -4385,7 +4452,7 @@ const showStockSection = formData.itemType !== 'service' || isLabServiceCategory
                         <BusinessIcon sx={{ color: '#06b6d4', fontSize: 20 }} />
                       </Box>
                       <Typography variant="subtitle1" fontWeight={700}>
-                        {formatServiceCategoryName(formData.category)} Service Details
+                        {getCategoryDisplayName(formData.category)} Service Details
                       </Typography>
                     </Box>
                       <Grid container spacing={2}>
@@ -4606,6 +4673,27 @@ const showStockSection = formData.itemType !== 'service' || isLabServiceCategory
                 </Paper>
               </Box>
             </Box>
+
+        <Dialog open={addCategoryDialogOpen} onClose={() => setAddCategoryDialogOpen(false)} maxWidth="xs" fullWidth>
+          <DialogTitle>Add Lab Category</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              fullWidth
+              margin="dense"
+              label="Category Name"
+              placeholder="e.g. Toxicology"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAddCategoryDialogOpen(false)} disabled={addingCategory}>Cancel</Button>
+            <Button onClick={handleAddCategory} variant="contained" disabled={addingCategory || !newCategoryName.trim()}>
+              {addingCategory ? 'Adding...' : 'Add'}
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {/* Snackbar for feedback */}
         <Snackbar

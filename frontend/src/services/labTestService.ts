@@ -36,6 +36,11 @@ export interface LabTestAvailableResponse {
   message: string;
 }
 
+export interface LabCategoryOption {
+  slug: string;
+  label: string;
+}
+
 class LabTestService {
   /**
    * Get all available lab tests organized by category
@@ -69,9 +74,29 @@ class LabTestService {
   async getLabTestCategories(): Promise<string[]> {
     try {
       const response = await api.get('/api/lab-tests/categories');
-      return response.data;
+      return response.data?.categories || [];
     } catch (error) {
       console.error('Error fetching lab test categories:', error);
+      throw error;
+    }
+  }
+
+  async getLabCategoryOptions(): Promise<LabCategoryOption[]> {
+    try {
+      const response = await api.get('/api/lab-tests/category-options');
+      return response.data?.categories || [];
+    } catch (error) {
+      console.error('Error fetching lab category options:', error);
+      throw error;
+    }
+  }
+
+  async createLabCategory(name: string): Promise<LabCategoryOption> {
+    try {
+      const response = await api.post('/api/lab-tests/category-options', { name });
+      return response.data?.category;
+    } catch (error) {
+      console.error('Error creating lab category option:', error);
       throw error;
     }
   }

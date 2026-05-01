@@ -131,6 +131,11 @@ const InventoryItemSchema = new Schema({
   testType: {
     type: String
   },
+  // Optional subcategory for laboratory items (e.g. mycology, chemistry)
+  labSubcategory: {
+    type: String,
+    index: true
+  },
   processTime: {
     type: String
   },

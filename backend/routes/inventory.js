@@ -6,6 +6,8 @@ const InventoryTransaction = require('../models/InventoryTransaction');
 const { body, query, validationResult } = require('express-validator');
 const mongoose = require('mongoose');
 const inventoryService = require('../services/inventoryService');
+const LAB_SUBCATEGORIES = ['chemistry', 'hematology', 'parasitology', 'mycology', 'immunology', 'urinalysis', 'endocrinology', 'cardiology', 'tumor-markers'];
+const normalizeCategorySlug = (value = '') => value.toString().trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
 // Stock movements (GET all, POST new)
 router.get('/movements', auth, async (req, res) => {
@@ -329,11 +331,18 @@ router.post('/', [auth,
     }
     
     // Add lab-specific fields if it's a lab item
-    if (req.body.itemType === 'lab' || req.body.category === 'laboratory') {
+    if (req.body.itemType === 'lab' || req.body.category === 'laboratory' || LAB_SUBCATEGORIES.includes((req.body.category || '').toLowerCase())) {
       itemData.storageTemperature = req.body.storageTemperature || '';
       itemData.specimenType = req.body.specimenType || '';
       itemData.testType = req.body.testType || '';
       itemData.processTime = req.body.processTime || '';
+      const explicitSubcategory = normalizeCategorySlug(req.body.labSubcategory || '');
+      const categoryAsSubcategory = normalizeCategorySlug(req.body.category || '');
+      if (explicitSubcategory) {
+        itemData.labSubcategory = explicitSubcategory;
+      } else if (categoryAsSubcategory && categoryAsSubcategory !== 'laboratory') {
+        itemData.labSubcategory = categoryAsSubcategory;
+      }
     }
     
     // Add supplier information
@@ -496,7 +505,7 @@ router.post('/', [auth,
 router.put('/:id', [auth,
   // checkRole(['admin']), // Temporarily disabled for testing
   body('name').notEmpty().withMessage('Item name is required'),
-  body('category').isIn(['medication', 'supplies', 'equipment', 'laboratory', 'imaging', 'office', 'service', 'other', 'chemistry', 'hematology', 'parasitology', 'mycology', 'immunology', 'urinalysis', 'endocrinology', 'cardiology', 'tumor-markers']).withMessage('Invalid category'),
+  body('category').isIn(['medication', 'supplies', 'equipment', 'laboratory', 'imaging', 'office', 'service', 'other', ...LAB_SUBCATEGORIES]).withMessage('Invalid category'),
   body('unit').notEmpty().withMessage('Unit is required'),
   body('costPrice').isFloat({ min: 0 }).withMessage('Cost price must be a positive number')
 ], async (req, res) => {
@@ -516,9 +525,8 @@ router.put('/:id', [auth,
     
     // Map category: lab subcategories (parasitology, chemistry, etc.) must be stored as 'laboratory'
     // so lab pricing and billing always find the item by category.
-    const labSubcategories = ['chemistry', 'hematology', 'parasitology', 'mycology', 'immunology', 'urinalysis', 'endocrinology', 'cardiology', 'tumor-markers'];
     let categoryToSave = req.body.category;
-    if (labSubcategories.includes((req.body.category || '').toLowerCase())) {
+    if (LAB_SUBCATEGORIES.includes((req.body.category || '').toLowerCase())) {
       categoryToSave = 'laboratory';
     }
     
@@ -547,6 +555,15 @@ router.put('/:id', [auth,
     if (req.body.specimenType !== undefined) item.specimenType = req.body.specimenType;
     if (req.body.testType !== undefined) item.testType = req.body.testType;
     if (req.body.processTime !== undefined) item.processTime = req.body.processTime;
+    if (req.body.labSubcategory !== undefined) {
+      const normalizedSubcategory = normalizeCategorySlug(req.body.labSubcategory || '');
+      item.labSubcategory = normalizedSubcategory || undefined;
+    } else {
+      const categoryAsSubcategory = normalizeCategorySlug(req.body.category || '');
+      if (categoryAsSubcategory && categoryAsSubcategory !== 'laboratory' && categoryAsSubcategory !== 'service') {
+        item.labSubcategory = categoryAsSubcategory;
+      }
+    }
     
     // Add general fields
     if (req.body.supplier !== undefined) item.supplier = req.body.supplier;

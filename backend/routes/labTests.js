@@ -3,6 +3,50 @@ const router = express.Router();
 const { auth } = require('../middleware/auth');
 const InventoryItem = require('../models/InventoryItem');
 const labTestInventoryMap = require('../config/labTestInventoryMap');
+const SystemSetting = require('../models/SystemSetting');
+
+const DEFAULT_LAB_CATEGORIES = [
+  { slug: 'chemistry', label: 'Chemistry' },
+  { slug: 'hematology', label: 'Hematology' },
+  { slug: 'parasitology', label: 'Parasitology' },
+  { slug: 'mycology', label: 'Mycology' },
+  { slug: 'immunology', label: 'Immunology' },
+  { slug: 'urinalysis', label: 'Urinalysis' },
+  { slug: 'endocrinology', label: 'Endocrinology' },
+  { slug: 'cardiology', label: 'Cardiology' },
+  { slug: 'tumor-markers', label: 'Tumor Markers' },
+  { slug: 'other', label: 'Other' }
+];
+
+const toSlug = (value = '') =>
+  value
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const toLabel = (slug = '') =>
+  slug
+    .split('-')
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
+const getLabCategoryOptions = async () => {
+  const customCategories = await SystemSetting.getValue('lab_custom_categories', []);
+  const parsedCustom = Array.isArray(customCategories) ? customCategories : [];
+  const merged = [...DEFAULT_LAB_CATEGORIES];
+
+  parsedCustom.forEach((entry) => {
+    const slug = toSlug(entry?.slug || entry?.name || entry);
+    if (!slug) return;
+    if (merged.some(cat => cat.slug === slug)) return;
+    merged.push({ slug, label: entry?.label || toLabel(slug) });
+  });
+
+  return merged;
+};
 
 /**
  * @route GET /api/lab-tests/available
@@ -17,23 +61,20 @@ router.get('/available', auth, async (req, res) => {
     const labItems = await InventoryItem.find({
       category: 'laboratory',
       isActive: true
-    }).select('name itemCode description category quantity costPrice sellingPrice storageTemperature specimenType testType processTime');
+    }).select('name itemCode description category quantity costPrice sellingPrice storageTemperature specimenType testType processTime labSubcategory');
     
     console.log(`📋 Found ${labItems.length} laboratory items`);
     
     // Create test categories and organize items
-    const categories = {
-      'Chemistry': [],
-      'Hematology': [],
-      'Parasitology': [],
-      'Mycology': [],
-      'Immunology': [],
-      'Urinalysis': [],
-      'Endocrinology': [],
-      'Cardiology': [],
-      'Tumor Markers': [],
-      'Other': []
-    };
+    const categoryOptions = await getLabCategoryOptions();
+    const categoryLabelBySlug = categoryOptions.reduce((acc, category) => {
+      acc[category.slug] = category.label;
+      return acc;
+    }, {});
+    const categories = categoryOptions.reduce((acc, category) => {
+      acc[category.label] = [];
+      return acc;
+    }, {});
     
     // Helper function to categorize tests
     const categorizeTest = (itemName) => {
@@ -116,7 +157,10 @@ router.get('/available', auth, async (req, res) => {
     
     // Organize items by category
     labItems.forEach(item => {
-      const category = categorizeTest(item.name);
+      const category = item.labSubcategory
+        ? (categoryLabelBySlug[item.labSubcategory] || toLabel(item.labSubcategory))
+        : categorizeTest(item.name);
+      if (!categories[category]) categories[category] = [];
       categories[category].push({
         id: item._id,
         name: item.name,
@@ -231,22 +275,11 @@ router.get('/sync', auth, async (req, res) => {
  */
 router.get('/categories', auth, async (req, res) => {
   try {
-    const categories = [
-      'Chemistry',
-      'Hematology', 
-      'Parasitology',
-      'Mycology',
-      'Immunology',
-      'Urinalysis',
-      'Endocrinology',
-      'Cardiology',
-      'Tumor Markers',
-      'Other'
-    ];
+    const categories = await getLabCategoryOptions();
     
     res.json({
       success: true,
-      categories: categories
+      categories: categories.map(category => category.label)
     });
   } catch (error) {
     console.error('❌ Error fetching lab test categories:', error);
@@ -255,6 +288,57 @@ router.get('/categories', auth, async (req, res) => {
       message: 'Error fetching lab test categories',
       error: error.message
     });
+  }
+});
+
+/**
+ * @route GET /api/lab-tests/category-options
+ * @desc Get lab category options with slugs/labels for inventory form
+ * @access Private
+ */
+router.get('/category-options', auth, async (req, res) => {
+  try {
+    const categories = await getLabCategoryOptions();
+    res.json({ success: true, categories });
+  } catch (error) {
+    console.error('❌ Error fetching lab category options:', error);
+    res.status(500).json({ success: false, message: 'Error fetching lab category options', error: error.message });
+  }
+});
+
+/**
+ * @route POST /api/lab-tests/category-options
+ * @desc Create a new lab category option for inventory + doctor flows
+ * @access Private
+ */
+router.post('/category-options', auth, async (req, res) => {
+  try {
+    const rawName = req.body?.name || req.body?.label || '';
+    const slug = toSlug(rawName);
+    if (!slug) {
+      return res.status(400).json({ success: false, message: 'Category name is required' });
+    }
+
+    const categories = await getLabCategoryOptions();
+    if (categories.some(category => category.slug === slug)) {
+      return res.status(409).json({ success: false, message: 'Category already exists' });
+    }
+
+    const customCategories = await SystemSetting.getValue('lab_custom_categories', []);
+    const parsedCustom = Array.isArray(customCategories) ? customCategories : [];
+    parsedCustom.push({ slug, label: toLabel(slug) });
+
+    await SystemSetting.setValue(
+      'lab_custom_categories',
+      parsedCustom,
+      'Custom lab categories for inventory and doctor lab ordering'
+    );
+
+    const updatedCategories = await getLabCategoryOptions();
+    return res.status(201).json({ success: true, categories: updatedCategories, category: { slug, label: toLabel(slug) } });
+  } catch (error) {
+    console.error('❌ Error creating lab category option:', error);
+    res.status(500).json({ success: false, message: 'Error creating lab category option', error: error.message });
   }
 });
 
