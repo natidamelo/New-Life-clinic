@@ -462,11 +462,20 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
 
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
+  const normalizeStatus = (s?: string) => (s || '').toLowerCase().replace(/\s+/g, '');
+  const matchesStatusFilter = (patientStatus?: string, filter?: string | null) => {
+    if (!filter) return true;
+    const p = normalizeStatus(patientStatus);
+    const f = normalizeStatus(filter);
+    // Handle common admitted variants in data
+    if (f === 'admitted') {
+      return p === 'admitted' || p === 'admittedpatient' || p === 'observation';
+    }
+    return p === f;
+  };
+
   // Backend handles search filtering, so we only need to filter by status here
-  const filteredPatients = patients.filter(patient => {
-    const matchesStatus = !statusFilter || (patient.status && patient.status === statusFilter);
-    return matchesStatus;
-  });
+  const filteredPatients = patients.filter((patient) => matchesStatusFilter(patient.status, statusFilter));
 
 
   // Use top bar search when on Completed tab so search works from anywhere; otherwise use this tab's search
@@ -3168,7 +3177,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
               ) : (
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                   {/* Table Header */}
-                  <div className="px-5 py-3 bg-gradient-to-r from-gray-50 to-blue-50/30 border-b border-gray-200 flex items-center justify-between">
+                  <div className="px-5 py-3 bg-gradient-to-r from-gray-50 to-blue-50/30 border-b border-gray-200 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
                         <UserIcon className="w-4 h-4 text-white" />
@@ -3177,6 +3186,34 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                         <h3 className="text-sm font-bold text-gray-800">Active Patients</h3>
                         <p className="text-xs text-gray-400">{filteredPatients.length} patient{filteredPatients.length !== 1 ? 's' : ''} ready for consultation</p>
                       </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      {[
+                        { key: null as string | null, label: 'All' },
+                        { key: 'scheduled', label: 'Scheduled' },
+                        { key: 'waiting', label: 'Waiting' },
+                        { key: 'admitted', label: 'Admitted' },
+                      ].map((f) => {
+                        const active = normalizeStatus(statusFilter || '') === normalizeStatus(f.key || '');
+                        return (
+                          <button
+                            key={f.label}
+                            type="button"
+                            onClick={() => {
+                              setStatusFilter(f.key);
+                              setCurrentPage(1);
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                              active
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                            }`}
+                            aria-pressed={active}
+                          >
+                            {f.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <div className="overflow-x-auto">
