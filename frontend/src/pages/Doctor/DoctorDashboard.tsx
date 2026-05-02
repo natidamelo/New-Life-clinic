@@ -476,6 +476,12 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
 
   // Backend handles search filtering, so we only need to filter by status here
   const filteredPatients = patients.filter((patient) => matchesStatusFilter(patient.status, statusFilter));
+  const quickFilterCounts = {
+    all: patients.length,
+    scheduled: patients.filter((patient) => matchesStatusFilter(patient.status, 'scheduled')).length,
+    waiting: patients.filter((patient) => matchesStatusFilter(patient.status, 'waiting')).length,
+    admitted: patients.filter((patient) => matchesStatusFilter(patient.status, 'admitted')).length,
+  };
 
 
   // Use top bar search when on Completed tab so search works from anywhere; otherwise use this tab's search
@@ -3189,10 +3195,10 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap justify-end">
                       {[
-                        { key: null as string | null, label: 'All' },
-                        { key: 'scheduled', label: 'Scheduled' },
-                        { key: 'waiting', label: 'Waiting' },
-                        { key: 'admitted', label: 'Admitted' },
+                        { key: null as string | null, label: 'All', count: quickFilterCounts.all },
+                        { key: 'scheduled', label: 'Scheduled', count: quickFilterCounts.scheduled },
+                        { key: 'waiting', label: 'Waiting', count: quickFilterCounts.waiting },
+                        { key: 'admitted', label: 'Admitted', count: quickFilterCounts.admitted },
                       ].map((f) => {
                         const active = normalizeStatus(statusFilter || '') === normalizeStatus(f.key || '');
                         return (
@@ -3210,7 +3216,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                             }`}
                             aria-pressed={active}
                           >
-                            {f.label}
+                            {f.label} ({f.count})
                           </button>
                         );
                       })}
