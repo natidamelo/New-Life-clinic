@@ -463,10 +463,20 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
   const normalizeStatus = (s?: string) => (s || '').toLowerCase().replace(/\s+/g, '');
+  const getLatestPatientTimestamp = (patient: any) => {
+    const vitalsTs = patient?.vitals?.timestamp ? new Date(patient.vitals.timestamp).getTime() : 0;
+    const lastUpd = patient?.lastUpdated ? new Date(patient.lastUpdated).getTime() : 0;
+    return Math.max(vitalsTs, lastUpd);
+  };
+  const isNewPatientForDoctor = (patient: any) => {
+    const latestTs = getLatestPatientTimestamp(patient);
+    return latestTs > 0 && (Date.now() - latestTs) < 30 * 60 * 1000 && !viewedPatients.has(patient.id);
+  };
   const matchesStatusFilter = (patientStatus?: string, filter?: string | null) => {
     if (!filter) return true;
     const p = normalizeStatus(patientStatus);
     const f = normalizeStatus(filter);
+    if (f === 'new') return false;
     // Handle common admitted variants in data
     if (f === 'admitted') {
       return p === 'admitted' || p === 'admittedpatient' || p === 'observation';
@@ -475,9 +485,15 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
   };
 
   // Backend handles search filtering, so we only need to filter by status here
-  const filteredPatients = patients.filter((patient) => matchesStatusFilter(patient.status, statusFilter));
+  const filteredPatients = patients.filter((patient) => {
+    if (normalizeStatus(statusFilter || '') === 'new') {
+      return isNewPatientForDoctor(patient);
+    }
+    return matchesStatusFilter(patient.status, statusFilter);
+  });
   const quickFilterCounts = {
     all: patients.length,
+    new: patients.filter((patient) => isNewPatientForDoctor(patient)).length,
     scheduled: patients.filter((patient) => matchesStatusFilter(patient.status, 'scheduled')).length,
     waiting: patients.filter((patient) => matchesStatusFilter(patient.status, 'waiting')).length,
     admitted: patients.filter((patient) => matchesStatusFilter(patient.status, 'admitted')).length,
@@ -3196,6 +3212,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                     <div className="flex items-center gap-1.5 flex-wrap justify-end">
                       {[
                         { key: null as string | null, label: 'All', count: quickFilterCounts.all },
+                        { key: 'new', label: 'New', count: quickFilterCounts.new },
                         { key: 'scheduled', label: 'Scheduled', count: quickFilterCounts.scheduled },
                         { key: 'waiting', label: 'Waiting', count: quickFilterCounts.waiting },
                         { key: 'admitted', label: 'Admitted', count: quickFilterCounts.admitted },
@@ -3281,10 +3298,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                             })
                             .slice((currentPage - 1) * ACTIVE_PATIENTS_PAGE_SIZE, currentPage * ACTIVE_PATIENTS_PAGE_SIZE)
                             .map((patient, idx) => {
-                              const vitalsTs = patient.vitals?.timestamp ? new Date(patient.vitals.timestamp).getTime() : 0;
-                              const lastUpd = patient.lastUpdated ? new Date(patient.lastUpdated).getTime() : 0;
-                              const latestTs = Math.max(vitalsTs, lastUpd);
-                              const isRecentlySent = latestTs > 0 && (Date.now() - latestTs) < 30 * 60 * 1000 && !viewedPatients.has(patient.id);
+                              const isRecentlySent = isNewPatientForDoctor(patient);
 
                               const initials = `${(patient.firstName || 'U')[0]}${(patient.lastName || 'P')[0]}`.toUpperCase();
                               const avatarColors = [
