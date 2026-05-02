@@ -1108,6 +1108,14 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
     }
   };
 
+  // Keep scheduled patients on top so they are visible on page 1.
+  const getPatientStatusPriority = (status?: string): number => {
+    const normalizedStatus = (status || '').toLowerCase();
+    if (normalizedStatus === 'scheduled') return 0;
+    if (normalizedStatus === 'waiting') return 1;
+    return 2;
+  };
+
   // Restoring the full renderVital function definition
   const renderVital = (value: string | undefined, unit: string, normalRange: [number, number], Icon: React.ElementType) => {
     if (!value || value === 'N/A') return <span className="text-muted-foreground text-xs">--</span>;
@@ -3214,6 +3222,12 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                         ) : (
                           [...filteredPatients]
                             .sort((a, b) => {
+                              const statusPriorityDiff =
+                                getPatientStatusPriority(a.status) - getPatientStatusPriority(b.status);
+                              if (statusPriorityDiff !== 0) {
+                                return statusPriorityDiff;
+                              }
+
                               const aVitals = a.vitals?.timestamp ? new Date(a.vitals.timestamp).getTime() : 0;
                               const aLast = a.lastUpdated ? new Date(a.lastUpdated).getTime() : 0;
                               const bVitals = b.vitals?.timestamp ? new Date(b.vitals.timestamp).getTime() : 0;
