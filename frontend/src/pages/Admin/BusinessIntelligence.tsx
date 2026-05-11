@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import biService from '../../services/biService';
 
-type Tab = 'financial' | 'appointments' | 'market' | 'audit';
+type Tab = 'financial' | 'appointments' | 'market' | 'audit' | 'strategy';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'financial', label: 'Financial Intelligence', icon: '💰' },
+  { id: 'strategy', label: 'Financial Strategy', icon: '🎯' },
   { id: 'appointments', label: 'Appointments', icon: '📅' },
   { id: 'market', label: 'Market Analysis', icon: '🗺️' },
   { id: 'audit', label: 'Audit Log', icon: '🛡️' },
@@ -36,51 +37,6 @@ const SimpleBar = ({ data, labelKey, valueKey, color = '#3b82f6' }: { data: any[
   );
 };
 
-const TrendChart = ({ data }: { data: { label: string; revenue: number; expenses: number }[] }) => {
-  if (!data.length) return <div style={{ color: '#9ca3af', textAlign: 'center', padding: 40 }}>No trend data</div>;
-  const maxVal = Math.max(...data.flatMap(d => [d.revenue, d.expenses]), 1);
-  const h = 200, w = 100;
-  return (
-    <div style={{ overflowX: 'auto' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: h + 40, padding: '0 8px' }}>
-        {data.map((d, i) => (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, minWidth: 50 }}>
-            <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: h }}>
-              <div style={{ width: 16, background: '#3b82f6', borderRadius: '4px 4px 0 0', height: `${(d.revenue / maxVal) * h}px`, transition: 'height .5s' }} title={`Rev: ${d.revenue.toLocaleString()}`} />
-              <div style={{ width: 16, background: '#ef4444', borderRadius: '4px 4px 0 0', height: `${(d.expenses / maxVal) * h}px`, transition: 'height .5s' }} title={`Exp: ${d.expenses.toLocaleString()}`} />
-            </div>
-            <div style={{ fontSize: 10, color: '#6b7280', marginTop: 4, whiteSpace: 'nowrap' }}>{d.label}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 8 }}>
-        <span style={{ fontSize: 12, color: '#3b82f6' }}>■ Revenue</span>
-        <span style={{ fontSize: 12, color: '#ef4444' }}>■ Expenses</span>
-      </div>
-    </div>
-  );
-};
-
-const Treemap = ({ data }: { data: { subCity: string; count: number; percentage: number }[] }) => {
-  const colors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#6366f1','#14b8a6','#e11d48'];
-  const total = data.reduce((s, d) => s + d.count, 0);
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, borderRadius: 12, overflow: 'hidden' }}>
-      {data.slice(0, 12).map((d, i) => {
-        const pct = total > 0 ? (d.count / total) * 100 : 0;
-        return (
-          <div key={i} style={{ background: colors[i % colors.length], color: '#fff', borderRadius: 8, padding: '12px 16px', flex: `${Math.max(pct, 8)} 0 0`, minWidth: 80, cursor: 'default' }}
-            title={`${d.subCity}: ${d.count} patients (${d.percentage}%)`}>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>{d.subCity || 'Unknown'}</div>
-            <div style={{ fontSize: 20, fontWeight: 800 }}>{d.count}</div>
-            <div style={{ fontSize: 11, opacity: .8 }}>{d.percentage}%</div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
 const BusinessIntelligence: React.FC = () => {
   const [tab, setTab] = useState<Tab>('financial');
   const [loading, setLoading] = useState(false);
@@ -91,6 +47,10 @@ const BusinessIntelligence: React.FC = () => {
   // Data states
   const [financial, setFinancial] = useState<any>(null);
   const [trend, setTrend] = useState<any[]>([]);
+  const [strategy, setStrategy] = useState<any>(null);
+  const [targetProfit, setTargetProfit] = useState<number>(50000);
+  const [loans, setLoans] = useState<any[]>([]);
+  
   const [daily, setDaily] = useState<any>(null);
   const [noShowData, setNoShowData] = useState<any[]>([]);
   const [heatmap, setHeatmap] = useState<any>(null);
@@ -101,69 +61,68 @@ const BusinessIntelligence: React.FC = () => {
   const [auditPage, setAuditPage] = useState(1);
   const [dailyDate, setDailyDate] = useState(now.toISOString().split('T')[0]);
 
+  // Loan form
+  const [showLoanForm, setShowLoanForm] = useState(false);
+  const [loanForm, setLoanForm] = useState({ name: '', principal: 0, interestRate: 0, monthlyPayment: 0, remainingBalance: 0, startDate: now.toISOString().split('T')[0] });
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       if (tab === 'financial') {
-        const [fin, tr] = await Promise.all([
-          biService.getMonthlyFinancialSummary(year, month),
-          biService.getFinancialTrend(12),
-        ]);
-        setFinancial(fin.data);
-        setTrend(tr.data || []);
+        const [fin, tr] = await Promise.all([biService.getMonthlyFinancialSummary(year, month), biService.getFinancialTrend(12)]);
+        setFinancial(fin.data); setTrend(tr.data || []);
+      } else if (tab === 'strategy') {
+        const [fc, ls] = await Promise.all([biService.getForecast(targetProfit), biService.getLoans()]);
+        setStrategy(fc.data); setLoans(ls.data || []);
       } else if (tab === 'appointments') {
-        const [d, ns] = await Promise.all([
-          biService.getDailyDashboard(dailyDate),
-          biService.getNoShowAnalysis(6),
-        ]);
-        setDaily(d.data);
-        setNoShowData(ns.data || []);
+        const [d, ns] = await Promise.all([biService.getDailyDashboard(dailyDate), biService.getNoShowAnalysis(6)]);
+        setDaily(d.data); setNoShowData(ns.data || []);
       } else if (tab === 'market') {
-        const [h, r, dem] = await Promise.all([
-          biService.getPatientHeatmap(),
-          biService.getReferralAnalytics(6),
-          biService.getPatientDemographics(),
-        ]);
-        setHeatmap(h.data);
-        setReferrals(r.data);
-        setDemographics(dem.data);
+        const [h, r, dem] = await Promise.all([biService.getPatientHeatmap(), biService.getReferralAnalytics(6), biService.getPatientDemographics()]);
+        setHeatmap(h.data); setReferrals(r.data); setDemographics(dem.data);
       } else if (tab === 'audit') {
-        const [logs, summary] = await Promise.all([
-          biService.getAuditLogs({ page: String(auditPage), limit: '20' }),
-          biService.getAuditSummary(30),
-        ]);
-        setAuditLogs(logs.data);
-        setAuditSummary(summary.data);
+        const [logs, summary] = await Promise.all([biService.getAuditLogs({ page: String(auditPage), limit: '20' }), biService.getAuditSummary(30)]);
+        setAuditLogs(logs.data); setAuditSummary(summary.data);
       }
-    } catch (err: any) {
-      console.error('[BI] Load error:', err);
-      toast.error(err.message || 'Failed to load data');
-    } finally {
-      setLoading(false);
-    }
-  }, [tab, year, month, dailyDate, auditPage]);
+    } catch (err: any) { toast.error(err.message || 'Failed to load data'); } finally { setLoading(false); }
+  }, [tab, year, month, dailyDate, auditPage, targetProfit]);
 
   useEffect(() => { load(); }, [load]);
 
+  const handleAddLoan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await biService.createLoan(loanForm);
+      toast.success('Loan added');
+      setShowLoanForm(false);
+      load();
+    } catch (err: any) { toast.error(err.message); }
+  };
+
+  const handleDeleteLoan = async (id: string) => {
+    if (!window.confirm('Delete loan?')) return;
+    try {
+      await biService.deleteLoan(id);
+      toast.success('Loan deleted');
+      load();
+    } catch (err: any) { toast.error(err.message); }
+  };
+
   const fmt = (n: number) => (n || 0).toLocaleString();
   const etb = (n: number) => `${fmt(n)} ETB`;
-
   const sectionStyle: React.CSSProperties = { background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,.08)', marginBottom: 20 };
   const gridStyle = (cols: number): React.CSSProperties => ({ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 });
 
   return (
     <div style={{ padding: 24, maxWidth: 1400, margin: '0 auto' }}>
-      {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: '#111827', margin: 0 }}>📊 Business Intelligence</h1>
-        <p style={{ color: '#6b7280', marginTop: 4 }}>Clinic performance analytics and market insights</p>
       </div>
 
-      {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: '#f3f4f6', borderRadius: 12, padding: 4 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ flex: 1, padding: '10px 16px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14, transition: 'all .2s',
+            style={{ flex: 1, padding: '10px 16px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14,
               background: tab === t.id ? '#fff' : 'transparent', color: tab === t.id ? '#111827' : '#6b7280',
               boxShadow: tab === t.id ? '0 1px 3px rgba(0,0,0,.1)' : 'none' }}>
             {t.icon} {t.label}
@@ -174,7 +133,7 @@ const BusinessIntelligence: React.FC = () => {
       {loading && <div style={{ textAlign: 'center', padding: 60, color: '#6b7280' }}>⏳ Loading data...</div>}
 
       {/* ═══ FINANCIAL TAB ═══ */}
-      {!loading && tab === 'financial' && (
+      {!loading && tab === 'financial' && financial && (
         <div>
           <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center' }}>
             <select value={month} onChange={e => setMonth(+e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db' }}>
@@ -183,119 +142,180 @@ const BusinessIntelligence: React.FC = () => {
             <select value={year} onChange={e => setYear(+e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db' }}>
               {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
-            <button onClick={load} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>Refresh</button>
+            <button onClick={load} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer' }}>Refresh</button>
           </div>
+          <div style={{ ...gridStyle(4), marginBottom: 20 }}>
+            <KpiCard label="Total Revenue" value={etb(financial.revenue?.total)} color="#10b981" />
+            <KpiCard label="Total Expenses" value={etb(financial.expenses?.total)} color="#ef4444" />
+            <KpiCard label="True Net Cash Flow" value={etb(financial.kpis?.trueNetCashFlow)} color={financial.kpis?.trueNetCashFlow >= 0 ? '#10b981' : '#ef4444'} sub={`After ${etb(financial.loans?.totalMonthlyPayments)} loan payments`} />
+            <KpiCard label="Cost per Visit" value={etb(financial.kpis?.costPerVisit)} color="#8b5cf6" sub={`${financial.visits?.totalVisits} visits`} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
+             <div style={sectionStyle}>
+               <h3 style={{ marginTop: 0, color: '#111827' }}>📊 Revenue by Category</h3>
+               {financial.revenue?.breakdown && Object.keys(financial.revenue.breakdown).length > 0 ? (
+                 <SimpleBar data={Object.entries(financial.revenue.breakdown).map(([k, v]) => ({ category: k, amount: v as number })).sort((a, b) => b.amount - a.amount)} labelKey="category" valueKey="amount" />
+               ) : <p>No revenue data for this month.</p>}
+             </div>
+             <div style={sectionStyle}>
+               <h3 style={{ marginTop: 0, color: '#111827' }}>💳 Revenue Cycle (RCM)</h3>
+               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                 {Object.entries(financial.rcm || {}).map(([k, v]: any) => (
+                   <div key={k} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                     <span style={{ color: '#6b7280' }}>{k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</span>
+                     <span style={{ fontWeight: 700 }}>{fmt(v)}{k === 'collectionRate' ? '%' : ''}</span>
+                   </div>
+                 ))}
+               </div>
+             </div>
+          </div>
+        </div>
+      )}
 
-          {financial && (
-            <>
-              <div style={{ ...gridStyle(4), marginBottom: 20 }}>
-                <KpiCard label="Total Revenue" value={etb(financial.revenue?.total)} color="#10b981" />
-                <KpiCard label="Total Expenses" value={etb(financial.expenses?.total)} color="#ef4444" />
-                <KpiCard label="Net Income" value={etb(financial.kpis?.netIncome)} color={financial.kpis?.netIncome >= 0 ? '#10b981' : '#ef4444'} sub={`${financial.kpis?.profitMargin}% margin`} />
-                <KpiCard label="Cost per Visit" value={etb(financial.kpis?.costPerVisit)} color="#8b5cf6" sub={`${financial.visits?.totalVisits} visits`} />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
-                <div style={sectionStyle}>
-                  <h3 style={{ marginTop: 0, color: '#111827' }}>📈 Revenue vs Expenses Trend (12 months)</h3>
-                  <TrendChart data={trend} />
+      {/* ═══ STRATEGY TAB ═══ */}
+      {!loading && tab === 'strategy' && strategy && (
+        <div>
+          {/* Action Items */}
+          {strategy.actionItems?.length > 0 && (
+            <div style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {strategy.actionItems.map((ai: any, i: number) => (
+                <div key={i} style={{ background: ai.type === 'danger' ? '#fef2f2' : ai.type === 'warning' ? '#fffbeb' : '#eff6ff', 
+                                      borderLeft: `4px solid ${ai.type === 'danger' ? '#ef4444' : ai.type === 'warning' ? '#f59e0b' : '#3b82f6'}`,
+                                      padding: '12px 16px', borderRadius: 8, color: '#1f2937', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 20 }}>{ai.type === 'danger' ? '🚨' : ai.type === 'warning' ? '⚠️' : '💡'}</span>
+                  <span>{ai.text}</span>
                 </div>
-                <div style={sectionStyle}>
-                  <h3 style={{ marginTop: 0, color: '#111827' }}>💳 Revenue Cycle (RCM)</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {[
-                      { label: 'Total Invoices', val: financial.rcm?.totalInvoices, color: '#6b7280' },
-                      { label: 'Paid', val: financial.rcm?.paidInvoices, color: '#10b981' },
-                      { label: 'Pending', val: financial.rcm?.pendingInvoices, color: '#f59e0b' },
-                      { label: 'Overdue', val: financial.rcm?.overdueInvoices, color: '#ef4444' },
-                      { label: 'Collection Rate', val: `${financial.rcm?.collectionRate}%`, color: '#3b82f6' },
-                    ].map((r, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
-                        <span style={{ color: '#6b7280', fontSize: 14 }}>{r.label}</span>
-                        <span style={{ fontWeight: 700, color: r.color }}>{typeof r.val === 'number' ? fmt(r.val) : r.val}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {financial.revenue?.breakdown && Object.keys(financial.revenue.breakdown).length > 0 && (
-                <div style={sectionStyle}>
-                  <h3 style={{ marginTop: 0, color: '#111827' }}>📊 Revenue by Category</h3>
-                  <SimpleBar data={Object.entries(financial.revenue.breakdown).map(([k, v]) => ({ category: k, amount: v as number })).sort((a, b) => b.amount - a.amount)} labelKey="category" valueKey="amount" />
-                </div>
-              )}
-            </>
+              ))}
+            </div>
           )}
+
+          <div style={{ ...gridStyle(3), marginBottom: 20 }}>
+            {/* Gap Analysis */}
+            <div style={sectionStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h3 style={{ margin: 0, color: '#111827' }}>🎯 Target Profit Goal</h3>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type="number" value={targetProfit} onChange={e => setTargetProfit(+e.target.value)} style={{ width: 100, padding: '4px 8px', borderRadius: 4, border: '1px solid #d1d5db' }} />
+                  <button onClick={load} style={{ padding: '4px 8px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 4 }}>Set</button>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#6b7280' }}>Fixed OpEx (Forecast)</span><span style={{ fontWeight: 600 }}>{etb(strategy.gapAnalysis.requiredRevenue - targetProfit - strategy.debtProfile.totalMonthlyPayments)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#6b7280' }}>Loan Payments</span><span style={{ fontWeight: 600 }}>{etb(strategy.debtProfile.totalMonthlyPayments)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#10b981' }}>Desired Profit</span><span style={{ fontWeight: 600, color: '#10b981' }}>{etb(targetProfit)}</span>
+                </div>
+                <div style={{ borderTop: '1px solid #e5e7eb', margin: '8px 0' }}></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16 }}>
+                  <span style={{ fontWeight: 700 }}>Required Revenue</span><span style={{ fontWeight: 800 }}>{etb(strategy.gapAnalysis.requiredRevenue)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444', marginTop: 8 }}>
+                  <span>Revenue Gap</span><span style={{ fontWeight: 700 }}>{etb(strategy.gapAnalysis.revenueGap)}</span>
+                </div>
+                <div style={{ background: '#f3f4f6', padding: 12, borderRadius: 8, marginTop: 8, textAlign: 'center' }}>
+                  <div style={{ fontSize: 13, color: '#6b7280' }}>Additional Visits Needed</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#3b82f6' }}>{strategy.gapAnalysis.additionalVisitsNeeded}</div>
+                  <div style={{ fontSize: 11, color: '#9ca3af' }}>At {etb(strategy.gapAnalysis.avgRevenuePerVisit)} avg per visit</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Breakeven & Forecast */}
+            <div style={sectionStyle}>
+              <h3 style={{ margin: 0, color: '#111827', marginBottom: 16 }}>📈 Next Month Forecast</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#6b7280' }}>Forecast Revenue</span><span style={{ fontWeight: 600 }}>{etb(strategy.forecast.revenue)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#6b7280' }}>Forecast Expenses</span><span style={{ fontWeight: 600 }}>{etb(strategy.forecast.expenses)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#6b7280' }}>Net Cash Flow</span>
+                  <span style={{ fontWeight: 600, color: strategy.forecast.netCashFlow >= 0 ? '#10b981' : '#ef4444' }}>{etb(strategy.forecast.netCashFlow)}</span>
+                </div>
+              </div>
+
+              <h3 style={{ margin: 0, color: '#111827', marginTop: 24, marginBottom: 16 }}>⚖️ Current Month Breakeven</h3>
+              <div style={{ background: '#f3f4f6', borderRadius: 8, height: 24, position: 'relative', overflow: 'hidden' }}>
+                <div style={{ width: `${strategy.breakeven.progress}%`, background: strategy.breakeven.progress >= 100 ? '#10b981' : '#f59e0b', height: '100%', transition: 'width .5s' }}></div>
+                <span style={{ position: 'absolute', width: '100%', textAlign: 'center', top: 4, fontSize: 12, fontWeight: 700, color: strategy.breakeven.progress >= 50 ? '#fff' : '#374151' }}>
+                  {strategy.breakeven.progress}% ({etb(strategy.breakeven.currentRevenue)} / {etb(strategy.breakeven.target)})
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', marginTop: 8 }}>{strategy.breakeven.daysLeft} days left in month</div>
+            </div>
+
+            {/* Debt Profile */}
+            <div style={sectionStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h3 style={{ margin: 0, color: '#111827' }}>🏦 Debt Profile</h3>
+                <button onClick={() => setShowLoanForm(!showLoanForm)} style={{ padding: '4px 8px', background: '#e5e7eb', color: '#374151', border: 'none', borderRadius: 4, fontSize: 12, cursor: 'pointer' }}>
+                  + Add Loan
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span style={{ color: '#6b7280' }}>Total Debt</span><span style={{ fontWeight: 700 }}>{etb(strategy.debtProfile.totalDebt)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                <span style={{ color: '#6b7280' }}>Debt-to-Income</span>
+                <span style={{ fontWeight: 700, color: strategy.debtProfile.debtToIncomeRatio > 30 ? '#ef4444' : '#10b981' }}>{strategy.debtProfile.debtToIncomeRatio}%</span>
+              </div>
+
+              {showLoanForm && (
+                <form onSubmit={handleAddLoan} style={{ background: '#f9fafb', padding: 12, borderRadius: 8, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <input placeholder="Loan Name" required value={loanForm.name} onChange={e => setLoanForm({...loanForm, name: e.target.value})} style={{ padding: 6 }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <input type="number" placeholder="Principal" required value={loanForm.principal || ''} onChange={e => setLoanForm({...loanForm, principal: +e.target.value})} style={{ padding: 6 }} />
+                    <input type="number" placeholder="Remaining" required value={loanForm.remainingBalance || ''} onChange={e => setLoanForm({...loanForm, remainingBalance: +e.target.value})} style={{ padding: 6 }} />
+                    <input type="number" placeholder="Monthly Pay" required value={loanForm.monthlyPayment || ''} onChange={e => setLoanForm({...loanForm, monthlyPayment: +e.target.value})} style={{ padding: 6 }} />
+                    <input type="number" placeholder="Interest %" required value={loanForm.interestRate || ''} onChange={e => setLoanForm({...loanForm, interestRate: +e.target.value})} style={{ padding: 6 }} />
+                  </div>
+                  <button type="submit" style={{ background: '#10b981', color: '#fff', border: 'none', padding: '6px', borderRadius: 4, cursor: 'pointer' }}>Save Loan</button>
+                </form>
+              )}
+
+              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                {loans.map((l: any) => (
+                  <div key={l._id} style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, marginBottom: 8, position: 'relative' }}>
+                    <div style={{ fontWeight: 600 }}>{l.name}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280', display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                      <span>Bal: {fmt(l.remainingBalance)}</span>
+                      <span>Pay: {fmt(l.monthlyPayment)}/mo</span>
+                    </div>
+                    <button onClick={() => handleDeleteLoan(l._id)} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>×</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       {/* ═══ APPOINTMENTS TAB ═══ */}
-      {!loading && tab === 'appointments' && (
+      {!loading && tab === 'appointments' && daily && (
         <div>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
             <input type="date" value={dailyDate} onChange={e => setDailyDate(e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db' }} />
-            <button onClick={load} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>Refresh</button>
+            <button onClick={load} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer' }}>Refresh</button>
           </div>
-
-          {daily && (
-            <>
-              <div style={{ ...gridStyle(5), marginBottom: 20 }}>
-                <KpiCard label="Scheduled" value={fmt(daily.summary?.scheduled)} color="#3b82f6" />
-                <KpiCard label="Completed" value={fmt(daily.summary?.completed)} color="#10b981" />
-                <KpiCard label="Checked In" value={fmt(daily.summary?.checkedIn)} color="#f59e0b" />
-                <KpiCard label="No Shows" value={fmt(daily.summary?.noShow)} color="#ef4444" sub={`${daily.noShowRate}% rate`} />
-                <KpiCard label="Cancelled" value={fmt(daily.summary?.cancelled)} color="#6b7280" />
-              </div>
-
-              {daily.byDoctor?.length > 0 && (
-                <div style={sectionStyle}>
-                  <h3 style={{ marginTop: 0, color: '#111827' }}>👨‍⚕️ By Doctor</h3>
-                  <SimpleBar data={daily.byDoctor} labelKey="name" valueKey="scheduled" color="#8b5cf6" />
-                </div>
-              )}
-
-              {daily.appointments?.length > 0 && (
-                <div style={sectionStyle}>
-                  <h3 style={{ marginTop: 0, color: '#111827' }}>📋 Appointment List</h3>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                      <thead>
-                        <tr style={{ background: '#f9fafb' }}>
-                          {['Patient', 'ID', 'Doctor', 'Time', 'Type', 'Status'].map(h => (
-                            <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#374151', borderBottom: '2px solid #e5e7eb' }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {daily.appointments.map((a: any, i: number) => (
-                          <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                            <td style={{ padding: '8px 12px' }}>{a.patient}</td>
-                            <td style={{ padding: '8px 12px', color: '#6b7280' }}>{a.patientDisplayId || '-'}</td>
-                            <td style={{ padding: '8px 12px' }}>{a.doctor}</td>
-                            <td style={{ padding: '8px 12px' }}>{a.time ? new Date(a.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-                            <td style={{ padding: '8px 12px' }}>{a.type}</td>
-                            <td style={{ padding: '8px 12px' }}>
-                              <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600,
-                                background: a.status === 'Completed' ? '#d1fae5' : a.status === 'No Show' ? '#fee2e2' : a.status === 'Cancelled' ? '#f3f4f6' : '#dbeafe',
-                                color: a.status === 'Completed' ? '#065f46' : a.status === 'No Show' ? '#991b1b' : a.status === 'Cancelled' ? '#6b7280' : '#1e40af' }}>
-                                {a.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {noShowData.length > 0 && (
+          <div style={{ ...gridStyle(5), marginBottom: 20 }}>
+            <KpiCard label="Scheduled" value={fmt(daily.summary?.scheduled)} color="#3b82f6" />
+            <KpiCard label="Completed" value={fmt(daily.summary?.completed)} color="#10b981" />
+            <KpiCard label="Checked In" value={fmt(daily.summary?.checkedIn)} color="#f59e0b" />
+            <KpiCard label="No Shows" value={fmt(daily.summary?.noShow)} color="#ef4444" sub={`${daily.noShowRate}% rate`} />
+            <KpiCard label="Cancelled" value={fmt(daily.summary?.cancelled)} color="#6b7280" />
+          </div>
+          {daily.byDoctor?.length > 0 && (
             <div style={sectionStyle}>
-              <h3 style={{ marginTop: 0, color: '#111827' }}>📉 No-Show Trend (6 months)</h3>
-              <SimpleBar data={noShowData.map(d => ({ label: `${d.year}-${String(d.month).padStart(2,'0')}`, noShows: d.noShows, rate: Math.round(d.noShowRate) }))} labelKey="label" valueKey="noShows" color="#ef4444" />
+              <h3 style={{ marginTop: 0, color: '#111827' }}>👨‍⚕️ By Doctor</h3>
+              <SimpleBar data={daily.byDoctor} labelKey="name" valueKey="scheduled" color="#8b5cf6" />
             </div>
           )}
         </div>
@@ -303,104 +323,48 @@ const BusinessIntelligence: React.FC = () => {
 
       {/* ═══ MARKET TAB ═══ */}
       {!loading && tab === 'market' && (
-        <div>
-          {heatmap && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          {referrals?.referralSources && (
             <div style={sectionStyle}>
-              <h3 style={{ marginTop: 0, color: '#111827' }}>🗺️ Patient Geographic Heatmap <span style={{ fontSize: 14, fontWeight: 400, color: '#6b7280' }}>({heatmap.totalPatients} total patients)</span></h3>
-              <Treemap data={heatmap.areas || []} />
+              <h3 style={{ marginTop: 0 }}>📣 Referral Sources</h3>
+              <SimpleBar data={referrals.referralSources} labelKey="source" valueKey="count" color="#8b5cf6" />
             </div>
           )}
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-            {referrals?.referralSources && (
-              <div style={sectionStyle}>
-                <h3 style={{ marginTop: 0, color: '#111827' }}>📣 Referral Sources</h3>
-                <SimpleBar data={referrals.referralSources} labelKey="source" valueKey="count" color="#8b5cf6" />
-              </div>
-            )}
-            {demographics?.gender && (
-              <div style={sectionStyle}>
-                <h3 style={{ marginTop: 0, color: '#111827' }}>👥 Gender Distribution</h3>
-                <SimpleBar data={demographics.gender} labelKey="gender" valueKey="count" color="#ec4899" />
-              </div>
-            )}
-          </div>
-
-          {demographics?.ageGroups && (
+          {demographics?.gender && (
             <div style={sectionStyle}>
-              <h3 style={{ marginTop: 0, color: '#111827' }}>📊 Age Distribution</h3>
-              <SimpleBar data={demographics.ageGroups} labelKey="range" valueKey="count" color="#06b6d4" />
-            </div>
-          )}
-
-          {referrals?.growthTrend && (
-            <div style={sectionStyle}>
-              <h3 style={{ marginTop: 0, color: '#111827' }}>📈 New Patient Growth Trend</h3>
-              <SimpleBar data={referrals.growthTrend} labelKey="label" valueKey="newPatients" color="#10b981" />
+              <h3 style={{ marginTop: 0 }}>👥 Gender Distribution</h3>
+              <SimpleBar data={demographics.gender} labelKey="gender" valueKey="count" color="#ec4899" />
             </div>
           )}
         </div>
       )}
 
       {/* ═══ AUDIT TAB ═══ */}
-      {!loading && tab === 'audit' && (
+      {!loading && tab === 'audit' && auditSummary && (
         <div>
-          {auditSummary && (
-            <div style={{ ...gridStyle(3), marginBottom: 20 }}>
-              <KpiCard label="Total Entries (30d)" value={fmt(auditSummary.totalEntries)} color="#6366f1" />
-              <div style={sectionStyle}>
-                <h4 style={{ marginTop: 0, fontSize: 14, color: '#6b7280' }}>By Action</h4>
-                {auditSummary.byAction?.map((a: any, i: number) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
-                    <span>{a.action}</span><span style={{ fontWeight: 600 }}>{a.count}</span>
-                  </div>
-                ))}
-              </div>
-              <div style={sectionStyle}>
-                <h4 style={{ marginTop: 0, fontSize: 14, color: '#6b7280' }}>Top Users</h4>
-                {auditSummary.topUsers?.slice(0, 5).map((u: any, i: number) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
-                    <span>{u.userName}</span><span style={{ fontWeight: 600 }}>{u.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
+          <div style={{ ...gridStyle(3), marginBottom: 20 }}>
+            <KpiCard label="Total Entries (30d)" value={fmt(auditSummary.totalEntries)} color="#6366f1" />
+          </div>
           {auditLogs && (
             <div style={sectionStyle}>
-              <h3 style={{ marginTop: 0, color: '#111827' }}>📜 Recent Audit Entries</h3>
-              {auditLogs.logs?.length === 0 && <p style={{ color: '#9ca3af', textAlign: 'center' }}>No audit entries yet. Activity will appear here as users interact with the system.</p>}
-              {auditLogs.logs?.length > 0 && (
-                <>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ background: '#f9fafb' }}>
-                        {['Time', 'User', 'Role', 'Action', 'Resource', 'Description'].map(h => (
-                          <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e5e7eb' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {auditLogs.logs.map((log: any, i: number) => (
-                        <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                          <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>{new Date(log.timestamp).toLocaleString()}</td>
-                          <td style={{ padding: '6px 10px' }}>{log.userName}</td>
-                          <td style={{ padding: '6px 10px' }}>{log.userRole}</td>
-                          <td style={{ padding: '6px 10px' }}><span style={{ padding: '2px 6px', borderRadius: 4, background: '#dbeafe', color: '#1e40af', fontSize: 11, fontWeight: 600 }}>{log.action}</span></td>
-                          <td style={{ padding: '6px 10px' }}>{log.resourceType}</td>
-                          <td style={{ padding: '6px 10px', color: '#6b7280', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis' }}>{log.description}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
-                    <button disabled={auditPage <= 1} onClick={() => setAuditPage(p => p - 1)} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>← Prev</button>
-                    <span style={{ padding: '6px 12px', color: '#6b7280' }}>Page {auditPage} of {auditLogs.totalPages || 1}</span>
-                    <button disabled={auditPage >= (auditLogs.totalPages || 1)} onClick={() => setAuditPage(p => p + 1)} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>Next →</button>
-                  </div>
-                </>
-              )}
+              <h3 style={{ marginTop: 0 }}>📜 Recent Audit Entries</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
+                    <th style={{ padding: 8 }}>Time</th><th style={{ padding: 8 }}>User</th><th style={{ padding: 8 }}>Action</th><th style={{ padding: 8 }}>Resource</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLogs.logs.map((log: any, i: number) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                      <td style={{ padding: 8 }}>{new Date(log.timestamp).toLocaleString()}</td>
+                      <td style={{ padding: 8 }}>{log.userName}</td>
+                      <td style={{ padding: 8 }}><span style={{ padding: '2px 6px', borderRadius: 4, background: '#dbeafe', color: '#1e40af' }}>{log.action}</span></td>
+                      <td style={{ padding: 8 }}>{log.resourceType}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
