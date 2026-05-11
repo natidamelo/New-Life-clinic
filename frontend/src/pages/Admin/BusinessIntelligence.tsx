@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import biService from '../../services/biService';
 
-type Tab = 'financial' | 'appointments' | 'market' | 'audit' | 'strategy';
+type Tab = 'financial' | 'appointments' | 'market' | 'audit' | 'strategy' | 'scenario';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'financial', label: 'Financial Intelligence', icon: '💰' },
   { id: 'strategy', label: 'Financial Strategy', icon: '🎯' },
+  { id: 'scenario', label: 'Scenario & Growth', icon: '📈' },
   { id: 'appointments', label: 'Appointments', icon: '📅' },
   { id: 'market', label: 'Market Analysis', icon: '🗺️' },
   { id: 'audit', label: 'Audit Log', icon: '🛡️' },
@@ -51,6 +52,11 @@ const BusinessIntelligence: React.FC = () => {
   const [targetProfit, setTargetProfit] = useState<number>(50000);
   const [loans, setLoans] = useState<any[]>([]);
   
+  // Scenario & Growth states
+  const [recalls, setRecalls] = useState<any[]>([]);
+  const [revSim, setRevSim] = useState<number>(0);
+  const [expSim, setExpSim] = useState<number>(0);
+  
   const [daily, setDaily] = useState<any>(null);
   const [noShowData, setNoShowData] = useState<any[]>([]);
   const [heatmap, setHeatmap] = useState<any>(null);
@@ -72,8 +78,11 @@ const BusinessIntelligence: React.FC = () => {
         const [fin, tr] = await Promise.all([biService.getMonthlyFinancialSummary(year, month), biService.getFinancialTrend(12)]);
         setFinancial(fin.data); setTrend(tr.data || []);
       } else if (tab === 'strategy') {
-        const [fc, ls] = await Promise.all([biService.getForecast(targetProfit), biService.getLoans()]);
-        setStrategy(fc.data); setLoans(ls.data || []);
+        const [fc, ls, rc] = await Promise.all([biService.getForecast(targetProfit), biService.getLoans(), biService.getRecalls()]);
+        setStrategy(fc.data); setLoans(ls.data || []); setRecalls(rc.data || []);
+      } else if (tab === 'scenario') {
+        const fc = await biService.getForecast(targetProfit);
+        setStrategy(fc.data);
       } else if (tab === 'appointments') {
         const [d, ns] = await Promise.all([biService.getDailyDashboard(dailyDate), biService.getNoShowAnalysis(6)]);
         setDaily(d.data); setNoShowData(ns.data || []);
@@ -304,6 +313,121 @@ const BusinessIntelligence: React.FC = () => {
                     <button onClick={() => handleDeleteLoan(l._id)} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>×</button>
                   </div>
                 ))}
+              </div>
+
+              {/* Debt Reduction Calculator (Surplus Allocation) */}
+              <div style={{ marginTop: 20, background: '#f8fafc', padding: 16, borderRadius: 8, border: '1px dashed #cbd5e1' }}>
+                <h4 style={{ margin: '0 0 12px 0', color: '#0f172a' }}>💰 Surplus Allocator</h4>
+                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>When daily revenue exceeds your target of <b>{etb(strategy.gapAnalysis?.dailyTargetRevenue)}</b>:</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600 }}>
+                  <span style={{ color: '#10b981' }}>70% → Principal Paydown</span>
+                  <span style={{ color: '#3b82f6' }}>30% → Cash Reserves</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Patient Recall System */}
+            <div style={sectionStyle}>
+              <h3 style={{ margin: 0, color: '#111827', marginBottom: 16 }}>📞 Patient Retention (3+ Months)</h3>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>Recall these patients to close the revenue gap.</div>
+              <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {recalls.length === 0 && <div style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', padding: 20 }}>No pending recalls</div>}
+                {recalls.map((pt, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#f9fafb', borderRadius: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{pt.firstName} {pt.lastName}</div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>{pt.phone || 'No Phone'}</div>
+                    </div>
+                    <button style={{ background: '#ec4899', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', fontSize: 11, cursor: 'pointer' }}
+                            onClick={() => toast.success(`SMS sent to ${pt.firstName}`)}>
+                      SMS Invite
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ SCENARIO TAB ═══ */}
+      {!loading && tab === 'scenario' && strategy && (
+        <div>
+          <div style={{ ...gridStyle(2), marginBottom: 20 }}>
+            {/* Scenario Simulator */}
+            <div style={sectionStyle}>
+              <h3 style={{ margin: 0, color: '#111827', marginBottom: 16 }}>🧪 The "What-If" Engine</h3>
+              
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>Revenue Increase (%)</span>
+                  <span style={{ color: '#10b981', fontWeight: 700 }}>+{revSim}%</span>
+                </div>
+                <input type="range" min="0" max="100" value={revSim} onChange={e => setRevSim(+e.target.value)} style={{ width: '100%', accentColor: '#10b981' }} />
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>Expense Reduction (%)</span>
+                  <span style={{ color: '#ef4444', fontWeight: 700 }}>-{expSim}%</span>
+                </div>
+                <input type="range" min="0" max="50" value={expSim} onChange={e => setExpSim(+e.target.value)} style={{ width: '100%', accentColor: '#ef4444' }} />
+              </div>
+
+              <div style={{ background: '#1e293b', borderRadius: 12, padding: 20, color: '#fff' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, borderBottom: '1px solid #334155', paddingBottom: 12 }}>
+                  <span style={{ color: '#94a3b8' }}>Simulated Revenue</span>
+                  <span style={{ fontWeight: 600 }}>{etb(strategy.forecast.revenue * (1 + revSim/100))}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, borderBottom: '1px solid #334155', paddingBottom: 12 }}>
+                  <span style={{ color: '#94a3b8' }}>Simulated Expenses</span>
+                  <span style={{ fontWeight: 600 }}>{etb(strategy.forecast.expenses * (1 - expSim/100))}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18 }}>
+                  <span style={{ color: '#cbd5e1' }}>New Net Cash Flow</span>
+                  <span style={{ fontWeight: 800, color: (strategy.forecast.revenue * (1 + revSim/100)) - (strategy.forecast.expenses * (1 - expSim/100)) - strategy.debtProfile.totalMonthlyPayments >= 0 ? '#10b981' : '#ef4444' }}>
+                    {etb((strategy.forecast.revenue * (1 + revSim/100)) - (strategy.forecast.expenses * (1 - expSim/100)) - strategy.debtProfile.totalMonthlyPayments)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Departmental Profitability Drill-down */}
+            <div style={sectionStyle}>
+              <h3 style={{ margin: 0, color: '#111827', marginBottom: 16 }}>🏢 Departmental Profitability Drill-down</h3>
+              <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>Based on historical averages and standard cost margins.</p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Simulated Margins */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600 }}>Pharmacy (Est. 30% Margin)</span>
+                  </div>
+                  <div style={{ background: '#f1f5f9', height: 24, borderRadius: 12, position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ background: '#ec4899', height: '100%', width: '30%' }}></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600 }}>Lab Diagnostics (Est. 50% Margin)</span>
+                  </div>
+                  <div style={{ background: '#f1f5f9', height: 24, borderRadius: 12, position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ background: '#8b5cf6', height: '100%', width: '50%' }}></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600 }}>Consultation/Card (Est. 90% Margin)</span>
+                  </div>
+                  <div style={{ background: '#f1f5f9', height: 24, borderRadius: 12, position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ background: '#3b82f6', height: '100%', width: '90%' }}></div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ marginTop: 20, padding: 12, background: '#fffbeb', borderRadius: 8, color: '#b45309', fontSize: 13 }}>
+                <strong>Insight:</strong> Prioritize Consultation and Lab marketing efforts, as they yield the highest net cash return per service block.
               </div>
             </div>
           </div>

@@ -164,34 +164,44 @@ router.get('/strategy/forecast', async (req, res) => {
     const now = new Date();
     const targetProfit = parseFloat(req.query.targetProfit) || 0;
 
-    // Get last 3 months data
+    // Get last 6 months data for weighted forecast
     const monthsData = [];
-    for (let i = 3; i >= 1; i--) {
+    const weights = [1, 1, 2, 2, 3, 3]; // oldest to newest
+    for (let i = 6; i >= 1; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const { start, end } = getMonthRange(d.getFullYear(), d.getMonth() + 1);
       const fin = await getMonthFinancials(start, end);
       const visits = await Appointment.countDocuments({ appointmentDateTime: { $gte: start, $lt: end } });
-      monthsData.push({ year: d.getFullYear(), month: d.getMonth() + 1, ...fin, visits });
+      monthsData.push({ year: d.getFullYear(), month: d.getMonth() + 1, ...fin, visits, weight: weights[6 - i] });
     }
 
-    // Simple linear regression on expenses
-    const expValues = monthsData.map(m => m.totalExpenses);
-    const revValues = monthsData.map(m => m.totalRevenue);
-    const n = expValues.length;
-    const avgExp = expValues.reduce((a, b) => a + b, 0) / n;
-    const avgRev = revValues.reduce((a, b) => a + b, 0) / n;
+    // Weighted Averages
+    let totalWeight = 0;
+    let weightedSumExp = 0, weightedSumRev = 0;
+    monthsData.forEach(m => {
+      totalWeight += m.weight;
+      weightedSumExp += m.totalExpenses * m.weight;
+      weightedSumRev += m.totalRevenue * m.weight;
+    });
+    const avgExp = totalWeight > 0 ? weightedSumExp / totalWeight : 0;
+    const avgRev = totalWeight > 0 ? weightedSumRev / totalWeight : 0;
 
-    // Linear trend: y = mx + b
+    // Linear trend (using all 6 months)
+    const n = 6;
     let sumXY_exp = 0, sumX2 = 0, sumXY_rev = 0;
+    const simpleAvgExp = monthsData.reduce((a, b) => a + b.totalExpenses, 0) / n;
+    const simpleAvgRev = monthsData.reduce((a, b) => a + b.totalRevenue, 0) / n;
     for (let i = 0; i < n; i++) {
-      sumXY_exp += i * expValues[i]; sumXY_rev += i * revValues[i]; sumX2 += i * i;
+      sumXY_exp += i * monthsData[i].totalExpenses; 
+      sumXY_rev += i * monthsData[i].totalRevenue; 
+      sumX2 += i * i;
     }
     const avgX = (n - 1) / 2;
-    const slopeExp = sumX2 - n * avgX * avgX !== 0 ? (sumXY_exp - n * avgX * avgExp) / (sumX2 - n * avgX * avgX) : 0;
-    const slopeRev = sumX2 - n * avgX * avgX !== 0 ? (sumXY_rev - n * avgX * avgRev) / (sumX2 - n * avgX * avgX) : 0;
+    const slopeExp = sumX2 - n * avgX * avgX !== 0 ? (sumXY_exp - n * avgX * simpleAvgExp) / (sumX2 - n * avgX * avgX) : 0;
+    const slopeRev = sumX2 - n * avgX * avgX !== 0 ? (sumXY_rev - n * avgX * simpleAvgRev) / (sumX2 - n * avgX * avgX) : 0;
 
-    const forecastExpenses = Math.max(0, Math.round(avgExp + slopeExp * n));
-    const forecastRevenue = Math.max(0, Math.round(avgRev + slopeRev * n));
+    const forecastExpenses = Math.max(0, Math.round(avgExp + slopeExp));
+    const forecastRevenue = Math.max(0, Math.round(avgRev + slopeRev));
 
     // Loans
     const loans = await Loan.find({ status: 'active' });
@@ -273,10 +283,26 @@ router.get('/strategy/forecast', async (req, res) => {
     const avgCardPerVisit = totalHistoricalVisits > 0 ? Math.round(totalCardRev / totalHistoricalVisits) : 0;
     const breakdownStr = `| Avg Patient Spend -> Lab: ${avgLabPerVisit} ETB | Meds: ${avgMedPerVisit} ETB | Card/Consult: ${avgCardPerVisit} ETB`;
 
-    // 1. Expense Management
+    // 1. Operational Efficiency & Expense Management
     if (forecastExpenses > avgExp * 1.05) {
-      actionItems.push({ type: 'warning', text: `🚨 Expenses are trending up by ${Math.round(((forecastExpenses - avgExp) / avgExp) * 100)}%. ACTION: Audit and reduce variable Operating Expenses by at least ${Math.round(forecastExpenses - avgExp).toLocaleString()} ETB next month.` });
+      actionItems.push({ type: 'warning', text: `🚨 Total Expenses are trending up by ${Math.round(((forecastExpenses - avgExp) / avgExp) * 100)}%. ACTION: Audit and reduce variable Operating Expenses by at least ${Math.round(forecastExpenses - avgExp).toLocaleString()} ETB next month.` });
     }
+
+    const avgExpensesByType = {};
+    const recentExpensesByType = monthsData[monthsData.length - 1]?.expensesByType || {};
+    
+    monthsData.forEach(m => {
+      Object.entries(m.expensesByType || {}).forEach(([cat, amt]) => {
+        avgExpensesByType[cat] = (avgExpensesByType[cat] || 0) + (amt / n);
+      });
+    });
+
+    Object.entries(recentExpensesByType).forEach(([cat, amt]) => {
+      const avgAmt = avgExpensesByType[cat] || 0;
+      if (avgAmt > 0 && amt > avgAmt * 1.10) {
+        actionItems.push({ type: 'danger', text: `🚩 OPERATIONAL ALERT: '${cat}' expense spiked by ${Math.round(((amt - avgAmt) / avgAmt) * 100)}% compared to your 6-month average. Immediate review required.` });
+      }
+    });
     
     // 2. Debt Management
     if (debtToIncome > 30) {
@@ -465,6 +491,25 @@ router.get('/audit/summary', async (req, res) => {
     ]);
     res.json({ success: true, data: { totalEntries: totalCount, days, byAction: byAction.map(a => ({ action: a._id, count: a.count })), byResource: byResource.map(r => ({ resource: r._id, count: r.count })), topUsers: byUser.map(u => ({ userId: u._id.userId, userName: u._id.userName, count: u.count })) } });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+// --- Automated Patient Recall System ---
+router.get('/strategy/recalls', async (req, res) => {
+  try {
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+    const recentAppointments = await Appointment.find({ appointmentDateTime: { $gte: threeMonthsAgo } }).distinct('patientId');
+    
+    const recallPatients = await Patient.find({ 
+      _id: { $nin: recentAppointments },
+      isActive: { $ne: false }
+    }).select('firstName lastName phone patientId gender age').limit(50).lean();
+
+    res.json({ success: true, data: recallPatients });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 module.exports = router;

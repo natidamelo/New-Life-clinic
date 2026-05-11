@@ -43,6 +43,7 @@ export const biService = {
   updateLoan: (id: string, data: any) => biPut(`/strategy/loans/${id}`, data),
   deleteLoan: (id: string) => biDelete(`/strategy/loans/${id}`),
   getForecast: (targetProfit = 0) => biGet(`/strategy/forecast?targetProfit=${targetProfit}`),
+  getRecalls: () => biGet('/strategy/recalls'),
 };
 
 export default biService;
