@@ -230,13 +230,46 @@ router.get('/strategy/forecast', async (req, res) => {
     const monthlyIncome = avgRev || forecastRevenue || 1;
     const debtToIncome = Math.round((totalLoanPayments / monthlyIncome) * 100);
 
-    // Action items
+    // Intelligent Advisor (Action Items)
     const actionItems = [];
-    if (forecastExpenses > avgExp * 1.05) actionItems.push({ type: 'warning', text: `Expenses trending up ${Math.round(((forecastExpenses - avgExp) / avgExp) * 100)}%. Consider reducing OpEx by ${Math.round(forecastExpenses - avgExp)} ETB.` });
-    if (debtToIncome > 30) actionItems.push({ type: 'danger', text: `Debt-to-income ratio is ${debtToIncome}% (above 30% threshold). Prioritize loan repayment.` });
-    if (revenueGap > 0) actionItems.push({ type: 'info', text: `Need ${additionalVisitsNeeded} more appointments (${revenueGap.toLocaleString()} ETB) to reach target profit.` });
-    if (forecastRevenue < forecastExpenses + totalLoanPayments) actionItems.push({ type: 'danger', text: `Forecast shows negative cash flow next month. Revenue shortfall: ${(forecastExpenses + totalLoanPayments - forecastRevenue).toLocaleString()} ETB.` });
-    if (breakevenProgress < 50 && now.getDate() > 15) actionItems.push({ type: 'warning', text: `Breakeven progress is only ${breakevenProgress}% with ${30 - now.getDate()} days left this month.` });
+    const projectedNet = forecastRevenue - forecastExpenses - totalLoanPayments;
+    
+    // 1. Expense Management
+    if (forecastExpenses > avgExp * 1.05) {
+      actionItems.push({ type: 'warning', text: `🚨 Expenses are trending up by ${Math.round(((forecastExpenses - avgExp) / avgExp) * 100)}%. ACTION: Audit and reduce variable Operating Expenses by at least ${Math.round(forecastExpenses - avgExp).toLocaleString()} ETB next month.` });
+    }
+    
+    // 2. Debt Management
+    if (debtToIncome > 30) {
+      actionItems.push({ type: 'danger', text: `⚠️ Debt-to-income ratio is dangerous (${debtToIncome}%). ACTION: Do not take new loans. Allocate surplus cash flow to early principal paydowns.` });
+    }
+    
+    // 3. Profitability & Revenue Growth
+    if (revenueGap > 0) {
+      actionItems.push({ 
+        type: 'info', 
+        text: `💡 PROFIT STRATEGY: You need ${additionalVisitsNeeded} more visits. ACTION: Launch a targeted marketing campaign or health checkup package to bring in ${dailyTargetVisits} extra patients per day.` 
+      });
+    } else {
+      actionItems.push({ 
+        type: 'success', 
+        text: `✅ PROFIT STRATEGY: You are on track to hit your profit goal! ACTION: Focus on patient retention and maintaining current service quality.` 
+      });
+    }
+    
+    // 4. Cash Flow Alert
+    if (projectedNet < 0) {
+      actionItems.push({ 
+        type: 'danger', 
+        text: `🔥 CRITICAL: Forecast shows a ${Math.abs(projectedNet).toLocaleString()} ETB cash flow deficit next month. ACTION: Immediately recall past patients for follow-ups and delay any non-essential purchases.` 
+      });
+    } else if (projectedNet < targetProfit) {
+      const targetAvgRev = Math.round((forecastExpenses + totalLoanPayments + targetProfit) / (monthsData.reduce((s, m) => s + m.visits, 0) / n || 1));
+      actionItems.push({
+        type: 'warning',
+        text: `📈 GROWTH: Forecasted cash flow is below your target. ACTION: Try to increase your average revenue per visit from ${Math.round(avgRevenuePerVisit)} ETB to ${targetAvgRev} ETB by cross-selling lab tests or premium services.`
+      });
+    }
 
     res.json({
       success: true,
