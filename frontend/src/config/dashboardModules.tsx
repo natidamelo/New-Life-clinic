@@ -128,6 +128,16 @@ export const adminDashboardModules: DashboardModule[] = [
     color: 'pink', // Example color
     requiredRoles: ['admin'], // Only admin can manage staff
   },
+  // Business Intelligence Module
+  {
+    id: 'business-intelligence',
+    title: 'BI Analytics',
+    description: 'Financial intelligence, market heatmap & audit logs',
+    icon: <ChartBarIcon className="h-8 w-8" />,
+    path: '/app/business-intelligence',
+    color: 'violet',
+    requiredRoles: ['admin'],
+  },
   // Add other potential modules if needed
 ];
 

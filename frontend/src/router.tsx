@@ -106,6 +106,7 @@ const DepoInjectionManagement = lazy(() => import('./pages/DepoInjectionManageme
 const MedicalCertificates = lazy(() => import('./pages/Doctor/MedicalCertificates'));
 const EMRReferralPaper = lazy(() => import('./components/doctor/EMRReferralPaper'));
 const MedicalTestRequestForm = lazy(() => import('./pages/Doctor/MedicalTestRequestForm'));
+const BusinessIntelligence = lazy(() => import('./pages/Admin/BusinessIntelligence'));
 
 
 const router = createBrowserRouter([
@@ -339,6 +340,10 @@ const router = createBrowserRouter([
       {
         path: 'clinics',
         element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><ClinicManagement /></LazyWrapper></ProtectedRoute>
+      },
+      {
+        path: 'business-intelligence',
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><BusinessIntelligence /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'staff-attendance-control',

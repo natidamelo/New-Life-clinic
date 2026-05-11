@@ -914,6 +914,9 @@ const createApp = () => {
   // Referral routes
   app.use('/api/referrals', require('./routes/referrals'));
   
+  // Business Intelligence routes (admin only)
+  app.use('/api/bi', auth, require('./routes/businessIntelligence'));
+  
   // Notifications routes
   app.use('/api/notifications', require('./routes/notifications'));
   

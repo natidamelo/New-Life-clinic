@@ -30,7 +30,8 @@ import {
   FileText,
   UserPlus,
   CalendarPlus,
-  Package
+  Package,
+  TrendingUp
 } from 'lucide-react';
 
 import { adminDashboardModules } from '../../config/dashboardModules.tsx';
@@ -317,6 +318,7 @@ const AdminDashboard: React.FC = () => {
               { icon: <Package className="h-6 w-6 text-amber-600" />,    label: 'Stock Check',    to: '/app/inventory',        color: 'hover:bg-amber-50' },
               { icon: <FlaskConical className="h-6 w-6 text-cyan-600" />, label: 'Lab Orders',    to: '/app/lab',              color: 'hover:bg-cyan-50' },
               { icon: <Settings className="h-6 w-6 text-slate-600" />,   label: 'Settings',       to: '/app/settings',         color: 'hover:bg-slate-50' },
+              { icon: <TrendingUp className="h-6 w-6 text-indigo-600" />, label: 'BI Analytics', to: '/app/business-intelligence', color: 'hover:bg-indigo-50' },
             ].map((a) => (
               <QuickAction key={a.label} {...a} />
             ))}
