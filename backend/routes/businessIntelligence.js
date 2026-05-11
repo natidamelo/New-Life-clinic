@@ -249,6 +249,25 @@ router.get('/strategy/forecast', async (req, res) => {
       }
     });
 
+    // Fallback to CURRENT month if there is no historical data yet
+    if (totalHistoricalVisits === 0) {
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const currentFin = await getMonthFinancials(currentMonthStart, currentMonthEnd);
+      const currentVisits = await Appointment.countDocuments({ appointmentDateTime: { $gte: currentMonthStart, $lt: currentMonthEnd } });
+      const fallbackVisits = currentVisits || 1; // avoid division by zero
+      
+      if (currentFin.revenueByType) {
+        Object.entries(currentFin.revenueByType).forEach(([k, v]) => {
+          const lowerK = String(k).toLowerCase();
+          if (lowerK.includes('lab') || lowerK.includes('test')) totalLabRev += v;
+          else if (lowerK.includes('medication') || lowerK.includes('pharmacy') || lowerK.includes('drug') || lowerK.includes('prescription')) totalMedRev += v;
+          else if (lowerK.includes('card') || lowerK.includes('consultation') || lowerK.includes('registration') || lowerK.includes('visit')) totalCardRev += v;
+        });
+      }
+      totalHistoricalVisits = fallbackVisits;
+    }
+
     const avgLabPerVisit = totalHistoricalVisits > 0 ? Math.round(totalLabRev / totalHistoricalVisits) : 0;
     const avgMedPerVisit = totalHistoricalVisits > 0 ? Math.round(totalMedRev / totalHistoricalVisits) : 0;
     const avgCardPerVisit = totalHistoricalVisits > 0 ? Math.round(totalCardRev / totalHistoricalVisits) : 0;
