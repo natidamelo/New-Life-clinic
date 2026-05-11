@@ -190,7 +190,7 @@ const BusinessIntelligence: React.FC = () => {
           )}
 
           <div style={{ ...gridStyle(3), marginBottom: 20 }}>
-            {/* Gap Analysis */}
+            {/* Gap Analysis & Daily Targets */}
             <div style={sectionStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <h3 style={{ margin: 0, color: '#111827' }}>🎯 Target Profit Goal</h3>
@@ -212,15 +212,27 @@ const BusinessIntelligence: React.FC = () => {
                 </div>
                 <div style={{ borderTop: '1px solid #e5e7eb', margin: '8px 0' }}></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16 }}>
-                  <span style={{ fontWeight: 700 }}>Required Revenue</span><span style={{ fontWeight: 800 }}>{etb(strategy.gapAnalysis.requiredRevenue)}</span>
+                  <span style={{ fontWeight: 700 }}>Monthly Required Revenue</span><span style={{ fontWeight: 800 }}>{etb(strategy.gapAnalysis.requiredRevenue)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444', marginTop: 8 }}>
-                  <span>Revenue Gap</span><span style={{ fontWeight: 700 }}>{etb(strategy.gapAnalysis.revenueGap)}</span>
+                  <span>Revenue Gap (Shortfall)</span><span style={{ fontWeight: 700 }}>{etb(strategy.gapAnalysis.revenueGap)}</span>
                 </div>
-                <div style={{ background: '#f3f4f6', padding: 12, borderRadius: 8, marginTop: 8, textAlign: 'center' }}>
-                  <div style={{ fontSize: 13, color: '#6b7280' }}>Additional Visits Needed</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#3b82f6' }}>{strategy.gapAnalysis.additionalVisitsNeeded}</div>
-                  <div style={{ fontSize: 11, color: '#9ca3af' }}>At {etb(strategy.gapAnalysis.avgRevenuePerVisit)} avg per visit</div>
+                
+                {/* Daily Targets Highlights */}
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: 16, borderRadius: 8, marginTop: 12 }}>
+                  <h4 style={{ margin: '0 0 12px 0', color: '#0f172a', textAlign: 'center' }}>📅 Your Daily Targets</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, textAlign: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Daily Revenue</div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: '#0ea5e9', marginTop: 4 }}>{etb(strategy.gapAnalysis.dailyTargetRevenue)}</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>per day</div>
+                    </div>
+                    <div style={{ borderLeft: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: 12, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Daily Visits</div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: '#8b5cf6', marginTop: 4 }}>{strategy.gapAnalysis.dailyTargetVisits}</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>avg {etb(strategy.gapAnalysis.avgRevenuePerVisit)}/visit</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

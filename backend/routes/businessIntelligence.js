@@ -202,10 +202,18 @@ router.get('/strategy/forecast', async (req, res) => {
     const fixedOpEx = forecastExpenses;
     const requiredRevenue = fixedOpEx + totalLoanPayments + targetProfit;
     const revenueGap = Math.max(0, requiredRevenue - forecastRevenue);
-    const avgRevenuePerVisit = avgRev > 0 && monthsData.reduce((s, m) => s + m.visits, 0) > 0
+    
+    // Fallback to 1000 ETB per visit if no historical visits exist to avoid division by zero
+    let avgRevenuePerVisit = avgRev > 0 && monthsData.reduce((s, m) => s + m.visits, 0) > 0
       ? avgRev / (monthsData.reduce((s, m) => s + m.visits, 0) / n)
-      : 0;
-    const additionalVisitsNeeded = avgRevenuePerVisit > 0 ? Math.ceil(revenueGap / avgRevenuePerVisit) : 0;
+      : 1000;
+    
+    const additionalVisitsNeeded = Math.ceil(revenueGap / avgRevenuePerVisit);
+
+    // Daily targets
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const dailyTargetRevenue = Math.round(requiredRevenue / daysInMonth);
+    const dailyTargetVisits = Math.ceil(dailyTargetRevenue / avgRevenuePerVisit);
 
     // Breakeven
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -234,7 +242,7 @@ router.get('/strategy/forecast', async (req, res) => {
       success: true,
       data: {
         forecast: { expenses: forecastExpenses, revenue: forecastRevenue, netCashFlow: forecastRevenue - forecastExpenses - totalLoanPayments },
-        gapAnalysis: { targetProfit, requiredRevenue, forecastRevenue, revenueGap, avgRevenuePerVisit: Math.round(avgRevenuePerVisit), additionalVisitsNeeded },
+        gapAnalysis: { targetProfit, requiredRevenue, forecastRevenue, revenueGap, avgRevenuePerVisit: Math.round(avgRevenuePerVisit), additionalVisitsNeeded, dailyTargetRevenue, dailyTargetVisits },
         breakeven: { target: breakevenTarget, currentRevenue, progress: breakevenProgress, daysLeft: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate() },
         debtProfile: { totalDebt, totalMonthlyPayments: totalLoanPayments, debtToIncomeRatio: debtToIncome, loans: loans.map(l => ({ name: l.name, monthlyPayment: l.monthlyPayment, remaining: l.remainingBalance, rate: l.interestRate })) },
         actionItems,
