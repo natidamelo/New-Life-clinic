@@ -233,7 +233,27 @@ router.get('/strategy/forecast', async (req, res) => {
     // Intelligent Advisor (Action Items)
     const actionItems = [];
     const projectedNet = forecastRevenue - forecastExpenses - totalLoanPayments;
-    
+
+    // Calculate category breakdown per visit
+    let totalLabRev = 0, totalMedRev = 0, totalCardRev = 0;
+    let totalHistoricalVisits = 0;
+    monthsData.forEach(m => {
+      totalHistoricalVisits += m.visits;
+      if (m.revenueByType) {
+        Object.entries(m.revenueByType).forEach(([k, v]) => {
+          const lowerK = String(k).toLowerCase();
+          if (lowerK.includes('lab') || lowerK.includes('test')) totalLabRev += v;
+          else if (lowerK.includes('medication') || lowerK.includes('pharmacy') || lowerK.includes('drug') || lowerK.includes('prescription')) totalMedRev += v;
+          else if (lowerK.includes('card') || lowerK.includes('consultation') || lowerK.includes('registration') || lowerK.includes('visit')) totalCardRev += v;
+        });
+      }
+    });
+
+    const avgLabPerVisit = totalHistoricalVisits > 0 ? Math.round(totalLabRev / totalHistoricalVisits) : 0;
+    const avgMedPerVisit = totalHistoricalVisits > 0 ? Math.round(totalMedRev / totalHistoricalVisits) : 0;
+    const avgCardPerVisit = totalHistoricalVisits > 0 ? Math.round(totalCardRev / totalHistoricalVisits) : 0;
+    const breakdownStr = `| Avg Patient Spend -> Lab: ${avgLabPerVisit} ETB | Meds: ${avgMedPerVisit} ETB | Card/Consult: ${avgCardPerVisit} ETB`;
+
     // 1. Expense Management
     if (forecastExpenses > avgExp * 1.05) {
       actionItems.push({ type: 'warning', text: `🚨 Expenses are trending up by ${Math.round(((forecastExpenses - avgExp) / avgExp) * 100)}%. ACTION: Audit and reduce variable Operating Expenses by at least ${Math.round(forecastExpenses - avgExp).toLocaleString()} ETB next month.` });
@@ -248,12 +268,12 @@ router.get('/strategy/forecast', async (req, res) => {
     if (revenueGap > 0) {
       actionItems.push({ 
         type: 'info', 
-        text: `💡 PROFIT STRATEGY: You need ${additionalVisitsNeeded} more visits. ACTION: Launch a targeted marketing campaign or health checkup package to bring in ${dailyTargetVisits} extra patients per day.` 
+        text: `💡 PROFIT STRATEGY: You need ${additionalVisitsNeeded} more visits. ACTION: Launch a targeted marketing campaign to bring in ${dailyTargetVisits} extra patients per day. ${breakdownStr}` 
       });
     } else {
       actionItems.push({ 
         type: 'success', 
-        text: `✅ PROFIT STRATEGY: You are on track to hit your profit goal! ACTION: Focus on patient retention and maintaining current service quality.` 
+        text: `✅ PROFIT STRATEGY: You are on track to hit your profit goal! ACTION: Focus on patient retention and maintaining current service quality. ${breakdownStr}` 
       });
     }
     
