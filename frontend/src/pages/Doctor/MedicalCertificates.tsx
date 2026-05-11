@@ -876,7 +876,7 @@ const MedicalCertificates: React.FC = () => {
                   width: 100%; /* Fill the page width */
                   max-width: 100%;
                   min-height: 200mm;
-                  height: 100%;
+                  height: auto;
                   margin: 0;
                   border: 3px solid #2c5aa0;
                   padding: 18px;
@@ -963,7 +963,6 @@ const MedicalCertificates: React.FC = () => {
                   padding: 12px;
                   border-radius: 5px;
                   border-left: 4px solid #2c5aa0;
-                  flex-grow: 1;
                 }
                 .certificate-section h3 { 
                   font-size: 1.2rem; 
@@ -1032,8 +1031,9 @@ const MedicalCertificates: React.FC = () => {
                     margin: 0; 
                     padding: 0; 
                     font-size: 13px;
-                    width: 148mm; /* A5 portrait width (Half A4) */
-                    height: 210mm; /* A5 portrait height */
+                    width: auto;
+                    height: auto;
+                    min-height: 100%;
                     color: black !important;
                     -webkit-print-color-adjust: exact;
                     print-color-adjust: exact;
@@ -1047,7 +1047,7 @@ const MedicalCertificates: React.FC = () => {
                     border: 3px solid black !important; 
                     padding: 15px;
                     width: 100%;
-                    min-height: auto;
+                    min-height: 190mm;
                     height: auto;
                     box-sizing: border-box;
                     margin: 0;
@@ -1234,7 +1234,7 @@ const MedicalCertificates: React.FC = () => {
                 ${certificateData.notes ? `
                 <div class="certificate-section">
                   <h3>Additional Notes</h3>
-                  <p>${certificateData.notes}</p>
+                  <div style="white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem; line-height: 1.5;">${certificateData.notes}</div>
                 </div>
                 ` : ''}
               </div>
