@@ -264,16 +264,37 @@ router.get('/strategy/forecast', async (req, res) => {
       actionItems.push({ type: 'danger', text: `⚠️ Debt-to-income ratio is dangerous (${debtToIncome}%). ACTION: Do not take new loans. Allocate surplus cash flow to early principal paydowns.` });
     }
     
+    // Determine tailored strategy based on previous data
+    const maxCategory = Math.max(avgLabPerVisit, avgMedPerVisit, avgCardPerVisit);
+    const minCategory = Math.min(avgLabPerVisit, avgMedPerVisit, avgCardPerVisit);
+    
+    let strategyAdvice = "";
+    if (avgLabPerVisit === 0 && avgMedPerVisit === 0 && avgCardPerVisit === 0) {
+      strategyAdvice = "Launch a targeted marketing campaign to increase patient volume.";
+    } else if (maxCategory === avgLabPerVisit) {
+      strategyAdvice = "Historical data shows LABs are your strongest revenue driver. STRATEGY: Bundle basic lab screening tests with standard consultations to maximize this advantage.";
+    } else if (maxCategory === avgMedPerVisit) {
+      strategyAdvice = "Historical data shows PHARMACY is your strongest revenue driver. STRATEGY: Ensure high-margin medications are well-stocked and prioritize internal prescriptions.";
+    } else {
+      strategyAdvice = "Historical data shows CONSULTATIONS/CARDS are your main driver. STRATEGY: Increase daily appointment slots or slightly raise consultation fees.";
+    }
+    
+    if (minCategory === avgLabPerVisit && avgLabPerVisit > 0) {
+      strategyAdvice += " Additionally, Lab revenue is lagging; encourage doctors to request necessary baseline tests.";
+    } else if (minCategory === avgMedPerVisit && avgMedPerVisit > 0) {
+      strategyAdvice += " Additionally, Medication revenue is low; ensure patients aren't taking prescriptions to external competitor pharmacies.";
+    }
+
     // 3. Profitability & Revenue Growth
     if (revenueGap > 0) {
       actionItems.push({ 
         type: 'info', 
-        text: `💡 PROFIT STRATEGY: You need ${additionalVisitsNeeded} more visits. ACTION: Launch a targeted marketing campaign to bring in ${dailyTargetVisits} extra patients per day. ${breakdownStr}` 
+        text: `💡 PROFIT STRATEGY: You need ${additionalVisitsNeeded} more visits to close the gap. ${strategyAdvice} ${breakdownStr}` 
       });
     } else {
       actionItems.push({ 
         type: 'success', 
-        text: `✅ PROFIT STRATEGY: You are on track to hit your profit goal! ACTION: Focus on patient retention and maintaining current service quality. ${breakdownStr}` 
+        text: `✅ PROFIT STRATEGY: You are on track to hit your profit goal! ${strategyAdvice} ${breakdownStr}` 
       });
     }
     
