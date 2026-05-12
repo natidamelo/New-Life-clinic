@@ -2045,8 +2045,19 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
                 API_BASE_URL,
                 getAuthToken() || undefined
               );
+              
+              if (!extractedData.isClinical) {
+                // Noise detected — show warning, don't open review modal
+                toast.warning(`⚠️ Non-clinical audio detected: ${extractedData.noiseReason || 'No medical data found.'}`, { 
+                  autoClose: 5000,
+                  position: 'top-center'
+                });
+                return;
+              }
+              
               setAmbientExtractedData(extractedData);
               setShowAmbientReview(true);
+              toast.success(`✅ Extracted ${extractedData.chiefComplaint ? extractedData.chiefComplaint.split(',').length : 0} clinical entities`);
             } catch (err) {
               toast.error('Failed to extract clinical data from session.');
             } finally {
