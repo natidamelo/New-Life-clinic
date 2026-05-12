@@ -1085,12 +1085,31 @@ export class AIAssistantService {
       [/runny\s+nose|nasal\s+(?:discharge|congestion)/gi, 'Nasal Congestion'],
       [/urinary|dysuria|painful\s+urination/gi, 'Dysuria'],
       [/palpitation/gi, 'Palpitation'],
-      // Amharic
-      [/ራስ\s*ምታት/g, 'Headache'],
-      [/ማቅለሽለሽ/g, 'Nausea'],
-      [/ሆዴ.*?ያመኛል/g, 'Abdominal Pain'],
-      [/ትኩሳት/g, 'Fever'],
-      [/የምግብ\s*ፍላጎት/g, 'Loss of Appetite'],
+      // Amharic symptoms (expanded)
+      [/ራስ\s*ምታት|ራሴ\s*ያመኛል|ራሴ\s*ይመታኛል/g, 'Headache'],
+      [/ማቅለሽለሽ|ማስቀለሽ/g, 'Nausea'],
+      [/ማስታወክ|አስታውኳል|ታውኳል/g, 'Vomiting'],
+      [/ሆዴ\s*ያመኛል|ሆድ\s*ህመም|የሆድ\s*ቁርጠት/g, 'Abdominal Pain'],
+      [/ሆድ\s*ቁርጠት|ቁርጠት/g, 'Abdominal Cramp'],
+      [/ትኩሳት|ሙቀት\s*አለኝ/g, 'Fever'],
+      [/ተቅማጥ|ተስቃል/g, 'Diarrhea'],
+      [/ሳል|ያስላል/g, 'Cough'],
+      [/የምግብ\s*ፍላጎት|ምግብ\s*አይፈልግም/g, 'Loss of Appetite'],
+      [/ድካም|ደክሞኛል/g, 'Fatigue'],
+      [/ዐይኔ\s*ያመኛል|ዓይን\s*ህመም/g, 'Eye Pain'],
+      [/ጀርባ\s*ያመኛል|የጀርባ\s*ህመም/g, 'Back Pain'],
+      [/ደረት\s*ያመኛል|የደረት\s*ህመም/g, 'Chest Pain'],
+      [/አንገት\s*ያመኛል/g, 'Neck Pain'],
+      [/ማዞር|ይዞረኛል/g, 'Dizziness'],
+      [/እብጠት|አብጦአል/g, 'Swelling'],
+      [/ቆዳ\s*(?:ሽፍታ|ብጉር)/g, 'Rash'],
+      [/ደም\s*(?:ይወጣል|መፍሰስ)/g, 'Bleeding'],
+      [/እርግዝ|ትንፋሽ\s*ያጥረኛል/g, 'Shortness of Breath'],
+      // Transliterated Amharic (what speech recognition may produce in English mode)
+      [/yamenal|yamagnal|hode|rase/gi, 'Pain'],
+      [/tikusat/gi, 'Fever'],
+      [/ras\s*mitat/gi, 'Headache'],
+      [/tekmat/gi, 'Diarrhea'],
     ];
 
     const foundSymptoms: string[] = [];

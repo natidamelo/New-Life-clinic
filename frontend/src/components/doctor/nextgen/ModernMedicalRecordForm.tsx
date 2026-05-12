@@ -795,6 +795,7 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   const [ambientExtractedData, setAmbientExtractedData] = useState<any>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const [currentSpeaker, setCurrentSpeaker] = useState<'Doctor' | 'Patient'>('Doctor');
+  const currentSpeakerRef = useRef<'Doctor' | 'Patient'>('Doctor');
   const diarizedSegmentsRef = useRef<Array<{ speaker: string; text: string }>>([]);
   // Helper function to calculate age from date of birth
   const calculateAgeFromDOB = (dob: string | undefined): number => {
@@ -2004,6 +2005,7 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
         setIsRecording(true);
         setAmbientTranscript('');
         setCurrentSpeaker('Doctor'); // Doctor typically starts
+        currentSpeakerRef.current = 'Doctor';
         diarizedSegmentsRef.current = [];
         toast.info('🎙️ Ambient Session Started — Tap speaker role buttons', { position: 'top-center' });
       };
@@ -2014,8 +2016,8 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
           if (event.results[i].isFinal) {
             const text = event.results[i][0].transcript.trim();
             if (text) {
-              // Tag with active speaker role
-              diarizedSegmentsRef.current.push({ speaker: currentSpeaker, text });
+              // Tag with active speaker role (use ref to avoid stale closure)
+              diarizedSegmentsRef.current.push({ speaker: currentSpeakerRef.current, text });
               finalTranscript += text + ' ';
             }
           } else {
@@ -3467,7 +3469,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                             <Button
                               size="small"
                               variant={currentSpeaker === 'Doctor' ? 'contained' : 'text'}
-                              onClick={() => setCurrentSpeaker('Doctor')}
+                              onClick={() => { setCurrentSpeaker('Doctor'); currentSpeakerRef.current = 'Doctor'; }}
                               sx={{
                                 minWidth: 0, px: 1.5, py: 0.3, fontSize: '0.7rem', fontWeight: 600, borderRadius: 1.5, textTransform: 'none',
                                 ...(currentSpeaker === 'Doctor'
@@ -3480,7 +3482,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                             <Button
                               size="small"
                               variant={currentSpeaker === 'Patient' ? 'contained' : 'text'}
-                              onClick={() => setCurrentSpeaker('Patient')}
+                              onClick={() => { setCurrentSpeaker('Patient'); currentSpeakerRef.current = 'Patient'; }}
                               sx={{
                                 minWidth: 0, px: 1.5, py: 0.3, fontSize: '0.7rem', fontWeight: 600, borderRadius: 1.5, textTransform: 'none',
                                 ...(currentSpeaker === 'Patient'
