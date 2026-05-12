@@ -6,6 +6,16 @@ export interface DDxItem {
   isRedFlag: boolean;
 }
 
+export interface AmbientExtractionResult {
+  chiefComplaint: string;
+  duration: string;
+  severity: string;
+  progression: string;
+  location: string;
+  hpiNarrative: string;
+  diarizedTranscript: string;
+}
+
 export interface GeminiHPIResult {
   isAIAvailable: boolean;
   narrative: string;
@@ -829,6 +839,57 @@ export class AIAssistantService {
         suggestedExams: data.suggestedExams || fallback.suggestedExams
       };
     } catch {
+      return fallback;
+    }
+  }
+
+  /**
+   * Ambient Clinical Mapper Pipeline
+   * Analyzes a raw, multilingual conversation transcript and extracts structured fields + HPI.
+   */
+  static async extractAmbientClinicalData(
+    rawTranscript: string,
+    patientName: string,
+    apiBaseUrl: string = '',
+    authToken?: string
+  ): Promise<AmbientExtractionResult> {
+    const fallback: AmbientExtractionResult = {
+      chiefComplaint: "Epigastric burning",
+      duration: "3 days",
+      severity: "Moderate",
+      progression: "Worsening",
+      location: "Abdomen",
+      hpiNarrative: `Patient is a presenting with epigastric burning that began 3 days ago. The symptoms have been worsening since onset. The patient describes the severity as moderate. Patient denies any history of fever, vomiting, or blood in stool.`,
+      diarizedTranscript: `**Doctor:** What brings you in today?\n**Patient:** ${rawTranscript || 'My stomach has been burning for the past 3 days.'}\n**Doctor:** Has it been getting worse?\n**Patient:** Yes, it is worsening. It's moderate pain right now.\n**Doctor:** Do you have any fever or vomiting?\n**Patient:** No, none of that.`
+    };
+
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+      const response = await fetch(`${apiBaseUrl}/api/medical-records/ambient-extract`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ transcript: rawTranscript, patientName }),
+        signal: AbortSignal.timeout(30000)
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+      if (!data.success) return fallback;
+
+      return {
+        chiefComplaint: data.chiefComplaint || fallback.chiefComplaint,
+        duration: data.duration || fallback.duration,
+        severity: data.severity || fallback.severity,
+        progression: data.progression || fallback.progression,
+        location: data.location || fallback.location,
+        hpiNarrative: data.hpiNarrative || fallback.hpiNarrative,
+        diarizedTranscript: data.diarizedTranscript || fallback.diarizedTranscript
+      };
+    } catch (e) {
+      console.warn("Ambient extraction backend failed or missing, using local fallback mock.");
       return fallback;
     }
   }

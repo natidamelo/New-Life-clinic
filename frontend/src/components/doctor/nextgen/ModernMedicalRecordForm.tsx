@@ -787,7 +787,12 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [useAmharic, setUseAmharic] = useState(true);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaRecorderRef = useRef<any>(null); // Use any for SpeechRecognition
+  
+  // Ambient Clinical Mapper State
+  const [ambientTranscript, setAmbientTranscript] = useState<string>('');
+  const [showAmbientReview, setShowAmbientReview] = useState<boolean>(false);
+  const [ambientExtractedData, setAmbientExtractedData] = useState<any>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   // Helper function to calculate age from date of birth
   const calculateAgeFromDOB = (dob: string | undefined): number => {
@@ -1968,7 +1973,7 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
     []
   );
 
-  // Voice-to-Text Recording using Web Speech API
+  // Ambient Voice-to-Text Recording using Web Speech API
   const handleVoiceRecording = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -1987,45 +1992,28 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
     try {
       const recognition = new SpeechRecognition();
       recognition.lang = useAmharic ? 'am-ET' : 'en-US';
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      recognition.continuous = true;
+      recognition.interimResults = true;
       
       mediaRecorderRef.current = recognition as any;
+      let finalTranscript = '';
 
       recognition.onstart = () => {
         setIsRecording(true);
+        setAmbientTranscript('');
+        toast.info('Ambient Listen Session Started', { position: 'top-center' });
       };
 
       recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        console.log('Voice transcript:', transcript);
-        
-        setIsTranscribing(true);
-        
-        // Populate the transcript and auto-fill
-        setTimeout(() => {
-          setIsTranscribing(false);
-          const isAmharic = useAmharic;
-          
-          const updated = {
-            ...formData,
-            amharicTranscript: isAmharic ? transcript : formData.amharicTranscript,
-            chiefComplaint: {
-              ...formData.chiefComplaint,
-              // Append to the chief complaint if it exists, otherwise set it
-              description: formData.chiefComplaint.description 
-                ? formData.chiefComplaint.description + (formData.chiefComplaint.description.endsWith('.') ? ' ' : '. ') + transcript 
-                : transcript
-            }
-          };
-          setFormData(updated);
-          toast.success('Voice transcribed successfully.');
-          
-          // Use a short delay before triggering AI to ensure state is settled
-          setTimeout(() => {
-            debouncedAutoFillHPI();
-          }, 100);
-        }, 500);
+        let interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript + ' ';
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        setAmbientTranscript(finalTranscript + interimTranscript);
       };
 
       recognition.onerror = (event: any) => {
@@ -2036,8 +2024,38 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
         setIsRecording(false);
       };
 
-      recognition.onend = () => {
+      recognition.onend = async () => {
         setIsRecording(false);
+        
+        // Use the state variable if finalTranscript is empty due to early stop
+        setAmbientTranscript(prev => {
+          const finalContent = finalTranscript || prev;
+          if (!finalContent.trim()) {
+            toast.warning('No voice detected. Ambient session ended.');
+            return '';
+          }
+          
+          setIsTranscribing(true);
+          // Async wrap to allow state update
+          (async () => {
+            try {
+              const extractedData = await AIAssistantService.extractAmbientClinicalData(
+                finalContent, 
+                patientData.name || 'Patient',
+                API_BASE_URL,
+                getAuthToken() || undefined
+              );
+              setAmbientExtractedData(extractedData);
+              setShowAmbientReview(true);
+            } catch (err) {
+              toast.error('Failed to extract clinical data from session.');
+            } finally {
+              setIsTranscribing(false);
+            }
+          })();
+          
+          return finalContent;
+        });
       };
 
       recognition.start();
@@ -3409,6 +3427,16 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                         </Box>
                       )}
                     </Box>
+                    {isRecording && (
+                      <Box sx={{ mb: 1, p: 1.5, bgcolor: 'error.50', border: '1px dashed', borderColor: 'error.main', borderRadius: 1 }}>
+                        <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <span className="animate-pulse">🔴</span> Ambient Listening...
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 0.5, fontStyle: 'italic', color: 'text.secondary', minHeight: 20 }}>
+                          {ambientTranscript || 'Awaiting voice input...'}
+                        </Typography>
+                      </Box>
+                    )}
                     <Box sx={{ position: 'relative' }}>
                       <TextField
                         fullWidth
@@ -6797,6 +6825,103 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
             startIcon={<RefreshIcon />}
           >
             Refresh Analysis
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Ambient Listen Review Modal */}
+      <Dialog 
+        open={showAmbientReview} 
+        onClose={() => setShowAmbientReview(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <Box sx={{ bgcolor: 'primary.main', color: 'white', px: 3, py: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <SparkleIcon />
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Review Ambient Clinical Mapper</Typography>
+        </Box>
+        <DialogContent sx={{ p: 3, bgcolor: '#f8fafd' }}>
+          {ambientExtractedData ? (
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 600, mb: 1.5, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Extracted Fields</Typography>
+                <Card variant="outlined" sx={{ mb: 2 }}>
+                  <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex' }}>
+                    <Typography variant="body2" sx={{ width: 120, color: 'text.secondary', fontWeight: 500 }}>Chief Complaint</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{ambientExtractedData.chiefComplaint}</Typography>
+                  </Box>
+                  <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex' }}>
+                    <Typography variant="body2" sx={{ width: 120, color: 'text.secondary', fontWeight: 500 }}>Duration</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{ambientExtractedData.duration}</Typography>
+                  </Box>
+                  <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex' }}>
+                    <Typography variant="body2" sx={{ width: 120, color: 'text.secondary', fontWeight: 500 }}>Severity</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{ambientExtractedData.severity}</Typography>
+                  </Box>
+                  <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex' }}>
+                    <Typography variant="body2" sx={{ width: 120, color: 'text.secondary', fontWeight: 500 }}>Progression</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{ambientExtractedData.progression}</Typography>
+                  </Box>
+                  <Box sx={{ p: 1.5, display: 'flex' }}>
+                    <Typography variant="body2" sx={{ width: 120, color: 'text.secondary', fontWeight: 500 }}>Location</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{ambientExtractedData.location}</Typography>
+                  </Box>
+                </Card>
+                
+                <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 600, mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Synthesized HPI</Typography>
+                <Card variant="outlined" sx={{ p: 2, bgcolor: 'white' }}>
+                  <Typography variant="body2" sx={{ lineHeight: 1.6 }}>{ambientExtractedData.hpiNarrative}</Typography>
+                </Card>
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 600, mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Diarized Transcript</Typography>
+                <Card variant="outlined" sx={{ p: 2, bgcolor: 'grey.50', height: '100%', maxHeight: 350, overflowY: 'auto' }}>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                    {ambientExtractedData.diarizedTranscript}
+                  </Typography>
+                </Card>
+              </Grid>
+            </Grid>
+          ) : (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+              <CircularProgress />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setShowAmbientReview(false)} variant="outlined">Discard</Button>
+          <Button 
+            onClick={() => {
+              if (ambientExtractedData) {
+                const updated = {
+                  ...formData,
+                  historyOfPresentIllness: ambientExtractedData.hpiNarrative,
+                  chiefComplaint: {
+                    ...formData.chiefComplaint,
+                    description: ambientExtractedData.chiefComplaint,
+                    duration: ambientExtractedData.duration,
+                    severity: ambientExtractedData.severity,
+                    progression: ambientExtractedData.progression,
+                    location: ambientExtractedData.location,
+                  }
+                };
+                setFormData(updated);
+                setIsHpiAiDrafted(true);
+                setHpiHistory(prev => [...prev, ambientExtractedData.hpiNarrative]);
+                setHpiHistoryIndex(prev => prev + 1);
+                toast.success('Clinical data merged successfully!');
+                
+                // Trigger AI synthesis for DDx based on new data
+                setTimeout(() => debouncedAutoFillHPI(), 100);
+              }
+              setShowAmbientReview(false);
+            }} 
+            variant="contained" 
+            color="primary"
+            disabled={!ambientExtractedData}
+          >
+            Confirm & Merge to Record
           </Button>
         </DialogActions>
       </Dialog>
