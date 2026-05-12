@@ -177,9 +177,22 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
               border-top: 1px solid #ddd;
             }
             @media print {
+              @page { margin: 15mm; size: A4; }
+              body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
               button { display: none; }
-              body { margin: 0; padding: 15px; }
               .page-break { page-break-after: always; }
+              .watermark {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) rotate(-45deg);
+                font-size: 80px;
+                color: rgba(200, 200, 200, 0.15);
+                font-weight: bold;
+                z-index: -100;
+                pointer-events: none;
+                white-space: nowrap;
+              }
             }
             .print-btn {
               padding: 10px 20px;
@@ -206,6 +219,7 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
           </style>
         </head>
         <body>
+          <div class="watermark">Confidential Medical Record</div>
           <div class="report-header">
             <div class="report-header-left">
               <img src="${LOGO_PATH}" class="clinic-logo" alt="New Life Medium Clinic Logo" onerror="this.onerror=null; this.src='${LOGO_FALLBACK}';" />
@@ -225,10 +239,10 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
           <div class="patient-info">
             <div class="info-item"><span class="info-label">Patient Name:</span> ${patientResults.patientName || '<span class="missing-data">Not recorded</span>'}</div>
             <div class="info-item"><span class="info-label">Patient ID:</span> ${patientResults.patientId || '<span class="missing-data">Not recorded</span>'}</div>
-            <div class="info-item"><span class="info-label">Gender:</span> ${patientResults.gender || '<span class="missing-data">Not recorded</span>'}</div>
-            <div class="info-item"><span class="info-label">Age:</span> ${patientResults.age || '<span class="missing-data">Not recorded</span>'}</div>
-            <div class="info-item"><span class="info-label">Date of Birth:</span> ${patientResults.dob ? formatDate(patientResults.dob) : '<span class="missing-data">Not recorded</span>'}</div>
-                                  </div>
+            <div class="info-item"><span class="info-label">Age & Gender:</span> ${patientResults.age ? `${patientResults.age} yrs` : 'Unknown'}, ${patientResults.gender || 'Unknown'}</div>
+            <div class="info-item"><span class="info-label">Physician:</span> ${patientResults.physician || 'Dr. Assigned'}</div>
+            <div class="info-item" style="border: 1px solid #cce5ff; background: #e6f2ff; padding: 2px 4px; border-radius: 3px;"><span class="info-label" style="color: #004085;">Report Date:</span> <span style="font-weight:bold; color:#004085;">${new Date().toLocaleDateString()}</span></div>
+          </div>
             
             <div class="results-title">Results</div>
             
@@ -1398,9 +1412,9 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; padding: 10px; background-color: #f9f9f9; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 11px; margin-bottom: 15px;">
           <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Patient Name:</span> ${patientResults.patientName || '<span style="color: #888; font-style: italic;">Not recorded</span>'}</div>
           <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Patient ID:</span> ${patientResults.patientId || '<span style="color: #888; font-style: italic;">Not recorded</span>'}</div>
-          <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Gender:</span> ${patientResults.gender || '<span style="color: #888; font-style: italic;">Not recorded</span>'}</div>
-          <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Age:</span> ${patientResults.age || '<span style="color: #888; font-style: italic;">Not recorded</span>'}</div>
-          <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Date of Birth:</span> ${patientResults.dob ? formatDate(patientResults.dob) : '<span style="color: #888; font-style: italic;">Not recorded</span>'}</div>
+          <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Age & Gender:</span> ${patientResults.age ? `${patientResults.age} yrs` : 'Unknown'}, ${patientResults.gender || 'Unknown'}</div>
+          <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Physician:</span> ${patientResults.physician || 'Dr. Assigned'}</div>
+          <div style="margin-bottom: 4px; border: 1px solid #cce5ff; background: #e6f2ff; padding: 2px 4px; border-radius: 3px;"><span style="font-weight: bold; display: inline-block; min-width: 90px; color: #004085;">Report Date:</span> <span style="font-weight:bold; color:#004085;">${new Date().toLocaleDateString()}</span></div>
         </div>
         
         <div style="font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #ddd; padding-bottom: 3px;">Results</div>
@@ -1687,6 +1701,21 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
     html += `
         </tbody>
       </table>
+      <div style="margin-top: 30px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
+        <div style="margin-bottom: 20px;">
+          <h4 style="font-size: 12px; font-weight: bold; color: #333; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 3px;">Pathologist Comments</h4>
+          <p style="font-size: 11px; color: #666; font-style: italic;">No specific comments provided for these results.</p>
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 40px;">
+          <div style="text-align: center;">
+            <div style="height: 40px; width: 180px; border-bottom: 1px solid #999; margin-bottom: 5px; display: flex; align-items: center; justify-content: center;">
+              <span style="color: #ccc; font-style: italic; font-size: 10px;">Digital Signature</span>
+            </div>
+            <p style="font-size: 11px; font-weight: bold; color: #333; margin: 0;">Verified By: ${patientResults.verifiedBy || patientResults.physician || 'Dr. Assigned'}</p>
+            <p style="font-size: 10px; color: #777; margin: 2px 0 0 0;">Pathologist / Lab Director</p>
+          </div>
+        </div>
+      </div>
     `;
     
     return html;
@@ -1722,18 +1751,21 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
       </div>
 
       {/* Patient Information */}
-      <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/60 shrink-0">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+      <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/60 shrink-0 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl font-bold text-gray-200/40 pointer-events-none uppercase tracking-widest whitespace-nowrap rotate-[-12deg] z-0">
+          Confidential Medical Record
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
           {[
-            { label: 'Patient Name', value: patientResults.patientName, icon: <User size={11} /> },
-            { label: 'Patient ID', value: patientResults.patientId, mono: true, icon: <Hash size={11} /> },
-            { label: 'Gender', value: patientResults.gender, capitalize: true, icon: <User size={11} /> },
-            { label: 'Age', value: patientResults.age ? `${patientResults.age} yrs` : '', icon: <Calendar size={11} /> },
-            { label: 'Date of Birth', value: patientResults.dob ? formatDate(patientResults.dob) : '', icon: <Calendar size={11} /> },
-          ].map(({ label, value, mono, capitalize, icon }) => (
-            <div key={label} className="bg-white rounded-lg px-3 py-2 border border-gray-200">
-              <div className="flex items-center gap-1 mb-0.5 text-gray-400">{icon}<span className="text-[10px] font-semibold uppercase tracking-wide">{label}</span></div>
-              <p className={`text-sm font-semibold text-gray-800 truncate ${mono ? 'font-mono' : ''} ${capitalize ? 'capitalize' : ''}`}>
+            { label: 'Patient Name', value: patientResults.patientName, icon: <User size={14} /> },
+            { label: 'Patient ID', value: patientResults.patientId, mono: true, icon: <Hash size={14} /> },
+            { label: 'Age & Gender', value: `${patientResults.age ? `${patientResults.age} yrs` : 'Unknown'}, ${patientResults.gender || 'Unknown'}`, capitalize: true, icon: <User size={14} /> },
+            { label: 'Physician', value: patientResults.physician || 'Dr. Assigned', icon: <User size={14} /> },
+            { label: 'Report Date', value: formatDate(new Date()), prominent: true, icon: <Calendar size={14} /> },
+          ].map(({ label, value, mono, capitalize, icon, prominent }) => (
+            <div key={label} className={`bg-white rounded-lg px-4 py-3 border ${prominent ? 'border-blue-200 shadow-sm bg-blue-50/30' : 'border-gray-200'}`}>
+              <div className={`flex items-center gap-1.5 mb-1 ${prominent ? 'text-blue-500' : 'text-gray-400'}`}>{icon}<span className="text-xs font-semibold uppercase tracking-wide">{label}</span></div>
+              <p className={`text-sm ${prominent ? 'text-blue-900 font-bold' : 'text-gray-800 font-semibold'} truncate ${mono ? 'font-mono' : ''} ${capitalize ? 'capitalize' : ''}`}>
                 {value || <span className="text-gray-400 italic font-normal text-xs">Not recorded</span>}
               </p>
             </div>
@@ -1849,13 +1881,18 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
                                       {test.category}
                                     </span>
                                   )}
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                    test.status === 'Completed' || test.status === 'completed' ? 
-                                      'bg-emerald-100 text-emerald-700' : 
-                                      'bg-amber-100 text-amber-700'
-                                  }`}>
-                                    {test.status === 'Completed' || test.status === 'completed' ? 'Results Available' : (test.status || 'Processing')}
-                                  </span>
+                                  {test.status === 'Completed' || test.status === 'completed' ? (
+                                    <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                      Results Available
+                                    </span>
+                                  ) : (
+                                    <div className="flex items-center gap-2 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+                                      <div className="w-16 h-1.5 bg-amber-200 rounded-full overflow-hidden">
+                                        <div className="h-full bg-amber-500 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                                      </div>
+                                      <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">{test.status || 'Processing'} (60%)</span>
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                                   <span className="text-xs text-gray-500">
@@ -2016,8 +2053,9 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
                                 if (unit === '-' && defaultUnit !== '-') unit = defaultUnit;
                                 const cleanedRange = unit !== '-' ? cleanNormalRange(normalRangeValue, unit) : normalRangeValue;
                                 const { flag, flagColor } = calculateFlag(resultValue, normalRangeValue);
+                                const isAbnormal = flag === 'H' || flag === 'L' || flag === 'A';
                                 return (
-                                  <tr className="bg-white">
+                                  <tr className={`${isAbnormal ? 'bg-red-50/40' : 'bg-white'}`}>
                                     <td className="px-4 py-2.5 text-sm font-medium text-gray-800">{test.testName}</td>
                                     <td className="px-4 py-2.5 text-center"><span className={`font-semibold text-sm ${flagColor}`}>{resultValue}</span></td>
                                     <td className="px-4 py-2.5 text-sm text-center text-gray-500">{unit || '-'}</td>
@@ -2126,29 +2164,33 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
                                   });
                                 
                                 if (parameters.length > 0) {
-                                  return parameters.map((param, idx) => (
-                                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}>
+                                  return parameters.map((param, idx) => {
+                                    const isAbnormal = param.flag === 'H' || param.flag === 'L' || param.flag === 'A';
+                                    return (
+                                    <tr key={idx} className={`${isAbnormal ? 'bg-red-50/40' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}`}>
                                       <td className="px-4 py-2.5 text-sm font-medium text-gray-800">{param.paramName}</td>
                                       <td className="px-4 py-2.5 text-center"><span className={`font-semibold text-sm ${param.flagColor}`}>{String(param.resultValue)}</span></td>
                                       <td className="px-4 py-2.5 text-sm text-center text-gray-500">{param.unit || '-'}</td>
                                       <td className="px-4 py-2.5 text-sm text-center text-gray-500">{param.normalRange || '-'}</td>
                                       <td className="px-4 py-2.5 text-center"><FlagBadge flag={param.flag} /></td>
                                     </tr>
-                                  ));
+                                  )});
                                 }
                               }
                               
                               // CASE 4: Default fallback
                               const defaultRows = createDefaultResults(test);
-                              return defaultRows.map((row, idx) => (
-                                <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}>
+                              return defaultRows.map((row, idx) => {
+                                const isAbnormal = row.flag === 'H' || row.flag === 'L' || row.flag === 'A';
+                                return (
+                                <tr key={idx} className={`${isAbnormal ? 'bg-red-50/40' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}`}>
                                   <td className="px-4 py-2.5 text-sm font-medium text-gray-800">{row.paramName}</td>
                                   <td className="px-4 py-2.5 text-center"><ResultCell value={row.resultValue} /></td>
                                   <td className="px-4 py-2.5 text-sm text-center text-gray-500">{row.unit || '-'}</td>
                                   <td className="px-4 py-2.5 text-sm text-center text-gray-500">{row.normalRange || '-'}</td>
                                   <td className="px-4 py-2.5 text-center"><FlagBadge flag={row.flag} /></td>
                                 </tr>
-                              ))
+                              )})
                             })()}
                                   </tbody>
                                 </table>
@@ -2171,6 +2213,24 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
                       })}
                     </div>
                   )}
+                  
+                  {/* Pathologist Comments & Footer */}
+                  <div className="mt-8 border-t border-gray-200 pt-6 pb-4">
+                    <div className="mb-6">
+                      <h4 className="text-sm font-bold text-gray-800 mb-2 border-b border-gray-100 pb-1">Pathologist Comments</h4>
+                      <p className="text-sm text-gray-600 italic">No specific comments provided for these results.</p>
+                    </div>
+                    <div className="flex justify-end mt-8">
+                      <div className="text-center">
+                        <div className="h-12 border-b border-gray-300 w-48 mb-2 flex items-center justify-center">
+                          {/* Placeholder for digital signature */}
+                          <span className="text-gray-300 italic text-xs">Digital Signature</span>
+                        </div>
+                        <p className="text-sm font-bold text-gray-800">Verified By: {patientResults.verifiedBy || patientResults.physician || 'Dr. Assigned'}</p>
+                        <p className="text-xs text-gray-500">Pathologist / Lab Director</p>
+                      </div>
+                    </div>
+                  </div>
                 </>
               );
             })()}
