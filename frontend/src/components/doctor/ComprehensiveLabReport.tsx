@@ -1818,422 +1818,272 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
           </div>
         ) : (
           <div className="p-5">
-            {/* Separate urinalysis tests from other tests */}
-            {(() => {
-              const isUrinalysisTest = (test: any) => {
-                const testName = test.testName?.toLowerCase() || '';
-                const category = test.category?.toLowerCase() || '';
-                const isHCG = testName.includes('hcg') || testName.includes('pregnancy') ||
-                              testName.includes('beta') || testName.includes('human chorionic gonadotropin') ||
-                              category === 'hormone/pregnancy' || category === 'hormone' || category === 'pregnancy';
-                // Stool result strings also contain "Colour:" — exclude them explicitly
-                const isStool = testName.includes('stool') || testName.includes('fecal') || testName.includes('faecal');
-                return !isHCG && !isStool && (
-                  category === 'urinalysis' ||
-                  testName.includes('urinalysis') ||
-                  testName.includes('urine analysis') ||
-                  testName.includes('dipstick') ||
-                  testName === 'urinalysis, dipstick only' ||
-                  (test.results && (
-                    (typeof test.results === 'string' &&
-                     (test.results.includes('pH:') || test.results.includes('Protein:') || test.results.includes('Specific Gravity:'))) ||
-                    (typeof test.results === 'object' && test.results.results &&
-                     (test.results.results.includes('pH:') || test.results.results.includes('Protein:') || test.results.results.includes('Specific Gravity:')))
-                  ))
-                );
-              };
+            {/* Unified Table for all tests */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-4 py-3 text-sm font-bold text-gray-700 uppercase tracking-wider w-1/3">Test Name</th>
+                      <th className="px-4 py-3 text-sm font-bold text-gray-700 uppercase tracking-wider">Result</th>
+                      <th className="px-4 py-3 text-sm font-bold text-gray-700 uppercase tracking-wider">Normal Range</th>
+                      <th className="px-4 py-3 text-sm font-bold text-gray-700 uppercase tracking-wider">Units</th>
+                      <th className="px-4 py-3 text-sm font-bold text-gray-700 uppercase tracking-wider">Flag</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {(() => {
+                      // Group tests by category
+                      const groupedTests = filteredTests.reduce((acc, test) => {
+                        const cat = test.category || "General";
+                        if (!acc[cat]) acc[cat] = [];
+                        acc[cat].push(test);
+                        return acc;
+                      }, {});
 
-              const urinalysisTests = filteredTests.filter(isUrinalysisTest);
-              const otherTests = filteredTests.filter(test => !isUrinalysisTest(test));
+                      // Define common unit map
+                      const testUnitMap = {
+                        "Glucose, Fasting": "mg/dL",
+                        "Creatinine": "mg/dL",
+                        "Urea": "mg/dL",
+                        "Sodium": "mmol/L",
+                        "Potassium": "mmol/L",
+                        "Chloride": "mmol/L",
+                        "Calcium": "mg/dL",
+                        "Hemoglobin": "g/dL",
+                        "White Blood Cell Count": "10^3/µL",
+                        "Platelet Count": "10^3/µL",
+                        "Hematocrit": "%",
+                        "Cholesterol, Total": "mg/dL",
+                        "Triglycerides": "mg/dL",
+                        "HDL Cholesterol": "mg/dL",
+                        "LDL Cholesterol": "mg/dL"
+                      };
 
-              return (
-                <>
-                  {/* Consolidated Urinalysis Section */}
-                  {urinalysisTests.length > 0 && createUrinalysisSection(urinalysisTests)}
-                  
-                  {/* Other Tests */}
-                  {otherTests.length > 0 && (
-                    <div className="space-y-4">
-                      {otherTests.map((test) => {
-                        const catConfig = getCategoryConfig(test.category);
-                        const isExpanded = expandedTests.has(test._id);
-                        return (
-                        <div key={test._id} className={`bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden border-l-4 ${catConfig.accent}`}>
-                          {/* Test Header */}
-                          <div
-                            className={`flex items-center px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors ${isExpanded ? 'border-b border-gray-100' : ''}`}
-                            onClick={() => {
-                              const next = new Set(expandedTests);
-                              if (next.has(test._id)) next.delete(test._id);
-                              else next.add(test._id);
-                              setExpandedTests(next);
-                            }}
-                          >
-                            <div className="flex items-center flex-1 gap-3 min-w-0">
-                              <div className="shrink-0">
-                                {getCategoryIcon(test.category)}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <h3 className="text-sm font-semibold text-gray-800">{test.testName}</h3>
-                                  {test.category && (
-                                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${catConfig.badge}`}>
-                                      {test.category}
-                                    </span>
-                                  )}
-                                  {test.status === 'Completed' || test.status === 'completed' ? (
-                                    <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
-                                      Results Available
-                                    </span>
-                                  ) : (
-                                    <div className="flex items-center gap-2 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
-                                      <div className="w-16 h-1.5 bg-amber-200 rounded-full overflow-hidden">
-                                        <div className="h-full bg-amber-500 rounded-full animate-pulse" style={{ width: '60%' }}></div>
-                                      </div>
-                                      <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">{test.status || 'Processing'} (60%)</span>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                  <span className="text-xs text-gray-500">
-                                    Ordered by: <span className="font-medium text-gray-600">{test.orderedBy || 'Unknown'}</span>
-                                  </span>
-                                  <span className="text-gray-300">•</span>
-                                  <span className="text-xs text-gray-500">
-                                    {formatDate(test.resultDate || test.orderDate)}
-                                  </span>
-                                  {/* Collapsed result preview */}
-                                  {!isExpanded && (() => {
-                                    const tn = test.testName?.toLowerCase() || '';
-                                    let rawStr = '';
-                                    if (typeof test.results === 'string') rawStr = test.results;
-                                    else if (typeof test.results === 'object' && test.results !== null)
-                                      rawStr = (test.results as any).results || (test.results as any).value || '';
-                                    // Structured semicolon string (stool, urinalysis-like)
-                                    if (rawStr && rawStr.includes(':') && rawStr.includes(';')) {
-                                      const pairs = rawStr.split(';').slice(0, 3).map(s => {
-                                        const ci = s.indexOf(':');
-                                        if (ci === -1) return null;
-                                        return `${s.slice(0, ci).trim()}: ${s.slice(ci + 1).trim()}`;
-                                      }).filter(Boolean);
-                                      return pairs.length > 0 ? (
-                                        <>
-                                          <span className="text-gray-300">•</span>
-                                          <span className="text-xs text-gray-400 italic truncate max-w-xs">{pairs.join(' · ')}{rawStr.split(';').length > 3 ? ' …' : ''}</span>
-                                        </>
-                                      ) : null;
-                                    }
-                                    // Single value result
-                                    if (rawStr) return (
-                                      <>
-                                        <span className="text-gray-300">•</span>
-                                        <span className="text-xs font-medium text-gray-600">{rawStr}</span>
-                                      </>
-                                    );
-                                    // Object result — show first key/value
-                                    if (test.results && typeof test.results === 'object') {
-                                      const entries = Object.entries(test.results as Record<string, any>)
-                                        .filter(([k]) => !['notes','createdAt','updatedAt','id','_id','normalRange'].includes(k));
-                                      if (entries.length > 0) {
-                                        const [k, v] = entries[0];
-                                        const val = typeof v === 'object' && v !== null && 'value' in v ? v.value : v;
-                                        return (
-                                          <>
-                                            <span className="text-gray-300">•</span>
-                                            <span className="text-xs font-medium text-gray-600">{k}: {String(val)}{entries.length > 1 ? ` +${entries.length - 1} more` : ''}</span>
-                                          </>
-                                        );
-                                      }
-                                    }
-                                    return null;
-                                  })()}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="shrink-0 ml-3 text-gray-400">
-                              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                            </div>
-                          </div>
+                      const calculateFlag = (value, normalRange) => {
+                        const flag = determineFlag(value, normalRange);
+                        let flagColor = "";
+                        if (flag === "H") flagColor = "text-red-600";
+                        else if (flag === "L") flagColor = "text-blue-600";
+                        else if (flag === "N") flagColor = "text-emerald-600";
+                        else flagColor = "text-gray-400";
+                        return { flag, flagColor };
+                      };
 
-                          {/* Test Details - Collapsible */}
-                          {isExpanded && (
-                          <div className="px-4 py-3 bg-white">
-                            {/* Results Table */}
-                            <div className="rounded-lg overflow-hidden border border-gray-200">
-                              <div className="overflow-x-auto">
-                                <table className="min-w-full">
-                                  <thead>
-                                    <tr className="bg-gray-50 border-b border-gray-200">
-                                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Parameter</th>
-                                      <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Result</th>
-                                      <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Unit</th>
-                                      <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Normal Range</th>
-                                      <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Flag</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="bg-white divide-y divide-gray-100">
-                            {(() => {
-                              
-                              // Common unit mapping for specific tests
-                              const testUnitMap: Record<string, string> = {
-                                'Glucose, Fasting': 'mg/dL',
-                                'Creatinine': 'mg/dL',
-                                'Urea': 'mg/dL',
-                                'Sodium': 'mmol/L',
-                                'Potassium': 'mmol/L',
-                                'Chloride': 'mmol/L',
-                                'Calcium': 'mg/dL',
-                                'Hemoglobin': 'g/dL',
-                                'White Blood Cell Count': '10^3/µL',
-                                'Platelet Count': '10^3/µL',
-                                'Hematocrit': '%',
-                                'Cholesterol, Total': 'mg/dL',
-                                'Triglycerides': 'mg/dL',
-                                'HDL Cholesterol': 'mg/dL',
-                                'LDL Cholesterol': 'mg/dL'
-                              };
-                              
-                              // Get default unit for this test if available
-                              const defaultUnit = testUnitMap[test.testName] || '-';
+                      const FlagBadge = ({ flag }) => {
+                        if (flag === "H") return <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-100 text-red-700 text-xs font-bold border border-red-200">H</span>;
+                        if (flag === "L") return <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200">L</span>;
+                        if (flag === "N") return <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold border border-emerald-200">N</span>;
+                        if (flag === "A") return <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200">A</span>;
+                        return <span className="text-gray-400 text-sm">—</span>;
+                      };
 
-                              // Function to calculate flag with proper styling
-                              const calculateFlag = (value: any, normalRange: any) => {
-                                const flag = determineFlag(value, normalRange);
-                                let flagColor = '';
-                                if (flag === 'H') flagColor = 'text-red-600';
-                                else if (flag === 'L') flagColor = 'text-blue-600';
-                                else if (flag === 'N') flagColor = 'text-emerald-600';
-                                else flagColor = 'text-gray-400';
-                                return { flag, flagColor };
-                              };
-                              
-                              // Check if we have any valid results to show
-                              const hasValidResults = test.results && 
-                                (typeof test.results !== 'undefined' && 
-                                 test.results !== null && 
-                                 (typeof test.results === 'object' ? 
-                                  Object.keys(test.results).length > 0 : 
-                                  true));
-                              
-                              // Reusable flag badge
-                              const FlagBadge = ({ flag }: { flag: string }) => {
-                                if (flag === 'H') return <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-100 text-red-700 text-xs font-bold border border-red-200">H</span>;
-                                if (flag === 'L') return <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200">L</span>;
-                                if (flag === 'N') return <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold border border-emerald-200">N</span>;
-                                return <span className="text-gray-400 text-sm">—</span>;
-                              };
+                      const ResultCell = ({ value }) => {
+                        if (value === "See Reception") return <span className="text-blue-600 italic font-medium text-sm">{value}</span>;
+                        if (value === "N/A") return <span className="text-gray-400 italic text-sm">{value}</span>;
+                        if (value === "Pending") return <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">{value}</span>;
+                        return <span className="text-gray-800 font-semibold text-sm">{value}</span>;
+                      };
 
-                              const ResultCell = ({ value }: { value: string }) => {
-                                if (value === "See Reception") return <span className="text-blue-600 italic font-medium text-sm">{value}</span>;
-                                if (value === "N/A") return <span className="text-gray-400 italic text-sm">{value}</span>;
-                                if (value === "Pending") return <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">{value}</span>;
-                                return <span className="text-gray-800 font-semibold text-sm">{value}</span>;
-                              };
+                      // Helper to render rows for a specific test
+                      const renderTestRows = (test, isStoolTest, defaultUnit) => {
+                        const hasValidResults = test.results && (typeof test.results !== "undefined" && test.results !== null && (typeof test.results === "object" ? Object.keys(test.results).length > 0 : true));
+                        
+                        if (!hasValidResults) {
+                          const defaultRows = createDefaultResults(test);
+                          return defaultRows.map((row, idx) => {
+                            const isAbnormal = row.flag === "H" || row.flag === "L" || row.flag === "A";
+                            return (
+                              <tr key={test._id + "-def-" + idx} className={`${isAbnormal ? "bg-red-50/40" : "bg-white"}`}>
+                                <td className="px-4 py-2.5 text-sm font-semibold text-gray-800 text-left">{row.paramName}</td>
+                                <td className="px-4 py-2.5 text-left"><ResultCell value={row.resultValue} /></td>
+                                <td className="px-4 py-2.5 text-sm text-left text-gray-500">{row.normalRange || "-"}</td>
+                                <td className="px-4 py-2.5 text-sm text-left text-gray-500">{row.unit || "-"}</td>
+                                <td className="px-4 py-2.5 text-left"><FlagBadge flag={row.flag} /></td>
+                              </tr>
+                            );
+                          });
+                        }
 
-                              // CASE 0: No results at all or empty results - use default rows
-                              if (!hasValidResults) {
-                                const defaultRows = createDefaultResults(test);
-                                return defaultRows.map((row, idx) => (
-                                  <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}>
-                                    <td className="px-4 py-2.5 text-sm font-medium text-gray-800">{row.paramName}</td>
-                                    <td className="px-4 py-2.5 text-center"><ResultCell value={row.resultValue} /></td>
-                                    <td className="px-4 py-2.5 text-sm text-center text-gray-500">{row.unit || '-'}</td>
-                                    <td className="px-4 py-2.5 text-sm text-center text-gray-500">{row.normalRange || '-'}</td>
-                                    <td className="px-4 py-2.5 text-center"><FlagBadge flag={row.flag} /></td>
-                                  </tr>
-                                ));
-                              }
-                              
-                              // CASE 1: Results is a direct value (string or number)
-                              if (typeof test.results !== 'object' && test.results && (
-                                typeof test.results === 'string' || typeof test.results === 'number')) {
-                                const resultValue = test.results;
-                                const normalRangeValue = test.normalRange || getSuggestedReferenceRange(test.testName);
-                                let unit = normalRangeValue ? extractUnit(normalRangeValue) : defaultUnit;
-                                if (unit === '-' && defaultUnit !== '-') unit = defaultUnit;
-                                const cleanedRange = unit !== '-' ? cleanNormalRange(normalRangeValue, unit) : normalRangeValue;
-                                const { flag, flagColor } = calculateFlag(resultValue, normalRangeValue);
-                                const isAbnormal = flag === 'H' || flag === 'L' || flag === 'A';
+                        // CASE 1: Results is a direct value (string or number)
+                        if (typeof test.results !== "object" && test.results && (typeof test.results === "string" || typeof test.results === "number")) {
+                          const resultValue = test.results;
+                          const normalRangeValue = test.normalRange || getSuggestedReferenceRange(test.testName);
+                          let unit = normalRangeValue ? extractUnit(normalRangeValue) : defaultUnit;
+                          if (unit === "-" && defaultUnit !== "-") unit = defaultUnit;
+                          const cleanedRange = unit !== "-" ? cleanNormalRange(normalRangeValue, unit) : normalRangeValue;
+                          const { flag, flagColor } = calculateFlag(resultValue, normalRangeValue);
+                          const isAbnormal = flag === "H" || flag === "L" || flag === "A";
+                          return (
+                            <tr key={test._id + "-direct"} className={`${isAbnormal ? "bg-red-50/40" : "bg-white"}`}>
+                              <td className="px-4 py-2.5 text-sm font-semibold text-gray-800 text-left">{test.testName}</td>
+                              <td className="px-4 py-2.5 text-left"><span className={`font-bold text-sm ${flagColor}`}>{resultValue}</span></td>
+                              <td className="px-4 py-2.5 text-sm text-left text-gray-500">{cleanedRange || "-"}</td>
+                              <td className="px-4 py-2.5 text-sm text-left text-gray-500">{unit || "-"}</td>
+                              <td className="px-4 py-2.5 text-left"><FlagBadge flag={flag} /></td>
+                            </tr>
+                          );
+                        }
+
+                        // CASE STOOL: Parse semicolon-separated stool result string into rows
+                        if (isStoolTest) {
+                          let rawStr = "";
+                          if (typeof test.results === "string") rawStr = test.results;
+                          else if (typeof test.results === "object" && test.results !== null) {
+                            rawStr = test.results.results || test.results.value || "";
+                          }
+
+                          const stoolNormals = {
+                            "Colour":       { normal: "Brown", abnormal: ["Black", "Red", "Pale", "Yellow", "Green", "White"] },
+                            "Consistency":  { normal: "Formed", abnormal: ["Loose", "Watery", "Hard", "Soft", "Mucoid"] },
+                            "Mucus":        { normal: "Negative", abnormal: ["Positive", "+", "++", "+++"] },
+                            "Blood":        { normal: "Negative", abnormal: ["Positive", "+", "++", "+++"] },
+                            "Pus Cells":    { normal: "0 – 2 /HPF", abnormal: [] },
+                            "RBC":          { normal: "Nil", abnormal: ["Positive", "+", "++", "+++"] },
+                            "O/P":          { normal: "Negative", abnormal: ["Positive"] },
+                            "Parasite":     { normal: "None", abnormal: [] },
+                            "Fat Globules": { normal: "Not Seen", abnormal: ["Seen", "+", "++", "+++"] },
+                          };
+
+                          const getStoolFlag = (param, value) => {
+                            const info = stoolNormals[param];
+                            if (!info) return { flag: "", color: "text-gray-800" };
+                            const v = value.trim();
+                            if (v === info.normal) return { flag: "N", color: "text-emerald-700" };
+                            if (info.abnormal && info.abnormal.length > 0) {
+                              if (info.abnormal.some(a => v.toLowerCase() === a.toLowerCase())) return { flag: "A", color: "text-red-600" };
+                            }
+                            if (param === "Pus Cells") {
+                              const n = parseFloat(v);
+                              if (!isNaN(n) && n > 2) return { flag: "H", color: "text-red-600" };
+                              if (!isNaN(n)) return { flag: "N", color: "text-emerald-700" };
+                            }
+                            return { flag: "", color: "text-gray-800" };
+                          };
+
+                          if (rawStr) {
+                            const pairs = rawStr.split(";").map(s => s.trim()).filter(Boolean);
+                            const rows = pairs.map(pair => {
+                              const colonIdx = pair.indexOf(":");
+                              if (colonIdx === -1) return { param: pair, value: "" };
+                              return { param: pair.slice(0, colonIdx).trim(), value: pair.slice(colonIdx + 1).trim() };
+                            }).filter(r => r.param && r.value !== undefined);
+
+                            if (rows.length > 0) {
+                              return rows.map((row, idx) => {
+                                const normalInfo = stoolNormals[row.param];
+                                const normalRange = normalInfo?.normal || "—";
+                                const { flag, color } = getStoolFlag(row.param, row.value);
+                                const isAbnormal = flag === "H" || flag === "A";
                                 return (
-                                  <tr className={`${isAbnormal ? 'bg-red-50/40' : 'bg-white'}`}>
-                                    <td className="px-4 py-2.5 text-sm font-medium text-gray-800">{test.testName}</td>
-                                    <td className="px-4 py-2.5 text-center"><span className={`font-semibold text-sm ${flagColor}`}>{resultValue}</span></td>
-                                    <td className="px-4 py-2.5 text-sm text-center text-gray-500">{unit || '-'}</td>
-                                    <td className="px-4 py-2.5 text-sm text-center text-gray-500">{cleanedRange || '-'}</td>
-                                    <td className="px-4 py-2.5 text-center"><FlagBadge flag={flag} /></td>
+                                  <tr key={test._id + "-stool-" + idx} className={`${isAbnormal ? "bg-red-50/40" : "bg-white"}`}>
+                                    <td className="px-4 py-2.5 text-sm font-semibold text-gray-800 text-left">{row.param}</td>
+                                    <td className="px-4 py-2.5 text-left"><span className={`font-bold text-sm ${color}`}>{row.value || "—"}</span></td>
+                                    <td className="px-4 py-2.5 text-sm text-left text-gray-500">{normalRange}</td>
+                                    <td className="px-4 py-2.5 text-sm text-left text-gray-400">—</td>
+                                    <td className="px-4 py-2.5 text-left"><FlagBadge flag={flag} /></td>
                                   </tr>
                                 );
+                              });
+                            }
+                          }
+                        }
+
+                        // CASE 2: Modern format with structured results object
+                        if (test.results && typeof test.results === "object" && !Array.isArray(test.results)) {
+                          const parameters = Object.entries(test.results)
+                            .filter(([key]) => !["notes", "createdAt", "updatedAt", "id", "_id", "results", "normalRange"].includes(key))
+                            .map(([key, value]) => {
+                              if (typeof value === "object" && value !== null && "value" in value) {
+                                let unit = value.unit || (value.normalRange ? extractUnit(value.normalRange) : defaultUnit);
+                                if (unit === "-" && defaultUnit !== "-") unit = defaultUnit;
+                                const whoRange = value.normalRange || getSuggestedReferenceRange(test.testName);
+                                const cleanedRange = unit !== "-" && whoRange ? cleanNormalRange(whoRange, unit) : whoRange || "-";
+                                const { flag, flagColor } = calculateFlag(value.value, whoRange);
+                                return { paramName: key, resultValue: value.value, unit, normalRange: cleanedRange, flag, flagColor };
+                              } else {
+                                let unit = test.normalRange ? extractUnit(test.normalRange) : defaultUnit;
+                                if (unit === "-" && defaultUnit !== "-") unit = defaultUnit;
+                                const whoRange = test.normalRange || getSuggestedReferenceRange(test.testName);
+                                const cleanedRange = unit !== "-" && whoRange ? cleanNormalRange(whoRange, unit) : whoRange || "-";
+                                const { flag, flagColor } = calculateFlag(value, whoRange);
+                                return { paramName: key, resultValue: value, unit, normalRange: cleanedRange, flag, flagColor };
                               }
-                              
-                              // CASE STOOL: Parse semicolon-separated stool result string into rows
-                              const isStoolTest = test.testName?.toLowerCase().includes('stool') || test.testName?.toLowerCase().includes('fecal') || test.testName?.toLowerCase().includes('faecal');
-                              if (isStoolTest) {
-                                // Extract the raw result string from various storage formats
-                                let rawStr = '';
-                                if (typeof test.results === 'string') rawStr = test.results;
-                                else if (typeof test.results === 'object' && test.results !== null) {
-                                  rawStr = (test.results as any).results || (test.results as any).value || '';
-                                }
-
-                                // Stool normal ranges
-                                const stoolNormals: Record<string, { normal: string; abnormal?: string[] }> = {
-                                  'Colour':       { normal: 'Brown', abnormal: ['Black', 'Red', 'Pale', 'Yellow', 'Green', 'White'] },
-                                  'Consistency':  { normal: 'Formed', abnormal: ['Loose', 'Watery', 'Hard', 'Soft', 'Mucoid'] },
-                                  'Mucus':        { normal: 'Negative', abnormal: ['Positive', '+', '++', '+++'] },
-                                  'Blood':        { normal: 'Negative', abnormal: ['Positive', '+', '++', '+++'] },
-                                  'Pus Cells':    { normal: '0 – 2 /HPF', abnormal: [] },
-                                  'RBC':          { normal: 'Nil', abnormal: ['Positive', '+', '++', '+++'] },
-                                  'O/P':          { normal: 'Negative', abnormal: ['Positive'] },
-                                  'Parasite':     { normal: 'None', abnormal: [] },
-                                  'Fat Globules': { normal: 'Not Seen', abnormal: ['Seen', '+', '++', '+++'] },
-                                };
-
-                                const getStoolFlag = (param: string, value: string): { flag: string; color: string } => {
-                                  const info = stoolNormals[param];
-                                  if (!info) return { flag: '', color: 'text-gray-800' };
-                                  const v = value.trim();
-                                  if (v === info.normal) return { flag: 'N', color: 'text-emerald-700' };
-                                  if (info.abnormal && info.abnormal.length > 0) {
-                                    if (info.abnormal.some(a => v.toLowerCase() === a.toLowerCase())) return { flag: 'A', color: 'text-red-600' };
-                                  }
-                                  // Numeric pus cells
-                                  if (param === 'Pus Cells') {
-                                    const n = parseFloat(v);
-                                    if (!isNaN(n) && n > 2) return { flag: 'H', color: 'text-red-600' };
-                                    if (!isNaN(n)) return { flag: 'N', color: 'text-emerald-700' };
-                                  }
-                                  return { flag: '', color: 'text-gray-800' };
-                                };
-
-                                if (rawStr) {
-                                  // Parse "Key: Value; Key: Value" format
-                                  const pairs = rawStr.split(';').map(s => s.trim()).filter(Boolean);
-                                  const rows = pairs.map(pair => {
-                                    const colonIdx = pair.indexOf(':');
-                                    if (colonIdx === -1) return { param: pair, value: '' };
-                                    return { param: pair.slice(0, colonIdx).trim(), value: pair.slice(colonIdx + 1).trim() };
-                                  }).filter(r => r.param && r.value !== undefined);
-
-                                  if (rows.length > 0) {
-                                    return rows.map((row, idx) => {
-                                      const normalInfo = stoolNormals[row.param];
-                                      const normalRange = normalInfo?.normal || '—';
-                                      const { flag, color } = getStoolFlag(row.param, row.value);
-                                      const isAbnormal = flag === 'H' || flag === 'A';
-                                      return (
-                                        <tr key={idx} className={`${isAbnormal ? 'bg-red-50/40' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}`}>
-                                          <td className="px-4 py-2.5 text-sm font-medium text-gray-800">{row.param}</td>
-                                          <td className="px-4 py-2.5 text-center">
-                                            <span className={`font-semibold text-sm ${color}`}>{row.value || '—'}</span>
-                                          </td>
-                                          <td className="px-4 py-2.5 text-sm text-center text-gray-400">—</td>
-                                          <td className="px-4 py-2.5 text-sm text-center text-gray-500">{normalRange}</td>
-                                          <td className="px-4 py-2.5 text-center">
-                                            {flag === 'H' && <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-100 text-red-700 text-xs font-bold border border-red-200">H</span>}
-                                            {flag === 'A' && <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200">A</span>}
-                                            {flag === 'N' && <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold border border-emerald-200">N</span>}
-                                            {!flag && <span className="text-gray-400 text-sm">—</span>}
-                                          </td>
-                                        </tr>
-                                      );
-                                    });
-                                  }
-                                }
-                              }
-
-                              // CASE 2: Modern format with structured results object
-                              if (test.results && typeof test.results === 'object' && !Array.isArray(test.results)) {
-                                const parameters = Object.entries(test.results)
-                                  .filter(([key]) => !['notes', 'createdAt', 'updatedAt', 'id', '_id', 'results', 'normalRange'].includes(key))
-                                  .map(([key, value]) => {
-                                    if (typeof value === 'object' && value !== null && 'value' in value) {
-                                      let unit = (value as any).unit || ((value as any).normalRange ? extractUnit((value as any).normalRange) : defaultUnit);
-                                      if (unit === '-' && defaultUnit !== '-') unit = defaultUnit;
-                                      const whoRange = (value as any).normalRange || getSuggestedReferenceRange(test.testName);
-                                      const cleanedRange = unit !== '-' && whoRange ? cleanNormalRange(whoRange, unit) : whoRange || '-';
-                                      const { flag, flagColor } = calculateFlag(value.value, whoRange);
-                                      return { paramName: key, resultValue: value.value, unit, normalRange: cleanedRange, flag, flagColor };
-                                    } else {
-                                      let unit = test.normalRange ? extractUnit(test.normalRange) : defaultUnit;
-                                      if (unit === '-' && defaultUnit !== '-') unit = defaultUnit;
-                                      const whoRange = test.normalRange || getSuggestedReferenceRange(test.testName);
-                                      const cleanedRange = unit !== '-' && whoRange ? cleanNormalRange(whoRange, unit) : whoRange || '-';
-                                      const { flag, flagColor } = calculateFlag(value, whoRange);
-                                      return { paramName: key, resultValue: value, unit, normalRange: cleanedRange, flag, flagColor };
-                                    }
-                                  });
-                                
-                                if (parameters.length > 0) {
-                                  return parameters.map((param, idx) => {
-                                    const isAbnormal = param.flag === 'H' || param.flag === 'L' || param.flag === 'A';
-                                    return (
-                                    <tr key={idx} className={`${isAbnormal ? 'bg-red-50/40' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}`}>
-                                      <td className="px-4 py-2.5 text-sm font-medium text-gray-800">{param.paramName}</td>
-                                      <td className="px-4 py-2.5 text-center"><span className={`font-semibold text-sm ${param.flagColor}`}>{String(param.resultValue)}</span></td>
-                                      <td className="px-4 py-2.5 text-sm text-center text-gray-500">{param.unit || '-'}</td>
-                                      <td className="px-4 py-2.5 text-sm text-center text-gray-500">{param.normalRange || '-'}</td>
-                                      <td className="px-4 py-2.5 text-center"><FlagBadge flag={param.flag} /></td>
-                                    </tr>
-                                  )});
-                                }
-                              }
-                              
-                              // CASE 4: Default fallback
-                              const defaultRows = createDefaultResults(test);
-                              return defaultRows.map((row, idx) => {
-                                const isAbnormal = row.flag === 'H' || row.flag === 'L' || row.flag === 'A';
-                                return (
-                                <tr key={idx} className={`${isAbnormal ? 'bg-red-50/40' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}`}>
-                                  <td className="px-4 py-2.5 text-sm font-medium text-gray-800">{row.paramName}</td>
-                                  <td className="px-4 py-2.5 text-center"><ResultCell value={row.resultValue} /></td>
-                                  <td className="px-4 py-2.5 text-sm text-center text-gray-500">{row.unit || '-'}</td>
-                                  <td className="px-4 py-2.5 text-sm text-center text-gray-500">{row.normalRange || '-'}</td>
-                                  <td className="px-4 py-2.5 text-center"><FlagBadge flag={row.flag} /></td>
+                            });
+                          
+                          if (parameters.length > 0) {
+                            return parameters.map((param, idx) => {
+                              const isAbnormal = param.flag === "H" || param.flag === "L" || param.flag === "A";
+                              return (
+                                <tr key={test._id + "-param-" + idx} className={`${isAbnormal ? "bg-red-50/40" : "bg-white"}`}>
+                                  <td className="px-4 py-2.5 text-sm font-semibold text-gray-800 text-left">{param.paramName}</td>
+                                  <td className="px-4 py-2.5 text-left"><span className={`font-bold text-sm ${param.flagColor}`}>{String(param.resultValue)}</span></td>
+                                  <td className="px-4 py-2.5 text-sm text-left text-gray-500">{param.normalRange || "-"}</td>
+                                  <td className="px-4 py-2.5 text-sm text-left text-gray-500">{param.unit || "-"}</td>
+                                  <td className="px-4 py-2.5 text-left"><FlagBadge flag={param.flag} /></td>
                                 </tr>
-                              )})
-                            })()}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
+                              );
+                            });
+                          }
+                        }
 
-                            {/* Notes */}
-                            {test.notes && (
-                              <div className="mt-3">
-                                <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
-                                  <p className="text-xs font-semibold text-blue-700 mb-1">Notes</p>
-                                  <p className="text-sm text-gray-700">{test.notes}</p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          )}
-                        </div>
+                        // CASE 4: Default fallback
+                        const defaultRows2 = createDefaultResults(test);
+                        return defaultRows2.map((row, idx) => {
+                          const isAbnormal = row.flag === "H" || row.flag === "L" || row.flag === "A";
+                          return (
+                            <tr key={test._id + "-def2-" + idx} className={`${isAbnormal ? "bg-red-50/40" : "bg-white"}`}>
+                              <td className="px-4 py-2.5 text-sm font-semibold text-gray-800 text-left">{row.paramName}</td>
+                              <td className="px-4 py-2.5 text-left"><ResultCell value={row.resultValue} /></td>
+                              <td className="px-4 py-2.5 text-sm text-left text-gray-500">{row.normalRange || "-"}</td>
+                              <td className="px-4 py-2.5 text-sm text-left text-gray-500">{row.unit || "-"}</td>
+                              <td className="px-4 py-2.5 text-left"><FlagBadge flag={row.flag} /></td>
+                            </tr>
+                          );
+                        });
+                      };
+
+                      return Object.entries(groupedTests).map(([category, tests]) => {
+                        return (
+                          <React.Fragment key={category}>
+                            {/* Category Header Row */}
+                            <tr className="bg-gray-100">
+                              <td colSpan={5} className="px-4 py-2 text-sm font-extrabold text-gray-800 uppercase tracking-widest border-y border-gray-300">
+                                {category}
+                              </td>
+                            </tr>
+                            
+                            {/* Tests in Category */}
+                            {tests.map(test => {
+                              const isStoolTest = test.testName?.toLowerCase().includes("stool") || test.testName?.toLowerCase().includes("fecal") || test.testName?.toLowerCase().includes("faecal");
+                              const defaultUnit = testUnitMap[test.testName] || "-";
+                              return renderTestRows(test, isStoolTest, defaultUnit);
+                            })}
+                          </React.Fragment>
                         );
-                      })}
+                      });
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Pathologist Comments & Footer */}
+              <div className="mt-8 border-t border-gray-200 pt-6 px-6 pb-6">
+                <div className="mb-6">
+                  <h4 className="text-sm font-bold text-gray-800 mb-2 border-b border-gray-100 pb-1">Pathologist Comments</h4>
+                  <p className="text-sm text-gray-600 italic">No specific comments provided for these results.</p>
+                </div>
+                <div className="flex justify-end mt-8">
+                  <div className="text-center">
+                    <div className="h-12 border-b border-gray-300 w-48 mb-2 flex items-center justify-center">
+                      <span className="text-gray-300 italic text-xs">Digital Signature</span>
                     </div>
-                  )}
-                  
-                  {/* Pathologist Comments & Footer */}
-                  <div className="mt-8 border-t border-gray-200 pt-6 pb-4">
-                    <div className="mb-6">
-                      <h4 className="text-sm font-bold text-gray-800 mb-2 border-b border-gray-100 pb-1">Pathologist Comments</h4>
-                      <p className="text-sm text-gray-600 italic">No specific comments provided for these results.</p>
-                    </div>
-                    <div className="flex justify-end mt-8">
-                      <div className="text-center">
-                        <div className="h-12 border-b border-gray-300 w-48 mb-2 flex items-center justify-center">
-                          {/* Placeholder for digital signature */}
-                          <span className="text-gray-300 italic text-xs">Digital Signature</span>
-                        </div>
-                        <p className="text-sm font-bold text-gray-800">Verified By: {patientResults.verifiedBy || patientResults.physician || 'Dr. Assigned'}</p>
-                        <p className="text-xs text-gray-500">Pathologist / Lab Director</p>
-                      </div>
-                    </div>
+                    <p className="text-sm font-bold text-gray-800">Digitally signed by: {patientResults.verifiedBy || patientResults.physician || "Dr. Assigned"}</p>
+                    <p className="text-xs text-gray-500">Pathologist / Lab Director</p>
                   </div>
-                </>
-              );
-            })()}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
