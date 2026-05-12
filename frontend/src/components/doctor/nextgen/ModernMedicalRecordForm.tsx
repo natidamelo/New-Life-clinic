@@ -904,7 +904,9 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   }>({});
   const [geminiAvailable, setGeminiAvailable] = useState(false);
   const [geminiRedFlags, setGeminiRedFlags] = useState<string[]>([]);
-  const [geminiDiagnoses, setGeminiDiagnoses] = useState<string[]>([]);
+  const [geminiDiagnoses, setGeminiDiagnoses] = useState<Array<{ condition: string; reasoning: string; isRedFlag: boolean }>>([]);
+  const [geminiLabs, setGeminiLabs] = useState<string[]>([]);
+  const [geminiExams, setGeminiExams] = useState<string[]>([]);
 
   // Load custom findings from localStorage on mount
   useEffect(() => {
@@ -1916,7 +1918,9 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
       setGeminiPhrases(result.suggestedPhrases || {});
       setGeminiAvailable(result.isAIAvailable);
       if (result.redFlags?.length) setGeminiRedFlags(result.redFlags);
-      if (result.differentialDiagnoses?.length) setGeminiDiagnoses(result.differentialDiagnoses);
+      if (result.differentialDiagnoses?.length) setGeminiDiagnoses(result.differentialDiagnoses as any[]);
+      if (result.suggestedLabs?.length) setGeminiLabs(result.suggestedLabs);
+      if (result.suggestedExams?.length) setGeminiExams(result.suggestedExams);
 
       const newHPI = result.narrative;
       const updated = { ...formData, historyOfPresentIllness: newHPI };
@@ -3531,6 +3535,82 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                       </Box>
                     )}
                   </Box>
+
+                  {/* Clinical Synthesis & Differential Reasoning */}
+                  {geminiDiagnoses.length > 0 && (
+                    <Box sx={{ mt: 1, border: '1px solid', borderColor: 'primary.200', borderRadius: 2, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                      <Box sx={{ bgcolor: 'primary.50', px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1, borderBottom: '1px solid', borderColor: 'primary.100' }}>
+                        <SparkleIcon sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
+                        <Typography variant="subtitle2" sx={{ color: 'primary.dark', fontWeight: 600 }}>AI Clinical Insights & Differentials</Typography>
+                      </Box>
+                      <Box sx={{ p: 2 }}>
+                        <Grid container spacing={2}>
+                          <Grid size={{ xs: 12, md: 7 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Top Differentials (DDx)</Typography>
+                            <Stack spacing={1.5}>
+                              {geminiDiagnoses.map((ddx, idx) => (
+                                <Box key={idx} sx={{ p: 1.5, bgcolor: ddx.isRedFlag ? 'error.50' : 'grey.50', borderRadius: 1, border: '1px solid', borderColor: ddx.isRedFlag ? 'error.200' : 'grey.200' }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 700, color: ddx.isRedFlag ? 'error.dark' : 'text.primary' }}>{idx + 1}. {ddx.condition}</Typography>
+                                    {ddx.isRedFlag && <Chip size="small" label="RED FLAG" color="error" sx={{ height: 16, fontSize: '0.6rem', fontWeight: 'bold' }} />}
+                                  </Box>
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', lineHeight: 1.4 }}>{ddx.reasoning}</Typography>
+                                  {/* Action: Add to Diagnosis */}
+                                  <Button size="small" sx={{ mt: 1, fontSize: '0.65rem', py: 0, textTransform: 'none' }} onClick={() => {
+                                    const updated = { ...formData, assessment: { ...formData.assessment, primaryDiagnosis: ddx.condition } };
+                                    setFormData(updated);
+                                    toast.success(`Set Primary Diagnosis: ${ddx.condition}`);
+                                  }}>
+                                    Set as Primary Dx
+                                  </Button>
+                                </Box>
+                              ))}
+                            </Stack>
+                          </Grid>
+                          <Grid size={{ xs: 12, md: 5 }}>
+                            {geminiLabs.length > 0 && (
+                              <Box sx={{ mb: 2 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Suggested Lab Tests</Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                  {geminiLabs.map((lab, idx) => (
+                                    <Chip 
+                                      key={idx} 
+                                      label={`+ Add ${lab}`} 
+                                      size="small" 
+                                      variant="outlined" 
+                                      color="primary" 
+                                      sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'primary.50' }, fontSize: '0.7rem' }} 
+                                      onClick={() => {
+                                        // Auto-append lab order
+                                        const currentOrders = formData.plan?.labOrders || [];
+                                        if (!currentOrders.includes(lab)) {
+                                          const updated = { ...formData, plan: { ...formData.plan, labOrders: [...currentOrders, lab] } };
+                                          setFormData(updated);
+                                          toast.success(`Added ${lab} to Lab Orders`);
+                                        } else {
+                                          toast.info(`${lab} is already ordered`);
+                                        }
+                                      }} 
+                                    />
+                                  ))}
+                                </Box>
+                              </Box>
+                            )}
+                            {geminiExams.length > 0 && (
+                              <Box>
+                                <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Focused Physical Exam</Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                  {geminiExams.map((exam, idx) => (
+                                    <Chip key={idx} label={exam} size="small" sx={{ bgcolor: 'grey.100', fontSize: '0.7rem' }} />
+                                  ))}
+                                </Box>
+                              </Box>
+                            )}
+                          </Grid>
+                        </Grid>
+                      </Box>
+                    </Box>
+                  )}
 
                   {/* Duration / Severity / Progression / Location — 2×2 grid */}
                   <Grid container spacing={1.5}>
@@ -6495,7 +6575,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                     <Typography variant="caption" sx={{ fontWeight: 600, color: '#7b1fa2', display: 'block', mb: 0.5 }}>Differential Diagnoses</Typography>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                       {geminiDiagnoses.map((d, i) => (
-                        <Chip key={i} label={d} size="small" sx={{ bgcolor: '#e1bee7', color: '#4a148c', fontSize: '0.72rem' }} />
+                        <Chip key={i} label={d.condition} size="small" sx={{ bgcolor: '#e1bee7', color: '#4a148c', fontSize: '0.72rem' }} />
                       ))}
                     </Box>
                   </Box>

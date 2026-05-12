@@ -1,5 +1,11 @@
 // AI Assistant Service for Clinical Decision Support
 
+export interface DDxItem {
+  condition: string;
+  reasoning: string;
+  isRedFlag: boolean;
+}
+
 export interface GeminiHPIResult {
   isAIAvailable: boolean;
   narrative: string;
@@ -14,7 +20,9 @@ export interface GeminiHPIResult {
     associated?: string[];
   };
   redFlags: string[];
-  differentialDiagnoses: string[];
+  differentialDiagnoses: DDxItem[];
+  suggestedLabs?: string[];
+  suggestedExams?: string[];
 }
 
 export interface AISuggestion {
@@ -748,12 +756,40 @@ export class AIAssistantService {
     apiBaseUrl: string = '',
     authToken?: string
   ): Promise<GeminiHPIResult> {
+    const complaint = (patientData.chiefComplaint || '').toLowerCase();
+    
+    // Create mock DDx based on complaint
+    const mockDDx: DDxItem[] = [];
+    let mockLabs: string[] = [];
+    let mockExams: string[] = [];
+    
+    if (complaint.includes('headache')) {
+      mockDDx.push({ condition: 'Migraine', reasoning: 'Likely due to localized headache, duration, and associated symptoms like nausea.', isRedFlag: false });
+      mockDDx.push({ condition: 'Tension Headache', reasoning: 'Possible due to stress or muscular tension.', isRedFlag: false });
+      mockDDx.push({ condition: 'Meningitis', reasoning: 'Must rule out immediately if fever or neck stiffness develops.', isRedFlag: true });
+      mockLabs.push('CBC', 'CRP');
+      mockExams.push('Neurological Exam', 'Fundoscopy');
+    } else if (complaint.includes('abdomen') || complaint.includes('stomach') || complaint.includes('nausea')) {
+      mockDDx.push({ condition: 'Gastroenteritis', reasoning: 'Common cause of acute nausea and abdominal discomfort.', isRedFlag: false });
+      mockDDx.push({ condition: 'Appendicitis', reasoning: 'Rule out if pain localizes to RLQ.', isRedFlag: true });
+      mockDDx.push({ condition: 'GERD', reasoning: 'Consider if associated with heartburn or worse postprandially.', isRedFlag: false });
+      mockLabs.push('CBC', 'Lipase', 'Urinalysis');
+      mockExams.push('Abdominal Palpation', 'Bowel Sounds');
+    } else {
+      mockDDx.push({ condition: 'Viral Syndrome', reasoning: 'General symptoms suggest a viral etiology.', isRedFlag: false });
+      mockDDx.push({ condition: 'Bacterial Infection', reasoning: 'Consider if symptoms are severe or progressive.', isRedFlag: true });
+      mockLabs.push('CBC', 'Basic Metabolic Panel');
+      mockExams.push('General Physical', 'Vitals Assessment');
+    }
+
     const fallback: GeminiHPIResult = {
       isAIAvailable: false,
       narrative: AIAssistantService.generateHPINarrative(patientData),
       suggestedPhrases: AIAssistantService.buildLocalSuggestedPhrases(patientData),
       redFlags: [],
-      differentialDiagnoses: []
+      differentialDiagnoses: mockDDx,
+      suggestedLabs: mockLabs,
+      suggestedExams: mockExams
     };
 
     try {
@@ -777,12 +813,20 @@ export class AIAssistantService {
         return { ...fallback, isAIAvailable: false };
       }
 
+      // If backend returns string[] instead of DDxItem[], map it
+      const ddx = (data.differentialDiagnoses || []).map((d: any) => {
+        if (typeof d === 'string') return { condition: d, reasoning: 'Suggested by AI based on clinical presentation.', isRedFlag: false };
+        return d;
+      });
+
       return {
         isAIAvailable: true,
         narrative: data.narrative || fallback.narrative,
         suggestedPhrases: data.suggestedPhrases || fallback.suggestedPhrases,
         redFlags: data.redFlags || [],
-        differentialDiagnoses: data.differentialDiagnoses || []
+        differentialDiagnoses: ddx.length > 0 ? ddx : fallback.differentialDiagnoses,
+        suggestedLabs: data.suggestedLabs || fallback.suggestedLabs,
+        suggestedExams: data.suggestedExams || fallback.suggestedExams
       };
     } catch {
       return fallback;
