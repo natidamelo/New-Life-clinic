@@ -1964,58 +1964,83 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
     []
   );
 
-  // Amharic Voice-to-Text Recording
-  const handleVoiceRecording = async () => {
+  // Voice-to-Text Recording using Web Speech API
+  const handleVoiceRecording = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error('Voice recognition is not supported in this browser. Please use Chrome or Edge.');
+      return;
+    }
+
     if (isRecording) {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-        mediaRecorderRef.current.stop();
+      if (mediaRecorderRef.current) {
+        (mediaRecorderRef.current as any).stop();
       }
       setIsRecording(false);
       return;
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
+      const recognition = new SpeechRecognition();
+      recognition.lang = useAmharic ? 'am-ET' : 'en-US';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      
+      mediaRecorderRef.current = recognition as any;
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
+      recognition.onstart = () => {
+        setIsRecording(true);
       };
 
-      mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach(track => track.stop());
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        console.log('Voice transcript:', transcript);
+        
         setIsTranscribing(true);
         
-        // Simulate sending to whisper/backend for Amharic translation
+        // Populate the transcript and auto-fill
         setTimeout(() => {
           setIsTranscribing(false);
-          const simulatedAmharicTranscript = "በሽተኛው ለ 3 ቀናት ያህል ከባድ ራስ ምታት እንዳለበት ይናገራል:: ማቅለሽለሽ አለው::";
+          const isAmharic = useAmharic;
           
           const updated = {
             ...formData,
-            amharicTranscript: simulatedAmharicTranscript,
+            amharicTranscript: isAmharic ? transcript : formData.amharicTranscript,
             chiefComplaint: {
               ...formData.chiefComplaint,
-              duration: "3 days",
-              severity: "Severe",
-              associatedSymptoms: ["Nausea"]
+              // Append to the chief complaint if it exists, otherwise set it
+              description: formData.chiefComplaint.description 
+                ? formData.chiefComplaint.description + (formData.chiefComplaint.description.endsWith('.') ? ' ' : '. ') + transcript 
+                : transcript
             }
           };
           setFormData(updated);
-          toast.success('Amharic voice transcribed and extracted successfully.');
-          debouncedAutoFillHPI();
-        }, 3000);
+          toast.success('Voice transcribed successfully.');
+          
+          // Use a short delay before triggering AI to ensure state is settled
+          setTimeout(() => {
+            debouncedAutoFillHPI();
+          }, 100);
+        }, 500);
       };
 
-      mediaRecorder.start();
-      setIsRecording(true);
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error !== 'aborted') {
+          toast.error(`Microphone error: ${event.error}`);
+        }
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognition.start();
     } catch (error) {
-      console.error('Error accessing microphone:', error);
-      toast.error('Failed to access microphone. Please check permissions.');
+      console.error('Error starting speech recognition:', error);
+      toast.error('Failed to start voice recognition.');
+      setIsRecording(false);
     }
   };
 
