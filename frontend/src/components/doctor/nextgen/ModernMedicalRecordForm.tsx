@@ -2065,6 +2065,14 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
               if (diarizedSegmentsRef.current.length > 0) {
                 extractedData.diarizedTranscript = taggedTranscript;
               }
+              // Save original values so we can detect edits for learning
+              (extractedData as any)._original = {
+                chiefComplaint: extractedData.chiefComplaint,
+                duration: extractedData.duration,
+                severity: extractedData.severity,
+                progression: extractedData.progression,
+                location: extractedData.location,
+              };
               
               if (!extractedData.isClinical) {
                 // Noise detected — show warning, don't open review modal
@@ -6924,31 +6932,41 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
               <Grid container spacing={3}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Extracted Fields</Typography>
-                    <Chip label="Fidelity Audit Passed" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Extracted Fields <Typography component="span" sx={{ fontSize: '0.65rem', color: 'text.disabled' }}>(click to edit)</Typography></Typography>
+                    <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                      {AIAssistantService.getLearningStats().totalCorrections > 0 && (
+                        <Chip label={`🧠 ${AIAssistantService.getLearningStats().totalCorrections} learned`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.6rem', borderColor: 'secondary.main', color: 'secondary.main' }} />
+                      )}
+                      <Chip label="Fidelity Audit Passed" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                    </Box>
                   </Box>
                   <Card variant="outlined" sx={{ mb: 2 }}>
                     {[
-                      { label: 'Chief Complaint', value: ambientExtractedData.chiefComplaint, conf: ambientExtractedData.chiefComplaintConfidence },
-                      { label: 'Duration', value: ambientExtractedData.duration, conf: ambientExtractedData.durationConfidence },
-                      { label: 'Severity', value: ambientExtractedData.severity, conf: ambientExtractedData.severityConfidence },
-                      { label: 'Progression', value: ambientExtractedData.progression, conf: ambientExtractedData.progressionConfidence },
-                      { label: 'Location', value: ambientExtractedData.location, conf: ambientExtractedData.locationConfidence },
+                      { label: 'Chief Complaint', key: 'chiefComplaint', conf: ambientExtractedData.chiefComplaintConfidence },
+                      { label: 'Duration', key: 'duration', conf: ambientExtractedData.durationConfidence },
+                      { label: 'Severity', key: 'severity', conf: ambientExtractedData.severityConfidence },
+                      { label: 'Progression', key: 'progression', conf: ambientExtractedData.progressionConfidence },
+                      { label: 'Location', key: 'location', conf: ambientExtractedData.locationConfidence },
                     ].map((field, idx, arr) => (
-                      <Box key={field.label} sx={{ p: 1.5, borderBottom: idx < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography variant="body2" sx={{ width: 120, color: 'text.secondary', fontWeight: 500 }}>{field.label}</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: field.value ? 'text.primary' : 'text.disabled' }}>
-                            {field.value || '(Not specified)'}
-                          </Typography>
-                        </Box>
-                        {field.value && (
+                      <Box key={field.label} sx={{ p: 1, borderBottom: idx < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" sx={{ width: 110, color: 'text.secondary', fontWeight: 500, flexShrink: 0, fontSize: '0.8rem' }}>{field.label}</Typography>
+                        <TextField
+                          size="small"
+                          variant="standard"
+                          fullWidth
+                          value={ambientExtractedData[field.key] || ''}
+                          onChange={(e) => setAmbientExtractedData((prev: any) => ({ ...prev, [field.key]: e.target.value }))}
+                          placeholder="(Not specified)"
+                          InputProps={{ disableUnderline: !!ambientExtractedData[field.key], sx: { fontSize: '0.85rem', fontWeight: 600, '&:hover': { borderBottom: '1px dashed', borderColor: 'primary.main' } } }}
+                          sx={{ mx: 1 }}
+                        />
+                        {ambientExtractedData[field.key] && (
                           <Tooltip title={`Confidence: ${field.conf}%`}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <Box sx={{ width: 40, height: 4, bgcolor: 'grey.200', borderRadius: 1, overflow: 'hidden' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+                              <Box sx={{ width: 30, height: 3, bgcolor: 'grey.200', borderRadius: 1, overflow: 'hidden' }}>
                                 <Box sx={{ width: `${field.conf}%`, height: '100%', bgcolor: field.conf > 90 ? 'success.main' : field.conf > 80 ? 'primary.main' : 'warning.main' }} />
                               </Box>
-                              <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: 'text.secondary' }}>{field.conf}%</Typography>
+                              <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: 'text.secondary' }}>{field.conf}%</Typography>
                             </Box>
                           </Tooltip>
                         )}
@@ -7013,6 +7031,29 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           <Button 
             onClick={() => {
               if (ambientExtractedData) {
+                // ─── SELF-LEARNING: Detect edits and save corrections ───
+                const transcript = ambientTranscript || ambientExtractedData.diarizedTranscript;
+                const originalData = ambientExtractedData._original || {};
+                const fieldsToLearn: Array<{ key: 'chiefComplaint' | 'duration' | 'severity' | 'progression' | 'location' }> = [
+                  { key: 'chiefComplaint' },
+                  { key: 'duration' },
+                  { key: 'severity' },
+                  { key: 'progression' },
+                  { key: 'location' },
+                ];
+                let correctionsCount = 0;
+                for (const { key } of fieldsToLearn) {
+                  const current = ambientExtractedData[key] || '';
+                  const original = originalData[key] || '';
+                  if (current && current !== original) {
+                    AIAssistantService.learnCorrection(key, transcript, current);
+                    correctionsCount++;
+                  }
+                }
+                if (correctionsCount > 0) {
+                  toast.info(`🧠 System learned ${correctionsCount} correction(s) for future sessions`, { autoClose: 3000 });
+                }
+
                 const updated = {
                   ...formData,
                   historyOfPresentIllness: ambientExtractedData.hpiNarrative,

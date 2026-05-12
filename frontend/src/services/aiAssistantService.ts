@@ -851,6 +851,135 @@ export class AIAssistantService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
+  // SELF-LEARNING CLINICAL MEMORY — Learns from doctor corrections
+  // ─────────────────────────────────────────────────────────────────────────
+
+  private static readonly LEARNING_STORE_KEY = 'clinicalLearningStore';
+
+  /**
+   * Retrieve learned corrections from localStorage.
+   * Structure: { symptomMappings: { transcriptPhrase: correctedLabel }[], 
+   *              durationMappings, severityMappings, locationMappings }
+   */
+  static getLearningStore(): {
+    symptomMappings: Record<string, string>;
+    durationMappings: Record<string, string>;
+    severityMappings: Record<string, string>;
+    progressionMappings: Record<string, string>;
+    locationMappings: Record<string, string>;
+    correctionCount: number;
+  } {
+    try {
+      const stored = localStorage.getItem(AIAssistantService.LEARNING_STORE_KEY);
+      if (stored) return JSON.parse(stored);
+    } catch { /* ignore */ }
+    return { symptomMappings: {}, durationMappings: {}, severityMappings: {}, progressionMappings: {}, locationMappings: {}, correctionCount: 0 };
+  }
+
+  /**
+   * Save a doctor's correction so the system learns for next time.
+   * Called when the doctor edits a field in the Review Modal before confirming.
+   */
+  static learnCorrection(
+    field: 'chiefComplaint' | 'duration' | 'severity' | 'progression' | 'location',
+    originalTranscript: string,
+    correctedValue: string
+  ): void {
+    if (!correctedValue.trim() || !originalTranscript.trim()) return;
+
+    const store = AIAssistantService.getLearningStore();
+    // Extract key phrases from transcript (first 80 chars as context key)
+    const contextKey = originalTranscript.toLowerCase().slice(0, 80).trim();
+
+    switch (field) {
+      case 'chiefComplaint':
+        store.symptomMappings[contextKey] = correctedValue;
+        break;
+      case 'duration':
+        store.durationMappings[contextKey] = correctedValue;
+        break;
+      case 'severity':
+        store.severityMappings[contextKey] = correctedValue;
+        break;
+      case 'progression':
+        store.progressionMappings[contextKey] = correctedValue;
+        break;
+      case 'location':
+        store.locationMappings[contextKey] = correctedValue;
+        break;
+    }
+
+    store.correctionCount++;
+    try {
+      localStorage.setItem(AIAssistantService.LEARNING_STORE_KEY, JSON.stringify(store));
+      console.log(`[ClinicalLearning] Saved correction for "${field}": "${correctedValue}" (Total: ${store.correctionCount})`);
+    } catch { /* storage full, ignore */ }
+  }
+
+  /**
+   * Apply learned corrections to extraction results.
+   * Checks if a similar transcript has been corrected before.
+   */
+  static applyLearnedCorrections(
+    transcript: string,
+    result: AmbientExtractionResult
+  ): AmbientExtractionResult {
+    const store = AIAssistantService.getLearningStore();
+    const lower = transcript.toLowerCase().slice(0, 80).trim();
+
+    // Check each mapping store for a match
+    for (const [key, value] of Object.entries(store.symptomMappings)) {
+      if (lower.includes(key.slice(0, 30)) || key.includes(lower.slice(0, 30))) {
+        result.chiefComplaint = value;
+        result.chiefComplaintConfidence = 98; // High confidence from learned data
+      }
+    }
+    for (const [key, value] of Object.entries(store.durationMappings)) {
+      if (lower.includes(key.slice(0, 30)) || key.includes(lower.slice(0, 30))) {
+        result.duration = value;
+        result.durationConfidence = 98;
+      }
+    }
+    for (const [key, value] of Object.entries(store.severityMappings)) {
+      if (lower.includes(key.slice(0, 30)) || key.includes(lower.slice(0, 30))) {
+        result.severity = value;
+        result.severityConfidence = 98;
+      }
+    }
+    for (const [key, value] of Object.entries(store.progressionMappings)) {
+      if (lower.includes(key.slice(0, 30)) || key.includes(lower.slice(0, 30))) {
+        result.progression = value;
+        result.progressionConfidence = 98;
+      }
+    }
+    for (const [key, value] of Object.entries(store.locationMappings)) {
+      if (lower.includes(key.slice(0, 30)) || key.includes(lower.slice(0, 30))) {
+        result.location = value;
+        result.locationConfidence = 98;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Get stats about what the system has learned
+   */
+  static getLearningStats(): { totalCorrections: number; fields: Record<string, number> } {
+    const store = AIAssistantService.getLearningStore();
+    return {
+      totalCorrections: store.correctionCount,
+      fields: {
+        symptoms: Object.keys(store.symptomMappings).length,
+        durations: Object.keys(store.durationMappings).length,
+        severities: Object.keys(store.severityMappings).length,
+        progressions: Object.keys(store.progressionMappings).length,
+        locations: Object.keys(store.locationMappings).length,
+      }
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   // CLINICAL PRECISION FILTER — Clinical Entity Recognition (CER) Layer
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -1358,7 +1487,7 @@ export class AIAssistantService {
     const sentences = rawTranscript.split(/[.!?,]+/).filter(s => s.trim().length > 2);
     const diarized = sentences.map(s => `**${classifySpeaker(s)}:** ${s.trim()}`).join('\n');
 
-    return {
+    const extractionResult: AmbientExtractionResult = {
       isClinical: true,
       chiefComplaint: ccValue,
       chiefComplaintConfidence: ccConfidence,
@@ -1373,6 +1502,15 @@ export class AIAssistantService {
       hpiNarrative,
       diarizedTranscript: diarized || rawTranscript
     };
+
+    // ─── APPLY LEARNED CORRECTIONS (Self-Learning Memory) ───
+    const finalResult = AIAssistantService.applyLearnedCorrections(rawTranscript, extractionResult);
+    const stats = AIAssistantService.getLearningStats();
+    if (stats.totalCorrections > 0) {
+      console.log(`[ClinicalLearning] Applied ${stats.totalCorrections} learned corrections to extraction.`);
+    }
+
+    return finalResult;
   }
 
   /**
