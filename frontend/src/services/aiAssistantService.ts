@@ -1189,14 +1189,42 @@ export class AIAssistantService {
       const match = rawTranscript.match(pattern as RegExp);
       if (match) { durValue = formatter(match); durConfidence = 92; break; }
     }
-    const amharicDurMatch = rawTranscript.match(/(\d+)\s*ቀ[ናን]/);
-    if (!durValue && amharicDurMatch) { durValue = `${amharicDurMatch[1]} days`; durConfidence = 85; }
+    // Amharic duration patterns (expanded)
+    if (!durValue) {
+      const amDurPatterns: Array<[RegExp, string]> = [
+        [/(\d+)\s*ቀ[ናን]/,       'days'],
+        [/(\d+)\s*ሳምንት/,       'weeks'],
+        [/(\d+)\s*ወር/,         'months'],
+        [/(\d+)\s*ሰዓት/,        'hours'],
+        [/ከ\s*(\d+)\s*ቀ[ናን]/,  'days'],
+        [/ከ\s*(\d+)\s*ሳምንት/,  'weeks'],
+        [/ከ\s*(\d+)\s*ወር/,    'months'],
+        [/ትናንት|ከትናንት/,       '___1 day'],
+        [/ከሁለት?\s*ቀን/,       '___2 days'],
+        [/ከሶስት?\s*ቀን/,       '___3 days'],
+        [/ከአንድ\s*ሳምንት/,     '___1 week'],
+        [/ከሁለት?\s*ሳምንት/,   '___2 weeks'],
+        [/ከአንድ\s*ወር/,       '___1 month'],
+      ];
+      for (const [pattern, unit] of amDurPatterns) {
+        const match = rawTranscript.match(pattern);
+        if (match) {
+          if (unit.startsWith('___')) {
+            durValue = unit.replace('___', '');
+          } else {
+            durValue = `${match[1]} ${unit}`;
+          }
+          durConfidence = 88;
+          break;
+        }
+      }
+    }
 
-    // ─── SEVERITY ───
+    // ─── SEVERITY (with Amharic) ───
     const severityMap: Record<string, string[]> = {
-      Mild: ['mild','slight','faint','little','tolerable','ቀላል'],
-      Moderate: ['moderate','medium','not too bad','መካከለኛ'],
-      Severe: ['severe','sharp','stabbing','intense','unbearable','excruciating','ከባድ','ሹል','very bad','worst']
+      Mild: ['mild','slight','faint','little','tolerable','ቀላል','ትንሽ','ብዙም','ይቻላል'],
+      Moderate: ['moderate','medium','not too bad','መካከለኛ','ይበቃል','በጣም አይደለም'],
+      Severe: ['severe','sharp','stabbing','intense','unbearable','excruciating','very bad','worst','ከባድ','ሹል','ድብርት','በጣም','አስቸጋሪ','የሚያቃጥል','ጠንካራ']
     };
     let sevValue = '';
     let sevConfidence = 0;
@@ -1204,11 +1232,11 @@ export class AIAssistantService {
       if (synonyms.some(s => lower.includes(s))) { sevValue = canonical; sevConfidence = 88; break; }
     }
 
-    // ─── PROGRESSION ───
+    // ─── PROGRESSION (with Amharic) ───
     const progressionMap: Record<string, string[]> = {
-      Worsening: ['worse','worsening','getting worse','increasing','spreading','እየባሰ'],
-      Improving: ['better','improving','getting better','decreasing','resolved','እየቀለለ'],
-      Stable: ['same','stable','unchanged','constant','no change','ተረጋጋ'],
+      Worsening: ['worse','worsening','getting worse','increasing','spreading','እየባሰ','እየጨመረ','ይባሳል','እየተባባሰ'],
+      Improving: ['better','improving','getting better','decreasing','resolved','እየቀለለ','ተሻሽሏል','ይሻላል','እየተሻሻለ'],
+      Stable: ['same','stable','unchanged','constant','no change','ተረጋጋ','እንዳለ','ተመሳሳይ','አልተለወጠም'],
     };
     let progValue = '';
     let progConfidence = 0;
@@ -1227,6 +1255,13 @@ export class AIAssistantService {
       ['chest','Chest'],['abdomen','Abdomen'],
       ['stomach','Abdomen'],['back','Back'],
       ['head','Head'],['neck','Neck'],
+      ['shoulder','Shoulder'],['leg','Leg'],
+      ['knee','Knee'],['hip','Hip'],
+      // Amharic body parts
+      ['ሆድ','Abdomen'],['ራስ','Head'],['ደረት','Chest'],
+      ['ጀርባ','Back'],['እግር','Leg'],['እጅ','Arm'],
+      ['አንገት','Neck'],['ዓይን','Eye'],['ጆሮ','Ear'],
+      ['አፍ','Mouth'],['ጉሮሮ','Throat'],['ወገብ','Lumbar'],
     ];
     const foundLocations: string[] = [];
     for (const [keyword, label] of locationPriority) {
