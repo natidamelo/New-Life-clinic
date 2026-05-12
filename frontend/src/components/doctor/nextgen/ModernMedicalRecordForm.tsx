@@ -794,6 +794,8 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   const [showAmbientReview, setShowAmbientReview] = useState<boolean>(false);
   const [ambientExtractedData, setAmbientExtractedData] = useState<any>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const [currentSpeaker, setCurrentSpeaker] = useState<'Doctor' | 'Patient'>('Doctor');
+  const diarizedSegmentsRef = useRef<Array<{ speaker: string; text: string }>>([]);
   // Helper function to calculate age from date of birth
   const calculateAgeFromDOB = (dob: string | undefined): number => {
     if (!dob) return 0;
@@ -2001,14 +2003,21 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
       recognition.onstart = () => {
         setIsRecording(true);
         setAmbientTranscript('');
-        toast.info('Ambient Listen Session Started', { position: 'top-center' });
+        setCurrentSpeaker('Doctor'); // Doctor typically starts
+        diarizedSegmentsRef.current = [];
+        toast.info('🎙️ Ambient Session Started — Tap speaker role buttons', { position: 'top-center' });
       };
 
       recognition.onresult = (event: any) => {
         let interimTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript + ' ';
+            const text = event.results[i][0].transcript.trim();
+            if (text) {
+              // Tag with active speaker role
+              diarizedSegmentsRef.current.push({ speaker: currentSpeaker, text });
+              finalTranscript += text + ' ';
+            }
           } else {
             interimTranscript += event.results[i][0].transcript;
           }
@@ -2039,12 +2048,21 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
           // Async wrap to allow state update
           (async () => {
             try {
+              // Build diarized transcript from tagged segments
+              const taggedTranscript = diarizedSegmentsRef.current.length > 0
+                ? diarizedSegmentsRef.current.map(seg => `**${seg.speaker}:** ${seg.text}`).join('\n')
+                : finalContent;
+
               const extractedData = await AIAssistantService.extractAmbientClinicalData(
                 finalContent, 
                 patientData.name || 'Patient',
                 API_BASE_URL,
                 getAuthToken() || undefined
               );
+              // Override diarized transcript with role-tagged version
+              if (diarizedSegmentsRef.current.length > 0) {
+                extractedData.diarizedTranscript = taggedTranscript;
+              }
               
               if (!extractedData.isClinical) {
                 // Noise detected — show warning, don't open review modal
@@ -3440,11 +3458,45 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                     </Box>
                     {isRecording && (
                       <Box sx={{ mb: 1, p: 1.5, bgcolor: 'error.50', border: '1px dashed', borderColor: 'error.main', borderRadius: 1 }}>
-                        <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <span className="animate-pulse">🔴</span> Ambient Listening...
-                        </Typography>
-                        <Typography variant="body2" sx={{ mt: 0.5, fontStyle: 'italic', color: 'text.secondary', minHeight: 20 }}>
-                          {ambientTranscript || 'Awaiting voice input...'}
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <span className="animate-pulse">🔴</span> Ambient Listening...
+                          </Typography>
+                          {/* Role Toggle Buttons */}
+                          <Box sx={{ display: 'flex', gap: 0.5, bgcolor: 'white', borderRadius: 2, p: 0.3, border: '1px solid', borderColor: 'divider' }}>
+                            <Button
+                              size="small"
+                              variant={currentSpeaker === 'Doctor' ? 'contained' : 'text'}
+                              onClick={() => setCurrentSpeaker('Doctor')}
+                              sx={{
+                                minWidth: 0, px: 1.5, py: 0.3, fontSize: '0.7rem', fontWeight: 600, borderRadius: 1.5, textTransform: 'none',
+                                ...(currentSpeaker === 'Doctor'
+                                  ? { bgcolor: '#1976d2', color: 'white', '&:hover': { bgcolor: '#1565c0' } }
+                                  : { color: 'text.secondary' })
+                              }}
+                            >
+                              🩺 Doctor
+                            </Button>
+                            <Button
+                              size="small"
+                              variant={currentSpeaker === 'Patient' ? 'contained' : 'text'}
+                              onClick={() => setCurrentSpeaker('Patient')}
+                              sx={{
+                                minWidth: 0, px: 1.5, py: 0.3, fontSize: '0.7rem', fontWeight: 600, borderRadius: 1.5, textTransform: 'none',
+                                ...(currentSpeaker === 'Patient'
+                                  ? { bgcolor: '#2e7d32', color: 'white', '&:hover': { bgcolor: '#1b5e20' } }
+                                  : { color: 'text.secondary' })
+                              }}
+                            >
+                              👤 Patient
+                            </Button>
+                          </Box>
+                        </Box>
+                        <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary', minHeight: 20 }}>
+                          <strong style={{ color: currentSpeaker === 'Doctor' ? '#1976d2' : '#2e7d32' }}>
+                            {currentSpeaker === 'Doctor' ? '🩺' : '👤'} {currentSpeaker}:
+                          </strong>{' '}
+                          {ambientTranscript ? ambientTranscript.split(' ').slice(-15).join(' ') : 'Awaiting voice input...'}
                         </Typography>
                       </Box>
                     )}

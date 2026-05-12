@@ -1259,9 +1259,50 @@ export class AIAssistantService {
       );
     }
 
-    // ─── DIARIZED TRANSCRIPT (speaker attribution) ───
+    // ─── SMART DIARIZED TRANSCRIPT (intent-based speaker attribution) ───
+    const doctorPatterns = [
+      // Greetings / openers from doctor
+      /^hi\b/i, /^hello\b/i, /^good\s+(morning|afternoon|evening)/i,
+      /how\s+are\s+you/i, /what\s+happened/i, /what\s+brings\s+you/i,
+      /what\s+seem/i, /tell\s+me/i, /describe/i, /explain/i,
+      // Questions (doctor asks)
+      /\?$/, /^do\s+you/i, /^did\s+you/i, /^have\s+you/i, /^are\s+you/i,
+      /^is\s+(it|there|the)/i, /^when\s+did/i, /^how\s+long/i, /^where\s+does/i,
+      /^any\s+(other|fever|pain|blood|vomit|cough|history|allerg)/i,
+      /^does\s+it/i, /^can\s+you/i, /^what\s+(kind|type|medication)/i,
+      // Clinical commands
+      /let\s+me\s+(check|examine|see)/i, /^ok\s+let/i, /^I('ll|\s+will)\s+(prescribe|order|recommend)/i,
+      /^take\s+a\s+deep/i, /^lie\s+down/i, /^open\s+your/i,
+    ];
+
+    const patientPatterns = [
+      // First-person symptom descriptions
+      /^I\s+(have|feel|got|am|had|been|can't|don't|didn't|took|started)/i,
+      /^my\s+(head|stomach|chest|back|body|leg|arm|eye|ear|throat|skin)/i,
+      /^it\s+(hurts|burns|aches|started|lasts|comes|goes|gets)/i,
+      /^yes/i, /^no/i, /^not\s+really/i, /^since/i, /^about/i,
+      /^for\s+(\d|the\s+past)/i,
+      // Symptom keywords as sentence starters
+      /^(pain|headache|fever|diarrhea|vomit|nausea|cramp|burn)/i,
+    ];
+
+    const classifySpeaker = (sentence: string): 'Doctor' | 'Patient' => {
+      const trimmed = sentence.trim();
+      for (const p of doctorPatterns) {
+        if (p.test(trimmed)) return 'Doctor';
+      }
+      for (const p of patientPatterns) {
+        if (p.test(trimmed)) return 'Patient';
+      }
+      // Fallback: if it contains a symptom keyword, likely Patient
+      const hasSymptom = AIAssistantService.MEDICAL_SYMPTOMS.some(s => trimmed.toLowerCase().includes(s));
+      if (hasSymptom) return 'Patient';
+      // Default: alternate based on previous speaker would be complex, just use Doctor for short, Patient for long
+      return trimmed.split(/\s+/).length <= 5 ? 'Doctor' : 'Patient';
+    };
+
     const sentences = rawTranscript.split(/[.!?,]+/).filter(s => s.trim().length > 2);
-    const diarized = sentences.map((s, i) => `**${i % 2 === 0 ? 'Patient' : 'Doctor'}:** ${s.trim()}`).join('\n');
+    const diarized = sentences.map(s => `**${classifySpeaker(s)}:** ${s.trim()}`).join('\n');
 
     return {
       isClinical: true,
