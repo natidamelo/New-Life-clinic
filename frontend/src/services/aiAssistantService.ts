@@ -1072,11 +1072,25 @@ export class AIAssistantService {
       [/sore\s+throat/gi, 'Sore Throat'],
       [/joint\s+pain/gi, 'Joint Pain'],
       [/muscle\s+pain/gi, 'Muscle Pain'],
+      // Additional symptoms
+      [/appetite\s+loss|loss\s+of\s+appetite|no\s+appetite|poor\s+appetite|decreased\s+appetite/gi, 'Loss of Appetite'],
+      [/belching|burping/gi, 'Belching'],
+      [/bloat(?:ing|ed)?/gi, 'Bloating'],
+      [/flatulence|gas/gi, 'Flatulence'],
+      [/heartburn|acid\s+reflux/gi, 'Heartburn'],
+      [/weight\s+loss/gi, 'Weight Loss'],
+      [/insomnia|can'?t\s+sleep|trouble\s+sleeping/gi, 'Insomnia'],
+      [/chills?/gi, 'Chills'],
+      [/body\s+(?:pain|ache)/gi, 'Body Pain'],
+      [/runny\s+nose|nasal\s+(?:discharge|congestion)/gi, 'Nasal Congestion'],
+      [/urinary|dysuria|painful\s+urination/gi, 'Dysuria'],
+      [/palpitation/gi, 'Palpitation'],
       // Amharic
       [/ራስ\s*ምታት/g, 'Headache'],
       [/ማቅለሽለሽ/g, 'Nausea'],
       [/ሆዴ.*?ያመኛል/g, 'Abdominal Pain'],
       [/ትኩሳት/g, 'Fever'],
+      [/የምግብ\s*ፍላጎት/g, 'Loss of Appetite'],
     ];
 
     const foundSymptoms: string[] = [];
@@ -1126,16 +1140,29 @@ export class AIAssistantService {
       }
     }
 
-    // ─── DURATION EXTRACTION ───
+    // ─── DURATION EXTRACTION (expanded patterns) ───
     const durationPatterns: Array<[RegExp, Function]> = [
-      [/(\d+)\s*days?\s*ago|for\s*(\d+)\s*days?/i, (m: RegExpMatchArray) => `${m[1] || m[2]} days`],
-      [/(\d+)\s*weeks?\s*ago|for\s*(\d+)\s*weeks?/i, (m: RegExpMatchArray) => `${m[1] || m[2]} weeks`],
-      [/(\d+)\s*months?\s*ago|for\s*(\d+)\s*months?/i, (m: RegExpMatchArray) => `${m[1] || m[2]} months`],
-      [/(\d+)\s*hours?\s*ago|for\s*(\d+)\s*hours?/i, (m: RegExpMatchArray) => `${m[1] || m[2]} hours`],
+      // "lasts 3 days", "lasting 3 days", "lasted 3 days"
+      [/(?:lasts?|lasting|lasted)\s*(\d+)\s*days?/i, (m: RegExpMatchArray) => `${m[1]} days`],
+      [/(?:lasts?|lasting|lasted)\s*(\d+)\s*weeks?/i, (m: RegExpMatchArray) => `${m[1]} weeks`],
+      [/(?:lasts?|lasting|lasted)\s*(\d+)\s*months?/i, (m: RegExpMatchArray) => `${m[1]} months`],
+      [/(?:lasts?|lasting|lasted)\s*(\d+)\s*hours?/i, (m: RegExpMatchArray) => `${m[1]} hours`],
+      // "3 days ago", "for 3 days", "past 3 days", "3 days now", "3 days duration"
+      [/(\d+)\s*days?\s*(?:ago|now|duration)|for\s*(\d+)\s*days?|(?:past|last)\s*(\d+)\s*days?/i, (m: RegExpMatchArray) => `${m[1] || m[2] || m[3]} days`],
+      [/(\d+)\s*weeks?\s*(?:ago|now)|for\s*(\d+)\s*weeks?|(?:past|last)\s*(\d+)\s*weeks?/i, (m: RegExpMatchArray) => `${m[1] || m[2] || m[3]} weeks`],
+      [/(\d+)\s*months?\s*(?:ago|now)|for\s*(\d+)\s*months?|(?:past|last)\s*(\d+)\s*months?/i, (m: RegExpMatchArray) => `${m[1] || m[2] || m[3]} months`],
+      [/(\d+)\s*hours?\s*(?:ago|now)|for\s*(\d+)\s*hours?|(?:past|last)\s*(\d+)\s*hours?/i, (m: RegExpMatchArray) => `${m[1] || m[2] || m[3]} hours`],
+      // Word-form durations
       [/since\s+yesterday/i, () => '1 day'],
       [/since\s+last\s+night/i, () => '1 day'],
-      [/two\s+days/i, () => '2 days'],
+      [/(?:two|couple(?:\s+of)?)\s+days/i, () => '2 days'],
       [/three\s+days/i, () => '3 days'],
+      [/(?:one|a)\s+week/i, () => '1 week'],
+      [/(?:two|couple(?:\s+of)?)\s+weeks/i, () => '2 weeks'],
+      [/(?:one|a)\s+month/i, () => '1 month'],
+      // "started X days ago"
+      [/started\s+(\d+)\s*days?\s*ago/i, (m: RegExpMatchArray) => `${m[1]} days`],
+      [/started\s+(?:yesterday|last\s+night)/i, () => '1 day'],
     ];
     let durValue = '';
     let durConfidence = 0;
@@ -1192,16 +1219,20 @@ export class AIAssistantService {
     // ─── SYNTHESIZED HPI WITH FIDELITY AUDIT ───
     const buildHPI = (): string => {
       const parts: string[] = [];
+      // Opening line with primary complaint (first symptom) and demographics
+      const primaryComplaint = foundSymptoms[0] || '[chief complaint]';
+      const otherSymptoms = foundSymptoms.slice(1);
+      
       parts.push(`The patient presents with`);
       if (durValue) parts.push(`a ${durValue} history of`);
       if (sevValue) parts.push(sevValue.toLowerCase());
-      parts.push(ccValue || '[chief complaint]');
+      parts.push(primaryComplaint);
       if (locValue) parts.push(`located in the ${locValue}`);
       parts.push('.');
       if (progValue) parts.push(`Symptoms are ${progValue.toLowerCase()}.`);
-      // Include ALL found symptoms explicitly
-      if (foundSymptoms.length > 1) {
-        parts.push(`Associated symptoms include ${foundSymptoms.slice(1).join(', ')}.`);
+      // List additional symptoms WITHOUT repeating the primary
+      if (otherSymptoms.length > 0) {
+        parts.push(`Associated symptoms include ${otherSymptoms.join(', ')}.`);
       }
       // Self-medication
       if (selfMedications.length > 0) {
