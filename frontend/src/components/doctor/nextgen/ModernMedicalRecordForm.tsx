@@ -1904,6 +1904,7 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
         chiefComplaint: ccDescription,
         age: patientData.age,
         gender: patientData.gender,
+        historyOfPresentIllness: (formData as any).historyOfPresentIllness || undefined,
         onset: formData.chiefComplaint.onsetPattern || undefined,
         duration: durationToUse || undefined,
         severity: formData.chiefComplaint.severity,
@@ -1964,14 +1965,73 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
     }
   }, [formData, patientData, propPatientData, hpiHistoryIndex]);
 
+  // Update AI clinical insights (DDx, labs, etc.) based on edited HPI text
+  const updateInsightsFromHPI = useCallback(async (hpiText: string) => {
+    if (!hpiText || !hpiText.trim()) return;
+    
+    const ccDescription = typeof formData.chiefComplaint === 'string'
+      ? formData.chiefComplaint
+      : (formData.chiefComplaint as any)?.description || '';
+
+    try {
+      const parsedDuration = AIAssistantService.parseDurationFromChiefComplaint(ccDescription);
+      const durationToUse = formData.chiefComplaint.duration || parsedDuration || '';
+
+      const payload = {
+        chiefComplaint: ccDescription,
+        age: patientData.age,
+        gender: patientData.gender,
+        historyOfPresentIllness: hpiText,
+        onset: formData.chiefComplaint.onsetPattern || undefined,
+        duration: durationToUse || undefined,
+        severity: formData.chiefComplaint.severity,
+        progression: formData.chiefComplaint.progression,
+        location: formData.chiefComplaint.location,
+        aggravatingFactors: formData.chiefComplaint.aggravatingFactors || [],
+        relievingFactors: formData.chiefComplaint.relievingFactors || [],
+        associatedSymptoms: formData.chiefComplaint.associatedSymptoms || [],
+        pastMedicalHistory: propPatientData?.pastMedicalHistory || ''
+      };
+
+      const result = await AIAssistantService.generateHPIWithGemini(
+        payload,
+        API_BASE_URL,
+        getAuthToken() || undefined
+      );
+
+      // Update Gemini suggestions states
+      setGeminiPhrases(result.suggestedPhrases || {});
+      setGeminiAvailable(result.isAIAvailable);
+      if (result.redFlags?.length) setGeminiRedFlags(result.redFlags);
+      if (result.differentialDiagnoses?.length) setGeminiDiagnoses(result.differentialDiagnoses as any[]);
+      if (result.suggestedLabs?.length) setGeminiLabs(result.suggestedLabs);
+      if (result.suggestedExams?.length) setGeminiExams(result.suggestedExams);
+    } catch (error) {
+      console.error('Error updating insights from HPI:', error);
+    }
+  }, [formData, patientData, propPatientData]);
+
   const autoFillRef = useRef(autoFillHPI);
+  const updateInsightsRef = useRef(updateInsightsFromHPI);
+
   useEffect(() => {
     autoFillRef.current = autoFillHPI;
   }, [autoFillHPI]);
 
+  useEffect(() => {
+    updateInsightsRef.current = updateInsightsFromHPI;
+  }, [updateInsightsFromHPI]);
+
   const debouncedAutoFillHPI = useMemo(
     () => debounce(() => {
       autoFillRef.current();
+    }, 1500),
+    []
+  );
+
+  const debouncedUpdateInsightsFromHPI = useMemo(
+    () => debounce((hpiText: string) => {
+      updateInsightsRef.current(hpiText);
     }, 1500),
     []
   );
@@ -2109,8 +2169,10 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
     if (hpiHistoryIndex > 0) {
       const prevIndex = hpiHistoryIndex - 1;
       setHpiHistoryIndex(prevIndex);
-      setFormData({ ...formData, historyOfPresentIllness: hpiHistory[prevIndex] });
+      const prevHpi = hpiHistory[prevIndex];
+      setFormData({ ...formData, historyOfPresentIllness: prevHpi });
       setIsHpiAiDrafted(false);
+      debouncedUpdateInsightsFromHPI(prevHpi);
     }
   };
 
@@ -2118,8 +2180,10 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
     if (hpiHistoryIndex < hpiHistory.length - 1) {
       const nextIndex = hpiHistoryIndex + 1;
       setHpiHistoryIndex(nextIndex);
-      setFormData({ ...formData, historyOfPresentIllness: hpiHistory[nextIndex] });
+      const nextHpi = hpiHistory[nextIndex];
+      setFormData({ ...formData, historyOfPresentIllness: nextHpi });
       setIsHpiAiDrafted(true);
+      debouncedUpdateInsightsFromHPI(nextHpi);
     }
   };
 
@@ -3530,6 +3594,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                             setHpiSuggestions(suggestions);
                             setShowHpiSuggestions(suggestions.length > 0);
                           }
+                          debouncedUpdateInsightsFromHPI(e.target.value);
                         }}
                         disabled={mode === 'view' || isTranscribing}
                         sx={{ '& .MuiOutlinedInput-root': { fontSize: '0.875rem' } }}
@@ -3601,6 +3666,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                                       const updated = { ...formData, historyOfPresentIllness: current + sep + phrase };
                                       setFormData(updated);
                                       if (!isFirstRender.current) { autoSaveDraft(updated); memorySystem.updateData(); }
+                                      debouncedUpdateInsightsFromHPI(current + sep + phrase);
                                     }}
                                     sx={{ fontSize: '0.68rem', height: '20px', cursor: 'pointer', borderColor: 'primary.light', color: 'primary.main', '&:hover': { bgcolor: 'primary.50' } }}
                                   />
@@ -3627,6 +3693,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                                   setFormData(updated);
                                   if (!isFirstRender.current) { autoSaveDraft(updated); memorySystem.updateData(); }
                                   setShowHpiSuggestions(false);
+                                  debouncedUpdateInsightsFromHPI(current + separator + suggestion);
                                 }}
                                 sx={{ fontSize: '0.7rem', height: '22px', cursor: 'pointer', borderColor: 'primary.light', color: 'primary.main', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main' } }}
                               />

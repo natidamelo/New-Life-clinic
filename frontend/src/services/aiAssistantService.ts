@@ -774,24 +774,90 @@ export class AIAssistantService {
     authToken?: string
   ): Promise<GeminiHPIResult> {
     const complaint = (patientData.chiefComplaint || '').toLowerCase();
+    const hpiText = (patientData.historyOfPresentIllness || '').toLowerCase();
+    const textToAnalyze = `${complaint} ${hpiText}`;
     
-    // Create mock DDx based on complaint
+    // Create mock DDx based on both complaint and HPI
     const mockDDx: DDxItem[] = [];
     let mockLabs: string[] = [];
     let mockExams: string[] = [];
     
-    if (complaint.includes('headache')) {
-      mockDDx.push({ condition: 'Migraine', reasoning: 'Likely due to localized headache, duration, and associated symptoms like nausea.', isRedFlag: false });
-      mockDDx.push({ condition: 'Tension Headache', reasoning: 'Possible due to stress or muscular tension.', isRedFlag: false });
-      mockDDx.push({ condition: 'Meningitis', reasoning: 'Must rule out immediately if fever or neck stiffness develops.', isRedFlag: true });
+    if (
+      textToAnalyze.includes('epigastric') ||
+      textToAnalyze.includes('heartburn') ||
+      textToAnalyze.includes('heart burn') ||
+      textToAnalyze.includes('acid reflux') ||
+      textToAnalyze.includes('gerd') ||
+      textToAnalyze.includes('gastric') ||
+      textToAnalyze.includes('peptic') ||
+      textToAnalyze.includes('ulcer') ||
+      textToAnalyze.includes('stomach') ||
+      textToAnalyze.includes('abdomen') ||
+      textToAnalyze.includes('diarrhea') ||
+      textToAnalyze.includes('loose stool') ||
+      textToAnalyze.includes('watery') ||
+      textToAnalyze.includes('nausea') ||
+      textToAnalyze.includes('vomit')
+    ) {
+      if (textToAnalyze.includes('diarrhea') || textToAnalyze.includes('loose stool') || textToAnalyze.includes('watery')) {
+        mockDDx.push({
+          condition: 'Acute Gastroenteritis',
+          reasoning: 'Watery diarrhea and epigastric discomfort suggests viral vs. bacterial gastroenteritis.',
+          isRedFlag: false
+        });
+      }
+      if (textToAnalyze.includes('heartburn') || textToAnalyze.includes('heart burn') || textToAnalyze.includes('reflux') || textToAnalyze.includes('gerd')) {
+        mockDDx.push({
+          condition: 'GERD (Gastroesophageal Reflux Disease)',
+          reasoning: 'Retrosternal burning sensation, potentially exacerbated by meals or lying flat.',
+          isRedFlag: false
+        });
+      }
+      mockDDx.push({
+        condition: 'Gastritis / Peptic Ulcer Disease (PUD)',
+        reasoning: 'Epigastric pain burning in nature, related to meals or gastric acidity.',
+        isRedFlag: false
+      });
+      if (textToAnalyze.includes('fever') || textToAnalyze.includes('severe') || textToAnalyze.includes('blood') || textToAnalyze.includes('melena')) {
+        mockDDx.push({
+          condition: 'Upper Gastrointestinal Bleeding',
+          reasoning: 'Must exclude immediately if severe burning pain, hematemesis, or melena is present.',
+          isRedFlag: true
+        });
+      } else {
+        mockDDx.push({
+          condition: 'Appendicitis (early)',
+          reasoning: 'Keep under consideration if pain shifts or localizes to the right lower quadrant (RLQ).',
+          isRedFlag: true
+        });
+      }
+      mockLabs.push('CBC', 'Basic Metabolic Panel', 'H. pylori stool antigen', 'Stool routine and microscopy');
+      mockExams.push('Abdominal Palpation', 'Bowel Sounds', 'Vitals Assessment');
+    } else if (textToAnalyze.includes('headache') || textToAnalyze.includes('migraine') || textToAnalyze.includes('head pain')) {
+      mockDDx.push({ condition: 'Migraine', reasoning: 'Unilateral or throbbing head pain, often with photophobia or nausea.', isRedFlag: false });
+      mockDDx.push({ condition: 'Tension Headache', reasoning: 'Bilateral, pressing headache, often related to muscle tension or stress.', isRedFlag: false });
+      mockDDx.push({ condition: 'Meningitis / Subarachnoid Hemorrhage', reasoning: 'Rule out if sudden severe ("thunderclap") onset, fever, or neck stiffness is present.', isRedFlag: true });
       mockLabs.push('CBC', 'CRP');
-      mockExams.push('Neurological Exam', 'Fundoscopy');
-    } else if (complaint.includes('abdomen') || complaint.includes('stomach') || complaint.includes('nausea')) {
-      mockDDx.push({ condition: 'Gastroenteritis', reasoning: 'Common cause of acute nausea and abdominal discomfort.', isRedFlag: false });
-      mockDDx.push({ condition: 'Appendicitis', reasoning: 'Rule out if pain localizes to RLQ.', isRedFlag: true });
-      mockDDx.push({ condition: 'GERD', reasoning: 'Consider if associated with heartburn or worse postprandially.', isRedFlag: false });
-      mockLabs.push('CBC', 'Lipase', 'Urinalysis');
-      mockExams.push('Abdominal Palpation', 'Bowel Sounds');
+      mockExams.push('Neurological Exam', 'Fundoscopy', 'Neck Rigidity Check');
+    } else if (textToAnalyze.includes('chest pain') || textToAnalyze.includes('angina') || textToAnalyze.includes('myocardial') || textToAnalyze.includes('heart pain')) {
+      mockDDx.push({ condition: 'Acute Coronary Syndrome (ACS)', reasoning: 'Substernal chest pressure/pain requiring immediate ECG and Troponin evaluation.', isRedFlag: true });
+      mockDDx.push({ condition: 'Costochondritis', reasoning: 'Localized chest wall pain, typically reproducible on palpation.', isRedFlag: false });
+      mockDDx.push({ condition: 'GERD', reasoning: 'Acid reflux can present as retrosternal burning pain mimicking chest pain.', isRedFlag: false });
+      mockLabs.push('ECG', 'Troponin', 'Chest X-ray');
+      mockExams.push('Chest Palpation', 'Cardiac Auscultation', 'Lungs Auscultation');
+    } else if (
+      textToAnalyze.includes('cough') ||
+      textToAnalyze.includes('fever') ||
+      textToAnalyze.includes('dyspnea') ||
+      textToAnalyze.includes('shortness of breath') ||
+      textToAnalyze.includes('congestion') ||
+      textToAnalyze.includes('throat')
+    ) {
+      mockDDx.push({ condition: 'Viral Upper Respiratory Tract Infection (URTI)', reasoning: 'Acute cough, nasal congestion, and low-grade fever.', isRedFlag: false });
+      mockDDx.push({ condition: 'Acute Bronchitis', reasoning: 'Self-limiting airway inflammation presenting with persistent cough.', isRedFlag: false });
+      mockDDx.push({ condition: 'Pneumonia', reasoning: 'Expose to further workup if high fever, tachypnea, productive cough, or lung crackles exist.', isRedFlag: true });
+      mockLabs.push('CBC', 'CRP', 'Sputum culture');
+      mockExams.push('Lungs Auscultation', 'Throat Examination', 'Oxygen Saturation');
     } else {
       mockDDx.push({ condition: 'Viral Syndrome', reasoning: 'General symptoms suggest a viral etiology.', isRedFlag: false });
       mockDDx.push({ condition: 'Bacterial Infection', reasoning: 'Consider if symptoms are severe or progressive.', isRedFlag: true });
