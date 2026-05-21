@@ -443,6 +443,8 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
   // Add state for completed patient search functionality
   const [completedPatients, setCompletedPatients] = useState<PatientType[]>([]);
   const [completedPatientsSearchTerm, setCompletedPatientsSearchTerm] = useState('');
+  const [prescriptionSearchTerm, setPrescriptionSearchTerm] = useState('');
+  const [prescriptionStatusFilter, setPrescriptionStatusFilter] = useState<'all' | 'pending' | 'active'>('all');
   const [isLoadingCompletedPatients, setIsLoadingCompletedPatients] = useState(false);
   const [showCompletedPatientsSearch, setShowCompletedPatientsSearch] = useState(false);
   const [completedPage, setCompletedPage] = useState(1);
@@ -2971,18 +2973,50 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
         key: prescriptionId,
         patientId: p.patientId || (typeof p.patient === 'object' ? p.patient?._id : p.patient),
         patientName: patientNameFinal,
+        patientCode: patientObj?.patientId || patientObj?.patientCode || '',
         meds: [p],
       };
     });
 
+    // Apply search and status filters
+    const search = prescriptionSearchTerm.trim().toLowerCase();
+    const filteredResult = result.filter(group => {
+      const latest = group.meds[0] as any;
+      
+      // Status filter
+      if (prescriptionStatusFilter !== 'all') {
+        const isPending = (latest.status || '').toLowerCase() === 'pending';
+        if (prescriptionStatusFilter === 'pending' && !isPending) return false;
+        if (prescriptionStatusFilter === 'active' && isPending) return false;
+      }
+
+      // Search term filter
+      if (search) {
+        const nameMatch = group.patientName.toLowerCase().includes(search);
+        const codeMatch = String(group.patientCode || '').toLowerCase().includes(search);
+        const idMatch = String(group.patientId || '').toLowerCase().includes(search);
+        
+        const medNames = latest.medications && latest.medications.length > 0
+          ? latest.medications.map((m: any) => m.name || m.medication || m.medicationName).filter(Boolean).join(', ')
+          : (latest.medicationName || 'Unknown medication');
+        const medMatch = medNames.toLowerCase().includes(search);
+
+        const statusMatch = String(latest.status || '').toLowerCase().includes(search);
+        
+        return nameMatch || codeMatch || idMatch || medMatch || statusMatch;
+      }
+
+      return true;
+    });
+
     // Update total pages (10 per page)
-    const total = Math.max(1, Math.ceil(result.length / 10));
+    const total = Math.max(1, Math.ceil(filteredResult.length / 10));
     if (prescriptionsTotalPages !== total) {
       setPrescriptionsTotalPages(total);
       setPrescriptionsPage((p) => Math.min(p, total));
     }
-    return result;
-  }, [prescriptions, patients]);
+    return filteredResult;
+  }, [prescriptions, patients, prescriptionSearchTerm, prescriptionStatusFilter, prescriptionsTotalPages]);
 
   // Main component return
   console.log('isMedicalRecordOpen:', isMedicalRecordOpen, 'selectedPatientObject:', selectedPatientObject);
@@ -3460,6 +3494,47 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
           </TabsContent>
 
           <TabsContent value="prescriptions" className="mt-6">
+            {/* Prescriptions Search Engine */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 rounded-xl p-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center flex-shrink-0">
+                  <Pill className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-green-950">Prescription Registry</h2>
+                  <p className="text-xs text-green-600">Search and track all patient prescriptions</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative">
+                  <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search patient, medication..."
+                    value={prescriptionSearchTerm}
+                    onChange={(e) => setPrescriptionSearchTerm(e.target.value)}
+                    className="pl-8 pr-3 py-1.5 text-xs border border-green-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-400 w-48"
+                  />
+                </div>
+                <select
+                  value={prescriptionStatusFilter}
+                  onChange={(e) => setPrescriptionStatusFilter(e.target.value as any)}
+                  className="px-3 py-1.5 text-xs border border-green-200 rounded-lg bg-white text-green-800 focus:outline-none focus:ring-2 focus:ring-green-400"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="active">Active/Completed</option>
+                </select>
+                <button
+                  onClick={() => fetchAllPrescriptions()}
+                  disabled={prescriptionsLoading}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-green-700 bg-white border border-green-200 rounded-lg hover:bg-green-50 disabled:opacity-50 transition-colors"
+                >
+                  <RefreshCw size={12} className={prescriptionsLoading ? 'animate-spin' : ''} /> Refresh
+                </button>
+              </div>
+            </div>
+
             {prescriptionsLoading ? (
               <div className="flex justify-center items-center p-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -3470,6 +3545,18 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                 <Pill className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-lg font-medium text-gray-900">No prescriptions found</h3>
                 <p className="mt-1 text-sm text-gray-500">Prescriptions you create will appear here.</p>
+              </div>
+            ) : groupedPrescriptions.length === 0 ? (
+              <div className="text-center p-8 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-lg font-medium text-gray-900">No matching prescriptions</h3>
+                <p className="mt-1 text-sm text-gray-500">No prescriptions matched your search criteria.</p>
+                <button
+                  onClick={() => { setPrescriptionSearchTerm(''); setPrescriptionStatusFilter('all'); }}
+                  className="mt-4 px-3 py-1.5 text-xs font-medium text-green-700 bg-white border border-green-200 rounded-lg hover:bg-green-50"
+                >
+                  Clear Search
+                </button>
               </div>
             ) : (
               <div>
