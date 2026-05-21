@@ -2945,9 +2945,18 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
     </div>
   );
 
-  // Each prescription is its own row (grouped by prescription _id)
+  // Each prescription is its own row (grouped by patientId and date)
   const groupedPrescriptions = useMemo(() => {
-    const result = (prescriptions || []).map((p: any) => {
+    const groups: Record<string, {
+      key: string;
+      patientId: string;
+      patientName: string;
+      patientCode: string;
+      dateString: string;
+      meds: any[];
+    }> = {};
+
+    (prescriptions || []).forEach((p: any) => {
       // 1. Try to find the patient from the 'patients' master list (most up-to-date)
       const pId = p.patientId || (typeof p.patient === 'object' ? p.patient?._id || p.patient?.id : p.patient);
       const masterPatient = pId && patients && patients.length > 0 
@@ -2968,26 +2977,34 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
               ? p.patientName
               : 'Unknown Patient';
 
-      const prescriptionId = p._id || p.id;
-      return {
-        key: prescriptionId,
-        patientId: p.patientId || (typeof p.patient === 'object' ? p.patient?._id : p.patient),
-        patientName: patientNameFinal,
-        patientCode: patientObj?.patientId || patientObj?.patientCode || '',
-        meds: [p],
-      };
+      const resolvedPatientId = p.patientId || (typeof p.patient === 'object' ? p.patient?._id || p.patient?.id : p.patient) || patientNameFinal;
+      const dateString = formatDate(p.createdAt || p.datePrescribed);
+      
+      const groupKey = `${resolvedPatientId}_${dateString}`;
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
+          key: groupKey,
+          patientId: resolvedPatientId,
+          patientName: patientNameFinal,
+          patientCode: patientObj?.patientId || patientObj?.patientCode || '',
+          dateString,
+          meds: [],
+        };
+      }
+      groups[groupKey].meds.push(p);
     });
+
+    const result = Object.values(groups);
 
     // Apply search and status filters
     const search = prescriptionSearchTerm.trim().toLowerCase();
     const filteredResult = result.filter(group => {
-      const latest = group.meds[0] as any;
-      
       // Status filter
       if (prescriptionStatusFilter !== 'all') {
-        const isPending = (latest.status || '').toLowerCase() === 'pending';
-        if (prescriptionStatusFilter === 'pending' && !isPending) return false;
-        if (prescriptionStatusFilter === 'active' && isPending) return false;
+        const hasPending = group.meds.some((p: any) => (p.status || '').toLowerCase() === 'pending');
+        if (prescriptionStatusFilter === 'pending' && !hasPending) return false;
+        if (prescriptionStatusFilter === 'active' && hasPending) return false;
       }
 
       // Search term filter
@@ -2996,12 +3013,16 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
         const codeMatch = String(group.patientCode || '').toLowerCase().includes(search);
         const idMatch = String(group.patientId || '').toLowerCase().includes(search);
         
-        const medNames = latest.medications && latest.medications.length > 0
-          ? latest.medications.map((m: any) => m.name || m.medication || m.medicationName).filter(Boolean).join(', ')
-          : (latest.medicationName || 'Unknown medication');
-        const medMatch = medNames.toLowerCase().includes(search);
+        const medMatch = group.meds.some((p: any) => {
+          const medNames = p.medications && p.medications.length > 0
+            ? p.medications.map((m: any) => m.name || m.medication || m.medicationName).filter(Boolean).join(', ')
+            : (p.medicationName || 'Unknown medication');
+          return medNames.toLowerCase().includes(search);
+        });
 
-        const statusMatch = String(latest.status || '').toLowerCase().includes(search);
+        const statusMatch = group.meds.some((p: any) => 
+          String(p.status || '').toLowerCase().includes(search)
+        );
         
         return nameMatch || codeMatch || idMatch || medMatch || statusMatch;
       }
@@ -3574,19 +3595,26 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                     {groupedPrescriptions
                       .slice((prescriptionsPage - 1) * 10, (prescriptionsPage - 1) * 10 + 10)
                       .map(group => {
-                        const latest = group.meds[0] as any;
-                        const status = (latest.status || '').toLowerCase() === 'pending' ? 'pending' : 'active';
-                        const medNames = latest.medications && latest.medications.length > 0
-                          ? latest.medications.map((m: any) => m.name || m.medication || m.medicationName).filter(Boolean).join(', ')
-                          : (latest.medicationName || 'Unknown medication');
+                        const hasPending = group.meds.some((p: any) => (p.status || '').toLowerCase() === 'pending');
+                        const statusLabel = hasPending ? 'Pending' : (group.meds[0]?.status || 'Active');
+                        const statusClass = hasPending ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800';
+
+                        // Join medication names from all prescriptions in the group
+                        const medNames = group.meds.flatMap((p: any) => {
+                          if (p.medications && p.medications.length > 0) {
+                            return p.medications.map((m: any) => m.name || m.medication || m.medicationName);
+                          }
+                          return [p.medicationName || 'Unknown medication'];
+                        }).filter(Boolean).join(', ');
+
                         return (
                           <tr key={group.key} className="border-b border-gray-100 hover:bg-gray-50">
                             <td className="px-4 py-2 text-sm">{medNames}</td>
                             <td className="px-4 py-2 text-sm">{group.patientName}</td>
-                            <td className="px-4 py-2 text-sm">{formatDate(latest.createdAt || latest.datePrescribed)}</td>
+                            <td className="px-4 py-2 text-sm">{group.dateString}</td>
                             <td className="px-4 py-2">
-                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                {latest.status || status}
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusClass}`}>
+                                {statusLabel}
                               </span>
                             </td>
                             <td className="px-4 py-2">
