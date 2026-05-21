@@ -228,6 +228,70 @@ function getLocalClinicalInsights(data) {
     mockDDx.push({ condition: 'Pneumonia', reasoning: 'Expose to further workup if high fever, tachypnea, productive cough, or lung crackles exist.', isRedFlag: true });
     mockLabs.push('CBC', 'CRP', 'Sputum culture');
     mockExams.push('Lungs Auscultation', 'Throat Examination', 'Oxygen Saturation');
+  } else if (
+    textToAnalyze.includes('back pain') ||
+    textToAnalyze.includes('lumbar') ||
+    textToAnalyze.includes('lumbosacral') ||
+    textToAnalyze.includes('spine') ||
+    textToAnalyze.includes('sciatica') ||
+    textToAnalyze.includes('radiculopathy')
+  ) {
+    mockDDx.push({ condition: 'Acute Lumbar Strain', reasoning: 'Localized back stiffness/pain exacerbated by activity, with no neurological deficits.', isRedFlag: false });
+    mockDDx.push({ condition: 'Lumbar Radiculopathy / Disc Herniation', reasoning: 'Pain radiating from lower back down the leg (sciatica), potentially with numbness/weakness. Red flag if saddle anesthesia or bowel/bladder loss is present.', isRedFlag: true });
+    mockDDx.push({ condition: 'Spinal Stenosis', reasoning: 'Back pain relieved by sitting/leaning forward, aggravated by standing/walking.', isRedFlag: false });
+    mockLabs.push('CBC', 'CRP', 'X-ray Spine (L-S)', 'MRI Spine (if radiculopathy/neurological deficit)');
+    mockExams.push('Straight Leg Raise Test', 'Lower Extremity Neuro Assessment (Reflexes/Sensation/Motor)', 'Spine Palpation');
+  } else if (
+    textToAnalyze.includes('polyuria') ||
+    textToAnalyze.includes('polydipsia') ||
+    textToAnalyze.includes('diabetic') ||
+    textToAnalyze.includes('glucose') ||
+    textToAnalyze.includes('diabetes') ||
+    textToAnalyze.includes('hyperglycemia')
+  ) {
+    mockDDx.push({ condition: 'Diabetes Mellitus (New Onset / Uncontrolled)', reasoning: 'Classic osmotic symptoms: frequent urination (polyuria) and excessive thirst (polydipsia).', isRedFlag: false });
+    mockDDx.push({ condition: 'Diabetic Ketoacidosis (DKA)', reasoning: 'Emergency state. Suspect if accompanied by nausea, vomiting, rapid deep breathing, or confusion.', isRedFlag: true });
+    mockLabs.push('Random Blood Sugar (RBS)', 'HbA1c', 'Urine Ketones', 'Basic Metabolic Panel (BMP)');
+    mockExams.push('Dehydration Assessment (Skin turgor, mucous membranes)', 'Mental Status Exam', 'Vitals Assessment');
+  } else if (
+    textToAnalyze.includes('rash') ||
+    textToAnalyze.includes('itch') ||
+    textToAnalyze.includes('hives') ||
+    textToAnalyze.includes('urticaria') ||
+    textToAnalyze.includes('cellulitis') ||
+    textToAnalyze.includes('skin infection') ||
+    textToAnalyze.includes('lesion')
+  ) {
+    mockDDx.push({ condition: 'Cellulitis', reasoning: 'Spreading area of skin warmth, redness, and swelling; requires oral/IV antibiotics. Red flag if accompanied by fever or rapid spread.', isRedFlag: true });
+    mockDDx.push({ condition: 'Allergic Contact Dermatitis', reasoning: 'Pruritic rash or skin reaction resulting from contact with an allergen.', isRedFlag: false });
+    mockDDx.push({ condition: 'Urticaria (Hives)', reasoning: 'Transient, highly pruritic, raised red wheals, often secondary to allergic/viral trigger.', isRedFlag: false });
+    mockLabs.push('Complete Blood Count (CBC)', 'Wound Culture (if drainage present)', 'CRP / ESR');
+    mockExams.push('Skin Inspection (Margins, warmth, fluctuance)', 'Lymph Node Assessment', 'Vitals Assessment');
+  } else if (
+    textToAnalyze.includes('ear') ||
+    textToAnalyze.includes('otalgia') ||
+    textToAnalyze.includes('hearing') ||
+    textToAnalyze.includes('vertigo') ||
+    textToAnalyze.includes('dizz') ||
+    textToAnalyze.includes('tinnitus')
+  ) {
+    mockDDx.push({ condition: 'Otitis Media / Otitis Externa', reasoning: 'Ear pain (otalgia) with canal inflammation or fluid behind the tympanic membrane.', isRedFlag: false });
+    mockDDx.push({ condition: 'Benign Paroxysmal Positional Vertigo (BPPV)', reasoning: 'Episodic vertigo triggered by changes in head position, lasting seconds to minutes.', isRedFlag: false });
+    mockDDx.push({ condition: 'Meniere\'s Disease', reasoning: 'Triad of episodic vertigo, unilateral tinnitus, and fluctuating hearing loss. Rule out stroke/central causes.', isRedFlag: true });
+    mockLabs.push('Otoscopy (Visual examination of TM)', 'Audiometry (Hearing test)', 'CBC (if systemically unwell)');
+    mockExams.push('Otoscopic Exam', 'Dix-Hallpike Maneuver (for vertigo)', 'Cranial Nerve Assessment');
+  } else if (
+    textToAnalyze.includes('pelvic') ||
+    textToAnalyze.includes('gynecol') ||
+    textToAnalyze.includes('menstru') ||
+    textToAnalyze.includes('pregnancy') ||
+    textToAnalyze.includes('vaginal')
+  ) {
+    mockDDx.push({ condition: 'Pelvic Inflammatory Disease (PID)', reasoning: 'Lower abdominal/pelvic pain, cervical motion tenderness, and vaginal discharge. Risk of scarring/infertility.', isRedFlag: true });
+    mockDDx.push({ condition: 'Ectopic Pregnancy', reasoning: 'Must rule out in any female of childbearing age presenting with lower abdominal pain and vaginal bleeding.', isRedFlag: true });
+    mockDDx.push({ condition: 'Primary Dysmenorrhea', reasoning: 'Crampy, lower abdominal pain associated with onset of menses, in absence of pelvic pathology.', isRedFlag: false });
+    mockLabs.push('Urine Pregnancy Test (beta-hCG)', 'Pelvic Ultrasound', 'Vaginal Swab / Gram stain', 'CBC / CRP');
+    mockExams.push('Speculum and Bimanual Pelvic Exam', 'Abdominal Palpation', 'Vitals Assessment');
   } else {
     mockDDx.push({ condition: 'Viral Syndrome', reasoning: 'General symptoms suggest a viral etiology.', isRedFlag: false });
     mockDDx.push({ condition: 'Bacterial Infection', reasoning: 'Consider if symptoms are severe or progressive.', isRedFlag: true });
