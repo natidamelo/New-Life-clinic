@@ -152,6 +152,32 @@ const Referrals: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .referral-print-modal, .referral-print-modal * {
+            visibility: visible;
+          }
+          .referral-print-modal {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: none !important;
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Medical Referrals</h1>
@@ -395,7 +421,7 @@ const Referrals: React.FC = () => {
       {/* Referral Details Modal */}
       {selectedReferral && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden referral-print-modal">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-900">
@@ -403,7 +429,7 @@ const Referrals: React.FC = () => {
                 </h2>
                 <button
                   onClick={() => setSelectedReferral(null)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 no-print"
                 >
                   <XCircle className="w-6 h-6" />
                 </button>
@@ -519,7 +545,7 @@ const Referrals: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+            <div className="p-6 border-t border-gray-200 flex justify-end space-x-3 no-print">
               <button
                 onClick={() => setSelectedReferral(null)}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"

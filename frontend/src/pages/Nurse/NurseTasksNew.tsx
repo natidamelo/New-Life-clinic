@@ -1332,6 +1332,7 @@ const NurseTasksNew: React.FC = () => {
         <head>
           <title>In-Progress Medication Report</title>
           <style>
+            * { color: #000000 !important; border-color: #000000 !important; background-color: transparent !important; }
             body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
             h1 { margin: 0 0 8px; font-size: 20px; }
             p.meta { margin: 0 0 16px; color: #4b5563; font-size: 13px; }

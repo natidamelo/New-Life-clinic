@@ -715,6 +715,8 @@ const MedicalTestRequestForm: React.FC = () => {
               margin: 0;
               padding: 0;
               box-sizing: border-box;
+              color: #000000 !important;
+              border-color: #000000 !important;
             }
             body { 
               font-family: 'Arial', sans-serif; 

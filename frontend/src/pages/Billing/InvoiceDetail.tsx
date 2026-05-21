@@ -581,6 +581,11 @@ const InvoiceDetail: React.FC = () => {
         {`
 @page { size: A5 portrait; margin: 5mm; }
 @media print {
+  *:not(.invoice-watermark) {
+    color: #000000 !important;
+    border-color: #000000 !important;
+    background-color: transparent !important;
+  }
   body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
   body * { visibility: hidden; }
   .invoice-print-root, .invoice-print-root * { visibility: visible; }

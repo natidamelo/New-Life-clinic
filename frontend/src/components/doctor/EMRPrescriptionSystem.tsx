@@ -318,6 +318,8 @@ const EMRPrescriptionSystem: React.FC = () => {
                   
                   * {
                       box-sizing: border-box;
+                      color: #000000 !important;
+                      border-color: #000000 !important;
                   }
                   
                   body { 
@@ -699,9 +701,14 @@ const EMRPrescriptionSystem: React.FC = () => {
                           display: none !important; 
                       }
                       
-                      * { 
-                          -webkit-print-color-adjust: exact !important; 
-                          color-adjust: exact !important; 
+                      *:not(.prescription-container) {
+                          color: #000000 !important;
+                          border-color: #000000 !important;
+                          background-color: transparent !important;
+                      }
+                      .prescription-container::before {
+                          color: rgba(30, 64, 175, 0.08) !important;
+                          background-color: transparent !important;
                       }
                       
                       .medication-item {

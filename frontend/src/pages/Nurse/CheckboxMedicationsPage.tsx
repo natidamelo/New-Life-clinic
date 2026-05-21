@@ -510,6 +510,7 @@ const CheckboxMedicationsPage: React.FC = () => {
       <head>
         <title>In-Progress Medication Report</title>
         <style>
+          * { color: #000000 !important; border-color: #000000 !important; background-color: transparent !important; }
           body { font-family: Arial, sans-serif; margin: 20px; color: #111827; }
           h1 { margin: 0 0 6px; font-size: 20px; }
           .meta { margin: 0 0 14px; color: #6b7280; font-size: 12px; }

@@ -1105,6 +1105,11 @@ const EMRReferralPaper: React.FC = () => {
       <div className="bg-white rounded-lg shadow-sm border p-8 print:shadow-none print:border-0 print:p-0">
          <style>{`
            @media print {
+             * {
+               color: #000000 !important;
+               border-color: #000000 !important;
+               background-color: transparent !important;
+             }
              @page {
                margin: 5mm 10mm;
                size: A4 portrait;

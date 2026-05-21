@@ -57,6 +57,10 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
         <head>
           <title>Lab Report - ${patientResults.patientName}</title>
           <style>
+            * {
+              color: #000000 !important;
+              border-color: #000000 !important;
+            }
             body { 
               font-family: Arial, sans-serif; 
               margin: 20px; 
@@ -177,6 +181,11 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
               border-top: 1px solid #ddd;
             }
             @media print {
+              *:not(.watermark) {
+                color: #000000 !important;
+                border-color: #000000 !important;
+                background-color: transparent !important;
+              }
               @page { margin: 15mm; size: A4; }
               body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
               button { display: none; }

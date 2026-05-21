@@ -2364,6 +2364,8 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                         
                         * {
                             box-sizing: border-box;
+                            color: #000000 !important;
+                            border-color: #000000 !important;
                         }
                         
                         body { 
@@ -2622,9 +2624,10 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                                  margin: 3mm 5mm;
                              }
                              
-                             * {
+                             *:not(.prescription-container) {
                                  color: black !important;
                                  border-color: black !important;
+                                 background-color: transparent !important;
                              }
                              
                              body { 

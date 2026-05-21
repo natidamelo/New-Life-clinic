@@ -733,7 +733,22 @@ const BloodPressure: React.FC = () => {
             .header { page-break-inside: avoid; }
             .summary { page-break-inside: avoid; }
             @page { margin: 0.5in; }
-            * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+            * {
+              color: #000000 !important;
+              border-color: #000000 !important;
+              background-color: transparent !important;
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+            .patient-info, .summary {
+              background-color: white !important;
+              border: 1px solid black !important;
+            }
+            th {
+              background-color: white !important;
+              color: black !important;
+              border: 1px solid black !important;
+            }
           }
         </style>
       </head>

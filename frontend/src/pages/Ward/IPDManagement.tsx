@@ -327,7 +327,7 @@ const IPDManagement: React.FC = () => {
     if (!win) return;
     win.document.write(`
       <!DOCTYPE html><html><head><title>IPD Report - ${reportPatientName}</title>
-      <style>body{font-family:system-ui;padding:20px;max-width:900px;margin:0 auto;} h2{margin-top:0;} .section{margin:16px 0;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ddd;padding:6px;text-align:left;font-size:13px;} th{background:#f5f5f5;}</style>
+      <style>* { color: #000000 !important; border-color: #000000 !important; background-color: transparent !important; } body{font-family:system-ui;padding:20px;max-width:900px;margin:0 auto;} h2{margin-top:0;} .section{margin:16px 0;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ddd;padding:6px;text-align:left;font-size:13px;} th{background:#f5f5f5;}</style>
       </head><body>${printContent.innerHTML}${notesHtml}</body></html>`);
     win.document.close();
     win.print();

@@ -291,7 +291,7 @@ const WeeklyDiseasesReportPage: React.FC = () => {
       
       // If no current report, try to get current week report first
       if (!currentReport) {
-        await loadCurrentWeekReport();
+        await getCurrentWeekReport();
         return;
       }
       
@@ -308,8 +308,9 @@ const WeeklyDiseasesReportPage: React.FC = () => {
         if (result.success) {
           setCurrentReport(result.data);
           const newFormData = {
-            weekStartDate: formatDate(result.data.weekStartDate),
-            weekEndDate: formatDate(result.data.weekEndDate),
+            weekStartDate: format(new Date(result.data.weekStartDate), 'yyyy-MM-dd'),
+            weekEndDate: format(new Date(result.data.weekEndDate), 'yyyy-MM-dd'),
+            healthCenter: result.data.healthCenter || 'Health Center',
             weeklyIndicators: result.data.weeklyIndicators,
             reportableConditions: result.data.reportableConditions
           };
@@ -319,8 +320,8 @@ const WeeklyDiseasesReportPage: React.FC = () => {
           console.log('Refresh - Diabetes value:', result.data.weeklyIndicators?.diabeticMellitusNewCase?.outPatient);
           console.log('Refresh - New formData:', newFormData.weeklyIndicators?.diabeticMellitusNewCase);
           
-          await loadCurrentWeekReport();
-          await loadReports();
+          await getCurrentWeekReport();
+          await fetchReports();
           toast.success('Disease counts refreshed from assessments');
         }
       } else {
@@ -375,6 +376,11 @@ const WeeklyDiseasesReportPage: React.FC = () => {
               size: A4;
               margin: 1.5cm;
             }
+            * {
+              color: #000000 !important;
+              border-color: #000000 !important;
+              background-color: transparent !important;
+            }
             body { 
               font-family: Arial, sans-serif; 
               font-size: 14px; 
@@ -383,8 +389,9 @@ const WeeklyDiseasesReportPage: React.FC = () => {
               padding: 0;
             }
             .header-banner {
-              background-color: #4a5568;
-              color: white;
+              background-color: white !important;
+              color: black !important;
+              border: 1px solid black !important;
               padding: 12px 16px;
               text-align: center;
               font-weight: bold;
@@ -435,8 +442,8 @@ const WeeklyDiseasesReportPage: React.FC = () => {
               font-weight: bold;
             }
             .greyed-out {
-              background-color: #e5e7eb;
-              color: #6b7280;
+              background-color: white !important;
+              color: black !important;
             }
             .notes {
               margin-top: 20px;
@@ -815,6 +822,11 @@ const WeeklyDiseasesReportPage: React.FC = () => {
               size: A4;
               margin: 1.5cm;
             }
+            * {
+              color: #000000 !important;
+              border-color: #000000 !important;
+              background-color: transparent !important;
+            }
             body { 
               font-family: Arial, sans-serif; 
               font-size: 14px; 
@@ -823,8 +835,9 @@ const WeeklyDiseasesReportPage: React.FC = () => {
               padding: 0;
             }
             .header-banner {
-              background-color: #4a5568;
-              color: white;
+              background-color: white !important;
+              color: black !important;
+              border: 1px solid black !important;
               padding: 12px 16px;
               text-align: center;
               font-weight: bold;
@@ -852,7 +865,8 @@ const WeeklyDiseasesReportPage: React.FC = () => {
               vertical-align: top;
             }
             th {
-              background-color: #f8f9fa;
+              background-color: white !important;
+              color: black !important;
               font-weight: bold;
               text-align: center;
               font-size: 13px;
@@ -875,8 +889,8 @@ const WeeklyDiseasesReportPage: React.FC = () => {
               font-weight: bold;
             }
             .greyed-out {
-              background-color: #e5e7eb;
-              color: #6b7280;
+              background-color: white !important;
+              color: black !important;
             }
             .notes {
               margin-top: 20px;
@@ -1290,7 +1304,7 @@ const WeeklyDiseasesReportPage: React.FC = () => {
 
   return (
     <>
-        <style jsx="true" global="true">{`
+        <style>{`
         @media print {
           .no-print {
             display: none !important;

@@ -31,6 +31,26 @@ export const generatePDF = (content: PDFContent) => {
             margin: 0.5in;
             size: A4;
           }
+          * {
+            color: #000000 !important;
+            border-color: #000000 !important;
+            background-color: transparent !important;
+          }
+          .disclaimer {
+            background-color: white !important;
+            border-color: black !important;
+            color: black !important;
+          }
+          .patient-info {
+            background-color: white !important;
+            border: 1px solid black !important;
+          }
+          .goals-list li:before {
+            color: black !important;
+          }
+          .restrictions-list li:before {
+            color: black !important;
+          }
         }
         
         body {

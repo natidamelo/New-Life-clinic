@@ -277,13 +277,30 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any) => {
 
           @media print {
             @page { size: A4; margin: 8mm; }
-            body { font-size: 11px; }
-            .header { background: #1e293b !important; -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
-            .results-table thead tr { background: #374151 !important; -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
-            .flag-H { background: #fee2e2 !important; -webkit-print-color-adjust: exact !important; }
-            .flag-L { background: #dbeafe !important; -webkit-print-color-adjust: exact !important; }
-            .flag-N { background: #dcfce7 !important; -webkit-print-color-adjust: exact !important; }
-            .patient-section { background: #eff6ff !important; -webkit-print-color-adjust: exact !important; }
+            body { font-size: 11px; color: black !important; background: white !important; }
+            * {
+              color: black !important;
+              border-color: black !important;
+              background-color: transparent !important;
+            }
+            .header { background: white !important; color: black !important; border: 1px solid black !important; }
+            .header-clinic-name, .header-subtitle, .header-contact, .header-date, .report-id-badge { color: black !important; }
+            .report-id-badge { border: 1px solid black !important; }
+            .patient-section { background: white !important; border: 1px solid black !important; }
+            .patient-card { border: 1px solid black !important; background: white !important; }
+            .patient-card-value, .patient-card-label { color: black !important; }
+            .section-title { border-bottom: 2px solid black !important; color: black !important; }
+            .test-block { border: 1px solid black !important; border-left: 4px solid black !important; }
+            .test-block-header { background: white !important; border-bottom: 1px solid black !important; }
+            .test-name, .test-meta, .test-badge { color: black !important; }
+            .test-badge { border: 1px solid black !important; background: white !important; }
+            .results-table thead tr { background: white !important; color: black !important; border-bottom: 2px solid black !important; }
+            .results-table th { color: black !important; }
+            .results-table td { color: black !important; border-bottom: 1px solid black !important; }
+            .results-table tr:nth-child(even) td { background: white !important; }
+            .flag-badge { border: 1px solid black !important; background: white !important; color: black !important; }
+            .footer { background: white !important; color: black !important; border-top: 1px solid black !important; }
+            .sig-line { border-bottom: 1px solid black !important; }
           }
         </style>
       </head>

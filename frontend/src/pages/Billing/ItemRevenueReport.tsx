@@ -362,7 +362,38 @@ const ItemRevenueReport: React.FC = () => {
     .grand-total .label { font-size: 13px; font-weight: bold; color: #1e40af; }
     .grand-total .value { font-size: 16px; font-weight: bold; color: #111; }
     .footer { margin-top: 24px; text-align: center; font-size: 10px; color: #aaa; border-top: 1px solid #e2e8f0; padding-top: 8px; }
-    @media print { body { padding: 10px; } .no-print { display: none; } }
+    @media print {
+      body { padding: 10px; }
+      .no-print { display: none; }
+      * {
+        color: #000000 !important;
+        border-color: #000000 !important;
+        background-color: transparent !important;
+      }
+      .header h1 { color: black !important; }
+      .header p { color: black !important; }
+      .header { border-bottom-color: black !important; }
+      .section-title {
+        background: white !important;
+        color: black !important;
+        border: 1px solid black !important;
+      }
+      th {
+        background: white !important;
+        color: black !important;
+        border-bottom-color: black !important;
+      }
+      .subtotal td {
+        background: white !important;
+        border-top-color: black !important;
+      }
+      .grand-total {
+        border-color: black !important;
+      }
+      .grand-total .label {
+        color: black !important;
+      }
+    }
   </style>
 </head>
 <body>
