@@ -202,6 +202,20 @@ function getLocalClinicalInsights(data) {
     mockLabs.push('ECG', 'Troponin', 'Chest X-ray');
     mockExams.push('Chest Palpation', 'Cardiac Auscultation', 'Lungs Auscultation');
   } else if (
+    textToAnalyze.includes('urin') ||
+    textToAnalyze.includes('dysuria') ||
+    textToAnalyze.includes('micturition') ||
+    textToAnalyze.includes('cystitis') ||
+    textToAnalyze.includes('bladder') ||
+    textToAnalyze.includes('flank pain') ||
+    (textToAnalyze.includes('back pain') && textToAnalyze.includes('burn'))
+  ) {
+    mockDDx.push({ condition: 'Urinary Tract Infection (UTI) / Acute Cystitis', reasoning: 'Painful/burning urination (dysuria), potentially accompanied by urgency or suprapubic tenderness.', isRedFlag: false });
+    mockDDx.push({ condition: 'Acute Pyelonephritis', reasoning: 'Upper urinary tract infection, strongly suspected with back/flank pain, fever, chills, or CVA tenderness.', isRedFlag: true });
+    mockDDx.push({ condition: 'Nephrolithiasis (Kidney Stone)', reasoning: 'Colicky flank or back pain radiating to the groin, often with dysuria or hematuria.', isRedFlag: false });
+    mockLabs.push('Urinalysis (U/A)', 'Urine Culture and Sensitivity', 'Complete Blood Count (CBC)', 'Renal Function Test (Creatinine/BUN)');
+    mockExams.push('Costovertebral Angle (CVA) Tenderness', 'Abdominal Palpation', 'Suprapubic Tenderness Check', 'Vitals Assessment');
+  } else if (
     textToAnalyze.includes('cough') ||
     textToAnalyze.includes('fever') ||
     textToAnalyze.includes('dyspnea') ||
