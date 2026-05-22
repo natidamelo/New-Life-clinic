@@ -292,7 +292,7 @@ class AuthService {
         });
         
         console.log('📤 [AuthService] Sending POST to /api/auth/login');
-        const response = await api.post('/api/auth/login', loginPayload, { skipAuth: true });
+        const response = await api.post('/api/auth/login', loginPayload, { skipAuth: true } as any);
         
         if (response.data.success && response.data.data) {
           const { user, token, refreshToken } = response.data.data;

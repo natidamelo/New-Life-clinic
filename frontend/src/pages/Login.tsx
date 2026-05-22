@@ -74,6 +74,7 @@ const Login: React.FC = () => {
   const [isWarmingUp, setIsWarmingUp] = useState(false);
   const [warmupSeconds, setWarmupSeconds] = useState(0);
   const warmupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -85,10 +86,11 @@ const Login: React.FC = () => {
     cardRef.current.style.setProperty('--mouse-y', `${y}px`);
   };
 
-  // Clean up the warm-up timer on unmount
+  // Clean up timers on unmount
   useEffect(() => {
     return () => {
       if (warmupTimerRef.current) clearInterval(warmupTimerRef.current);
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
   }, []);
 
@@ -107,6 +109,10 @@ const Login: React.FC = () => {
     if (warmupTimerRef.current) {
       clearInterval(warmupTimerRef.current);
       warmupTimerRef.current = null;
+    }
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
     }
   };
 
@@ -149,7 +155,10 @@ const Login: React.FC = () => {
             startWarmup();
             toast.loading('Server is warming up… retrying automatically.', { duration: 6000 });
           }
-          setTimeout(() => formik.submitForm(), 8000);
+          if (retryTimerRef.current) {
+            clearTimeout(retryTimerRef.current);
+          }
+          retryTimerRef.current = setTimeout(() => formik.submitForm(), 8000);
         }
         // other errors (wrong password, etc.) handled by AuthContext
       } finally {

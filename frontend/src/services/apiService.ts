@@ -236,16 +236,24 @@ class ApiService {
   private async handle401Error(url: string, message: string, code?: string): Promise<void> {
     console.log('🔐 [ApiService] Handling 401 Unauthorized error');
     
+    // 1. Skip centralized 401 handling for login/test-login endpoints
+    const isLoginEndpoint = url.includes('/api/auth/login') || url.includes('/api/auth/test-login');
+    if (isLoginEndpoint) {
+      console.log('🚪 [ApiService] 401 on login endpoint, letting the caller handle it');
+      return;
+    }
+
     // Check if this is a token-related error (including user not found in DB - stale token)
     const isTokenError = code === 'AUTH_TOKEN_EXPIRED' || 
                         code === 'AUTH_INVALID_TOKEN' || 
                         code === 'AUTH_NO_TOKEN' ||
                         code === 'AUTH_USER_NOT_FOUND' ||
                         code === 'AUTH_INVALID_PAYLOAD' ||
-                        message.includes('expired') ||
-                        message.includes('invalid') ||
-                        message.includes('not found') ||
-                        message.includes('authorization denied');
+                        message.toLowerCase().includes('expired') ||
+                        message.toLowerCase().includes('invalid token') ||
+                        message.toLowerCase().includes('invalid payload') ||
+                        message.toLowerCase().includes('not found') ||
+                        message.toLowerCase().includes('authorization denied');
 
     if (isTokenError) {
       console.log('🧹 [ApiService] Token error detected, clearing authentication');
@@ -253,22 +261,28 @@ class ApiService {
       // Clear authentication data
       this.clearAuthData();
       
-      // Show notification
-      toast.error('Your session has expired. Please log in again.', {
-        position: 'top-center',
-        autoClose: 5000,
-      });
-      
-      // Redirect to login after a short delay
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 2000);
+      // Only show notification and redirect if NOT already on the login page
+      if (window.location.pathname !== '/login') {
+        // Show notification
+        toast.error('Your session has expired. Please log in again.', {
+          position: 'top-center',
+          autoClose: 5000,
+        });
+        
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      }
     } else {
       console.log('🔒 [ApiService] Permission denied error');
-      toast.error('Access denied. You do not have permission to perform this action.', {
-        position: 'top-center',
-        autoClose: 5000,
-      });
+      // Only show toast if not already on the login page (avoid confusing toasts on login page)
+      if (window.location.pathname !== '/login') {
+        toast.error('Access denied. You do not have permission to perform this action.', {
+          position: 'top-center',
+          autoClose: 5000,
+        });
+      }
     }
   }
 
