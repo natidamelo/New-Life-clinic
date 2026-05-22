@@ -8,6 +8,7 @@ import { useSafeTheme } from '../hooks/useSafeTheme';
 import { Moon, Sun, Eye, EyeOff, Users, Activity, ShieldCheck, Clock } from 'lucide-react';
 import { getClinicTenantId } from '../utils/authToken';
 import api from '../services/apiService';
+import { motion } from 'framer-motion';
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string().required('Username or email is required'),
@@ -22,6 +23,45 @@ const stats = [
   { value: '24/7', label: 'Support', icon: Clock },
 ];
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.12,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: 'easeOut' },
+  },
+};
+
+const leftContainerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.05,
+    },
+  },
+};
+
+const leftItemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
+  },
+};
+
 // Cold-start warm-up: max 5 minutes in 1-second ticks
 const WARMUP_MAX_SECONDS = 300;
 
@@ -34,6 +74,16 @@ const Login: React.FC = () => {
   const [isWarmingUp, setIsWarmingUp] = useState(false);
   const [warmupSeconds, setWarmupSeconds] = useState(0);
   const warmupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    cardRef.current.style.setProperty('--mouse-x', `${x}px`);
+    cardRef.current.style.setProperty('--mouse-y', `${y}px`);
+  };
 
   // Clean up the warm-up timer on unmount
   useEffect(() => {
@@ -114,9 +164,24 @@ const Login: React.FC = () => {
       <div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'linear-gradient(rgba(148,163,184,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.15) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
       
       {/* Floating ambient glow orbs */}
-      <div className="bg-glow-orb bg-glow-orb-1" />
-      <div className="bg-glow-orb bg-glow-orb-2" />
-      <div className="bg-glow-orb bg-glow-orb-3" />
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.28 }}
+        transition={{ duration: 1.8 }}
+        className="bg-glow-orb bg-glow-orb-1" 
+      />
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.28 }}
+        transition={{ duration: 1.8, delay: 0.3 }}
+        className="bg-glow-orb bg-glow-orb-2" 
+      />
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.28 }}
+        transition={{ duration: 1.8, delay: 0.6 }}
+        className="bg-glow-orb bg-glow-orb-3" 
+      />
 
       <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
         <img
@@ -144,13 +209,18 @@ const Login: React.FC = () => {
 
       <div className="relative z-10 min-h-screen grid lg:grid-cols-[1.2fr_0.9fr]">
         <section className="hidden lg:flex flex-col justify-between px-14 py-12">
-          <div className="space-y-8">
-            <div className="inline-flex items-center gap-3 rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-2 text-cyan-200">
+          <motion.div 
+            variants={leftContainerVariants}
+            initial="hidden"
+            animate="visible"
+            className="space-y-8"
+          >
+            <motion.div variants={leftItemVariants} className="inline-flex items-center gap-3 rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-2 text-cyan-200">
               <span className="inline-block h-2 w-2 rounded-full bg-cyan-300 animate-pulse" />
               <span className="text-xs font-semibold tracking-[0.12em] uppercase">Clinical Operations Ready</span>
-            </div>
+            </motion.div>
 
-            <div>
+            <motion.div variants={leftItemVariants}>
               <p className="text-slate-300/80 text-sm uppercase tracking-[0.2em] mb-4">
                 <span className="font-black text-white">New Life Clinic</span> Platform
               </p>
@@ -163,11 +233,18 @@ const Login: React.FC = () => {
               <p className="mt-6 text-slate-300/85 max-w-[560px] text-[15px] leading-relaxed">
                 A fresh login experience for New Life Clinic, designed for speed, clarity, and secure daily operations across your staff.
               </p>
-            </div>
+            </motion.div>
 
-            <div className="grid grid-cols-2 gap-5 max-w-[520px]">
+            <motion.div 
+              variants={containerVariants}
+              className="grid grid-cols-2 gap-5 max-w-[520px]"
+            >
               {stats.map(({ value, label, icon: Icon }) => (
-                <div key={label} className="group relative rounded-2xl border border-white/5 bg-white/5 px-5 py-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-cyan-500/35 hover:bg-white/10 hover:shadow-[0_12px_30px_-10px_rgba(6,182,212,0.18)]">
+                <motion.div 
+                  key={label}
+                  variants={itemVariants}
+                  className="group relative rounded-2xl border border-white/5 bg-white/5 px-5 py-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-cyan-500/35 hover:bg-white/10 hover:shadow-[0_12px_30px_-10px_rgba(6,182,212,0.18)]"
+                >
                   {/* Subtle top highlighting line */}
                   <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-start justify-between">
@@ -179,16 +256,21 @@ const Login: React.FC = () => {
                       <Icon className="h-5 w-5" />
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
           <div className="text-xs text-slate-400/80">© {new Date().getFullYear()} New Life Clinic. Built for better outcomes.</div>
         </section>
 
         <section className="flex items-center justify-center px-5 py-10 sm:px-8">
-          <div
+          <motion.div
+            ref={cardRef}
+            onMouseMove={handleMouseMove}
+            initial={{ opacity: 0, scale: 0.96, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
             className="auth-login-card w-full max-w-[440px] rounded-3xl p-7 sm:p-9 space-y-7"
             style={{
               background: 'linear-gradient(170deg, rgba(8,15,33,0.94) 0%, rgba(11,24,48,0.94) 60%, rgba(7,16,34,0.94) 100%)',
@@ -369,6 +451,8 @@ const Login: React.FC = () => {
             >
               {/* Shimmer hover layer */}
               <span className="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors duration-200 rounded-xl" />
+              {/* Animated shimmer sweep line */}
+              <span className="btn-shimmer-sweep" />
               <span className="relative flex items-center justify-center gap-2">
                 {isLoading ? (
                   <>
@@ -416,7 +500,7 @@ const Login: React.FC = () => {
             Having trouble? Contact your{' '}
             <span className="text-cyan-300/80 cursor-pointer hover:text-cyan-200 transition-colors">system administrator</span>.
           </p>
-        </div>
+        </motion.div>
         </section>
       </div>
     </div>
