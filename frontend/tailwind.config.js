@@ -82,6 +82,10 @@ module.exports = {
           "0%": { transform: "translateX(0)" },
           "100%": { transform: "translateX(100%)" },
         },
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-15px)' },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.15s ease-out",
@@ -90,6 +94,8 @@ module.exports = {
         "slide-in-from-right": "slide-in-from-right 0.15s ease-out",
         "slide-out-to-left": "slide-out-to-left 0.15s ease-out",
         "slide-out-to-right": "slide-out-to-right 0.15s ease-out",
+        'float-slow': 'float 8s ease-in-out infinite',
+        'float-delayed': 'float 8s ease-in-out infinite 4s',
       },
     },
   },

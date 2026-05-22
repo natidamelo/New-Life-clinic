@@ -156,32 +156,61 @@ const Login: React.FC = () => {
         setIsLoading(false);
       }
     },
-  });
+  });  const inputStyle = {
+    '--input-color': isDarkMode ? '#f8fafc' : '#0f172a',
+    '--caret-color': isDarkMode ? '#67e8f9' : '#0d9488',
+    '--input-bg': isDarkMode ? 'rgba(15, 23, 42, 0.45)' : 'rgba(255, 255, 255, 0.8)',
+    '--input-border': isDarkMode ? 'rgba(148, 163, 184, 0.18)' : 'rgba(226, 232, 240, 1)',
+    '--focus-border': isDarkMode ? 'rgba(103, 232, 249, 0.8)' : 'rgba(13, 148, 136, 0.8)',
+    '--focus-glow': isDarkMode ? 'rgba(103, 232, 249, 0.15)' : 'rgba(13, 148, 136, 0.08)',
+    '--placeholder-color': isDarkMode ? 'rgba(148, 163, 184, 0.45)' : 'rgba(148, 163, 184, 0.65)',
+    '--autofill-bg': isDarkMode ? '#0b1528' : '#ffffff',
+    '--input-hover-bg': isDarkMode ? 'rgba(15, 23, 42, 0.6)' : 'rgba(255, 255, 255, 0.9)',
+    '--input-focus-bg': isDarkMode ? 'rgba(15, 23, 42, 0.75)' : 'rgba(255, 255, 255, 0.95)',
+  } as React.CSSProperties;
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-slate-950">
-      <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 12% 18%, rgba(59,130,246,0.32), transparent 40%), radial-gradient(circle at 85% 75%, rgba(14,165,233,0.18), transparent 45%), linear-gradient(140deg, #020617 0%, #050d1e 50%, #081126 100%)' }} />
-      <div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'linear-gradient(rgba(148,163,184,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.15) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
-      
-      {/* Floating ambient glow orbs */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.28 }}
-        transition={{ duration: 1.8 }}
-        className="bg-glow-orb bg-glow-orb-1" 
-      />
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.28 }}
-        transition={{ duration: 1.8, delay: 0.3 }}
-        className="bg-glow-orb bg-glow-orb-2" 
-      />
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.28 }}
-        transition={{ duration: 1.8, delay: 0.6 }}
-        className="bg-glow-orb bg-glow-orb-3" 
-      />
+    <div className={`min-h-screen relative overflow-hidden transition-colors duration-500 ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-gradient-to-tr from-slate-50 via-slate-100 to-cyan-50/30 text-slate-800'}`}>
+      {isDarkMode ? (
+        <>
+          <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 12% 18%, rgba(59,130,246,0.32), transparent 40%), radial-gradient(circle at 85% 75%, rgba(14,165,233,0.18), transparent 45%), linear-gradient(140deg, #020617 0%, #050d1e 50%, #081126 100%)' }} />
+          <div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'linear-gradient(rgba(148,163,184,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.15) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
+          
+          {/* Floating ambient glow orbs */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.28 }}
+            transition={{ duration: 1.8 }}
+            className="bg-glow-orb bg-glow-orb-1" 
+          />
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.28 }}
+            transition={{ duration: 1.8, delay: 0.3 }}
+            className="bg-glow-orb bg-glow-orb-2" 
+          />
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.28 }}
+            transition={{ duration: 1.8, delay: 0.6 }}
+            className="bg-glow-orb bg-glow-orb-3" 
+          />
+        </>
+      ) : (
+        <>
+          {/* --- Antigravity Ambient Background Elements --- */}
+          <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-gradient-to-r from-teal-200/20 to-cyan-200/20 rounded-full blur-3xl animate-float-slow pointer-events-none" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-200/10 to-teal-200/20 rounded-full blur-3xl animate-float-delayed pointer-events-none" />
+        </>
+      )}
+
+      {/* Floating Abstract Cross Shapes (Medical Theme) in both modes */}
+      <div className={`absolute top-20 right-[15%] text-8xl font-thin select-none pointer-events-none animate-float-slow transition-colors duration-500 ${isDarkMode ? 'text-cyan-500/10' : 'text-slate-200/60'}`}>
+        +
+      </div>
+      <div className={`absolute bottom-20 left-[15%] text-6xl font-thin select-none pointer-events-none animate-float-delayed transition-colors duration-500 ${isDarkMode ? 'text-indigo-500/10' : 'text-slate-300/40'}`}>
+        +
+      </div>
 
       <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
         <img
@@ -201,10 +230,15 @@ const Login: React.FC = () => {
       <button
         onClick={toggleTheme}
         className="absolute top-5 right-5 z-30 p-2.5 rounded-xl border transition-all duration-200 hover:scale-105"
-        style={{ background: 'rgba(15,23,42,0.65)', borderColor: 'rgba(148,163,184,0.25)', backdropFilter: 'blur(10px)' }}
+        style={{ 
+          background: isDarkMode ? 'rgba(15,23,42,0.65)' : 'rgba(255,255,255,0.75)', 
+          borderColor: isDarkMode ? 'rgba(148,163,184,0.25)' : 'rgba(148,163,184,0.3)', 
+          backdropFilter: 'blur(10px)',
+          boxShadow: isDarkMode ? 'none' : '0 4px 12px rgba(15,23,42,0.03)'
+        }}
         aria-label="Toggle dark mode"
       >
-        {isDarkMode ? <Sun className="h-4 w-4 text-amber-300" /> : <Moon className="h-4 w-4 text-cyan-300" />}
+        {isDarkMode ? <Sun className="h-4 w-4 text-amber-300" /> : <Moon className="h-4 w-4 text-teal-600" />}
       </button>
 
       <div className="relative z-10 min-h-screen grid lg:grid-cols-[1.2fr_0.9fr]">
@@ -215,22 +249,22 @@ const Login: React.FC = () => {
             animate="visible"
             className="space-y-8"
           >
-            <motion.div variants={leftItemVariants} className="inline-flex items-center gap-3 rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-2 text-cyan-200">
-              <span className="inline-block h-2 w-2 rounded-full bg-cyan-300 animate-pulse" />
+            <motion.div variants={leftItemVariants} className={`inline-flex items-center gap-3 rounded-2xl border ${isDarkMode ? 'border-cyan-400/25 bg-cyan-400/10 text-cyan-200' : 'border-teal-400/25 bg-teal-400/10 text-teal-700'} px-4 py-2`}>
+              <span className={`inline-block h-2 w-2 rounded-full ${isDarkMode ? 'bg-cyan-300' : 'bg-teal-500'} animate-pulse`} />
               <span className="text-xs font-semibold tracking-[0.12em] uppercase">Clinical Operations Ready</span>
             </motion.div>
 
             <motion.div variants={leftItemVariants}>
-              <p className="text-slate-300/80 text-sm uppercase tracking-[0.2em] mb-4">
-                <span className="font-black text-white">New Life Clinic</span> Platform
+              <p className={`${isDarkMode ? 'text-slate-300/80' : 'text-slate-500'} text-sm uppercase tracking-[0.2em] mb-4`}>
+                <span className={`font-black ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>New Life Clinic</span> Platform
               </p>
-              <h1 className="text-white font-black leading-[1.02] tracking-tight text-[clamp(2.9rem,4.5vw,4.6rem)]">
+              <h1 className={`${isDarkMode ? 'text-white' : 'text-slate-900'} font-black leading-[1.02] tracking-tight text-[clamp(2.9rem,4.5vw,4.6rem)]`}>
                 Smarter access for
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-indigo-300">
+                <span className={`block text-transparent bg-clip-text bg-gradient-to-r ${isDarkMode ? 'from-cyan-300 via-blue-300 to-indigo-300' : 'from-teal-600 to-cyan-600'}`}>
                   every care team
                 </span>
               </h1>
-              <p className="mt-6 text-slate-300/85 max-w-[560px] text-[15px] leading-relaxed">
+              <p className={`mt-6 ${isDarkMode ? 'text-slate-300/85' : 'text-slate-600'} max-w-[560px] text-[15px] leading-relaxed`}>
                 A fresh login experience for New Life Clinic, designed for speed, clarity, and secure daily operations across your staff.
               </p>
             </motion.div>
@@ -243,16 +277,24 @@ const Login: React.FC = () => {
                 <motion.div 
                   key={label}
                   variants={itemVariants}
-                  className="group relative rounded-2xl border border-white/5 bg-white/5 px-5 py-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-cyan-500/35 hover:bg-white/10 hover:shadow-[0_12px_30px_-10px_rgba(6,182,212,0.18)]"
+                  className={`group relative rounded-2xl border backdrop-blur-md transition-all duration-300 hover:-translate-y-1 ${
+                    isDarkMode 
+                      ? 'border-white/5 bg-white/5 text-white hover:border-cyan-500/35 hover:bg-white/10 hover:shadow-[0_12px_30px_-10px_rgba(6,182,212,0.18)]' 
+                      : 'border-slate-200/50 bg-white/60 text-slate-800 hover:border-teal-500/30 hover:bg-white/90 hover:shadow-[0_12px_30px_-10px_rgba(13,148,136,0.12)]'
+                  } px-5 py-5`}
                 >
                   {/* Subtle top highlighting line */}
-                  <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className={`absolute inset-x-0 -top-px h-px bg-gradient-to-r ${isDarkMode ? 'from-transparent via-cyan-400/30 to-transparent' : 'from-transparent via-teal-400/30 to-transparent'} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-cyan-200 font-black text-3xl tracking-tight transition-transform duration-300 group-hover:scale-[1.03]">{value}</p>
-                      <p className="text-slate-300/75 text-xs mt-2 font-medium tracking-wide">{label}</p>
+                      <p className={`${isDarkMode ? 'text-cyan-200' : 'text-teal-600'} font-black text-3xl tracking-tight transition-transform duration-300 group-hover:scale-[1.03]`}>{value}</p>
+                      <p className={`${isDarkMode ? 'text-slate-300/75' : 'text-slate-500'} text-xs mt-2 font-medium tracking-wide`}>{label}</p>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-slate-800/40 border border-white/10 text-cyan-300 group-hover:text-cyan-200 group-hover:bg-cyan-500/20 group-hover:border-cyan-400/30 transition-all duration-300">
+                    <div className={`p-2.5 rounded-xl border transition-all duration-300 ${
+                      isDarkMode 
+                        ? 'bg-slate-800/40 border-white/10 text-cyan-300 group-hover:text-cyan-200 group-hover:bg-cyan-500/20 group-hover:border-cyan-400/30' 
+                        : 'bg-slate-100/60 border-slate-200 text-teal-600 group-hover:text-teal-700 group-hover:bg-teal-50 group-hover:border-teal-300/50'
+                    }`}>
                       <Icon className="h-5 w-5" />
                     </div>
                   </div>
@@ -261,7 +303,7 @@ const Login: React.FC = () => {
             </motion.div>
           </motion.div>
 
-          <div className="text-xs text-slate-400/80">© {new Date().getFullYear()} New Life Clinic. Built for better outcomes.</div>
+          <div className={`text-xs ${isDarkMode ? 'text-slate-400/80' : 'text-slate-400'}`}>© {new Date().getFullYear()} New Life Clinic. Built for better outcomes.</div>
         </section>
 
         <section className="flex items-center justify-center px-5 py-10 sm:px-8">
@@ -273,33 +315,40 @@ const Login: React.FC = () => {
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
             className="auth-login-card w-full max-w-[440px] rounded-3xl p-7 sm:p-9 space-y-7"
             style={{
-              background: 'linear-gradient(170deg, rgba(8,15,33,0.94) 0%, rgba(11,24,48,0.94) 60%, rgba(7,16,34,0.94) 100%)',
-              border: '1px solid rgba(148,163,184,0.28)',
+              background: isDarkMode 
+                ? 'linear-gradient(170deg, rgba(8,15,33,0.94) 0%, rgba(11,24,48,0.94) 60%, rgba(7,16,34,0.94) 100%)' 
+                : 'rgba(255,255,255,0.7)',
+              border: isDarkMode 
+                ? '1px solid rgba(148,163,184,0.28)' 
+                : '1px solid rgba(255,255,255,0.4)',
               backdropFilter: 'blur(16px)',
-              boxShadow: '0 30px 90px rgba(2,6,23,0.7)',
+              boxShadow: isDarkMode 
+                ? '0 30px 90px rgba(2,6,23,0.7)' 
+                : '0 20px 50px rgba(15,23,42,0.06)',
+              ['--shine-color' as any]: isDarkMode ? 'rgba(103, 232, 249, 0.12)' : 'rgba(13, 148, 136, 0.08)'
             }}
           >
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl overflow-hidden ring-1 ring-white/20 flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#0ea5e9,#6366f1)' }}>
+              style={{ background: isDarkMode ? 'linear-gradient(135deg,#0ea5e9,#6366f1)' : 'linear-gradient(135deg,#0d9488,#0ea5e9)' }}>
               <img src="/assets/images/logo.jpg" alt="logo" className="h-full w-full object-cover"
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
             </div>
             <div>
-              <p className="text-white font-bold text-sm">New Life Clinic</p>
-              <p className="text-sky-400/60 text-[10px]">Healthcare Management</p>
+              <p className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>New Life Clinic</p>
+              <p className={`text-[10px] ${isDarkMode ? 'text-sky-400/60' : 'text-teal-600/70'}`}>Healthcare Management</p>
             </div>
           </div>
 
           {/* Heading */}
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="h-0.5 w-10 rounded-full bg-gradient-to-r from-cyan-300 via-blue-300 to-indigo-300" />
-              <span className="text-cyan-300 text-xs font-semibold uppercase tracking-widest">Secure Sign In</span>
+              <div className={`h-0.5 w-10 rounded-full bg-gradient-to-r ${isDarkMode ? 'from-cyan-300 via-blue-300 to-indigo-300' : 'from-teal-500 to-cyan-500'}`} />
+              <span className={`${isDarkMode ? 'text-cyan-300' : 'text-teal-600'} text-xs font-semibold uppercase tracking-widest`}>Secure Sign In</span>
             </div>
-            <h2 className="text-white text-[2rem] sm:text-[2.2rem] font-extrabold tracking-tight">Welcome back</h2>
-            <p className="text-slate-300/75 text-[13px] mt-1.5">Sign in to continue to your clinic workspace</p>
+            <h2 className={`text-[2rem] sm:text-[2.2rem] font-extrabold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Welcome back</h2>
+            <p className={`text-[13px] mt-1.5 ${isDarkMode ? 'text-slate-300/75' : 'text-slate-500'}`}>Sign in to continue to your clinic workspace</p>
           </div>
 
           {/* Form */}
@@ -307,12 +356,12 @@ const Login: React.FC = () => {
 
             {/* Username field */}
             <div className="space-y-2">
-              <label htmlFor="email" className="block text-xs font-semibold text-slate-200 uppercase tracking-wider">
+              <label htmlFor="email" className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-600'}`}>
                 Username or Email
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
-                  <svg className="w-4 h-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <svg className={`w-4 h-4 transition-colors ${isDarkMode ? 'text-slate-500 group-focus-within:text-cyan-400' : 'text-slate-400 group-focus-within:text-teal-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
@@ -323,6 +372,7 @@ const Login: React.FC = () => {
                   autoComplete="off"
                   placeholder="dr.smith or admin@clinic.com"
                   {...formik.getFieldProps('email')}
+                  style={inputStyle}
                   className={`auth-login-input w-full h-12 pl-10 pr-4 text-sm rounded-xl outline-none transition-all duration-200 ${
                     formik.touched.email && formik.errors.email
                       ? '!border-red-400/50 focus:!border-red-400 focus:!ring-red-400/20'
@@ -340,12 +390,12 @@ const Login: React.FC = () => {
 
             {/* Password field */}
             <div className="space-y-2">
-              <label htmlFor="password" className="block text-xs font-semibold text-slate-200 uppercase tracking-wider">
+              <label htmlFor="password" className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-600'}`}>
                 Password
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
-                  <svg className="w-4 h-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <svg className={`w-4 h-4 transition-colors ${isDarkMode ? 'text-slate-500 group-focus-within:text-cyan-400' : 'text-slate-400 group-focus-within:text-teal-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
@@ -356,6 +406,7 @@ const Login: React.FC = () => {
                   autoComplete="off"
                   placeholder="Enter your password"
                   {...formik.getFieldProps('password')}
+                  style={inputStyle}
                   className={`auth-login-input w-full h-12 pl-10 pr-11 text-sm rounded-xl outline-none transition-all duration-200 ${
                     formik.touched.password && formik.errors.password
                       ? '!border-red-400/50 focus:!border-red-400 focus:!ring-red-400/20'
@@ -367,7 +418,7 @@ const Login: React.FC = () => {
                   type="button"
                   tabIndex={-1}
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-cyan-300 transition-colors"
+                  className={`absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors ${isDarkMode ? 'text-slate-400 hover:text-cyan-300' : 'text-slate-400 hover:text-teal-600'}`}
                 >
                   {showPassword
                     ? <EyeOff className="h-4 w-4" />
@@ -384,7 +435,7 @@ const Login: React.FC = () => {
             {/* Clinic code — remembered after first login; collapsible for returning users */}
             {showClinicField ? (
               <div className="space-y-2">
-                <label htmlFor="clinicId" className="block text-xs font-semibold text-slate-200 uppercase tracking-wider">
+                <label htmlFor="clinicId" className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-600'}`}>
                   Clinic code
                 </label>
                 <input
@@ -394,17 +445,18 @@ const Login: React.FC = () => {
                   autoComplete="off"
                   placeholder="e.g. clinicnew"
                   {...formik.getFieldProps('clinicId')}
+                  style={inputStyle}
                   className="auth-login-input w-full h-11 px-4 text-sm rounded-xl outline-none transition-all duration-200"
                 />
                 <p className="text-[10px] text-slate-400/80 leading-snug">
-                  Your clinic <strong className="text-slate-200">slug</strong> from Clinic Management. Leave blank if unsure.
+                  Your clinic <strong className={`${isDarkMode ? 'text-slate-200' : 'text-slate-600'}`}>slug</strong> from Clinic Management. Leave blank if unsure.
                 </p>
               </div>
             ) : (
               <button
                 type="button"
                 onClick={() => setShowClinicField(true)}
-                className="text-xs text-cyan-300/80 hover:text-cyan-200 transition-colors"
+                className={`text-xs transition-colors ${isDarkMode ? 'text-cyan-300/80 hover:text-cyan-200' : 'text-teal-600/80 hover:text-teal-700'}`}
               >
                 Change clinic ({savedClinicId})
               </button>
@@ -414,18 +466,21 @@ const Login: React.FC = () => {
             {isWarmingUp && (
               <div
                 className="rounded-xl p-4 space-y-2"
-                style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)' }}
+                style={{ 
+                  background: isDarkMode ? 'rgba(251,191,36,0.08)' : 'rgba(251,191,36,0.05)', 
+                  border: isDarkMode ? '1px solid rgba(251,191,36,0.25)' : '1px solid rgba(251,191,36,0.3)' 
+                }}
               >
                 <div className="flex items-center gap-2">
                   <svg className="animate-spin h-4 w-4 flex-shrink-0" style={{ color: '#fbbf24' }} fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  <p className="text-xs font-semibold" style={{ color: '#fcd34d' }}>
+                  <p className="text-xs font-semibold animate-pulse" style={{ color: isDarkMode ? '#fcd34d' : '#d97706' }}>
                     Server is waking up — please wait ({warmupSeconds}s)
                   </p>
                 </div>
-                <p className="text-[10px] leading-snug" style={{ color: 'rgba(253,211,77,0.65)' }}>
+                <p className="text-[10px] leading-snug" style={{ color: isDarkMode ? 'rgba(253,211,77,0.65)' : 'rgba(180,83,9,0.8)' }}>
                   The server was asleep to save resources. It will be ready in &lt;2 minutes.
                   Login will retry automatically.
                 </p>
@@ -446,8 +501,15 @@ const Login: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading || isWarmingUp || !formik.isValid || !formik.dirty}
-              className="relative w-full h-12 rounded-xl text-slate-950 text-sm font-bold tracking-wide transition-all duration-300 overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-cyan-300/50 focus:ring-offset-2 focus:ring-offset-transparent mt-2"
-              style={{ background: 'linear-gradient(90deg, #67e8f9 0%, #93c5fd 50%, #a5b4fc 100%)', boxShadow: '0 8px 24px rgba(6,182,212,0.35)' }}
+              className={`relative w-full h-12 rounded-xl text-sm font-bold tracking-wide transition-all duration-300 overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 ${isDarkMode ? 'text-slate-950 focus:ring-cyan-300/50' : 'text-white focus:ring-teal-500/50'} focus:ring-offset-2 focus:ring-offset-transparent mt-2`}
+              style={{ 
+                background: isDarkMode 
+                  ? 'linear-gradient(90deg, #67e8f9 0%, #93c5fd 50%, #a5b4fc 100%)' 
+                  : 'linear-gradient(90deg, #0d9488 0%, #0ea5e9 100%)', 
+                boxShadow: isDarkMode 
+                  ? '0 8px 24px rgba(6,182,212,0.35)' 
+                  : '0 8px 24px rgba(13,148,136,0.2)' 
+              }}
             >
               {/* Shimmer hover layer */}
               <span className="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors duration-200 rounded-xl" />
@@ -484,21 +546,21 @@ const Login: React.FC = () => {
 
           {/* Divider */}
           <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-slate-700/60" />
-            <span className="text-slate-400 text-xs">secured by</span>
-            <div className="flex-1 h-px bg-slate-700/60" />
+            <div className={`flex-1 h-px ${isDarkMode ? 'bg-slate-700/60' : 'bg-slate-200'}`} />
+            <span className={`${isDarkMode ? 'text-slate-400' : 'text-slate-455'} text-xs`}>secured by</span>
+            <div className={`flex-1 h-px ${isDarkMode ? 'bg-slate-700/60' : 'bg-slate-200'}`} />
           </div>
 
           {/* Footer trust badges */}
           <div className="flex items-center justify-center gap-3">
             {['SSL Encrypted', 'HIPAA Ready', '99.9% Uptime'].map(badge => (
-              <span key={badge} className="text-[10px] text-slate-400 font-medium">{badge}</span>
+              <span key={badge} className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-455'} font-medium`}>{badge}</span>
             ))}
           </div>
 
-          <p className="text-center text-xs text-slate-400">
+          <p className="text-center text-xs">
             Having trouble? Contact your{' '}
-            <span className="text-cyan-300/80 cursor-pointer hover:text-cyan-200 transition-colors">system administrator</span>.
+            <span className={`${isDarkMode ? 'text-cyan-300/80 hover:text-cyan-200' : 'text-teal-600 hover:text-teal-700'} cursor-pointer transition-colors`}>system administrator</span>.
           </p>
         </motion.div>
         </section>
