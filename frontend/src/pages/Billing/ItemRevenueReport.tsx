@@ -64,8 +64,6 @@ const fmtMonth = (ym: string) => {
   return format(new Date(Number(y), Number(m) - 1, 1), 'MMM yyyy');
 };
 
-
-// ─── Type Config ──────────────────────────────────────────────────────────────
 const TYPE_CONFIG: Record<string, { 
   label: string; 
   icon: React.ReactNode; 
@@ -80,11 +78,12 @@ const TYPE_CONFIG: Record<string, {
 }> = {
   medication:   { label: 'Medication',   icon: <Pill className="h-4 w-4" />,         color: 'text-blue-700',    darkColor: 'text-blue-400',    bg: 'bg-blue-50',    darkBg: 'bg-blue-950/30',    border: 'border-blue-200',   darkBorder: 'border-blue-800/50',   bar: '#3b82f6', barEnd: '#1e40af' },
   lab:          { label: 'Lab Test',     icon: <FlaskConical className="h-4 w-4" />, color: 'text-emerald-700', darkColor: 'text-emerald-400', bg: 'bg-emerald-50', darkBg: 'bg-emerald-950/30', border: 'border-emerald-200', darkBorder: 'border-emerald-800/50', bar: '#10b981', barEnd: '#047857' },
-  service:      { label: 'Service',      icon: <Stethoscope className="h-4 w-4" />,  color: 'text-violet-700',  darkColor: 'text-violet-400',  bg: 'bg-violet-50',  darkBg: 'bg-violet-950/30',  border: 'border-violet-200',  darkBorder: 'border-violet-800/50',  bar: '#8b5cf6', barEnd: '#6d28d9' },
-  procedure:    { label: 'Procedure',    icon: <Activity className="h-4 w-4" />,     color: 'text-amber-700',   darkColor: 'text-amber-400',   bg: 'bg-amber-50',   darkBg: 'bg-amber-950/30',   border: 'border-amber-200',   darkBorder: 'border-amber-800/50',   bar: '#f59e0b', barEnd: '#b45309' },
+  service:      { label: 'Service',      icon: <Stethoscope className="h-4 w-4" />,  color: 'text-violet-700',  darkColor: 'text-violet-400',  bg: 'bg-violet-50',  darkBg: 'bg-violet-955/30',  border: 'border-violet-200',  darkBorder: 'border-violet-800/50',  bar: '#8b5cf6', barEnd: '#6d28d9' },
+  procedure:    { label: 'Procedure',    icon: <Activity className="h-4 w-4" />,     color: 'text-amber-700',   darkColor: 'text-amber-400',   bg: 'bg-amber-50',   darkBg: 'bg-amber-955/30',   border: 'border-amber-200',   darkBorder: 'border-amber-800/50',   bar: '#f59e0b', barEnd: '#b45309' },
   consultation: { label: 'Consultation', icon: <FileText className="h-4 w-4" />,     color: 'text-cyan-700',    darkColor: 'text-cyan-400',    bg: 'bg-cyan-50',    darkBg: 'bg-cyan-950/30',    border: 'border-cyan-200',    darkBorder: 'border-cyan-800/50',    bar: '#06b6d4', barEnd: '#0891b2' },
   imaging:      { label: 'Imaging',      icon: <BarChart3 className="h-4 w-4" />,    color: 'text-pink-700',    darkColor: 'text-pink-400',    bg: 'bg-pink-50',    darkBg: 'bg-pink-950/30',    border: 'border-pink-200',    darkBorder: 'border-pink-800/50',    bar: '#ec4899', barEnd: '#be185d' },
   supply:       { label: 'Supply',       icon: <Package className="h-4 w-4" />,      color: 'text-orange-700',  darkColor: 'text-orange-400',  bg: 'bg-orange-50',  darkBg: 'bg-orange-950/30',  border: 'border-orange-200',  darkBorder: 'border-orange-800/50',  bar: '#f97316', barEnd: '#c2410c' },
+  card:         { label: 'Patient Card', icon: <CreditCard className="h-4 w-4" />,   color: 'text-teal-700',    darkColor: 'text-teal-400',    bg: 'bg-teal-50',    darkBg: 'bg-teal-950/30',    border: 'border-teal-200',   darkBorder: 'border-teal-800/50',   bar: '#14b8a6', barEnd: '#0f766e' },
   other:        { label: 'Other',        icon: <DollarSign className="h-4 w-4" />,   color: 'text-gray-700',    darkColor: 'text-gray-400',    bg: 'bg-gray-100',   darkBg: 'bg-gray-800/30',    border: 'border-gray-200',    darkBorder: 'border-gray-800/50',    bar: '#6b7280', barEnd: '#374151' },
 };
 const getTypeCfg = (t: string) => TYPE_CONFIG[t] ?? TYPE_CONFIG.other;
@@ -316,11 +315,12 @@ const ItemRevenueReport: React.FC = () => {
     { key: 'service', label: 'Services' },
     { key: 'procedure', label: 'Procedures' },
     { key: 'consultation', label: 'Consultations' },
+    { key: 'card', label: 'Patient Cards' },
   ];
 
   // Group items by category for export/print
   const groupedByType = (items: ReportItem[]) => {
-    const order = ['medication', 'lab', 'service', 'procedure', 'consultation', 'imaging', 'supply', 'other'];
+    const order = ['medication', 'lab', 'service', 'procedure', 'consultation', 'imaging', 'supply', 'card', 'other'];
     const map: Record<string, ReportItem[]> = {};
     items.forEach(i => {
       const t = i.itemType ?? 'other';

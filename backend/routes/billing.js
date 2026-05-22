@@ -4328,17 +4328,22 @@ router.get('/item-revenue-report', auth, checkRole('admin', 'finance'), async (r
     }
 
     // Helper: extract the clean base drug/test name, stripping ALL dosage/frequency info
-    function baseName(serviceName, description) {
+    function baseName(serviceName, description, itemType) {
       // Start with whichever field is available
       let raw = (serviceName && serviceName.length > 2 ? serviceName : null)
         || description
         || 'Unknown';
 
-      return raw
+      raw = raw
         // Remove category prefix: "Medication: ", "Lab test: ", "Lab: " etc.
-        .replace(/^(Medication|Lab\s*test|Lab|Procedure|Service|Consultation|Imaging|Supply|Other):\s*/i, '')
-        // Remove anything after " (" — strips "(5 doses - Once daily...)" and similar
-        .replace(/\s*\(.*$/s, '')
+        .replace(/^(Medication|Lab\s*test|Lab|Procedure|Service|Consultation|Imaging|Supply|Other):\s*/i, '');
+
+      // Only strip parentheses if this is NOT a card type
+      if (itemType !== 'card') {
+        raw = raw.replace(/\s*\(.*$/s, '');
+      }
+
+      return raw
         // Remove dosage patterns that appear WITHOUT parens:
         // "for N days", "for N day", "- N days", "N doses", "N dose"
         .replace(/\s+for\s+\d+\s+days?\b.*/i, '')
@@ -4374,7 +4379,7 @@ router.get('/item-revenue-report', auth, checkRole('admin', 'finance'), async (r
     // Group by (itemType, baseName) in JavaScript
     const grouped = {};
     rawRows.forEach(row => {
-      const name = baseName(row.serviceName, row.description);
+      const name = baseName(row.serviceName, row.description, row.itemType);
       const key = `${row.itemType}||${name.toLowerCase()}`;
 
       if (!grouped[key]) {
@@ -4556,7 +4561,7 @@ router.get('/card-insurance-report', auth, checkRole('admin', 'finance'), async 
       return {
         cardType: ct,
         totalRevenue: c.totalRevenue,
-        totalCount: st.count || c.totalCount,
+        totalCount: c.totalCount,
         activeCount: st.activeCount,
         expiredCount: st.expiredCount,
         graceCount: st.gracePeriod,
