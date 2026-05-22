@@ -5,7 +5,7 @@ import * as Yup from 'yup';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useSafeTheme } from '../hooks/useSafeTheme';
-import { Moon, Sun, Eye, EyeOff } from 'lucide-react';
+import { Moon, Sun, Eye, EyeOff, Users, Activity, ShieldCheck, Clock } from 'lucide-react';
 import { getClinicTenantId } from '../utils/authToken';
 import api from '../services/apiService';
 
@@ -16,10 +16,10 @@ const LoginSchema = Yup.object().shape({
 });
 
 const stats = [
-  { value: '10K+', label: 'Patients Served' },
-  { value: '50+', label: 'Staff Members' },
-  { value: '99.9%', label: 'Uptime' },
-  { value: '24/7', label: 'Support' },
+  { value: '10K+', label: 'Patients Served', icon: Users },
+  { value: '50+', label: 'Staff Members', icon: ShieldCheck },
+  { value: '99.9%', label: 'Uptime', icon: Activity },
+  { value: '24/7', label: 'Support', icon: Clock },
 ];
 
 // Cold-start warm-up: max 5 minutes in 1-second ticks
@@ -111,26 +111,32 @@ const Login: React.FC = () => {
   return (
     <div className="min-h-screen relative overflow-hidden bg-slate-950">
       <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 12% 18%, rgba(59,130,246,0.32), transparent 40%), radial-gradient(circle at 85% 75%, rgba(14,165,233,0.18), transparent 45%), linear-gradient(140deg, #020617 0%, #050d1e 50%, #081126 100%)' }} />
-      <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(rgba(148,163,184,0.22) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.22) 1px, transparent 1px)', backgroundSize: '44px 44px' }} />
+      <div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'linear-gradient(rgba(148,163,184,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.15) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
+      
+      {/* Floating ambient glow orbs */}
+      <div className="bg-glow-orb bg-glow-orb-1" />
+      <div className="bg-glow-orb bg-glow-orb-2" />
+      <div className="bg-glow-orb bg-glow-orb-3" />
+
       <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
         <img
           src="/assets/images/logo.jpg"
           alt=""
           aria-hidden="true"
-          className="hidden lg:block absolute left-[6%] top-1/2 -translate-y-1/2 w-[520px] h-[520px] object-cover rounded-full opacity-[0.1] blur-[1px]"
+          className="hidden lg:block absolute left-[6%] top-1/2 -translate-y-1/2 w-[520px] h-[520px] object-cover rounded-full opacity-[0.07] blur-[1px]"
         />
         <img
           src="/assets/images/logo.jpg"
           alt=""
           aria-hidden="true"
-          className="absolute -right-20 -bottom-20 w-[280px] h-[280px] object-cover rounded-full opacity-[0.09] blur-[1px]"
+          className="absolute -right-20 -bottom-20 w-[280px] h-[280px] object-cover rounded-full opacity-[0.06] blur-[1px]"
         />
       </div>
 
       <button
         onClick={toggleTheme}
         className="absolute top-5 right-5 z-30 p-2.5 rounded-xl border transition-all duration-200 hover:scale-105"
-        style={{ background: 'rgba(15,23,42,0.65)', borderColor: 'rgba(148,163,184,0.35)', backdropFilter: 'blur(10px)' }}
+        style={{ background: 'rgba(15,23,42,0.65)', borderColor: 'rgba(148,163,184,0.25)', backdropFilter: 'blur(10px)' }}
         aria-label="Toggle dark mode"
       >
         {isDarkMode ? <Sun className="h-4 w-4 text-amber-300" /> : <Moon className="h-4 w-4 text-cyan-300" />}
@@ -159,11 +165,20 @@ const Login: React.FC = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 max-w-[520px]">
-              {stats.map(({ value, label }) => (
-                <div key={label} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-sm">
-                  <p className="text-cyan-200 font-extrabold text-2xl">{value}</p>
-                  <p className="text-slate-300/70 text-xs mt-1">{label}</p>
+            <div className="grid grid-cols-2 gap-5 max-w-[520px]">
+              {stats.map(({ value, label, icon: Icon }) => (
+                <div key={label} className="group relative rounded-2xl border border-white/5 bg-white/5 px-5 py-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-cyan-500/35 hover:bg-white/10 hover:shadow-[0_12px_30px_-10px_rgba(6,182,212,0.18)]">
+                  {/* Subtle top highlighting line */}
+                  <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-cyan-200 font-black text-3xl tracking-tight transition-transform duration-300 group-hover:scale-[1.03]">{value}</p>
+                      <p className="text-slate-300/75 text-xs mt-2 font-medium tracking-wide">{label}</p>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-800/40 border border-white/10 text-cyan-300 group-hover:text-cyan-200 group-hover:bg-cyan-500/20 group-hover:border-cyan-400/30 transition-all duration-300">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -215,7 +230,7 @@ const Login: React.FC = () => {
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
-                  <svg className="w-4 h-4 text-slate-500 group-focus-within:text-sky-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <svg className="w-4 h-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
@@ -226,28 +241,12 @@ const Login: React.FC = () => {
                   autoComplete="off"
                   placeholder="dr.smith or admin@clinic.com"
                   {...formik.getFieldProps('email')}
-                  className="auth-login-input w-full h-12 pl-10 pr-4 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-cyan-300/25"
-                  style={{
-                    background: 'rgba(15,23,42,0.75)',
-                    color: '#f8fafc',
-                    caretColor: '#f8fafc',
-                    WebkitTextFillColor: '#f8fafc',
-                    border: formik.touched.email && formik.errors.email
-                      ? '1px solid rgba(248,113,113,0.6)'
-                      : '1px solid rgba(148,163,184,0.28)',
-                    boxShadow: formik.touched.email && !formik.errors.email && formik.values.email
-                      ? '0 0 0 1px rgba(103,232,249,0.5)'
-                      : 'none',
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.border = formik.errors.email
-                      ? '1px solid rgba(248,113,113,0.6)'
-                      : '1px solid rgba(148,163,184,0.28)';
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.color = '#f8fafc';
-                    e.currentTarget.style.webkitTextFillColor = '#f8fafc';
-                    formik.handleBlur(e);
-                  }}
+                  className={`auth-login-input w-full h-12 pl-10 pr-4 text-sm rounded-xl outline-none transition-all duration-200 ${
+                    formik.touched.email && formik.errors.email
+                      ? '!border-red-400/50 focus:!border-red-400 focus:!ring-red-400/20'
+                      : ''
+                  }`}
+                  onBlur={formik.handleBlur}
                 />
               </div>
               {formik.touched.email && formik.errors.email && (
@@ -264,7 +263,7 @@ const Login: React.FC = () => {
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
-                  <svg className="w-4 h-4 text-slate-500 group-focus-within:text-sky-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <svg className="w-4 h-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
@@ -275,25 +274,12 @@ const Login: React.FC = () => {
                   autoComplete="off"
                   placeholder="Enter your password"
                   {...formik.getFieldProps('password')}
-                  className="auth-login-input w-full h-12 pl-10 pr-11 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-cyan-300/25"
-                  style={{
-                    background: 'rgba(15,23,42,0.75)',
-                    color: '#f8fafc',
-                    caretColor: '#f8fafc',
-                    WebkitTextFillColor: '#f8fafc',
-                    border: formik.touched.password && formik.errors.password
-                      ? '1px solid rgba(248,113,113,0.6)'
-                      : '1px solid rgba(148,163,184,0.28)',
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.border = formik.errors.password
-                      ? '1px solid rgba(248,113,113,0.6)'
-                      : '1px solid rgba(148,163,184,0.28)';
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.color = '#f8fafc';
-                    e.currentTarget.style.webkitTextFillColor = '#f8fafc';
-                    formik.handleBlur(e);
-                  }}
+                  className={`auth-login-input w-full h-12 pl-10 pr-11 text-sm rounded-xl outline-none transition-all duration-200 ${
+                    formik.touched.password && formik.errors.password
+                      ? '!border-red-400/50 focus:!border-red-400 focus:!ring-red-400/20'
+                      : ''
+                  }`}
+                  onBlur={formik.handleBlur}
                 />
                 <button
                   type="button"
@@ -326,14 +312,7 @@ const Login: React.FC = () => {
                   autoComplete="off"
                   placeholder="e.g. clinicnew"
                   {...formik.getFieldProps('clinicId')}
-                  className="auth-login-input w-full h-11 px-4 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-cyan-300/25"
-                  style={{
-                    background: 'rgba(15,23,42,0.75)',
-                    color: '#f8fafc',
-                    caretColor: '#f8fafc',
-                    WebkitTextFillColor: '#f8fafc',
-                    border: '1px solid rgba(148,163,184,0.28)',
-                  }}
+                  className="auth-login-input w-full h-11 px-4 text-sm rounded-xl outline-none transition-all duration-200"
                 />
                 <p className="text-[10px] text-slate-400/80 leading-snug">
                   Your clinic <strong className="text-slate-200">slug</strong> from Clinic Management. Leave blank if unsure.
