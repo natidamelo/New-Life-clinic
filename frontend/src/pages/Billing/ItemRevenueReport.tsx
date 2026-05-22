@@ -17,6 +17,8 @@ import {
 } from 'recharts';
 import { format, subMonths, subYears } from 'date-fns';
 import api from '../../services/apiService';
+import { useSafeTheme } from '../../hooks/useSafeTheme';
+import { motion } from 'framer-motion';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface MonthlyBreakdown { month: string; revenue: number; quantity: number; }
@@ -64,109 +66,167 @@ const fmtMonth = (ym: string) => {
 
 
 // ─── Type Config ──────────────────────────────────────────────────────────────
-const TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string; bg: string; border: string; bar: string }> = {
-  medication:   { label: 'Medication',   icon: <Pill className="h-4 w-4" />,         color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200',   bar: '#3b82f6' },
-  lab:          { label: 'Lab Test',     icon: <FlaskConical className="h-4 w-4" />, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', bar: '#10b981' },
-  service:      { label: 'Service',      icon: <Stethoscope className="h-4 w-4" />,  color: 'text-violet-700',  bg: 'bg-violet-50',  border: 'border-violet-200',  bar: '#8b5cf6' },
-  procedure:    { label: 'Procedure',    icon: <Activity className="h-4 w-4" />,     color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200',   bar: '#f59e0b' },
-  consultation: { label: 'Consultation', icon: <FileText className="h-4 w-4" />,     color: 'text-cyan-700',    bg: 'bg-cyan-50',    border: 'border-cyan-200',    bar: '#06b6d4' },
-  imaging:      { label: 'Imaging',      icon: <BarChart3 className="h-4 w-4" />,    color: 'text-pink-700',    bg: 'bg-pink-50',    border: 'border-pink-200',    bar: '#ec4899' },
-  supply:       { label: 'Supply',       icon: <Package className="h-4 w-4" />,      color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200',  bar: '#f97316' },
-  other:        { label: 'Other',        icon: <DollarSign className="h-4 w-4" />,   color: 'text-gray-700',    bg: 'bg-gray-100',   border: 'border-gray-200',    bar: '#6b7280' },
+const TYPE_CONFIG: Record<string, { 
+  label: string; 
+  icon: React.ReactNode; 
+  color: string; 
+  darkColor: string;
+  bg: string; 
+  darkBg: string;
+  border: string; 
+  darkBorder: string;
+  bar: string;
+  barEnd: string;
+}> = {
+  medication:   { label: 'Medication',   icon: <Pill className="h-4 w-4" />,         color: 'text-blue-700',    darkColor: 'text-blue-400',    bg: 'bg-blue-50',    darkBg: 'bg-blue-950/30',    border: 'border-blue-200',   darkBorder: 'border-blue-800/50',   bar: '#3b82f6', barEnd: '#1e40af' },
+  lab:          { label: 'Lab Test',     icon: <FlaskConical className="h-4 w-4" />, color: 'text-emerald-700', darkColor: 'text-emerald-400', bg: 'bg-emerald-50', darkBg: 'bg-emerald-950/30', border: 'border-emerald-200', darkBorder: 'border-emerald-800/50', bar: '#10b981', barEnd: '#047857' },
+  service:      { label: 'Service',      icon: <Stethoscope className="h-4 w-4" />,  color: 'text-violet-700',  darkColor: 'text-violet-400',  bg: 'bg-violet-50',  darkBg: 'bg-violet-950/30',  border: 'border-violet-200',  darkBorder: 'border-violet-800/50',  bar: '#8b5cf6', barEnd: '#6d28d9' },
+  procedure:    { label: 'Procedure',    icon: <Activity className="h-4 w-4" />,     color: 'text-amber-700',   darkColor: 'text-amber-400',   bg: 'bg-amber-50',   darkBg: 'bg-amber-950/30',   border: 'border-amber-200',   darkBorder: 'border-amber-800/50',   bar: '#f59e0b', barEnd: '#b45309' },
+  consultation: { label: 'Consultation', icon: <FileText className="h-4 w-4" />,     color: 'text-cyan-700',    darkColor: 'text-cyan-400',    bg: 'bg-cyan-50',    darkBg: 'bg-cyan-950/30',    border: 'border-cyan-200',    darkBorder: 'border-cyan-800/50',    bar: '#06b6d4', barEnd: '#0891b2' },
+  imaging:      { label: 'Imaging',      icon: <BarChart3 className="h-4 w-4" />,    color: 'text-pink-700',    darkColor: 'text-pink-400',    bg: 'bg-pink-50',    darkBg: 'bg-pink-950/30',    border: 'border-pink-200',    darkBorder: 'border-pink-800/50',    bar: '#ec4899', barEnd: '#be185d' },
+  supply:       { label: 'Supply',       icon: <Package className="h-4 w-4" />,      color: 'text-orange-700',  darkColor: 'text-orange-400',  bg: 'bg-orange-50',  darkBg: 'bg-orange-950/30',  border: 'border-orange-200',  darkBorder: 'border-orange-800/50',  bar: '#f97316', barEnd: '#c2410c' },
+  other:        { label: 'Other',        icon: <DollarSign className="h-4 w-4" />,   color: 'text-gray-700',    darkColor: 'text-gray-400',    bg: 'bg-gray-100',   darkBg: 'bg-gray-800/30',    border: 'border-gray-200',    darkBorder: 'border-gray-800/50',    bar: '#6b7280', barEnd: '#374151' },
 };
 const getTypeCfg = (t: string) => TYPE_CONFIG[t] ?? TYPE_CONFIG.other;
 
 // ─── Item Row ─────────────────────────────────────────────────────────────────
 const ItemRow: React.FC<{ item: ReportItem; rank: number; maxRevenue: number }> = ({ item, rank, maxRevenue }) => {
   const [expanded, setExpanded] = useState(false);
+  const { isDarkMode } = useSafeTheme();
   const cfg = getTypeCfg(item.itemType);
   const pct = maxRevenue > 0 ? (item.totalRevenue / maxRevenue) * 100 : 0;
   const name = item.name;
+  
+  // Safe unique ID for Recharts gradient elements to prevent collisions
+  const safeId = `${item.itemType}-${item.name.replace(/[^a-zA-Z0-9]/g, '')}`;
 
   return (
-    <div className={`border border-gray-200 rounded-xl overflow-hidden transition-shadow ${expanded ? 'shadow-md' : 'hover:shadow-sm'}`}>
+    <div className={`border rounded-xl overflow-hidden transition-all duration-300 ${
+      isDarkMode 
+        ? `border-slate-800/80 bg-slate-900/40 hover:bg-slate-900/60 ${expanded ? 'shadow-[0_4px_20px_rgba(0,0,0,0.3)] bg-slate-900/80' : ''}` 
+        : `border-gray-200 bg-white hover:shadow-md ${expanded ? 'shadow-md bg-gray-50/10' : ''}`
+    }`}>
       {/* Collapsed header */}
       <button
         onClick={() => setExpanded(e => !e)}
-        className="w-full text-left p-4 bg-white hover:bg-gray-50/80 transition-colors"
+        className={`w-full text-left p-4 transition-colors ${
+          isDarkMode ? 'hover:bg-slate-800/30' : 'hover:bg-gray-50/80'
+        }`}
       >
         <div className="flex items-center gap-3">
-          {/* Rank */}
-          <span className="text-xs font-black text-gray-400 w-5 flex-shrink-0">#{rank}</span>
+          {/* Rank Badges */}
+          <span className={`text-xs font-black w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+            rank === 1
+              ? 'bg-amber-500/10 border border-amber-500/30 text-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.2)]'
+              : rank === 2
+              ? 'bg-slate-400/10 border border-slate-400/30 text-slate-400'
+              : rank === 3
+              ? 'bg-amber-700/10 border border-amber-700/30 text-amber-700'
+              : isDarkMode ? 'text-slate-500' : 'text-gray-400'
+          }`}>
+            #{rank}
+          </span>
 
           {/* Type badge */}
-          <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold border ${cfg.bg} ${cfg.color} ${cfg.border} flex-shrink-0`}>
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border flex-shrink-0 ${
+            isDarkMode 
+              ? `${cfg.darkBg} ${cfg.darkColor} ${cfg.darkBorder}` 
+              : `${cfg.bg} ${cfg.color} ${cfg.border}`
+          }`}>
             {cfg.icon} {cfg.label}
           </span>
 
           {/* Name */}
-          <span className="flex-1 text-sm font-semibold text-gray-800 truncate" title={name}>{name}</span>
+          <span className={`flex-1 text-sm font-semibold truncate ${
+            isDarkMode ? 'text-slate-200' : 'text-gray-800'
+          }`} title={name}>{name}</span>
 
           {/* Stats */}
           <div className="hidden sm:flex items-center gap-6 flex-shrink-0">
             <div className="text-right">
-              <p className="text-xs text-gray-400">Times Given</p>
-              <p className="text-sm font-bold text-gray-700">{item.totalQuantity.toLocaleString()}×</p>
+              <p className={`text-[10px] uppercase tracking-wider ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`}>Times Given</p>
+              <p className={`text-sm font-bold ${isDarkMode ? 'text-slate-300' : 'text-gray-700'}`}>{item.totalQuantity.toLocaleString()}×</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-400">Price</p>
-              <p className="text-sm font-bold text-gray-700">{fmtCurrency(item.unitPrice)}</p>
+              <p className={`text-[10px] uppercase tracking-wider ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`}>Price</p>
+              <p className={`text-sm font-bold ${isDarkMode ? 'text-slate-300' : 'text-gray-700'}`}>{fmtCurrency(item.unitPrice)}</p>
             </div>
             <div className="text-right min-w-[110px]">
-              <p className="text-xs text-gray-400">Total Revenue</p>
-              <p className="text-sm font-black text-gray-900">{fmtCurrency(item.totalRevenue)}</p>
+              <p className={`text-[10px] uppercase tracking-wider ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`}>Total Revenue</p>
+              <p className={`text-sm font-black ${isDarkMode ? 'text-cyan-400' : 'text-gray-900'}`}>{fmtCurrency(item.totalRevenue)}</p>
             </div>
           </div>
 
           {/* Mobile revenue */}
           <div className="sm:hidden text-right flex-shrink-0">
-            <p className="text-sm font-black text-gray-900">{fmtCurrency(item.totalRevenue)}</p>
+            <p className={`text-sm font-black ${isDarkMode ? 'text-cyan-400' : 'text-gray-900'}`}>{fmtCurrency(item.totalRevenue)}</p>
           </div>
 
-          {expanded ? <ChevronUp className="h-4 w-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />}
+          {expanded ? <ChevronUp className={isDarkMode ? 'text-slate-400' : 'text-gray-450'} /> : <ChevronDown className={isDarkMode ? 'text-slate-400' : 'text-gray-450'} />}
         </div>
 
         {/* Progress bar */}
-        <div className="mt-2.5 ml-8 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(pct, 100)}%`, background: cfg.bar }} />
+        <div className={`mt-2.5 ml-10 h-1.5 rounded-full overflow-hidden ${
+          isDarkMode ? 'bg-slate-800/80' : 'bg-gray-100'
+        }`}>
+          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(pct, 100)}%`, background: `linear-gradient(90deg, ${cfg.bar}, ${cfg.barEnd})` }} />
         </div>
       </button>
 
       {/* Expanded detail */}
       {expanded && (
-        <div className="border-t border-gray-100 bg-gray-50/60 p-4 space-y-4">
+        <div className={`border-t p-4 space-y-4 ${
+          isDarkMode ? 'border-slate-800 bg-slate-950/20' : 'border-gray-100 bg-gray-55/60'
+        }`}>
           {/* Stats grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: 'Total Revenue',  value: fmtCurrency(item.totalRevenue),                          color: 'text-blue-700' },
-              { label: 'Times Given',    value: item.totalQuantity.toLocaleString() + ' times',          color: 'text-gray-700' },
-              { label: 'Unit Price',     value: fmtCurrency(item.unitPrice),                            color: 'text-violet-700' },
-              { label: 'Invoice Count',  value: item.invoiceCount.toLocaleString() + ' invoices',        color: 'text-emerald-700' },
+              { label: 'Total Revenue',  value: fmtCurrency(item.totalRevenue),                          color: isDarkMode ? 'text-cyan-400' : 'text-blue-700' },
+              { label: 'Times Given',    value: item.totalQuantity.toLocaleString() + ' times',          color: isDarkMode ? 'text-slate-300' : 'text-gray-700' },
+              { label: 'Unit Price',     value: fmtCurrency(item.unitPrice),                            color: isDarkMode ? 'text-violet-400' : 'text-violet-700' },
+              { label: 'Invoice Count',  value: item.invoiceCount.toLocaleString() + ' invoices',        color: isDarkMode ? 'text-emerald-400' : 'text-emerald-700' },
             ].map(s => (
-              <div key={s.label} className="bg-white rounded-xl border border-gray-100 p-3">
-                <p className="text-xs text-gray-400 mb-1">{s.label}</p>
+              <div key={s.label} className={`rounded-xl border p-3 ${
+                isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-gray-100'
+              }`}>
+                <p className={`text-[10px] uppercase tracking-wider mb-1 ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`}>{s.label}</p>
                 <p className={`text-sm font-black ${s.color}`}>{s.value}</p>
               </div>
             ))}
           </div>
 
-
           {/* Monthly chart */}
           {item.monthlyBreakdown.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-gray-500 mb-2">Monthly Revenue Trend</p>
-              <div className="h-36 bg-white rounded-xl border border-gray-100 p-3">
+            <div className="space-y-3">
+              <p className={`text-xs font-semibold mb-1.5 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Monthly Revenue Trend</p>
+              <div className={`h-36 rounded-xl border p-3 ${
+                isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-gray-100'
+              }`}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={item.monthlyBreakdown} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="month" tickFormatter={fmtMonth} tick={{ fill: '#94a3b8', fontSize: 10 }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={fmtCompact} width={45} />
+                    <defs>
+                      <linearGradient id={`chart-${safeId}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={cfg.bar} stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor={cfg.barEnd} stopOpacity={0.15}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#1e293b' : '#f1f5f9'} />
+                    <XAxis dataKey="month" tickFormatter={fmtMonth} tick={{ fill: isDarkMode ? '#64748b' : '#94a3b8', fontSize: 10 }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fill: isDarkMode ? '#64748b' : '#94a3b8', fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={fmtCompact} width={45} />
                     <RechartsTooltip
                       formatter={(v: number) => [fmtCurrency(v), 'Revenue']}
                       labelFormatter={fmtMonth}
-                      contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 16px rgba(0,0,0,.1)', fontSize: 12 }}
+                      contentStyle={{
+                        backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+                        borderColor: isDarkMode ? '#334155' : '#e2e8f0',
+                        color: isDarkMode ? '#f8fafc' : '#0f172a',
+                        borderRadius: 12,
+                        boxShadow: '0 4px 16px rgba(0,0,0,.15)',
+                        fontSize: 12,
+                        backdropFilter: 'blur(8px)',
+                      }}
                     />
-                    <Bar dataKey="revenue" radius={[4, 4, 0, 0]} fill={cfg.bar} />
+                    <Bar dataKey="revenue" radius={[4, 4, 0, 0]} fill={`url(#chart-${safeId})`} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -174,8 +234,8 @@ const ItemRow: React.FC<{ item: ReportItem; rank: number; maxRevenue: number }> 
               {/* Monthly table */}
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full text-xs">
-                    <thead>
-                    <tr className="text-gray-400 border-b border-gray-100">
+                  <thead>
+                    <tr className={`border-b ${isDarkMode ? 'text-slate-500 border-slate-800' : 'text-gray-400 border-gray-100'}`}>
                       <th className="text-left py-1.5 font-medium">Month</th>
                       <th className="text-right py-1.5 font-medium">Times Given</th>
                       <th className="text-right py-1.5 font-medium">Revenue</th>
@@ -183,10 +243,12 @@ const ItemRow: React.FC<{ item: ReportItem; rank: number; maxRevenue: number }> 
                   </thead>
                   <tbody>
                     {item.monthlyBreakdown.map(m => (
-                      <tr key={m.month} className="border-b border-gray-50 hover:bg-white transition-colors">
-                        <td className="py-1.5 text-gray-600">{fmtMonth(m.month)}</td>
-                        <td className="py-1.5 text-right text-gray-700 font-medium">{m.quantity}</td>
-                        <td className="py-1.5 text-right font-bold text-gray-900">{fmtCurrency(m.revenue)}</td>
+                      <tr key={m.month} className={`border-b transition-colors ${
+                        isDarkMode ? 'border-slate-800/50 hover:bg-slate-900/30 text-slate-300' : 'border-gray-50 hover:bg-white text-gray-700'
+                      }`}>
+                        <td className="py-1.5">{fmtMonth(m.month)}</td>
+                        <td className="py-1.5 text-right font-medium">{m.quantity}</td>
+                        <td className={`py-1.5 text-right font-bold ${isDarkMode ? 'text-cyan-400' : 'text-gray-900'}`}>{fmtCurrency(m.revenue)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -203,6 +265,7 @@ const ItemRow: React.FC<{ item: ReportItem; rank: number; maxRevenue: number }> 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const ItemRevenueReport: React.FC = () => {
   const navigate = useNavigate();
+  const { isDarkMode } = useSafeTheme();
   const [startDate, setStartDate] = useState<string>(() => format(subYears(new Date(), 1), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
   const [activeType, setActiveType] = useState<string>('all');
@@ -517,31 +580,55 @@ const ItemRevenueReport: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
+    <div className={`space-y-6 p-4 md:p-6 max-w-7xl mx-auto min-h-screen transition-colors duration-300 ${
+      isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-55 text-slate-800'
+    }`}>
 
       {/* ── Hero Header ──────────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-violet-800 p-6 text-white shadow-xl">
-        <div className="absolute -top-10 -right-10 h-48 w-48 rounded-full bg-white/5" />
-        <div className="absolute -bottom-8 -left-8 h-36 w-36 rounded-full bg-white/5" />
+      <div className={`relative overflow-hidden rounded-2xl p-6 shadow-xl transition-all duration-500 border ${
+        isDarkMode 
+          ? 'bg-gradient-to-r from-slate-900 via-indigo-955 to-slate-900 border-slate-800/80 shadow-[0_10px_30px_-10px_rgba(99,102,241,0.2)]'
+          : 'bg-gradient-to-br from-blue-600 via-indigo-700 to-violet-800 border-transparent text-white'
+      }`}>
+        <div className={`absolute -top-10 -right-10 h-48 w-48 rounded-full blur-3xl transition-colors duration-500 ${
+          isDarkMode ? 'bg-cyan-500/10' : 'bg-white/5'
+        }`} />
+        <div className={`absolute -bottom-8 -left-8 h-36 w-36 rounded-full blur-3xl transition-colors duration-500 ${
+          isDarkMode ? 'bg-indigo-500/10' : 'bg-white/5'
+        }`} />
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <button onClick={() => navigate('/app/billing')} className="inline-flex items-center gap-1.5 text-white/70 hover:text-white text-sm mb-3 transition-colors">
+            <button onClick={() => navigate('/app/billing')} className={`inline-flex items-center gap-1.5 text-sm mb-3 transition-colors ${
+              isDarkMode ? 'text-slate-400 hover:text-cyan-400' : 'text-white/70 hover:text-white'
+            }`}>
               <ChevronLeft className="h-4 w-4" /> Back to Billing
             </button>
             <h1 className="text-2xl font-black">Medication & Lab Revenue Report</h1>
-            <p className="text-white/70 text-sm mt-1">Detailed breakdown of all billed items — medications, lab tests, services and more</p>
+            <p className={`text-sm mt-1 ${isDarkMode ? 'text-slate-400' : 'text-white/70'}`}>Detailed breakdown of all billed items — medications, lab tests, services and more</p>
           </div>
           <div className="flex gap-2 flex-shrink-0 flex-wrap">
             <Button onClick={printReport} variant="outline" size="sm"
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-1.5">
+              className={`gap-1.5 transition-all duration-200 hover:scale-105 ${
+                isDarkMode 
+                  ? 'bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-850 hover:text-white hover:border-slate-700' 
+                  : 'bg-white/10 border-white/30 text-white hover:bg-white/20'
+              }`}>
               <Printer className="h-4 w-4" /> Print
             </Button>
             <Button onClick={downloadCSV} variant="outline" size="sm"
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-1.5">
+              className={`gap-1.5 transition-all duration-200 hover:scale-105 ${
+                isDarkMode 
+                  ? 'bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-850 hover:text-white hover:border-slate-700' 
+                  : 'bg-white/10 border-white/30 text-white hover:bg-white/20'
+              }`}>
               <Download className="h-4 w-4" /> Export CSV
             </Button>
             <Button onClick={fetchReport} variant="outline" size="sm"
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-1.5" disabled={loading}>
+              className={`gap-1.5 transition-all duration-200 hover:scale-105 ${
+                isDarkMode 
+                  ? 'bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-850 hover:text-white hover:border-slate-700' 
+                  : 'bg-white/10 border-white/30 text-white hover:bg-white/20'
+              }`} disabled={loading}>
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </Button>
           </div>
@@ -549,27 +636,37 @@ const ItemRevenueReport: React.FC = () => {
       </div>
 
       {/* ── Filters ──────────────────────────────────────────────────────────── */}
-      <Card className="shadow-sm border border-gray-200">
+      <Card className={`shadow-sm transition-all duration-300 border ${
+        isDarkMode ? 'bg-slate-900 border-slate-800/80 shadow-slate-950/20' : 'bg-white border-gray-200'
+      }`}>
         <CardContent className="p-5">
           <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex gap-3 flex-1">
+            <div className="flex gap-3 flex-1 w-full">
               <div className="flex-1">
-                <label className="text-xs font-semibold text-gray-500 mb-1.5 block flex items-center gap-1">
+                <label className={`text-xs font-semibold mb-1.5 block flex items-center gap-1.5 ${
+                  isDarkMode ? 'text-slate-400' : 'text-gray-500'
+                }`}>
                   <Calendar className="h-3.5 w-3.5" /> From Date
                 </label>
                 <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-                  className="text-sm border-gray-200 focus:border-blue-400" />
+                  className={`text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 ${
+                    isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-200' : 'border-gray-200'
+                  }`} />
               </div>
               <div className="flex-1">
-                <label className="text-xs font-semibold text-gray-500 mb-1.5 block flex items-center gap-1">
+                <label className={`text-xs font-semibold mb-1.5 block flex items-center gap-1.5 ${
+                  isDarkMode ? 'text-slate-400' : 'text-gray-500'
+                }`}>
                   <Calendar className="h-3.5 w-3.5" /> To Date
                 </label>
                 <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
-                  className="text-sm border-gray-200 focus:border-blue-400" />
+                  className={`text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 ${
+                    isDarkMode ? 'bg-slate-955 border-slate-800 text-slate-200' : 'border-gray-200'
+                  }`} />
               </div>
             </div>
             {/* Quick presets */}
-            <div className="flex gap-1.5 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap w-full md:w-auto">
               {[
                 { label: '1M', fn: () => { setStartDate(format(subMonths(new Date(), 1), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); } },
                 { label: '3M', fn: () => { setStartDate(format(subMonths(new Date(), 3), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); } },
@@ -577,7 +674,11 @@ const ItemRevenueReport: React.FC = () => {
                 { label: '1Y', fn: () => { setStartDate(format(subYears(new Date(), 1), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); } },
               ].map(({ label, fn }) => (
                 <button key={label} onClick={fn}
-                  className="px-3 py-2 text-xs font-semibold rounded-lg border border-gray-200 bg-white text-gray-600 hover:border-blue-400 hover:text-blue-700 transition-colors">
+                  className={`px-3.5 py-2 text-xs font-semibold rounded-lg border transition-all duration-200 ${
+                    isDarkMode 
+                      ? 'border-slate-800 bg-slate-955 text-slate-400 hover:border-cyan-500/50 hover:text-cyan-400 hover:bg-slate-900' 
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-blue-400 hover:text-blue-700 hover:bg-gray-50'
+                  }`}>
                   {label}
                 </button>
               ))}
@@ -587,72 +688,109 @@ const ItemRevenueReport: React.FC = () => {
       </Card>
 
       {error && (
-        <Alert className="border-red-200 bg-red-50">
+        <Alert className={`border ${isDarkMode ? 'bg-red-950/20 border-red-900/50' : 'border-red-200 bg-red-50'}`}>
           <AlertTriangle className="h-4 w-4 text-red-600" />
-          <AlertDescription className="text-red-700 ml-2">{error}</AlertDescription>
+          <AlertDescription className={`${isDarkMode ? 'text-red-400' : 'text-red-700'} ml-2`}>{error}</AlertDescription>
         </Alert>
       )}
 
       {/* ── Summary Cards ────────────────────────────────────────────────────── */}
       {loading && !data ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className={`h-24 rounded-2xl ${isDarkMode ? 'bg-slate-900/50' : ''}`} />)}
         </div>
       ) : data && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {data.summaryByType.slice(0, 4).map((s, i) => {
               const cfg = getTypeCfg(s.itemType);
-              const GRADS = [
-                'bg-gradient-to-br from-blue-600 to-indigo-700',
-                'bg-gradient-to-br from-emerald-500 to-teal-600',
-                'bg-gradient-to-br from-violet-500 to-purple-700',
-                'bg-gradient-to-br from-amber-500 to-orange-600',
-              ];
+              const GRADS = isDarkMode 
+                ? [
+                    'from-blue-955 via-slate-900 to-slate-955 border border-blue-500/20 text-white shadow-blue-955/20',
+                    'from-emerald-955 via-slate-900 to-slate-955 border border-emerald-500/20 text-white shadow-emerald-955/20',
+                    'from-violet-955 via-slate-900 to-slate-955 border border-violet-500/20 text-white shadow-violet-955/20',
+                    'from-amber-955 via-slate-900 to-slate-955 border border-amber-500/20 text-white shadow-amber-955/20',
+                  ]
+                : [
+                    'from-blue-600 to-indigo-700 text-white shadow-blue-500/10',
+                    'from-emerald-500 to-teal-600 text-white shadow-emerald-500/10',
+                    'from-violet-500 to-purple-700 text-white shadow-violet-500/10',
+                    'from-amber-500 to-orange-600 text-white shadow-amber-500/10',
+                  ];
               return (
-                <Card key={s.itemType} className={`${GRADS[i % 4]} border-0 shadow-lg overflow-hidden`}>
+                <motion.div
+                  key={s.itemType}
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                  className={`relative rounded-2xl bg-gradient-to-br ${GRADS[i % 4]} shadow-lg overflow-hidden border`}
+                >
                   <CardContent className="p-5 relative">
-                    <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-white/10 -translate-y-8 translate-x-8" />
+                    <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-white/5 -translate-y-8 translate-x-8" />
                     <div className="relative">
                       <div className="flex items-center justify-between mb-2">
-                        <div className="p-2 bg-white/20 rounded-lg">{React.cloneElement(cfg.icon as React.ReactElement, { className: 'h-4 w-4 text-white' })}</div>
-                        <span className="text-xs text-white/70 font-semibold">{s.itemCount} items</span>
+                        <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-slate-900/80 text-cyan-400 border border-slate-800' : 'bg-white/20'}`}>
+                          {React.cloneElement(cfg.icon as React.ReactElement, { className: `h-4 w-4 ${isDarkMode ? '' : 'text-white'}` })}
+                        </div>
+                        <span className={`text-xs font-semibold ${isDarkMode ? 'text-slate-400' : 'text-white/70'}`}>{s.itemCount} items</span>
                       </div>
-                      <p className="text-white/80 text-xs font-semibold uppercase tracking-wider">{cfg.label}</p>
-                      <p className="text-white text-lg font-black mt-0.5 leading-tight">{fmtCurrency(s.totalRevenue)}</p>
-                      <p className="text-white/60 text-xs mt-0.5">given {s.totalQuantity.toLocaleString()} times</p>
+                      <p className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-white/80'}`}>{cfg.label}</p>
+                      <p className="text-lg font-black mt-0.5 leading-tight">{fmtCurrency(s.totalRevenue)}</p>
+                      <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-500' : 'text-white/60'}`}>given {s.totalQuantity.toLocaleString()} times</p>
                     </div>
                   </CardContent>
-                </Card>
+                </motion.div>
               );
             })}
           </div>
 
           {/* ── Type summary bar chart ──────────────────────────────────────── */}
           {data.summaryByType.length > 0 && (
-            <Card className="shadow-sm border border-gray-200">
+            <Card className={`shadow-sm border transition-all duration-300 ${
+              isDarkMode ? 'bg-slate-900 border-slate-800/80 shadow-slate-950/20' : 'bg-white border-gray-200'
+            }`}>
               <CardContent className="p-5">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-gray-100 rounded-xl"><BarChart3 className="h-5 w-5 text-indigo-600" /></div>
+                  <div className={`p-2.5 rounded-xl ${
+                    isDarkMode ? 'bg-slate-950 text-cyan-400 border border-slate-800' : 'bg-gray-100 text-indigo-600'
+                  }`}><BarChart3 className="h-5 w-5" /></div>
                   <div>
-                    <h3 className="text-base font-bold text-gray-900">Revenue by Category</h3>
-                    <p className="text-xs text-gray-500">Total billed revenue per item type</p>
+                    <h3 className={`text-base font-bold ${isDarkMode ? 'text-slate-200' : 'text-gray-900'}`}>Revenue by Category</h3>
+                    <p className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-gray-500'}`}>Total billed revenue per item type</p>
                   </div>
-                  <span className="ml-auto text-sm font-black text-gray-900">{fmtCurrency(data.totalRevenue)}</span>
+                  <span className={`ml-auto text-base font-black ${isDarkMode ? 'text-cyan-400' : 'text-gray-900'}`}>{fmtCurrency(data.totalRevenue)}</span>
                 </div>
-                <div className="h-48">
+                <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.summaryByType} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="itemType" tickFormatter={t => getTypeCfg(t).label} tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                      <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={fmtCompact} width={55} />
+                    <BarChart data={data.summaryByType} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        {data.summaryByType.map(s => {
+                          const cfg = getTypeCfg(s.itemType);
+                          return (
+                            <linearGradient key={s.itemType} id={`catGrad-${s.itemType}`} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={cfg.bar} stopOpacity={0.85}/>
+                              <stop offset="100%" stopColor={cfg.barEnd} stopOpacity={0.2}/>
+                            </linearGradient>
+                          );
+                        })}
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#1e293b' : '#f1f5f9'} />
+                      <XAxis dataKey="itemType" tickFormatter={t => getTypeCfg(t).label} tick={{ fill: isDarkMode ? '#64748b' : '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
+                      <YAxis tick={{ fill: isDarkMode ? '#64748b' : '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={fmtCompact} width={65} />
                       <RechartsTooltip
                         formatter={(v: number, _: string, entry: any) => [fmtCurrency(v), getTypeCfg(entry.payload.itemType).label]}
-                        contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 8px 24px rgba(0,0,0,.12)', fontSize: 12 }}
+                        contentStyle={{
+                          backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+                          borderColor: isDarkMode ? '#334155' : '#e2e8f0',
+                          color: isDarkMode ? '#f8fafc' : '#0f172a',
+                          borderRadius: 12,
+                          boxShadow: '0 8px 24px rgba(0,0,0,.15)',
+                          fontSize: 12,
+                          backdropFilter: 'blur(8px)',
+                        }}
                       />
                       <Bar dataKey="totalRevenue" radius={[6, 6, 0, 0]}>
                         {data.summaryByType.map((s, i) => (
-                          <Cell key={i} fill={getTypeCfg(s.itemType).bar} />
+                          <Cell key={i} fill={`url(#catGrad-${s.itemType})`} />
                         ))}
                       </Bar>
                     </BarChart>
@@ -671,28 +809,38 @@ const ItemRevenueReport: React.FC = () => {
               if (tab.key !== 'all' && count === 0) return null;
               return (
                 <button key={tab.key} onClick={() => setActiveType(tab.key)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                  className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all duration-200 ${
                     activeType === tab.key
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700'
+                      ? isDarkMode
+                        ? 'bg-cyan-500 text-slate-950 border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.35)] font-bold'
+                        : 'bg-blue-600 text-white border-blue-600 shadow-sm font-bold'
+                      : isDarkMode
+                      ? 'bg-slate-900 text-slate-400 border-slate-800 hover:border-cyan-500/40 hover:text-cyan-400 hover:bg-slate-850'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700 hover:bg-gray-50'
                   }`}>
-                  {tab.label} {count > 0 && <span className={`ml-1 ${activeType === tab.key ? 'text-white/70' : 'text-gray-400'}`}>({count})</span>}
+                  {tab.label} {count > 0 && <span className={`ml-1 ${activeType === tab.key ? isDarkMode ? 'text-slate-955/70' : 'text-white/70' : 'text-gray-400'}`}>({count})</span>}
                 </button>
               );
             })}
           </div>
 
           {/* ── Search bar ──────────────────────────────────────────────────── */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <div className="relative group">
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${
+              isDarkMode ? 'text-slate-500 group-focus-within:text-cyan-400' : 'text-gray-400 group-focus-within:text-blue-500'
+            }`} />
             <Input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search medications, lab tests, services…"
-              className="pl-9 pr-9 border-gray-200 focus:border-blue-400"
+              className={`pl-9 pr-9 focus:ring-1 transition-all ${
+                isDarkMode 
+                  ? 'bg-slate-900 border-slate-800 text-slate-200 placeholder-slate-500 focus:border-cyan-500 focus:ring-cyan-500/30' 
+                  : 'border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:ring-blue-400/30'
+              }`}
             />
             {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                 <X className="h-4 w-4" />
               </button>
             )}
@@ -700,145 +848,182 @@ const ItemRevenueReport: React.FC = () => {
 
           {/* ── Results header ──────────────────────────────────────────────── */}
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">
-              Showing <span className="font-bold text-gray-900">{filteredItems.length}</span> items
-              {search && <> matching "<span className="font-semibold text-blue-600">{search}</span>"</>}
+            <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+              Showing <span className={`font-bold ${isDarkMode ? 'text-slate-200' : 'text-gray-900'}`}>{filteredItems.length}</span> items
+              {search && <> matching "<span className={`font-semibold ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>{search}</span>"</>}
             </p>
-            <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            <div className={`flex items-center gap-1.5 text-xs ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`}>
               <Filter className="h-3.5 w-3.5" />
               Sorted by revenue (highest first)
             </div>
           </div>
 
-          {/* ── Item list ───────────────────────────────────────────────────── */}
           {/* ── Patient Cards Section ────────────────────────────────────────── */}
           {cardData && cardData.cards.items.length > 0 && (
-            <div className="rounded-xl border border-blue-200 overflow-hidden">
+            <div className={`rounded-xl border overflow-hidden transition-all duration-300 ${
+              isDarkMode 
+                ? 'border-slate-800 bg-slate-955/30 shadow-[0_4px_20px_rgba(0,0,0,0.2)]' 
+                : 'border-blue-200 bg-white'
+            }`}>
               {/* Dropdown header */}
               <button
                 onClick={() => setCardsOpen(o => !o)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-blue-50 hover:bg-blue-100 transition-colors"
+                className={`w-full flex items-center justify-between px-4 py-3 transition-colors ${
+                  isDarkMode ? 'bg-slate-900/60 hover:bg-slate-900' : 'bg-blue-50 hover:bg-blue-100'
+                }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <CreditCard className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-bold text-blue-700">Patient Cards</span>
-                  <span className="text-xs bg-blue-200 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{cardData.cards.totalCards} issued</span>
+                  <CreditCard className={`h-4 w-4 ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`} />
+                  <span className={`text-sm font-bold ${isDarkMode ? 'text-slate-200' : 'text-blue-700'}`}>Patient Cards</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                    isDarkMode ? 'bg-slate-950 text-cyan-400 border border-slate-800/60' : 'bg-blue-200 text-blue-700'
+                  }`}>{cardData.cards.totalCards} issued</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-black text-blue-900">{fmtCurrency(cardData.cards.totalRevenue)}</span>
+                  <span className={`text-sm font-black ${isDarkMode ? 'text-cyan-400' : 'text-blue-900'}`}>{fmtCurrency(cardData.cards.totalRevenue)}</span>
                   {cardsOpen
-                    ? <ChevronUp className="h-4 w-4 text-blue-500" />
-                    : <ChevronDown className="h-4 w-4 text-blue-500" />}
+                    ? <ChevronUp className={isDarkMode ? 'text-slate-400' : 'text-blue-500'} />
+                    : <ChevronDown className={isDarkMode ? 'text-slate-400' : 'text-blue-500'} />}
                 </div>
               </button>
 
               {/* Collapsible body */}
               {cardsOpen && (
-              <div className="p-4 space-y-3 bg-white">
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {cardData.cards.items.map((c) => {
-                  const CARD_COLORS: Record<string, { bg: string; border: string; dot: string }> = {
-                    Basic:   { bg: 'bg-slate-50',   border: 'border-slate-200',  dot: 'bg-slate-400' },
-                    Premium: { bg: 'bg-blue-50',    border: 'border-blue-200',   dot: 'bg-blue-500' },
-                    VIP:     { bg: 'bg-violet-50',  border: 'border-violet-200', dot: 'bg-violet-500' },
-                    Family:  { bg: 'bg-emerald-50', border: 'border-emerald-200',dot: 'bg-emerald-500' },
-                  };
-                  const cfg = CARD_COLORS[c.cardType] ?? CARD_COLORS.Basic;
-                  return (
-                    <div key={c.cardType} className={`rounded-xl border-2 ${cfg.bg} ${cfg.border} p-4`}>
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`h-3 w-3 rounded-full ${cfg.dot}`} />
-                          <span className="font-bold text-gray-800 text-sm">{c.cardType} Card</span>
+                <div className={`p-4 space-y-3 ${isDarkMode ? 'bg-slate-955/40' : 'bg-white'}`}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {cardData.cards.items.map((c) => {
+                      const CARD_COLORS: Record<string, { bg: string; darkBg: string; border: string; darkBorder: string; dot: string; fill: string }> = {
+                        Basic:   { bg: 'bg-slate-50',   darkBg: 'bg-slate-900/40',   border: 'border-slate-200',  darkBorder: 'border-slate-800',  dot: 'bg-slate-400', fill: '#94a3b8' },
+                        Premium: { bg: 'bg-blue-50',    darkBg: 'bg-blue-955/30',    border: 'border-blue-200',   darkBorder: 'border-blue-900/40', dot: 'bg-blue-500', fill: '#3b82f6' },
+                        VIP:     { bg: 'bg-violet-50',  darkBg: 'bg-violet-955/30',  border: 'border-violet-200', darkBorder: 'border-violet-900/40', dot: 'bg-violet-500', fill: '#8b5cf6' },
+                        Family:  { bg: 'bg-emerald-50', darkBg: 'bg-emerald-955/30', border: 'border-emerald-200',darkBorder: 'border-emerald-900/40',dot: 'bg-emerald-500', fill: '#10b981' },
+                      };
+                      const cfg = CARD_COLORS[c.cardType] ?? CARD_COLORS.Basic;
+                      return (
+                        <div key={c.cardType} className={`rounded-xl border-2 p-4 transition-all duration-300 ${
+                          isDarkMode ? `${cfg.darkBg} ${cfg.darkBorder}` : `${cfg.bg} ${cfg.border}`
+                        }`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`h-3 w-3 rounded-full ${cfg.dot}`} />
+                              <span className={`font-bold text-sm ${isDarkMode ? 'text-slate-200' : 'text-gray-800'}`}>{c.cardType} Card</span>
+                            </div>
+                            <span className={`text-xs font-medium ${isDarkMode ? 'text-slate-500' : 'text-gray-500'}`}>{c.totalCount} issued</span>
+                          </div>
+                          <p className={`text-xl font-black mb-3 ${isDarkMode ? 'text-slate-100' : 'text-gray-900'}`}>{fmtCurrency(c.totalRevenue)}</p>
+                          <div className="grid grid-cols-2 gap-1.5 text-xs">
+                            {[
+                              { label: 'Active', value: c.activeCount, icon: <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" /> },
+                              { label: 'Grace', value: c.graceCount, icon: <Clock className="h-3 w-3 text-amber-500 flex-shrink-0" /> },
+                              { label: 'Expired', value: c.expiredCount, icon: <AlertTriangle className="h-3 w-3 text-orange-500 flex-shrink-0" /> },
+                              { label: 'Cancelled', value: c.cancelledCount, icon: <XCircle className="h-3 w-3 text-red-400 flex-shrink-0" /> },
+                            ].map(cStat => (
+                              <div key={cStat.label} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 border ${
+                                isDarkMode ? 'bg-slate-955 border-slate-800/80 text-slate-300' : 'bg-white border-gray-100 text-gray-700'
+                              }`}>
+                                {cStat.icon}
+                                <span className={isDarkMode ? 'text-slate-500' : 'text-gray-500'}>{cStat.label}</span>
+                                <span className={`ml-auto font-bold ${isDarkMode ? 'text-slate-200' : 'text-gray-800'}`}>{cStat.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {c.monthlyBreakdown.length > 0 && (
+                            <div className="mt-3 h-20">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={c.monthlyBreakdown} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                                  <defs>
+                                    <linearGradient id={`cardGrad-${c.cardType}`} x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="0%" stopColor={cfg.fill} stopOpacity={0.8}/>
+                                      <stop offset="100%" stopColor={cfg.fill} stopOpacity={0.2}/>
+                                    </linearGradient>
+                                  </defs>
+                                  <XAxis dataKey="month" tickFormatter={fmtMonth} tick={{ fill: isDarkMode ? '#475569' : '#94a3b8', fontSize: 9 }} tickLine={false} axisLine={false} />
+                                  <RechartsTooltip
+                                    formatter={(v: number) => [fmtCurrency(v), 'Revenue']}
+                                    labelFormatter={fmtMonth}
+                                    contentStyle={{
+                                      backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+                                      borderColor: isDarkMode ? '#334155' : '#e2e8f0',
+                                      color: isDarkMode ? '#f8fafc' : '#0f172a',
+                                      borderRadius: 8,
+                                      boxShadow: '0 4px 12px rgba(0,0,0,.15)',
+                                      fontSize: 11,
+                                      backdropFilter: 'blur(8px)',
+                                    }}
+                                  />
+                                  <Bar dataKey="revenue" radius={[3, 3, 0, 0]} fill={`url(#cardGrad-${c.cardType})`} />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          )}
                         </div>
-                        <span className="text-xs text-gray-500 font-medium">{c.totalCount} issued</span>
-                      </div>
-                      <p className="text-xl font-black text-gray-900 mb-3">{fmtCurrency(c.totalRevenue)}</p>
-                      <div className="grid grid-cols-2 gap-1.5 text-xs">
-                        <div className="flex items-center gap-1.5 bg-white rounded-lg px-2 py-1.5 border border-gray-100">
-                          <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
-                          <span className="text-gray-500">Active</span>
-                          <span className="ml-auto font-bold text-gray-800">{c.activeCount}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 bg-white rounded-lg px-2 py-1.5 border border-gray-100">
-                          <Clock className="h-3 w-3 text-amber-500 flex-shrink-0" />
-                          <span className="text-gray-500">Grace</span>
-                          <span className="ml-auto font-bold text-gray-800">{c.graceCount}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 bg-white rounded-lg px-2 py-1.5 border border-gray-100">
-                          <AlertTriangle className="h-3 w-3 text-orange-500 flex-shrink-0" />
-                          <span className="text-gray-500">Expired</span>
-                          <span className="ml-auto font-bold text-gray-800">{c.expiredCount}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 bg-white rounded-lg px-2 py-1.5 border border-gray-100">
-                          <XCircle className="h-3 w-3 text-red-400 flex-shrink-0" />
-                          <span className="text-gray-500">Cancelled</span>
-                          <span className="ml-auto font-bold text-gray-800">{c.cancelledCount}</span>
-                        </div>
-                      </div>
-                      {c.monthlyBreakdown.length > 0 && (
-                        <div className="mt-3 h-20">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={c.monthlyBreakdown} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                              <XAxis dataKey="month" tickFormatter={fmtMonth} tick={{ fill: '#94a3b8', fontSize: 9 }} tickLine={false} axisLine={false} />
-                              <RechartsTooltip
-                                formatter={(v: number) => [fmtCurrency(v), 'Revenue']}
-                                labelFormatter={fmtMonth}
-                                contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,.1)', fontSize: 11 }}
-                              />
-                              <Bar dataKey="revenue" radius={[3, 3, 0, 0]} fill={cfg.dot.replace('bg-', '#').replace('slate-400','94a3b8').replace('blue-500','3b82f6').replace('violet-500','8b5cf6').replace('emerald-500','10b981')} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           )}
 
           {/* ── Insurance Section ────────────────────────────────────────────── */}
           {cardData && cardData.insurance.totalRevenue > 0 && (
-            <div className="rounded-xl border border-emerald-200 overflow-hidden">
+            <div className={`rounded-xl border overflow-hidden transition-all duration-300 ${
+              isDarkMode 
+                ? 'border-slate-800 bg-slate-955/30 shadow-[0_4px_20px_rgba(0,0,0,0.2)]' 
+                : 'border-emerald-200 bg-white'
+            }`}>
               {/* Dropdown header */}
               <button
                 onClick={() => setInsuranceOpen(o => !o)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                className={`w-full flex items-center justify-between px-4 py-3 transition-colors ${
+                  isDarkMode ? 'bg-slate-900/60 hover:bg-slate-900' : 'bg-emerald-50 hover:bg-emerald-100'
+                }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                  <span className="text-sm font-bold text-emerald-700">Insurance Payments</span>
-                  <span className="text-xs bg-emerald-200 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">{cardData.insurance.totalInvoices} invoices</span>
+                  <ShieldCheck className={`h-4 w-4 ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                  <span className={`text-sm font-bold ${isDarkMode ? 'text-slate-200' : 'text-emerald-700'}`}>Insurance Payments</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                    isDarkMode ? 'bg-slate-950 text-emerald-400 border border-slate-800/60' : 'bg-emerald-200 text-emerald-700'
+                  }`}>{cardData.insurance.totalInvoices} invoices</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-black text-emerald-900">{fmtCurrency(cardData.insurance.totalRevenue)}</span>
+                  <span className={`text-sm font-black ${isDarkMode ? 'text-emerald-400' : 'text-emerald-900'}`}>{fmtCurrency(cardData.insurance.totalRevenue)}</span>
                   {insuranceOpen
-                    ? <ChevronUp className="h-4 w-4 text-emerald-500" />
-                    : <ChevronDown className="h-4 w-4 text-emerald-500" />}
+                    ? <ChevronUp className={isDarkMode ? 'text-slate-400' : 'text-emerald-500'} />
+                    : <ChevronDown className={isDarkMode ? 'text-slate-400' : 'text-emerald-500'} />}
                 </div>
               </button>
 
               {/* Collapsible body */}
               {insuranceOpen && (
-                <div className="p-4 bg-white space-y-4">
+                <div className={`p-4 space-y-4 ${isDarkMode ? 'bg-slate-955/40' : 'bg-white'}`}>
                   {cardData.insurance.monthlyBreakdown.length > 0 && (
                     <div className="h-44">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={cardData.insurance.monthlyBreakdown} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                          <XAxis dataKey="month" tickFormatter={fmtMonth} tick={{ fill: '#94a3b8', fontSize: 10 }} tickLine={false} axisLine={false} />
-                          <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={fmtCompact} width={50} />
+                        <BarChart data={cardData.insurance.monthlyBreakdown} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="insuranceGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#10b981" stopOpacity={0.85}/>
+                              <stop offset="100%" stopColor="#047857" stopOpacity={0.2}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#1e293b' : '#f1f5f9'} />
+                          <XAxis dataKey="month" tickFormatter={fmtMonth} tick={{ fill: isDarkMode ? '#475569' : '#94a3b8', fontSize: 10 }} tickLine={false} axisLine={false} />
+                          <YAxis tick={{ fill: isDarkMode ? '#475569' : '#94a3b8', fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={fmtCompact} width={50} />
                           <RechartsTooltip
                             formatter={(v: number) => [fmtCurrency(v), 'Insurance Revenue']}
                             labelFormatter={fmtMonth}
-                            contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 16px rgba(0,0,0,.1)', fontSize: 12 }}
+                            contentStyle={{
+                              backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+                              borderColor: isDarkMode ? '#334155' : '#e2e8f0',
+                              color: isDarkMode ? '#f8fafc' : '#0f172a',
+                              borderRadius: 10,
+                              boxShadow: '0 4px 16px rgba(0,0,0,.15)',
+                              fontSize: 12,
+                              backdropFilter: 'blur(8px)',
+                            }}
                           />
-                          <Bar dataKey="revenue" radius={[4, 4, 0, 0]} fill="#10b981" />
+                          <Bar dataKey="revenue" radius={[4, 4, 0, 0]} fill="url(#insuranceGrad)" />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -847,7 +1032,7 @@ const ItemRevenueReport: React.FC = () => {
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="text-gray-400 border-b border-gray-100">
+                          <tr className={`border-b ${isDarkMode ? 'text-slate-500 border-slate-800' : 'text-gray-400 border-gray-100'}`}>
                             <th className="text-left py-1.5 font-medium">Month</th>
                             <th className="text-right py-1.5 font-medium">Invoices</th>
                             <th className="text-right py-1.5 font-medium">Revenue</th>
@@ -855,10 +1040,12 @@ const ItemRevenueReport: React.FC = () => {
                         </thead>
                         <tbody>
                           {cardData.insurance.monthlyBreakdown.map(m => (
-                            <tr key={m.month} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                              <td className="py-1.5 text-gray-600">{fmtMonth(m.month)}</td>
-                              <td className="py-1.5 text-right text-gray-700 font-medium">{m.invoiceCount}</td>
-                              <td className="py-1.5 text-right font-bold text-gray-900">{fmtCurrency(m.revenue)}</td>
+                            <tr key={m.month} className={`border-b transition-colors ${
+                              isDarkMode ? 'border-slate-800/50 hover:bg-slate-900/30 text-slate-300' : 'border-gray-50 hover:bg-gray-50 text-gray-750'
+                            }`}>
+                              <td className="py-1.5">{fmtMonth(m.month)}</td>
+                              <td className="py-1.5 text-right font-medium">{m.invoiceCount}</td>
+                              <td className={`py-1.5 text-right font-bold ${isDarkMode ? 'text-cyan-400' : 'text-gray-900'}`}>{fmtCurrency(m.revenue)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -872,18 +1059,20 @@ const ItemRevenueReport: React.FC = () => {
 
           {/* ── Divider before items list ────────────────────────────────────── */}
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-gray-200" />
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-full">
-              <BarChart3 className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-bold text-gray-600">Medications, Lab Tests & Services</span>
+            <div className={`h-px flex-1 ${isDarkMode ? 'bg-slate-800' : 'bg-gray-200'}`} />
+            <div className={`flex items-center gap-2 px-4 py-2 border rounded-full ${
+              isDarkMode ? 'bg-slate-900/80 border-slate-800 text-slate-300 shadow-sm' : 'bg-gray-50 border-gray-200 text-gray-600'
+            }`}>
+              <BarChart3 className="h-4 w-4 text-indigo-500" />
+              <span className="text-sm font-bold">Medications, Lab Tests & Services</span>
             </div>
-            <div className="h-px flex-1 bg-gray-200" />
+            <div className={`h-px flex-1 ${isDarkMode ? 'bg-slate-800' : 'bg-gray-200'}`} />
           </div>
 
           {filteredItems.length > 0 ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {filteredItems.map((item, i) => (
-                <ItemRow key={`${item.itemType}-${item.description}`} item={item} rank={i + 1} maxRevenue={maxRevenue} />
+                <ItemRow key={`${item.itemType}-${item.name}`} item={item} rank={i + 1} maxRevenue={maxRevenue} />
               ))}
             </div>
           ) : (
