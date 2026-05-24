@@ -367,27 +367,30 @@ router.get('/my-registration-status', auth, async (req, res) => {
   try {
     const userId = req.user._id || req.user.userId;
     
-    // Look specifically for active staff-registration hash
-    const staffHash = await StaffHash.findOne({ 
-      userId,
-      hashType: 'staff-registration',
-      isActive: true
+    // Check BOTH tables to ensure accurate registration status
+    const staffHash = await StaffHash.findOne({ userId });
+    
+    const DeviceRegistration = require('../models/DeviceRegistration');
+    const deviceRegistration = await DeviceRegistration.findOne({ 
+      userId: userId,
+      isActive: true 
     });
     
+    // User is considered registered if they have BOTH StaffHash AND DeviceRegistration
+    const isRegistered = !!staffHash && !!deviceRegistration;
+    
     console.log(`[QR] Registration status check for user ${userId}:`, {
-      found: !!staffHash,
-      hashId: staffHash?._id,
-      hashValue: staffHash?.uniqueHash?.substring(0, 12) + '...',
-      isActive: staffHash?.isActive,
-      lastUsed: staffHash?.lastUsed
+      hasStaffHash: !!staffHash,
+      hasDeviceReg: !!deviceRegistration,
+      isRegistered: isRegistered
     });
     
     res.json({
       success: true,
       data: {
-        isRegistered: !!staffHash,
-        registrationDate: staffHash?.createdAt || null,
-        lastUsed: staffHash?.lastUsed || null,
+        isRegistered: isRegistered,
+        registrationDate: staffHash?.createdAt || deviceRegistration?.registeredAt || null,
+        lastUsed: deviceRegistration?.lastUsed || null,
         hashId: staffHash?._id || null
       }
     });
