@@ -3186,61 +3186,16 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
               { value: 'prescriptions', label: 'Prescriptions', icon: '💊', dot: '#22C55E', bg: '#F0FDF4' },
               { value: 'Medical Records', label: 'Medical Records', icon: '📋', dot: '#6366F1', bg: '#EEF2FF' },
               { value: 'completed-patients', label: 'Completed Patients', icon: '✅', dot: '#14B8A6', bg: '#F0FDFA' },
-            ].map(tab => {
-              const isActive = activeTab === tab.value;
-              return (
-                <TabsTrigger
-                  key={tab.value}
-                  value={tab.value}
-                  /* strip ALL built-in colour classes; we drive everything via inline style */
-                  className="flex-1 py-0 px-0 rounded-lg border-0 shadow-none bg-transparent transition-all"
-                  style={{ all: 'unset' as any, flex: 1 }}
-                >
-                  {/* Custom pill — fully inline-styled, no class conflicts */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '5px',
-                      padding: '6px 10px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.2s ease',
-                      backgroundColor: isActive ? tab.bg : 'transparent',
-                      border: isActive ? `1.5px solid ${tab.dot}40` : '1.5px solid transparent',
-                      boxShadow: isActive ? `0 1px 6px ${tab.dot}30` : 'none',
-                    }}
-                  >
-                    {/* Colour dot */}
-                    <span style={{
-                      display: 'inline-block',
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      flexShrink: 0,
-                      backgroundColor: tab.dot,
-                      boxShadow: isActive ? `0 0 6px ${tab.dot}` : 'none',
-                      opacity: isActive ? 1 : 0.5,
-                      transition: 'all 0.2s ease',
-                    }} />
-                    {/* Icon */}
-                    <span style={{ fontSize: '13px' }}>{tab.icon}</span>
-                    {/* Label */}
-                    <span style={{
-                      fontSize: '12px',
-                      fontWeight: isActive ? 700 : 500,
-                      color: isActive ? tab.dot : '#6B7280',
-                      transition: 'color 0.2s ease',
-                    }}>
-                      {tab.label}
-                    </span>
-                  </div>
-                </TabsTrigger>
-              );
-            })}
+            ].map(tab => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="flex-1 flex items-center justify-center gap-2 py-1.5 px-3 whitespace-nowrap transition-all"
+              >
+                <span className="text-[13px]">{tab.icon}</span>
+                <span className="text-[13px] font-medium">{tab.label}</span>
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           {/* Tabs Content */}
