@@ -30,7 +30,7 @@ const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({ onClose }) => {
       <SimpleThemeSelector showTitle={false} />
 
       {/* Link to Full Theme Settings */}
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-primary/30">
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-primary/30">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
