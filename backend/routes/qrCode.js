@@ -1102,8 +1102,11 @@ router.post('/verify-url', async (req, res) => {
         const acceptLanguage = req.headers['accept-language'] || 'unknown';
         const acceptEncoding = req.headers['accept-encoding'] || 'unknown';
         
-        // Generate fingerprints: new stable one + legacy ones
+        // Generate fingerprints: new stable one (v2) + legacy ones
         const deviceFingerprintStable = crypto.createHash('sha256')
+          .update(userAgent + 'browser-device-fingerprint-stable-v2')
+          .digest('hex');
+        const deviceFingerprintLegacyStable = crypto.createHash('sha256')
           .update(userAgent + acceptLanguage + 'browser-device-fingerprint-stable')
           .digest('hex');
         const serverDeviceFingerprint = crypto.createHash('sha256')
@@ -1117,8 +1120,8 @@ router.post('/verify-url', async (req, res) => {
           .digest('hex');
         
         console.log('🔐 [SECURITY] Server fingerprints checking:', {
-          stable: deviceFingerprintStable.substring(0, 20) + '...',
-          full: serverDeviceFingerprint.substring(0, 20) + '...',
+          stableV2: deviceFingerprintStable.substring(0, 20) + '...',
+          legacyStableV1: deviceFingerprintLegacyStable.substring(0, 20) + '...',
           lite: deviceFingerprintLite.substring(0, 20) + '...',
           ultra: deviceFingerprintUltra.substring(0, 20) + '...'
         });
@@ -1126,15 +1129,15 @@ router.post('/verify-url', async (req, res) => {
         // ENHANCED: Check if THIS specific device is registered to this user (any variant)
         deviceRegistration = await DeviceRegistration.findOne({
           userId: userId,
-          deviceFingerprint: { $in: [deviceFingerprintStable, serverDeviceFingerprint, deviceFingerprintLite, deviceFingerprintUltra] },
+          deviceFingerprint: { $in: [deviceFingerprintStable, deviceFingerprintLegacyStable, serverDeviceFingerprint, deviceFingerprintLite, deviceFingerprintUltra] },
           isActive: true
         });
 
         if (!deviceRegistration) {
           console.log(`❌ [SECURITY] Check-in/out blocked - Device not registered for user: ${userId}`);
           console.log('   Attempted server fingerprints:', {
-            stableTried: deviceFingerprintStable.substring(0, 20) + '...',
-            fullTried: serverDeviceFingerprint.substring(0, 20) + '...',
+            stableV2Tried: deviceFingerprintStable.substring(0, 20) + '...',
+            legacyStableV1Tried: deviceFingerprintLegacyStable.substring(0, 20) + '...',
             liteTried: deviceFingerprintLite.substring(0, 20) + '...',
             ultraTried: deviceFingerprintUltra.substring(0, 20) + '...'
           });

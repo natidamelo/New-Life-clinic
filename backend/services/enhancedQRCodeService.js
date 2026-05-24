@@ -960,35 +960,44 @@ class EnhancedQRCodeService {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
       
       let staffAttendance = await StaffAttendance.findOne({
         userId: userId,
-        date: today
+        checkInTime: { $gte: today, $lt: tomorrow }
       });
+
+      const clockInTime = timesheet.clockIn?.time || new Date();
+      const status = timesheet.status === 'completed' ? 'checked-out' : 'checked-in';
+      const attStatus = timesheet.clockIn?.attendanceStatus === 'late' || timesheet.dayAttendanceStatus === 'late' || timesheet.clockIn?.attendanceStatus?.includes('late')
+        ? 'late-present'
+        : 'present-on-time';
 
       if (!staffAttendance) {
         staffAttendance = new StaffAttendance({
           userId: userId,
-          date: today,
-          status: 'present'
+          checkInTime: clockInTime,
+          checkInLocation: timesheet.clockIn?.location || 'Main Entrance',
+          status: status,
+          attendanceStatus: attStatus,
+          isWithinWorkingHours: true
         });
+      } else {
+        staffAttendance.status = status;
+        staffAttendance.attendanceStatus = attStatus;
+        if (timesheet.clockIn?.time) {
+          staffAttendance.checkInTime = timesheet.clockIn.time;
+        }
       }
 
-      // Update based on timesheet status
       if (timesheet.status === 'completed') {
-        staffAttendance.status = 'present';
-        staffAttendance.totalWorkHours = timesheet.totalWorkHours;
-        staffAttendance.overtimeHours = timesheet.overtimeHours;
-        staffAttendance.clockInTime = timesheet.clockIn.time;
-        staffAttendance.clockOutTime = timesheet.clockOut.time;
-        staffAttendance.dayAttendanceStatus = timesheet.dayAttendanceStatus;
-      } else if (timesheet.status === 'active') {
-        staffAttendance.status = 'present';
-        staffAttendance.clockInTime = timesheet.clockIn.time;
-        staffAttendance.dayAttendanceStatus = timesheet.clockIn.attendanceStatus;
+        staffAttendance.checkOutTime = timesheet.clockOut?.time || new Date();
+        staffAttendance.checkOutLocation = timesheet.clockOut?.location || 'Main Entrance';
       }
 
       await staffAttendance.save();
+      console.log(`✅ [STAFF ATTENDANCE] Successfully updated StaffAttendance for user ${userId} to status ${status}`);
 
     } catch (error) {
       console.error('Error updating StaffAttendance:', error);

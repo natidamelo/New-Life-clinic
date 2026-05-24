@@ -311,6 +311,9 @@ const createApp = () => {
       // Use only browser characteristics, NOT the QR code hash
       const cryptoLib = require('crypto');
       const deviceFingerprintStable = cryptoLib.createHash('sha256')
+        .update(userAgent + 'browser-device-fingerprint-stable-v2')
+        .digest('hex');
+      const deviceFingerprintLegacyStable = cryptoLib.createHash('sha256')
         .update(userAgent + acceptLanguage + 'browser-device-fingerprint-stable')
         .digest('hex');
       const deviceFingerprintOld = cryptoLib.createHash('sha256')
@@ -337,14 +340,14 @@ const createApp = () => {
 
       // Check 2: This device fingerprint (any variant) is already registered to ANY user (prevents device sharing)
       const deviceExistingUser = await DeviceRegistration.findOne({
-        deviceFingerprint: { $in: [deviceFingerprintStable, deviceFingerprintOld, deviceFingerprintLite, deviceFingerprintUltra] },
+        deviceFingerprint: { $in: [deviceFingerprintStable, deviceFingerprintLegacyStable, deviceFingerprintOld, deviceFingerprintLite, deviceFingerprintUltra] },
         isActive: true
       });
 
       // Check 3: This specific combination already exists (exact duplicate)
       const exactDuplicate = await DeviceRegistration.findOne({
         userId: userId,
-        deviceFingerprint: { $in: [deviceFingerprintStable, deviceFingerprintOld, deviceFingerprintLite, deviceFingerprintUltra] },
+        deviceFingerprint: { $in: [deviceFingerprintStable, deviceFingerprintLegacyStable, deviceFingerprintOld, deviceFingerprintLite, deviceFingerprintUltra] },
         isActive: true
       });
 
@@ -470,21 +473,35 @@ const createApp = () => {
           return;
         }
         
-        // No conflicts - create new registration
-        const deviceRegistration = new DeviceRegistration({
-          userId: userId,
-          deviceHash: hash,
-          staffHashId: staffHash._id,
-          deviceFingerprint: deviceFingerprint,
-          userAgent: 'Browser Registration',
-          ipAddress: 'Unknown',
-          registeredAt: new Date(),
-          lastUsed: new Date(),
-          isActive: true
-        });
+        // Find if we have an existing registration document (active or inactive) for this user/hash
+        let deviceRegistration = await DeviceRegistration.findOne({ deviceHash: hash });
         
-        await deviceRegistration.save();
-        console.log('✅ Device registration saved to database for user:', user.email);
+        if (deviceRegistration) {
+          console.log('✅ [REGISTRATION] Existing registration document found - updating/reactivating it');
+          deviceRegistration.isActive = true;
+          deviceRegistration.lastUsed = new Date();
+          deviceRegistration.deviceFingerprint = deviceFingerprintStable;
+          deviceRegistration.userAgent = userAgent;
+          deviceRegistration.staffHashId = staffHash._id;
+          await deviceRegistration.save();
+          console.log('✅ Device registration updated successfully');
+        } else {
+          // No conflicts and no existing record - create new registration
+          deviceRegistration = new DeviceRegistration({
+            userId: userId,
+            deviceHash: hash,
+            staffHashId: staffHash._id,
+            deviceFingerprint: deviceFingerprint,
+            userAgent: userAgent,
+            ipAddress: 'Unknown',
+            registeredAt: new Date(),
+            lastUsed: new Date(),
+            isActive: true
+          });
+          
+          await deviceRegistration.save();
+          console.log('✅ Device registration saved to database for user:', user.email);
+        }
       }
       
       // Return success page with localStorage persistence
@@ -566,6 +583,9 @@ const createApp = () => {
       
       const cryptoLib = require('crypto');
       const deviceFingerprintStable = cryptoLib.createHash('sha256')
+        .update(userAgent + 'browser-device-fingerprint-stable-v2')
+        .digest('hex');
+      const deviceFingerprintLegacyStable = cryptoLib.createHash('sha256')
         .update(userAgent + acceptLanguage + 'browser-device-fingerprint-stable')
         .digest('hex');
       const deviceFingerprintOld = cryptoLib.createHash('sha256')
@@ -580,7 +600,7 @@ const createApp = () => {
       
       console.log(`🔍 Generated device fingerprints for verification:`, {
         stable: deviceFingerprintStable.substring(0, 10) + '...',
-        old: deviceFingerprintOld.substring(0, 10) + '...'
+        legacyStable: deviceFingerprintLegacyStable.substring(0, 10) + '...'
       });
       
       const bypassFingerprint = process.env.ENABLE_DEVICE_FINGERPRINT === 'false';
@@ -590,7 +610,7 @@ const createApp = () => {
         // SECURITY: Check if THIS specific device is registered to this user (any variant)
         deviceRegistration = await DeviceRegistration.findOne({
           userId: userId,
-          deviceFingerprint: { $in: [deviceFingerprintStable, deviceFingerprintOld, deviceFingerprintLite, deviceFingerprintUltra] },
+          deviceFingerprint: { $in: [deviceFingerprintStable, deviceFingerprintLegacyStable, deviceFingerprintOld, deviceFingerprintLite, deviceFingerprintUltra] },
           isActive: true
         });
         
@@ -599,7 +619,7 @@ const createApp = () => {
           console.log(`❌ QR ${type} blocked - Device not registered for user: ${userId}`);
           console.log(`   Attempted fingerprints:`, {
             stable: deviceFingerprintStable.substring(0, 10) + '...',
-            old: deviceFingerprintOld.substring(0, 10) + '...'
+            legacyStable: deviceFingerprintLegacyStable.substring(0, 10) + '...'
           });
           
           // Get user info for error message
@@ -733,6 +753,9 @@ const createApp = () => {
       // Use only browser characteristics, NOT the QR code hash
       const crypto = require('crypto');
       const deviceFingerprintStable = crypto.createHash('sha256')
+        .update(userAgent + 'browser-device-fingerprint-stable-v2')
+        .digest('hex');
+      const deviceFingerprintLegacyStable = crypto.createHash('sha256')
         .update(userAgent + acceptLanguage + 'browser-device-fingerprint-stable')
         .digest('hex');
       const deviceFingerprintOld = crypto.createHash('sha256')
@@ -746,7 +769,7 @@ const createApp = () => {
         .digest('hex');
       
       const deviceRegistration = await DeviceRegistration.findOne({
-        deviceFingerprint: { $in: [deviceFingerprintStable, deviceFingerprintOld, deviceFingerprintLite, deviceFingerprintUltra] },
+        deviceFingerprint: { $in: [deviceFingerprintStable, deviceFingerprintLegacyStable, deviceFingerprintOld, deviceFingerprintLite, deviceFingerprintUltra] },
         isActive: true
       }).populate('userId', 'firstName lastName email role');
       
@@ -788,6 +811,9 @@ const createApp = () => {
       
       const crypto = require('crypto');
       const deviceFingerprintStable = crypto.createHash('sha256')
+        .update(userAgent + 'browser-device-fingerprint-stable-v2')
+        .digest('hex');
+      const deviceFingerprintLegacyStable = crypto.createHash('sha256')
         .update(userAgent + acceptLanguage + 'browser-device-fingerprint-stable')
         .digest('hex');
       const deviceFingerprintOld = crypto.createHash('sha256')
@@ -802,7 +828,7 @@ const createApp = () => {
       
       // Find and deactivate the device registration
       const deviceRegistration = await DeviceRegistration.findOne({
-        deviceFingerprint: { $in: [deviceFingerprintStable, deviceFingerprintOld, deviceFingerprintLite, deviceFingerprintUltra] },
+        deviceFingerprint: { $in: [deviceFingerprintStable, deviceFingerprintLegacyStable, deviceFingerprintOld, deviceFingerprintLite, deviceFingerprintUltra] },
         isActive: true
       });
       
