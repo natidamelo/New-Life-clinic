@@ -411,7 +411,7 @@ const AttendanceOverlay: React.FC<AttendanceOverlayProps> = ({ children }) => {
   return (
     <>
       {/* Show QR Modal if requested, otherwise show attendance overlay */}
-      {showQRModal ? (
+      {showQRModal || showEnhancedQRModal ? (
         <>
           {children}
           <QRCodeModal 

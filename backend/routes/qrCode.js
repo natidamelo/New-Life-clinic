@@ -1071,41 +1071,13 @@ router.post('/verify-url', async (req, res) => {
     
     // ENHANCED SECURITY: Verify device registration for check-in/check-out
     if (type === 'checkin' || type === 'checkout' || type === 'qr-checkin' || type === 'qr-checkout') {
-      // NEW: Check DeviceRegistration table for proper device validation
       const DeviceRegistration = require('../models/DeviceRegistration');
       const crypto = require('crypto');
       
-      // SECURITY: Derive device fingerprint on server from headers to prevent spoofing
-      const userAgent = req.headers['user-agent'] || 'unknown';
-      const acceptLanguage = req.headers['accept-language'] || 'unknown';
-      const acceptEncoding = req.headers['accept-encoding'] || 'unknown';
+      const bypassFingerprint = process.env.ENABLE_DEVICE_FINGERPRINT === 'false';
+      let deviceRegistration = null;
       
-      // Generate the same set of fingerprints as registration (full/lite/ultra)
-      const serverDeviceFingerprint = crypto.createHash('sha256')
-        .update(userAgent + acceptLanguage + acceptEncoding + 'browser-device-fingerprint')
-        .digest('hex');
-      const deviceFingerprintLite = crypto.createHash('sha256')
-        .update(userAgent + acceptLanguage + 'browser-device-fingerprint-lite')
-        .digest('hex');
-      const deviceFingerprintUltra = crypto.createHash('sha256')
-        .update(userAgent + 'browser-device-fingerprint-ultra')
-        .digest('hex');
-      
-      console.log('🔐 [SECURITY] Server fingerprints', {
-        full: serverDeviceFingerprint.substring(0, 20) + '...',
-        lite: deviceFingerprintLite.substring(0, 20) + '...',
-        ultra: deviceFingerprintUltra.substring(0, 20) + '...'
-      });
-      
-      // ENHANCED: Check if THIS specific device is registered to this user (any variant)
-      // Also prevent multiple active registrations per user
-      const deviceRegistration = await DeviceRegistration.findOne({
-        userId: userId,
-        deviceFingerprint: { $in: [serverDeviceFingerprint, deviceFingerprintLite, deviceFingerprintUltra] },
-        isActive: true
-      });
-
-      // Check for multiple active registrations for this user (shouldn't happen with new logic)
+      // Clean up multiple active registrations first (can be done regardless of check status)
       const userActiveRegistrations = await DeviceRegistration.find({
         userId: userId,
         isActive: true
@@ -1115,10 +1087,8 @@ router.post('/verify-url', async (req, res) => {
 
       if (userActiveRegistrations.length > 1) {
         console.log(`⚠️ [SECURITY] User ${userId} has multiple active registrations - cleaning up`);
-
         // Keep only the most recent registration, deactivate others
         userActiveRegistrations.sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
-
         for (let i = 1; i < userActiveRegistrations.length; i++) {
           userActiveRegistrations[i].isActive = false;
           await userActiveRegistrations[i].save();
@@ -1126,45 +1096,85 @@ router.post('/verify-url', async (req, res) => {
         }
       }
 
-      if (!deviceRegistration) {
-        console.log(`❌ [SECURITY] Check-in/out blocked - Device not registered for user: ${userId}`);
-        console.log('   Attempted server fingerprints:', {
-          fullTried: serverDeviceFingerprint.substring(0, 20) + '...',
-          liteTried: deviceFingerprintLite.substring(0, 20) + '...',
-          ultraTried: deviceFingerprintUltra.substring(0, 20) + '...'
+      if (!bypassFingerprint) {
+        // SECURITY: Derive device fingerprint on server from headers to prevent spoofing
+        const userAgent = req.headers['user-agent'] || 'unknown';
+        const acceptLanguage = req.headers['accept-language'] || 'unknown';
+        const acceptEncoding = req.headers['accept-encoding'] || 'unknown';
+        
+        // Generate fingerprints: new stable one + legacy ones
+        const deviceFingerprintStable = crypto.createHash('sha256')
+          .update(userAgent + acceptLanguage + 'browser-device-fingerprint-stable')
+          .digest('hex');
+        const serverDeviceFingerprint = crypto.createHash('sha256')
+          .update(userAgent + acceptLanguage + acceptEncoding + 'browser-device-fingerprint')
+          .digest('hex');
+        const deviceFingerprintLite = crypto.createHash('sha256')
+          .update(userAgent + acceptLanguage + 'browser-device-fingerprint-lite')
+          .digest('hex');
+        const deviceFingerprintUltra = crypto.createHash('sha256')
+          .update(userAgent + 'browser-device-fingerprint-ultra')
+          .digest('hex');
+        
+        console.log('🔐 [SECURITY] Server fingerprints checking:', {
+          stable: deviceFingerprintStable.substring(0, 20) + '...',
+          full: serverDeviceFingerprint.substring(0, 20) + '...',
+          lite: deviceFingerprintLite.substring(0, 20) + '...',
+          ultra: deviceFingerprintUltra.substring(0, 20) + '...'
         });
-
-        const User = require('../models/User');
-        const user = await User.findById(userId).select('firstName lastName email');
-        const userName = user ? `${user.firstName} ${user.lastName}` : 'Unknown User';
-
-        await SecurityIncident.create({
+        
+        // ENHANCED: Check if THIS specific device is registered to this user (any variant)
+        deviceRegistration = await DeviceRegistration.findOne({
           userId: userId,
-          incidentType: 'UNREGISTERED_DEVICE',
-          severity: 'HIGH',
-          description: `Attempted ${type} from unregistered device`,
-          details: {
-            deviceFingerprint: serverDeviceFingerprint,
-            ipAddress: req.ip || req.connection.remoteAddress,
-            userAgent: req.headers['user-agent'],
-            attemptedAction: type,
-            activeRegistrationsCount: userActiveRegistrations.length
-          }
+          deviceFingerprint: { $in: [deviceFingerprintStable, serverDeviceFingerprint, deviceFingerprintLite, deviceFingerprintUltra] },
+          isActive: true
         });
 
-        return res.status(403).json({
-          success: false,
-          message: `Device not registered for ${userName}. Please register your device first using the QR code registration system.`,
-          error: 'DEVICE_NOT_REGISTERED',
-          code: 'DEVICE_NOT_REGISTERED'
-        });
+        if (!deviceRegistration) {
+          console.log(`❌ [SECURITY] Check-in/out blocked - Device not registered for user: ${userId}`);
+          console.log('   Attempted server fingerprints:', {
+            stableTried: deviceFingerprintStable.substring(0, 20) + '...',
+            fullTried: serverDeviceFingerprint.substring(0, 20) + '...',
+            liteTried: deviceFingerprintLite.substring(0, 20) + '...',
+            ultraTried: deviceFingerprintUltra.substring(0, 20) + '...'
+          });
+
+          const User = require('../models/User');
+          const user = await User.findById(userId).select('firstName lastName email');
+          const userName = user ? `${user.firstName} ${user.lastName}` : 'Unknown User';
+
+          await SecurityIncident.create({
+            userId: userId,
+            incidentType: 'UNREGISTERED_DEVICE',
+            severity: 'HIGH',
+            description: `Attempted ${type} from unregistered device`,
+            details: {
+              deviceFingerprint: deviceFingerprintStable,
+              ipAddress: req.ip || req.connection.remoteAddress,
+              userAgent: req.headers['user-agent'],
+              attemptedAction: type,
+              activeRegistrationsCount: userActiveRegistrations.length
+            }
+          });
+
+          return res.status(403).json({
+            success: false,
+            message: `Device not registered for ${userName}. Please register your device first using the QR code registration system.`,
+            error: 'DEVICE_NOT_REGISTERED',
+            code: 'DEVICE_NOT_REGISTERED'
+          });
+        }
+
+        console.log(`✅ [SECURITY] Device registration verified for user: ${userId}`);
+      } else {
+        console.log(`ℹ️ [SECURITY] Device fingerprint check bypassed via ENABLE_DEVICE_FINGERPRINT=false`);
       }
 
-      console.log(`✅ [SECURITY] Device registration verified for user: ${userId}`);
-
-      // Update device last used time
-      deviceRegistration.lastUsed = new Date();
-      await deviceRegistration.save();
+      // Update device last used time if registration exists
+      if (deviceRegistration) {
+        deviceRegistration.lastUsed = new Date();
+        await deviceRegistration.save();
+      }
       
       // Get the registered device data for this user (for backward compatibility with location check)
       const staffHash = await StaffHash.findOne({ 
