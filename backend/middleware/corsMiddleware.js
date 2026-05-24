@@ -48,8 +48,20 @@ function isAllowedOrigin(origin) {
   const allowedOrigins = getAllowedOrigins();
   if (allowedOrigins.includes(origin)) return true;
   
-  // Vercel-hosted SPA (preview + production)
-  if (/^https:\/\/[^/]+\.vercel\.app$/i.test(origin)) return true;
+  const lowerOrigin = origin.toLowerCase();
+  
+  // 1. Allow localhost and loopback with any port
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return true;
+  
+  // 2. Allow any LAN / private IP network with any port (WiFi debugging)
+  if (/^https?:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/i.test(origin)) return true;
+  
+  // 3. Allow any vercel.app or onrender.com subdomains
+  if (/\.vercel\.app$/i.test(origin)) return true;
+  if (/\.onrender\.com$/i.test(origin)) return true;
+  
+  // 4. Allow any origin containing clinic, new-life, or newlife (flexible clinic production URLs)
+  if (lowerOrigin.includes('clinic') || lowerOrigin.includes('new-life') || lowerOrigin.includes('newlife')) return true;
   
   // In non-production environments, be generous
   if ((process.env.NODE_ENV || '').toLowerCase() !== 'production') return true;
