@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { XMarkIcon, QrCodeIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/apiService';
 import { toast } from 'react-hot-toast';
 import { useAttendanceStatus } from '../hooks/useAttendanceStatus';
 import { getAuthToken } from '../utils/authToken';
@@ -146,35 +147,29 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
     
     if (deviceRegistered === 'true' && staffUserId === userId && staffHash) {
       try {
-        const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-        if (token) {
-          const response = await fetch(`/api/qr/my-registration-status`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.data) {
-              if (data.data.hash && data.data.isRegistered) {
-                const realHash = data.data.hash;
-                localStorage.setItem('staffHash', realHash);
-                localStorage.setItem('clinic_staffHash', realHash);
-                sessionStorage.setItem('staffHash', realHash);
-                setIsRegistered(true);
-                localStorage.setItem('deviceRegistered', 'true');
-                localStorage.setItem('staffUserId', staffUserId);
-                localStorage.setItem('staffHash', realHash);
-                localStorage.setItem('registrationTimestamp', new Date().toISOString());
-                return;
-              } else if (!data.data.isRegistered) {
-                localStorage.removeItem('deviceRegistered');
-                localStorage.removeItem('staffHash');
-                localStorage.removeItem('clinic_deviceRegistered');
-                localStorage.removeItem('clinic_staffHash');
-                sessionStorage.removeItem('staffHash');
-                setIsRegistered(false);
-                return;
-              }
+        const response = await api.get('/api/qr/my-registration-status');
+        if (response && response.data) {
+          const data = response.data;
+          if (data.success && data.data) {
+            if (data.data.hash && data.data.isRegistered) {
+              const realHash = data.data.hash;
+              localStorage.setItem('staffHash', realHash);
+              localStorage.setItem('clinic_staffHash', realHash);
+              sessionStorage.setItem('staffHash', realHash);
+              setIsRegistered(true);
+              localStorage.setItem('deviceRegistered', 'true');
+              localStorage.setItem('staffUserId', staffUserId);
+              localStorage.setItem('staffHash', realHash);
+              localStorage.setItem('registrationTimestamp', new Date().toISOString());
+              return;
+            } else if (!data.data.isRegistered) {
+              localStorage.removeItem('deviceRegistered');
+              localStorage.removeItem('staffHash');
+              localStorage.removeItem('clinic_deviceRegistered');
+              localStorage.removeItem('clinic_staffHash');
+              sessionStorage.removeItem('staffHash');
+              setIsRegistered(false);
+              return;
             }
           }
         }
@@ -279,12 +274,9 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
   const checkRegistrationStatus = async () => {
     if (!user) return;
     try {
-      const response = await fetch('/api/qr/my-registration-status', {
-        headers: { 'Authorization': `Bearer ${getAuthToken()}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setIsRegistered(data.data?.isRegistered || false);
+      const response = await api.get('/api/qr/my-registration-status');
+      if (response && response.data) {
+        setIsRegistered(response.data.data?.isRegistered || false);
       } else {
         setIsRegistered(false);
       }
@@ -300,15 +292,10 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
     setIsCheckingStatus(true);
     try {
       // Use the self-service endpoint for current status
-      const response = await fetch('/api/qr/current-status', {
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
-      });
+      const response = await api.get('/api/qr/current-status');
       
-      if (response.ok) {
-        const data = await response.json();
-        const newStatus = data.data || {
+      if (response && response.data) {
+        const newStatus = response.data.data || {
           status: 'clocked_out',
           canCheckIn: true,
           canCheckOut: false,
@@ -452,14 +439,9 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
     setIsLoading(true);
     try {
       // Use Enhanced QR Code generation for all types
-      const response = await fetch(`/api/qr/generate/${hashType}?location=${encodeURIComponent(location || 'Main Entrance')}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
-      });
+      const response = await api.get(`/api/qr/generate/${hashType}?location=${encodeURIComponent(location || 'Main Entrance')}`);
 
-      const data = await response.json();
+      const data = response.data;
 
       if (data.success) {
         // Store hash in localStorage for all QR code types
@@ -664,14 +646,10 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
                         onClick={async () => {
                           try {
                             // Check backend for existing registrations using self-service endpoint
-                            const response = await fetch('/api/qr/my-registration-status', {
-                              headers: {
-                                'Authorization': `Bearer ${getAuthToken()}`
-                              }
-                            });
+                            const response = await api.get('/api/qr/my-registration-status');
                             
-                            if (response.ok) {
-                              const data = await response.json();
+                            if (response && response.data) {
+                              const data = response.data;
                               
                               if (data.data?.isRegistered) {
                                 // Backend has registration, but we can't generate new QR codes for device registration

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Smartphone, Wifi, WifiOff, Shield, BarChart3, Users, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import api from '../services/apiService';
 
 interface EnhancedQRCodeModalProps {
   isOpen: boolean;
@@ -75,16 +76,10 @@ const EnhancedQRCodeModal: React.FC<EnhancedQRCodeModalProps> = ({
   const fetchEnhancedStatus = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-      const response = await fetch('/api/qr/enhanced/enhanced-current-status', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await api.get('/api/qr/enhanced/enhanced-current-status');
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response && response.data) {
+        const data = response.data;
         setEnhancedStatus(data.data);
         setOfflineQueue(data.data.offlineQueue.items || []);
       }
@@ -99,31 +94,22 @@ const EnhancedQRCodeModal: React.FC<EnhancedQRCodeModalProps> = ({
   const generateEnhancedQR = async () => {
     try {
       setIsGenerating(true);
-      const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-      
-      const response = await fetch('/api/qr/enhanced/generate-enhanced', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          type: selectedType,
-          options: {
-            primaryColor: customOptions.primaryColor,
-            backgroundColor: customOptions.backgroundColor,
-            width: customOptions.width,
-            metadata: {
-              includeBiometric: customOptions.includeBiometric,
-              includeAnalytics: customOptions.includeAnalytics,
-              timestamp: new Date().toISOString()
-            }
+      const response = await api.post('/api/qr/enhanced/generate-enhanced', {
+        type: selectedType,
+        options: {
+          primaryColor: customOptions.primaryColor,
+          backgroundColor: customOptions.backgroundColor,
+          width: customOptions.width,
+          metadata: {
+            includeBiometric: customOptions.includeBiometric,
+            includeAnalytics: customOptions.includeAnalytics,
+            timestamp: new Date().toISOString()
           }
-        })
+        }
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response && response.data) {
+        const data = response.data;
         setQrCode(data.data.qrCode);
       }
     } catch (error) {
@@ -137,33 +123,24 @@ const EnhancedQRCodeModal: React.FC<EnhancedQRCodeModalProps> = ({
   const processBatchCheckIn = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-      
-      const response = await fetch('/api/qr/enhanced/batch-checkin', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const response = await api.post('/api/qr/enhanced/batch-checkin', {
+        userIds: selectedUsers,
+        deviceInfo: {
+          userAgent: navigator.userAgent,
+          platform: navigator.platform,
+          language: navigator.language,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          screenResolution: `${screen.width}x${screen.height}`,
+          isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
         },
-        body: JSON.stringify({
-          userIds: selectedUsers,
-          deviceInfo: {
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            language: navigator.language,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            screenResolution: `${screen.width}x${screen.height}`,
-            isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-          },
-          options: {
-            method: 'batch',
-            includeAnalytics: true
-          }
-        })
+        options: {
+          method: 'batch',
+          includeAnalytics: true
+        }
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response && response.data) {
+        const data = response.data;
         alert(`Batch check-in completed: ${data.data.data.successful} successful, ${data.data.data.failed} failed`);
         fetchEnhancedStatus();
       }
@@ -178,26 +155,17 @@ const EnhancedQRCodeModal: React.FC<EnhancedQRCodeModalProps> = ({
   const registerBiometric = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-      
       // Simulate biometric hash (in real implementation, this would come from device)
       const biometricHash = `biometric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      const response = await fetch('/api/qr/enhanced/register-biometric', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          biometricType: biometricType,
-          biometricHash: biometricHash,
-          deviceId: `device_${navigator.userAgent.replace(/\s+/g, '_')}`,
-          securityLevel: 'high'
-        })
+      const response = await api.post('/api/qr/enhanced/register-biometric', {
+        biometricType: biometricType,
+        biometricHash: biometricHash,
+        deviceId: `device_${navigator.userAgent.replace(/\s+/g, '_')}`,
+        securityLevel: 'high'
       });
 
-      if (response.ok) {
+      if (response && response.data) {
         alert('Biometric verification registered successfully!');
         fetchEnhancedStatus();
       }
@@ -212,23 +180,14 @@ const EnhancedQRCodeModal: React.FC<EnhancedQRCodeModalProps> = ({
   const processOfflineQueue = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-      
       const queueIds = offlineQueue.map(item => item._id);
       
-      const response = await fetch('/api/qr/enhanced/process-offline-queue', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          queueIds: queueIds
-        })
+      const response = await api.post('/api/qr/enhanced/process-offline-queue', {
+        queueIds: queueIds
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response && response.data) {
+        const data = response.data;
         alert(`Offline queue processed: ${data.data.data.successful} successful, ${data.data.data.failed} failed`);
         fetchEnhancedStatus();
       }
