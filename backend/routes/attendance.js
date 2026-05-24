@@ -191,7 +191,7 @@ router.get('/my-status', auth, async (req, res) => {
       const completedTimesheet = timesheets.find(ts => ts.status === 'completed');
       
       if (activeTimesheet) {
-        status = activeTimesheet.isOvertime ? 'overtime_active' : 'present';
+        status = activeTimesheet.isOvertime ? 'overtime_active' : 'clocked_in';
         clockedIn = true;
         isOvertimeActive = activeTimesheet.isOvertime;
         lastActivity = activeTimesheet.clockIn.time;

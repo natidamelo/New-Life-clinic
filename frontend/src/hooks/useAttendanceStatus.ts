@@ -57,7 +57,7 @@ export const useAttendanceStatus = () => {
           const status = qrData.data.status;
           const convertedStatus: AttendanceStatus = {
             status: status,
-            clockedIn: status === 'clocked_in' || status === 'checked-in' || status === 'active' || status === 'present',
+            clockedIn: status === 'clocked_in' || status === 'checked-in' || status === 'active' || status === 'overtime_active' || status === 'clocked_in_overtime',
             isOvertimeActive: status === 'overtime_active',
             isOvertimeCompleted: status === 'overtime_completed',
             canCheckIn: qrData.data.canCheckIn,

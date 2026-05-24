@@ -205,11 +205,36 @@ timesheetSchema.methods.getLocalTime = function(date) {
   return date; // Use local time directly
 };
 
+// Helper to get EAT hour and minute timezone-independently
+timesheetSchema.methods.getEATHoursAndMinutes = function(date) {
+  if (!date) return { hours: 0, minutes: 0 };
+  const eatDate = new Date(date.getTime() + (3 * 60 * 60 * 1000));
+  return {
+    hours: eatDate.getUTCHours(),
+    minutes: eatDate.getUTCMinutes()
+  };
+};
+
+// Helper to get EAT regular hours end time as a UTC Date relative to the date of check-in/out
+timesheetSchema.methods.getRegularHoursEndTime = function(date) {
+  if (!date) return null;
+  const eatDate = new Date(date.getTime() + (3 * 60 * 60 * 1000));
+  const [endHour, endMin] = this.workingHours.endTime.split(':').map(Number);
+  const regularHoursEndTimeEAT = new Date(Date.UTC(
+    eatDate.getUTCFullYear(),
+    eatDate.getUTCMonth(),
+    eatDate.getUTCDate(),
+    endHour,
+    endMin,
+    0,
+    0
+  ));
+  return new Date(regularHoursEndTimeEAT.getTime() - (3 * 60 * 60 * 1000));
+};
+
 // Method to check if time is within working hours
 timesheetSchema.methods.isWithinWorkingHours = function(time) {
-  const localTime = this.getLocalTime(time);
-  const hours = localTime.getHours();
-  const minutes = localTime.getMinutes();
+  const { hours, minutes } = this.getEATHoursAndMinutes(time);
   const totalMinutes = hours * 60 + minutes;
   
   // Parse working hours
@@ -223,9 +248,7 @@ timesheetSchema.methods.isWithinWorkingHours = function(time) {
 
 // Method to check if check-in is late
 timesheetSchema.methods.isLateCheckIn = function(checkInTime) {
-  const localTime = this.getLocalTime(checkInTime);
-  const hours = localTime.getHours();
-  const minutes = localTime.getMinutes();
+  const { hours, minutes } = this.getEATHoursAndMinutes(checkInTime);
   const totalMinutes = hours * 60 + minutes;
   
   const [startHour, startMin] = this.workingHours.startTime.split(':').map(Number);
@@ -237,9 +260,7 @@ timesheetSchema.methods.isLateCheckIn = function(checkInTime) {
 
 // Method to check if check-out is early (before end time)
 timesheetSchema.methods.isEarlyCheckOut = function(checkOutTime) {
-  const localTime = this.getLocalTime(checkOutTime);
-  const hours = localTime.getHours();
-  const minutes = localTime.getMinutes();
+  const { hours, minutes } = this.getEATHoursAndMinutes(checkOutTime);
   const totalMinutes = hours * 60 + minutes;
   
   // Check if check-out is before the end time (5:00 PM Local Time)
@@ -251,9 +272,7 @@ timesheetSchema.methods.isEarlyCheckOut = function(checkOutTime) {
 
 // Method to check if check-out is before end time (5:00 PM)
 timesheetSchema.methods.isBeforeEndTime = function(checkOutTime) {
-  const localTime = this.getLocalTime(checkOutTime);
-  const hours = localTime.getHours();
-  const minutes = localTime.getMinutes();
+  const { hours, minutes } = this.getEATHoursAndMinutes(checkOutTime);
   const totalMinutes = hours * 60 + minutes;
   
   const [endHour, endMin] = this.workingHours.endTime.split(':').map(Number);
@@ -264,9 +283,7 @@ timesheetSchema.methods.isBeforeEndTime = function(checkOutTime) {
 
 // Method to calculate minutes late
 timesheetSchema.methods.calculateMinutesLate = function(checkInTime) {
-  const localTime = this.getLocalTime(checkInTime);
-  const hours = localTime.getHours();
-  const minutes = localTime.getMinutes();
+  const { hours, minutes } = this.getEATHoursAndMinutes(checkInTime);
   const totalMinutes = hours * 60 + minutes;
   
   const [startHour, startMin] = this.workingHours.startTime.split(':').map(Number);
@@ -279,9 +296,7 @@ timesheetSchema.methods.calculateMinutesLate = function(checkInTime) {
 
 // Method to calculate minutes early (before end time)
 timesheetSchema.methods.calculateMinutesEarly = function(checkOutTime) {
-  const localTime = this.getLocalTime(checkOutTime);
-  const hours = localTime.getHours();
-  const minutes = localTime.getMinutes();
+  const { hours, minutes } = this.getEATHoursAndMinutes(checkOutTime);
   const totalMinutes = hours * 60 + minutes;
   
   const [endHour, endMin] = this.workingHours.endTime.split(':').map(Number);
@@ -294,9 +309,7 @@ timesheetSchema.methods.calculateMinutesEarly = function(checkOutTime) {
 
 // Method to check if time is within overtime hours
 timesheetSchema.methods.isWithinOvertimeHours = function(time) {
-  const localTime = this.getLocalTime(time);
-  const hours = localTime.getHours();
-  const minutes = localTime.getMinutes();
+  const { hours, minutes } = this.getEATHoursAndMinutes(time);
   const totalMinutes = hours * 60 + minutes;
   
   // Parse overtime hours
@@ -332,13 +345,7 @@ timesheetSchema.methods.calculateOvertimeMinutes = function(clockOutTime) {
   }
   
   // For regular timesheets, calculate overtime based on working past regular hours
-  // Parse regular working hours end time (5:00 PM)
-  const [endHour, endMin] = this.workingHours.endTime.split(':').map(Number);
-  
-  // Calculate when regular hours end on the same day as clock out
-  const clockOutDate = new Date(localClockOutTime);
-  const regularHoursEndTime = new Date(clockOutDate);
-  regularHoursEndTime.setHours(endHour, endMin, 0, 0);
+  const regularHoursEndTime = this.getRegularHoursEndTime(localClockOutTime);
   
   // If clock in is at or after regular hours end time, this is not overtime
   // Overtime only applies when someone works past their regular shift
@@ -403,10 +410,7 @@ timesheetSchema.methods.calculateDayAttendanceStatus = function() {
   
   // Check if clock in was at or after regular hours end time
   const localClockInTime = this.getLocalTime(this.clockIn.time);
-  const [endHour, endMin] = this.workingHours.endTime.split(':').map(Number);
-  const clockInDate = new Date(localClockInTime);
-  const regularHoursEndTime = new Date(clockInDate);
-  regularHoursEndTime.setHours(endHour, endMin, 0, 0);
+  const regularHoursEndTime = this.getRegularHoursEndTime(localClockInTime);
   
   // If clocked in at or after regular hours end time, this is not a regular shift
   if (localClockInTime.getTime() >= regularHoursEndTime.getTime()) {
@@ -488,10 +492,7 @@ timesheetSchema.pre('save', async function(next) {
     if (!this.isOvertime && this.clockOut.time) {
       const localClockOutTime = this.getLocalTime(this.clockOut.time);
       const localClockInTime = this.getLocalTime(this.clockIn.time);
-      const [endHour, endMin] = this.workingHours.endTime.split(':').map(Number);
-      const clockOutDate = new Date(localClockOutTime);
-      const regularHoursEndTime = new Date(clockOutDate);
-      regularHoursEndTime.setHours(endHour, endMin, 0, 0);
+      const regularHoursEndTime = this.getRegularHoursEndTime(localClockOutTime);
       
       // Only create overtime timesheet if:
       // 1. Clock in was before regular hours end time (they worked regular hours first)
@@ -589,10 +590,7 @@ timesheetSchema.methods.validateTimesheetData = function() {
     if (this.clockOut.time) {
       const localClockOutTime = this.getLocalTime(this.clockOut.time);
       const localClockInTime = this.getLocalTime(this.clockIn.time);
-      const [endHour, endMin] = this.workingHours.endTime.split(':').map(Number);
-      const clockOutDate = new Date(localClockOutTime);
-      const regularHoursEndTime = new Date(clockOutDate);
-      regularHoursEndTime.setHours(endHour, endMin, 0, 0);
+      const regularHoursEndTime = this.getRegularHoursEndTime(localClockOutTime);
       
       // If they didn't work past regular hours, they shouldn't have overtime
       if (localClockOutTime.getTime() <= regularHoursEndTime.getTime() && this.overtimeHours > 0) {
@@ -613,10 +611,7 @@ timesheetSchema.methods.validateTimesheetData = function() {
   // Validate overtime flag consistency
   if (this.isOvertime && this.clockIn.time) {
     const localClockInTime = this.getLocalTime(this.clockIn.time);
-    const [endHour, endMin] = this.workingHours.endTime.split(':').map(Number);
-    const clockInDate = new Date(localClockInTime);
-    const regularHoursEndTime = new Date(clockInDate);
-    regularHoursEndTime.setHours(endHour, endMin, 0, 0);
+    const regularHoursEndTime = this.getRegularHoursEndTime(localClockInTime);
     
     // If clocked in before regular hours end, this might not be a pure overtime timesheet
     if (localClockInTime.getTime() < regularHoursEndTime.getTime()) {

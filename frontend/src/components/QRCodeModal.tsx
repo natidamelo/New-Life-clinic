@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { XMarkIcon, QrCodeIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/apiService';
@@ -62,6 +62,7 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [statusUpdateCount, setStatusUpdateCount] = useState(0);
   const [isRegistered, setIsRegistered] = useState<boolean | null>(null);
+  const hasInitializedRef = useRef(false);
 
   // Close modal on escape key
   useEffect(() => {
@@ -97,19 +98,25 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
 
   // Automatically switch tab when opening the modal based on check-in status
   useEffect(() => {
-    if (isOpen && effectiveCurrentStatus) {
+    if (!isOpen) {
+      hasInitializedRef.current = false;
+      return;
+    }
+    
+    if (isOpen && effectiveCurrentStatus && !hasInitializedRef.current) {
       const isUserCheckedIn = 
         effectiveCurrentStatus.status === 'clocked_in' || 
         effectiveCurrentStatus.status === 'checked_in' || 
-        effectiveCurrentStatus.status === 'present' || 
         effectiveCurrentStatus.status === 'active' || 
-        effectiveCurrentStatus.status === 'overtime_active';
+        effectiveCurrentStatus.status === 'overtime_active' ||
+        effectiveCurrentStatus.status === 'clocked_in_overtime';
         
       if (isUserCheckedIn) {
         setHashType('qr-checkout');
       } else {
         setHashType('qr-checkin');
       }
+      hasInitializedRef.current = true;
     }
   }, [isOpen, effectiveCurrentStatus]);
   
@@ -319,6 +326,11 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
           canCheckOut: false,
           message: 'Default state'
         };
+        // If status has changed compared to the previous state, clear the QR code to prevent double-scanning
+        if (currentStatus && currentStatus.status !== newStatus.status) {
+          console.log(`🔄 [QR] Status changed from ${currentStatus.status} to ${newStatus.status}. Clearing QR code.`);
+          setQrCodeData(null);
+        }
         setCurrentStatus(newStatus);
         setStatusUpdateCount(prev => prev + 1);
       } else {
@@ -384,6 +396,9 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
   // Listen for attendance status updates from QR scanning
   useEffect(() => {
     const handleAttendanceUpdate = (event) => {
+      // Clear QR code when attendance event is triggered to prevent double scan
+      setQrCodeData(null);
+      
       if (event.detail && event.detail.currentStatus) {
         setCurrentStatus(event.detail.currentStatus);
       } else if (event.detail && event.detail.action) {
@@ -553,15 +568,25 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
                                       <p className="text-sm text-primary">
                     <span className="font-medium">Current Status:</span> 
                     <span className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
-                      currentStatus.status === 'clocked_in' 
+                      currentStatus.status === 'clocked_in' || 
+                      currentStatus.status === 'checked_in' || 
+                      currentStatus.status === 'active' || 
+                      currentStatus.status === 'overtime_active' || 
+                      currentStatus.status === 'clocked_in_overtime'
                         ? 'bg-primary/20 text-primary' 
                         : (currentStatus as any).status === 'should_be_absent'
                         ? 'bg-destructive/20 text-destructive'
                         : 'bg-muted/20 text-muted-foreground'
                     }`}>
-                      {currentStatus.status === 'clocked_in' ? 'Checked In' : 
-                        (currentStatus as any).status === 'should_be_absent' ? 'Should Be Absent' :
-                       'Checked Out'}
+                      {currentStatus.status === 'clocked_in' || 
+                       currentStatus.status === 'checked_in' || 
+                       currentStatus.status === 'active' || 
+                       currentStatus.status === 'overtime_active' || 
+                       currentStatus.status === 'clocked_in_overtime'
+                        ? 'Checked In' 
+                        : (currentStatus as any).status === 'should_be_absent' 
+                        ? 'Should Be Absent' 
+                        : 'Checked Out'}
                     </span>
                   </p>
                     <Button

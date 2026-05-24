@@ -1357,6 +1357,7 @@ class QRCodeService {
           canCheckOut = false;
           break;
         case 'clocked_in':
+        case 'clocked_in_overtime':
           qrStatus = 'checked_in';
           canCheckIn = false;
           canCheckOut = true;
