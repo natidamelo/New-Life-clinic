@@ -529,10 +529,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
                 </div>
               </div>
 
-              {/* Theme Selector */}
-              <div className="px-3 py-1">
-                <ThemeSelector className="w-full" />
-              </div>
+              {/* Theme Selector moved to header to prevent duplicates */}
             </SidebarHeader>
 
             {/* Main Navigation Content */}
