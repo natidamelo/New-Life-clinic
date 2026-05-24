@@ -368,7 +368,7 @@ router.get('/my-registration-status', auth, async (req, res) => {
     const userId = req.user._id || req.user.userId;
     
     // Check BOTH tables to ensure accurate registration status
-    const staffHash = await StaffHash.findOne({ userId });
+    const staffHash = await StaffHash.findOne({ userId, hashType: 'staff-registration', isActive: true });
     
     const DeviceRegistration = require('../models/DeviceRegistration');
     const deviceRegistration = await DeviceRegistration.findOne({ 
@@ -412,7 +412,7 @@ router.get('/staff-registration-status/:userId', auth, async (req, res) => {
     const { userId } = req.params;
     
     // Check BOTH tables to ensure accurate registration status
-    const staffHash = await StaffHash.findOne({ userId });
+    const staffHash = await StaffHash.findOne({ userId, hashType: 'staff-registration', isActive: true });
     
     const DeviceRegistration = require('../models/DeviceRegistration');
     const deviceRegistration = await DeviceRegistration.findOne({ 
@@ -529,8 +529,8 @@ router.get('/staff-registration/:userId', auth, async (req, res) => {
       });
     }
     
-    // Check if a StaffHash already exists for this user
-    let staffHashRecord = await StaffHash.findOne({ userId });
+    // Check if a StaffHash already exists for this user specifically for staff-registration
+    let staffHashRecord = await StaffHash.findOne({ userId, hashType: 'staff-registration' });
     let isNew = false;
     let hashToUse;
 
