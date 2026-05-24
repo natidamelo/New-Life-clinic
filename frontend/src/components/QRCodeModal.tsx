@@ -94,6 +94,24 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
     checkInTime: attendanceStatus.lastActivity,
     checkOutTime: attendanceStatus.overtimeTimesheet?.clockOutTime
   } : (propCurrentStatus || currentStatus);
+
+  // Automatically switch tab when opening the modal based on check-in status
+  useEffect(() => {
+    if (isOpen && effectiveCurrentStatus) {
+      const isUserCheckedIn = 
+        effectiveCurrentStatus.status === 'clocked_in' || 
+        effectiveCurrentStatus.status === 'checked_in' || 
+        effectiveCurrentStatus.status === 'present' || 
+        effectiveCurrentStatus.status === 'active' || 
+        effectiveCurrentStatus.status === 'overtime_active';
+        
+      if (isUserCheckedIn) {
+        setHashType('qr-checkout');
+      } else {
+        setHashType('qr-checkin');
+      }
+    }
+  }, [isOpen, effectiveCurrentStatus]);
   
 
   // Restore device registration from localStorage when modal opens
@@ -856,7 +874,14 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
                     setHashType('qr-checkin');
                     generateQRCode();
                   }}
-                  disabled={!isDeviceRegistered}
+                  disabled={
+                    !isDeviceRegistered ||
+                    effectiveCurrentStatus?.status === 'clocked_in' ||
+                    effectiveCurrentStatus?.status === 'checked_in' ||
+                    effectiveCurrentStatus?.status === 'present' ||
+                    effectiveCurrentStatus?.status === 'active' ||
+                    effectiveCurrentStatus?.status === 'overtime_active'
+                  }
                   variant={hashType === 'qr-checkin' ? 'default' : 'outline'}
                   className={`h-auto p-3 flex flex-col items-center justify-center space-y-1 ${
                     hashType === 'qr-checkin' && isDeviceRegistered &&
@@ -963,31 +988,45 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
           </Card>
 
           {/* Generate Button */}
-          <Button
-            onClick={generateQRCode}
-            disabled={isLoading || !isDeviceRegistered}
-            className="w-full h-10 text-base"
-            size="default"
-          >
-            {isLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                Generating...
-              </>
-            ) : !isDeviceRegistered ? (
-              'Device Not Registered'
-            ) : (
-              <>
-                <QrCodeIcon className="w-5 h-5 mr-2" />
-                Generate {hashType === 'qr-checkin' ? 
-                  (currentStatus?.isOvertimeTime ? 'Check-in for Overtime' : 'Check-in') : 
-                  (currentStatus?.isOvertime && currentStatus?.status === 'clocked_in' ? 'Check-out (Overtime)' : 'Check-out')} QR Code
-              </>
-            )}
-          </Button>
+          {!(hashType === 'qr-checkin' && (
+            effectiveCurrentStatus?.status === 'clocked_in' ||
+            effectiveCurrentStatus?.status === 'checked_in' ||
+            effectiveCurrentStatus?.status === 'present' ||
+            effectiveCurrentStatus?.status === 'active' ||
+            effectiveCurrentStatus?.status === 'overtime_active'
+          )) && (
+            <Button
+              onClick={generateQRCode}
+              disabled={isLoading || !isDeviceRegistered}
+              className="w-full h-10 text-base"
+              size="default"
+            >
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Generating...
+                </>
+              ) : !isDeviceRegistered ? (
+                'Device Not Registered'
+              ) : (
+                <>
+                  <QrCodeIcon className="w-5 h-5 mr-2" />
+                  Generate {hashType === 'qr-checkin' ? 
+                    (currentStatus?.isOvertimeTime ? 'Check-in for Overtime' : 'Check-in') : 
+                    (currentStatus?.isOvertime && currentStatus?.status === 'clocked_in' ? 'Check-out (Overtime)' : 'Check-out')} QR Code
+                </>
+              )}
+            </Button>
+          )}
 
           {/* QR Code Display */}
-          {qrCodeData && (
+          {qrCodeData && !(hashType === 'qr-checkin' && (
+            effectiveCurrentStatus?.status === 'clocked_in' ||
+            effectiveCurrentStatus?.status === 'checked_in' ||
+            effectiveCurrentStatus?.status === 'present' ||
+            effectiveCurrentStatus?.status === 'active' ||
+            effectiveCurrentStatus?.status === 'overtime_active'
+          )) && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg text-center">

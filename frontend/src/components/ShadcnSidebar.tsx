@@ -644,22 +644,23 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => setIsQRModalOpen(true)}
-                    disabled={attendanceStatus?.status === 'overtime_completed' ||
-                      (attendanceStatus?.status === 'clocked_in' || attendanceStatus?.status === 'checked_in')}
-                    className={`w-full border-0 font-medium rounded-lg transition-all duration-200 ${attendanceStatus?.status === 'overtime_completed' ||
-                        (attendanceStatus?.status === 'clocked_in' || attendanceStatus?.status === 'checked_in')
+                    disabled={attendanceStatus?.status === 'overtime_completed' || attendanceStatus?.isOvertimeCompleted}
+                    className={`w-full border-0 font-medium rounded-lg transition-all duration-200 ${
+                      (attendanceStatus?.status === 'overtime_completed' || attendanceStatus?.isOvertimeCompleted)
                         ? 'bg-gray-400/80 hover:bg-gray-400/80 cursor-not-allowed text-white'
-                        : attendanceStatus?.status === 'overtime_active'
+                        : attendanceStatus?.isOvertimeActive
                           ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm shadow-orange-500/30'
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/30'
+                          : attendanceStatus?.clockedIn
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/30 font-bold'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/30'
                       }`}
                   >
                     <QrCodeIcon className="h-4 w-4 flex-shrink-0" />
                     <div className="flex flex-col items-start">
                       <span className="text-xs font-semibold leading-tight">
-                        {attendanceStatus?.status === 'overtime_active' ? 'Check Out (Overtime)' :
-                          attendanceStatus?.status === 'overtime_completed' ? 'Overtime Completed' :
-                            attendanceStatus?.status === 'clocked_in' || attendanceStatus?.status === 'checked_in' ? 'Checked In' :
+                        {attendanceStatus?.isOvertimeActive ? 'Check Out (Overtime)' :
+                          (attendanceStatus?.status === 'overtime_completed' || attendanceStatus?.isOvertimeCompleted) ? 'Overtime Completed' :
+                            attendanceStatus?.clockedIn ? 'Checked In' :
                               'Check-in / Check-out'}
                       </span>
                       {statusLoading && (
