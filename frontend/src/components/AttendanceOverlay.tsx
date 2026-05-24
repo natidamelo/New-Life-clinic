@@ -443,32 +443,7 @@ const AttendanceOverlay: React.FC<AttendanceOverlayProps> = ({ children }) => {
             currentStatus={currentStatus}
             onStatusUpdate={setCurrentStatus}
           />
-          {/* Debug info */}
-          {showQRModal && (
-            <div style={{
-              position: 'fixed',
-              top: '10px',
-              right: '10px',
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              color: 'white',
-              padding: '10px',
-              borderRadius: '5px',
-              fontSize: '12px',
-              zIndex: 999999,
-              maxWidth: '300px'
-            }}>
-              <strong>Debug: Status being passed to QRCodeModal</strong><br/>
-              Status: {currentStatus?.status || 'null'}<br/>
-              Can Check In: {currentStatus?.canCheckIn?.toString() || 'null'}<br/>
-              Can Check Out: {currentStatus?.canCheckOut?.toString() || 'null'}<br/>
-              Check In Time: {currentStatus?.checkInTime || 'null'}<br/>
-              <br/>
-              <strong>Raw currentStatus:</strong><br/>
-              <pre style={{fontSize: '10px', maxHeight: '100px', overflow: 'auto'}}>
-                {JSON.stringify(currentStatus, null, 2)}
-              </pre>
-            </div>
-          )}
+
         </>
       ) : (
         <>

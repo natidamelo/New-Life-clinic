@@ -266,7 +266,7 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
 
     if (deviceRegistered === 'true' && staffUserId === userId && staffHash) {
       if (staffHash.startsWith('temp_') || staffHash.startsWith('emergency_fix_')) return false;
-      if (staffHash.length === 64 && /^[a-f0-9]+$/i.test(staffHash)) return true;
+      if ((staffHash.length === 32 || staffHash.length === 64) && /^[a-f0-9]+$/i.test(staffHash)) return true;
       if (localDeviceRegistered === 'true') return true;
       return false;
     }
