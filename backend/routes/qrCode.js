@@ -560,52 +560,59 @@ router.get('/staff-registration/:userId', auth, async (req, res) => {
     }
     
     if (!frontendUrl) {
-      // Auto-detect the best IP address for mobile access
-      const os = require('os');
-      const networkInterfaces = os.networkInterfaces();
-      let serverIP = 'localhost';
-      
-      // Priority order for IP selection (prefer private network addresses)
-      // Based on the frontend server running on 10.41.144.157, prioritize 10.41.x.x range
-      const preferredPatterns = [
-        /^10\.41\./,       // 10.41.x.x (current network segment) - highest priority
-        /^10\./,           // 10.x.x.x (private range) - your current network
-        /^192\.168\./,     // 192.168.x.x (most common private range)
-        /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // 172.16-31.x.x (private range)
-      ];
-      
-      // First, try to find a preferred private network address
-      for (const pattern of preferredPatterns) {
-        for (const interfaceName in networkInterfaces) {
-          const interfaces = networkInterfaces[interfaceName];
-          for (const iface of interfaces) {
-            if (iface.family === 'IPv4' && !iface.internal && pattern.test(iface.address)) {
-              serverIP = iface.address;
-              break;
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+      const host = req.get('host');
+      if (host) {
+        frontendUrl = `${protocol}://${host}`;
+        console.log(`🔍 [QR Routes] Auto-detected backend URL from request: ${frontendUrl}`);
+      } else {
+        // Auto-detect the best IP address for mobile access
+        const os = require('os');
+        const networkInterfaces = os.networkInterfaces();
+        let serverIP = 'localhost';
+        
+        // Priority order for IP selection (prefer private network addresses)
+        // Based on the frontend server running on 10.41.144.157, prioritize 10.41.x.x range
+        const preferredPatterns = [
+          /^10\.41\./,       // 10.41.x.x (current network segment) - highest priority
+          /^10\./,           // 10.x.x.x (private range) - your current network
+          /^192\.168\./,     // 192.168.x.x (most common private range)
+          /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // 172.16-31.x.x (private range)
+        ];
+        
+        // First, try to find a preferred private network address
+        for (const pattern of preferredPatterns) {
+          for (const interfaceName in networkInterfaces) {
+            const interfaces = networkInterfaces[interfaceName];
+            for (const iface of interfaces) {
+              if (iface.family === 'IPv4' && !iface.internal && pattern.test(iface.address)) {
+                serverIP = iface.address;
+                break;
+              }
             }
+            if (serverIP !== 'localhost') break;
           }
           if (serverIP !== 'localhost') break;
         }
-        if (serverIP !== 'localhost') break;
-      }
-      
-      // If no preferred address found, fall back to any non-internal IPv4
-      if (serverIP === 'localhost') {
-        for (const interfaceName in networkInterfaces) {
-          const interfaces = networkInterfaces[interfaceName];
-          for (const iface of interfaces) {
-            if (iface.family === 'IPv4' && !iface.internal && !iface.address.startsWith('169.254.')) {
-              serverIP = iface.address;
-              break;
+        
+        // If no preferred address found, fall back to any non-internal IPv4
+        if (serverIP === 'localhost') {
+          for (const interfaceName in networkInterfaces) {
+            const interfaces = networkInterfaces[interfaceName];
+            for (const iface of interfaces) {
+              if (iface.family === 'IPv4' && !iface.internal && !iface.address.startsWith('169.254.')) {
+                serverIP = iface.address;
+                break;
+              }
             }
+            if (serverIP !== 'localhost') break;
           }
-          if (serverIP !== 'localhost') break;
         }
+        
+        // Use backend port 5002 for QR verification
+        frontendUrl = `http://${serverIP}:5002`;
+        console.log(`🔍 [QR Routes] Auto-detected backend URL: ${frontendUrl}`);
       }
-      
-      // Use backend port 5002 for QR verification
-      frontendUrl = `http://${serverIP}:5002`;
-      console.log(`🔍 [QR Routes] Auto-detected backend URL: ${frontendUrl}`);
       console.log(`📱 QR codes will point to backend at: ${frontendUrl}`);
     }
     
@@ -765,7 +772,10 @@ router.get('/generate/:hashType', auth, async (req, res) => {
     const { location } = req.query;
     
     console.log(`🔍 [QR] Generating ${hashType} QR code for user ${userId}`);
-    
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.get('host');
+    const hostUrl = `${protocol}://${host}`;
+
     // Use Enhanced QRCodeService to generate advanced QR code
     const enhancedOptions = {
       primaryColor: '#1f2937',
@@ -773,6 +783,7 @@ router.get('/generate/:hashType', auth, async (req, res) => {
       width: 300,
       includeAnalytics: true,
       includeBiometric: false,
+      hostUrl: hostUrl,
       metadata: {
         location: location || 'Main Entrance',
         version: '2.0',

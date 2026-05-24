@@ -15,10 +15,14 @@ router.post('/generate-enhanced', auth, async (req, res) => {
   try {
     const { type = 'checkin', options = {} } = req.body;
     
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.get('host');
+    const hostUrl = `${protocol}://${host}`;
+
     const result = await EnhancedQRCodeService.generateEnhancedQRCode(
       req.user._id, 
       type, 
-      options
+      { hostUrl, ...options }
     );
 
     res.json({
@@ -458,8 +462,10 @@ router.get('/staff-registration/:userId', auth, async (req, res) => {
   try {
     const { userId } = req.params;
     
-    console.log(`🔍 [EnhancedQR] Generating staff registration QR for user ${userId}`);
-    
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.get('host');
+    const hostUrl = `${protocol}://${host}`;
+
     // Generate enhanced QR code for staff registration
     const result = await EnhancedQRCodeService.generateEnhancedQRCode(
       userId, 
@@ -470,6 +476,7 @@ router.get('/staff-registration/:userId', auth, async (req, res) => {
         width: 300,
         includeAnalytics: true,
         includeBiometric: false,
+        hostUrl: hostUrl,
         metadata: {
           location: 'Staff Registration',
           version: '2.0',

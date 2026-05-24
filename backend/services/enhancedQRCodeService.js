@@ -151,73 +151,78 @@ class EnhancedQRCodeService {
       });
       
       // Create enhanced URL with better mobile support
-      const serverIP = this.getServerIP();
+      let backendUrl = options.hostUrl;
       
-      // FIXED: Force use of WiFi IP for mobile access
-      let frontendUrl = process.env.FRONTEND_URL;
-      
-      // Get all network interfaces
-      const os = require('os');
-      const networkInterfaces = os.networkInterfaces();
-      let detectedIP = null;
-      
-      // PRIORITY 1: Look for 192.168.x.x (WiFi) - most common for phone connectivity
-      for (const interfaceName in networkInterfaces) {
-        const interfaces = networkInterfaces[interfaceName];
-        for (const iface of interfaces) {
-          if (iface.family === 'IPv4' && !iface.internal && iface.address.startsWith('192.168.')) {
-            detectedIP = iface.address;
-            console.log(`✅ Found WiFi IP (192.168.x.x) on ${interfaceName}: ${detectedIP}`);
-            break;
-          }
-        }
-        if (detectedIP) break;
-      }
-      
-      // PRIORITY 2: If no 192.168.x.x, try priority interfaces
-      if (!detectedIP) {
-        const priorityInterfaces = ['Wi-Fi', 'Ethernet', 'en0', 'eth0', 'wlan0'];
-        for (const interfaceName of priorityInterfaces) {
-          const ifaces = networkInterfaces[interfaceName];
-          if (ifaces) {
-            for (const iface of ifaces) {
-              if (iface.family === 'IPv4' && !iface.internal) {
-                detectedIP = iface.address;
-                console.log(`✅ Found IP on ${interfaceName}: ${detectedIP}`);
-                break;
-              }
-            }
-            if (detectedIP) break;
-          }
-        }
-      }
-      
-      // PRIORITY 3: Fallback to any private IP
-      if (!detectedIP) {
-        const preferredPatterns = [
-          /^192\.168\./,     // WiFi (highest priority for mobile)
-          /^10\./,           // Private range
-          /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // Private range
-        ];
+      if (!backendUrl) {
+        const serverIP = this.getServerIP();
         
-        for (const pattern of preferredPatterns) {
-          for (const interfaceName in networkInterfaces) {
-            const interfaces = networkInterfaces[interfaceName];
-            for (const iface of interfaces) {
-              if (iface.family === 'IPv4' && !iface.internal && pattern.test(iface.address)) {
-                detectedIP = iface.address;
-                console.log(`✅ Found IP matching ${pattern}: ${detectedIP}`);
-                break;
-              }
+        // FIXED: Force use of WiFi IP for mobile access
+        let frontendUrl = process.env.FRONTEND_URL;
+        
+        // Get all network interfaces
+        const os = require('os');
+        const networkInterfaces = os.networkInterfaces();
+        let detectedIP = null;
+        
+        // PRIORITY 1: Look for 192.168.x.x (WiFi) - most common for phone connectivity
+        for (const interfaceName in networkInterfaces) {
+          const interfaces = networkInterfaces[interfaceName];
+          for (const iface of interfaces) {
+            if (iface.family === 'IPv4' && !iface.internal && iface.address.startsWith('192.168.')) {
+              detectedIP = iface.address;
+              console.log(`✅ Found WiFi IP (192.168.x.x) on ${interfaceName}: ${detectedIP}`);
+              break;
             }
-            if (detectedIP) break;
           }
           if (detectedIP) break;
         }
+        
+        // PRIORITY 2: If no 192.168.x.x, try priority interfaces
+        if (!detectedIP) {
+          const priorityInterfaces = ['Wi-Fi', 'Ethernet', 'en0', 'eth0', 'wlan0'];
+          for (const interfaceName of priorityInterfaces) {
+            const ifaces = networkInterfaces[interfaceName];
+            if (ifaces) {
+              for (const iface of ifaces) {
+                if (iface.family === 'IPv4' && !iface.internal) {
+                  detectedIP = iface.address;
+                  console.log(`✅ Found IP on ${interfaceName}: ${detectedIP}`);
+                  break;
+                }
+              }
+              if (detectedIP) break;
+            }
+          }
+        }
+        
+        // PRIORITY 3: Fallback to any private IP
+        if (!detectedIP) {
+          const preferredPatterns = [
+            /^192\.168\./,     // WiFi (highest priority for mobile)
+            /^10\./,           // Private range
+            /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // Private range
+          ];
+          
+          for (const pattern of preferredPatterns) {
+            for (const interfaceName in networkInterfaces) {
+              const interfaces = networkInterfaces[interfaceName];
+              for (const iface of interfaces) {
+                if (iface.family === 'IPv4' && !iface.internal && pattern.test(iface.address)) {
+                  detectedIP = iface.address;
+                  console.log(`✅ Found IP matching ${pattern}: ${detectedIP}`);
+                  break;
+                }
+              }
+              if (detectedIP) break;
+            }
+            if (detectedIP) break;
+          }
+        }
+        
+        // Use detected IP or fallback - point to BACKEND, not frontend
+        backendUrl = detectedIP ? `http://${detectedIP}:5002` : 'http://localhost:5002';
       }
       
-      // Use detected IP or fallback - point to BACKEND, not frontend
-      const backendUrl = detectedIP ? `http://${detectedIP}:5002` : 'http://localhost:5002';
       console.log(`📱 QR code will use URL: ${backendUrl}`);
       
       const qrUrl = `${backendUrl}/verify-qr?hash=${staffHash.uniqueHash}&type=${type}&userId=${userId}&v=2.0`;
