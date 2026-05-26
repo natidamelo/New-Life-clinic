@@ -1094,7 +1094,8 @@ interface SmartRecommendation {
 const getSmartPrescriptionSuggestions = (
     medicationName: string,
     age: number,
-    weight: number | null
+    weight: number | null,
+    medicationType?: 'inventory' | 'external' | 'service'
 ): SmartRecommendation | null => {
     if (!medicationName) return null;
     const name = medicationName.toLowerCase();
@@ -1400,14 +1401,25 @@ const getSmartPrescriptionSuggestions = (
                 quantity: 1
             };
         } else {
-            return {
-                dosage: "50mg twice daily",
-                frequency: "Twice daily (BID)",
-                duration: "5 days",
-                route: "Oral",
-                nurseInstructions: "Adult Diclofenac (50mg twice daily after meals). Take with food or antacids to protect the stomach.",
-                quantity: 10
-            };
+            if (medicationType === 'inventory') {
+                return {
+                    dosage: "75mg deep IM once daily",
+                    frequency: "Once daily (QD)",
+                    duration: "2 days",
+                    route: "Intramuscular",
+                    nurseInstructions: "Adult Diclofenac deep Intramuscular (IM) injection (75mg/3ml once daily for 2 days) for acute pain. Administer slowly.",
+                    quantity: 2
+                };
+            } else {
+                return {
+                    dosage: "50mg twice daily",
+                    frequency: "Twice daily (BID)",
+                    duration: "5 days",
+                    route: "Oral",
+                    nurseInstructions: "Adult Diclofenac (50mg twice daily after meals). Take with food or antacids to protect the stomach.",
+                    quantity: 10
+                };
+            }
         }
     }
 
@@ -1423,14 +1435,25 @@ const getSmartPrescriptionSuggestions = (
                 quantity: 0
             };
         } else {
-            return {
-                dosage: "50mg every 8-12 hours as needed",
-                frequency: "As needed (PRN)",
-                duration: "3 days",
-                route: "Oral",
-                nurseInstructions: "Adult Tramadol (50mg every 8-12 hours as needed for moderate-to-severe pain). Monitor for sedation and nausea.",
-                quantity: 6
-            };
+            if (medicationType === 'inventory') {
+                return {
+                    dosage: "50mg IM/IV once daily",
+                    frequency: "Once daily (QD)",
+                    duration: "3 days",
+                    route: "Intramuscular",
+                    nurseInstructions: "Adult Tramadol injection (50mg IM/IV once daily for 3 days). Monitor patient for sedation, respiratory rate, and nausea.",
+                    quantity: 3
+                };
+            } else {
+                return {
+                    dosage: "50mg every 8-12 hours as needed",
+                    frequency: "As needed (PRN)",
+                    duration: "3 days",
+                    route: "Oral",
+                    nurseInstructions: "Adult Tramadol (50mg every 8-12 hours as needed for moderate-to-severe pain). Monitor for sedation and nausea.",
+                    quantity: 6
+                };
+            }
         }
     }
 
@@ -1450,14 +1473,25 @@ const getSmartPrescriptionSuggestions = (
                 quantity: 14
             };
         } else {
-            return {
-                dosage: "20mg once daily",
-                frequency: "Once daily (QD)",
-                duration: "14 days",
-                route: "Oral",
-                nurseInstructions: "Adult Omeprazole (20mg once daily in the morning, 30 minutes before first meal/breakfast).",
-                quantity: 14
-            };
+            if (medicationType === 'inventory') {
+                return {
+                    dosage: "40mg IV once daily",
+                    frequency: "Once daily (QD)",
+                    duration: "3 days",
+                    route: "Intravenous",
+                    nurseInstructions: "Adult Omeprazole IV injection (40mg once daily). Reconstitute with 10ml of sterile water/saline and administer slowly over 5 minutes.",
+                    quantity: 3
+                };
+            } else {
+                return {
+                    dosage: "20mg once daily",
+                    frequency: "Once daily (QD)",
+                    duration: "14 days",
+                    route: "Oral",
+                    nurseInstructions: "Adult Omeprazole (20mg once daily in the morning, 30 minutes before first meal/breakfast).",
+                    quantity: 14
+                };
+            }
         }
     }
 
@@ -3977,7 +4011,8 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                                                         ? getSmartPrescriptionSuggestions(
                                                             medication.medication,
                                                             patient.age,
-                                                            overrideWeight ? parseFloat(overrideWeight) : null
+                                                            overrideWeight ? parseFloat(overrideWeight) : null,
+                                                            medication.medicationType
                                                           )
                                                         : null;
                                                     
