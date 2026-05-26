@@ -1495,6 +1495,225 @@ const getSmartPrescriptionSuggestions = (
         }
     }
 
+    // Normal Saline / Saline
+    if (name.includes('normal saline') || (name.includes('saline') && name.includes('0.9%'))) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            return {
+                dosage: "Consult pediatrician for rate",
+                frequency: "As directed",
+                duration: "1 day",
+                route: "Intravenous",
+                nurseInstructions: "Pediatric IV saline hydration: Calculate infusion rate based on child weight or consult pediatrician.",
+                quantity: 1
+            };
+        } else {
+            return {
+                dosage: "500ml IV infusion",
+                frequency: "Once daily (QD)",
+                duration: "1 day",
+                route: "Intravenous",
+                nurseInstructions: "Adult Normal Saline (500ml IV infusion STAT or as directed). Infuse intravenously at standard maintenance rate.",
+                quantity: 1
+            };
+        }
+    }
+
+    // Ringer Lactate / Hartmann Solution
+    if (name.includes('ringer') || name.includes('hartmann')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            return {
+                dosage: "Consult pediatrician for rate",
+                frequency: "As directed",
+                duration: "1 day",
+                route: "Intravenous",
+                nurseInstructions: "Pediatric IV Ringer Lactate hydration: Calculate infusion rate based on weight/hydration status or consult pediatrician.",
+                quantity: 1
+            };
+        } else {
+            return {
+                dosage: "500ml IV infusion",
+                frequency: "Once daily (QD)",
+                duration: "1 day",
+                route: "Intravenous",
+                nurseInstructions: "Adult Ringer's Lactate (500ml IV infusion STAT or as directed). Infuse intravenously for fluid resuscitation/hydration.",
+                quantity: 1
+            };
+        }
+    }
+
+    // Dextrose
+    if (name.includes('dextrose')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            return {
+                dosage: "Consult pediatrician for rate",
+                frequency: "As directed",
+                duration: "1 day",
+                route: "Intravenous",
+                nurseInstructions: "Pediatric IV Dextrose infusion: Calculate infusion rate based on pediatric maintenance guidelines.",
+                quantity: 1
+            };
+        } else {
+            const isD5 = name.includes('5%') || !name.includes('50%') && !name.includes('10%');
+            const vol = isD5 ? "1000ml" : "500ml";
+            return {
+                dosage: `${vol} IV infusion`,
+                frequency: "Once daily (QD)",
+                duration: "1 day",
+                route: "Intravenous",
+                nurseInstructions: `Adult Dextrose infusion (${vol} IV infusion once daily or as directed). Infuse slowly.`,
+                quantity: 1
+            };
+        }
+    }
+
+    // Glucose 40% / Hypertonic Glucose
+    if (name.includes('glucose') && (name.includes('40%') || name.includes('hypertonic'))) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            return {
+                dosage: "Consult pediatrician for dose",
+                frequency: "STAT",
+                duration: "1 day",
+                route: "Intravenous",
+                nurseInstructions: "Pediatric severe hypoglycemia: Typically requires 10% dextrose (D10W) at 2-5 ml/kg. 40% glucose must be diluted or given under strict guidance.",
+                quantity: 1
+            };
+        } else {
+            return {
+                dosage: "100ml IV slowly",
+                frequency: "Once daily (QD)",
+                duration: "1 day",
+                route: "Intravenous",
+                nurseInstructions: "Adult Glucose 40% (100ml IV slowly STAT for severe hypoglycemia). Monitor blood glucose levels closely.",
+                quantity: 1
+            };
+        }
+    }
+
+    // Vitamin B Complex
+    if (name.includes('vitamin b') || name.includes('b complex')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7);
+            const doseMl = kg < 15 ? "0.5ml" : "1ml";
+            return {
+                dosage: `${doseMl} IV/IM once daily`,
+                frequency: "Once daily (QD)",
+                duration: "3 days",
+                route: "Intramuscular",
+                nurseInstructions: `Pediatric Vitamin B Complex (${doseMl} IM/IV once daily based on weight ~${kg.toFixed(0)}kg).`,
+                quantity: 3
+            };
+        } else {
+            return {
+                dosage: "2ml IV/IM once daily",
+                frequency: "Once daily (QD)",
+                duration: "5 days",
+                route: "Intravenous",
+                nurseInstructions: "Adult Vitamin B Complex (2ml once daily for 5 days). Can be given deep IM or added/diluted in IV infusion fluids.",
+                quantity: 5
+            };
+        }
+    }
+
+    // Dexamethasone
+    if (name.includes('dexamethasone')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7);
+            const doseMg = (kg * 0.15).toFixed(1); // 0.15 mg/kg once daily
+            return {
+                dosage: `${doseMg}mg once daily`,
+                frequency: "Once daily (QD)",
+                duration: "3 days",
+                route: "Oral",
+                nurseInstructions: `Pediatric Dexamethasone (${doseMg}mg once daily based on weight ~${kg.toFixed(0)}kg at 0.15 mg/kg/day). Take with food.`,
+                quantity: 3
+            };
+        } else {
+            return {
+                dosage: "4mg once daily",
+                frequency: "Once daily (QD)",
+                duration: "5 days",
+                route: "Oral",
+                nurseInstructions: "Adult Dexamethasone (4mg once daily in the morning after breakfast). Take with food or antacids.",
+                quantity: 5
+            };
+        }
+    }
+
+    // Metoclopramide
+    if (name.includes('metoclopramide')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7);
+            const doseMg = (kg * 0.1).toFixed(1); // 0.1 mg/kg TID
+            return {
+                dosage: `${doseMg}mg three times daily`,
+                frequency: "Three times daily (TID)",
+                duration: "3 days",
+                route: "Oral",
+                nurseInstructions: `Pediatric Metoclopramide (${doseMg}mg TID based on weight ~${kg.toFixed(0)}kg at 0.1 mg/kg/dose). Monitor for extrapyramidal side effects.`,
+                quantity: 9
+            };
+        } else {
+            return {
+                dosage: "10mg three times daily",
+                frequency: "Three times daily (TID)",
+                duration: "3 days",
+                route: "Oral",
+                nurseInstructions: "Adult Metoclopramide (10mg three times daily, 30 minutes before meals). Max 30mg daily.",
+                quantity: 9
+            };
+        }
+    }
+
+    // Hydrocortisone
+    if (name.includes('hydrocortisone')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7);
+            const doseMg = (kg * 2.5).toFixed(0); // ~2-8 mg/kg/day, let's use 5mg/kg/day divided QD/BID
+            return {
+                dosage: `${doseMg}mg once daily`,
+                frequency: "Once daily (QD)",
+                duration: "5 days",
+                route: "Oral",
+                nurseInstructions: `Pediatric Hydrocortisone (${doseMg}mg once daily based on weight ~${kg.toFixed(0)}kg). Take with milk or food.`,
+                quantity: 5
+            };
+        } else {
+            return {
+                dosage: "20mg once daily",
+                frequency: "Once daily (QD)",
+                duration: "7 days",
+                route: "Oral",
+                nurseInstructions: "Adult Hydrocortisone (20mg once daily in the morning). Take with food.",
+                quantity: 7
+            };
+        }
+    }
+
+    // Cimetidine
+    if (name.includes('cimetidine')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7);
+            const doseMg = Math.round(kg * 5); // 5-10 mg/kg q6h
+            return {
+                dosage: `${doseMg}mg four times daily`,
+                frequency: "Four times daily (QID)",
+                duration: "7 days",
+                route: "Oral",
+                nurseInstructions: `Pediatric Cimetidine (${doseMg}mg QID based on weight ~${kg.toFixed(0)}kg at 5mg/kg/dose). Take with meals and at bedtime.`,
+                quantity: 28
+            };
+        } else {
+            return {
+                dosage: "400mg twice daily",
+                frequency: "Twice daily (BID)",
+                duration: "14 days",
+                route: "Oral",
+                nurseInstructions: "Adult Cimetidine (400mg twice daily with meals or 800mg once daily at bedtime) to reduce gastric acidity.",
+                quantity: 28
+            };
+        }
+    }
+
     return null;
 };
 
