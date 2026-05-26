@@ -1220,7 +1220,7 @@ const getSmartPrescriptionSuggestions = (
         };
     }
 
-    // Ceftriaxone (Pediatric dosing is smart)
+    // Ceftriaxone
     if (name.includes('ceftriaxone')) {
         if (age < 12 || (weight !== null && weight < 35)) {
             const kg = weight || (age * 3 + 7);
@@ -1234,44 +1234,231 @@ const getSmartPrescriptionSuggestions = (
                 nurseInstructions: `Pediatric Ceftriaxone (${roundedDose}mg based on approx ${kg}kg at 75mg/kg/day).`,
                 quantity: 5
             };
+        } else {
+            return {
+                dosage: "1g once daily",
+                frequency: "Once daily (QD)",
+                duration: "5 days",
+                route: "Intravenous",
+                nurseInstructions: "Adult Ceftriaxone dosing (1g IV once daily for 5 days).",
+                quantity: 5
+            };
         }
     }
 
-    // Paracetamol Syrup / Drops (Pediatric dosing is smart)
-    if (name.includes('paracetamol syrup') || name.includes('paracetamol drops')) {
-        const kg = weight || (age * 3 + 7);
-        const doseMg = Math.round(kg * 15);
-        let ml = (doseMg / 250) * 5; // 250mg/5ml
-        let syrupStrength = "250mg/5ml";
-        if (name.includes('drops') || age < 1) {
-            ml = (doseMg / 80) * 0.8;
-            syrupStrength = "80mg/0.8ml drops";
+    // Paracetamol / Acetaminophen
+    if (name.includes('paracetamol') || name.includes('acetaminophen')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7);
+            const doseMg = Math.round(kg * 15);
+            let ml = (doseMg / 250) * 5; // 250mg/5ml
+            let syrupStrength = "250mg/5ml syrup";
+            if (name.includes('drops') || age < 1) {
+                ml = (doseMg / 80) * 0.8;
+                syrupStrength = "80mg/0.8ml drops";
+            }
+            const roundedMl = (Math.round(ml * 2) / 2).toFixed(1);
+            return {
+                dosage: `Use Syrup: ${roundedMl}ml every 4-6 hours as needed`,
+                frequency: "As needed (PRN)",
+                duration: "3 days",
+                route: "Oral",
+                nurseInstructions: `Pediatric Paracetamol (${roundedMl}ml of ${syrupStrength} based on weight ${kg}kg, dose ~15mg/kg). Max 4 times daily.`,
+                quantity: 1
+            };
+        } else {
+            return {
+                dosage: "500mg - 1g every 4-6 hours as needed",
+                frequency: "As needed (PRN)",
+                duration: "3 days",
+                route: "Oral",
+                nurseInstructions: "Adult Paracetamol (500mg - 1g every 4-6 hours as needed for pain or fever). Max 8 tablets (4g) daily.",
+                quantity: 12
+            };
         }
-        const roundedMl = (Math.round(ml * 2) / 2).toFixed(1);
-        return {
-            dosage: `${roundedMl}ml every 4-6 hours as needed`,
-            frequency: "As needed (PRN)",
-            duration: "3 days",
-            route: "Oral",
-            nurseInstructions: `Pediatric Paracetamol (${roundedMl}ml of ${syrupStrength} based on weight ${kg}kg, dose ~15mg/kg). Max 4 times daily.`,
-            quantity: 1
-        };
     }
 
-    // Amoxicillin Syrup (Pediatric dosing is smart)
-    if (name.includes('amoxicillin syrup')) {
-        const kg = weight || (age * 3 + 7);
-        const doseMg = Math.round((kg * 45) / 2); // 45mg/kg/day split BID
-        const ml = (doseMg / 250) * 5; // 250mg/5ml
-        const roundedMl = (Math.round(ml * 2) / 2).toFixed(1);
-        return {
-            dosage: `${roundedMl}ml twice daily`,
-            frequency: "Twice daily (BID)",
-            duration: "7 days",
-            route: "Oral",
-            nurseInstructions: `Pediatric Amoxicillin (${roundedMl}ml of 250mg/5ml based on weight ${kg}kg, ~22.5mg/kg/dose). Complete full course.`,
-            quantity: 1
-        };
+    // Amoxicillin
+    if (name.includes('amoxicillin')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7);
+            const doseMg = Math.round((kg * 45) / 2); // 45mg/kg/day split BID
+            const ml = (doseMg / 250) * 5; // 250mg/5ml
+            const roundedMl = (Math.round(ml * 2) / 2).toFixed(1);
+            return {
+                dosage: `Use Syrup: ${roundedMl}ml twice daily`,
+                frequency: "Twice daily (BID)",
+                duration: "7 days",
+                route: "Oral",
+                nurseInstructions: `Pediatric Amoxicillin Syrup (${roundedMl}ml of 250mg/5ml based on weight ${kg}kg, ~22.5mg/kg/dose). Complete full course.`,
+                quantity: 1
+            };
+        } else {
+            return {
+                dosage: "500mg three times daily",
+                frequency: "Three times daily (TID)",
+                duration: "7 days",
+                route: "Oral",
+                nurseInstructions: "Adult Amoxicillin (500mg TID for 7 days). Complete the full course.",
+                quantity: 21
+            };
+        }
+    }
+
+    // Augmentin (Amoxicillin/Clavulanate)
+    if (name.includes('augmentin') || (name.includes('amoxicillin') && name.includes('clavulanate'))) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7);
+            const doseMg = Math.round(kg * 22.5); // based on 228mg/5ml syrup BID
+            const ml = (doseMg / 228) * 5;
+            const roundedMl = (Math.round(ml * 2) / 2).toFixed(1);
+            return {
+                dosage: `Use Syrup: ${roundedMl}ml twice daily`,
+                frequency: "Twice daily (BID)",
+                duration: "7 days",
+                route: "Oral",
+                nurseInstructions: `Pediatric Augmentin Syrup (${roundedMl}ml of 228mg/5ml based on weight ${kg}kg, ~22.5mg/kg/dose). Give with meals.`,
+                quantity: 1
+            };
+        } else {
+            return {
+                dosage: "1g twice daily",
+                frequency: "Twice daily (BID)",
+                duration: "7 days",
+                route: "Oral",
+                nurseInstructions: "Adult Augmentin 1g twice daily (every 12 hours) with meals to improve stomach tolerance.",
+                quantity: 14
+            };
+        }
+    }
+
+    // Cefuroxime (Zinnat)
+    if (name.includes('cefuroxime') || name.includes('zinnat')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7);
+            const doseMg = Math.round(kg * 15); // based on 125mg/5ml BID
+            const ml = (doseMg / 125) * 5;
+            const roundedMl = (Math.round(ml * 2) / 2).toFixed(1);
+            return {
+                dosage: `Use Syrup: ${roundedMl}ml twice daily`,
+                frequency: "Twice daily (BID)",
+                duration: "7 days",
+                route: "Oral",
+                nurseInstructions: `Pediatric Cefuroxime (Zinnat) Syrup (${roundedMl}ml of 125mg/5ml based on weight ${kg}kg, ~15mg/kg/dose). Take with food.`,
+                quantity: 1
+            };
+        } else {
+            return {
+                dosage: "500mg twice daily",
+                frequency: "Twice daily (BID)",
+                duration: "7 days",
+                route: "Oral",
+                nurseInstructions: "Adult Cefuroxime 500mg twice daily after meals.",
+                quantity: 14
+            };
+        }
+    }
+
+    // Cefixime
+    if (name.includes('cefixime')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7);
+            const doseMg = Math.round(kg * 8); // 8mg/kg/day once daily
+            const ml = (doseMg / 100) * 5; // 100mg/5ml
+            const roundedMl = (Math.round(ml * 2) / 2).toFixed(1);
+            return {
+                dosage: `Use Syrup: ${roundedMl}ml once daily`,
+                frequency: "Once daily (QD)",
+                duration: "7 days",
+                route: "Oral",
+                nurseInstructions: `Pediatric Cefixime Syrup (${roundedMl}ml of 100mg/5ml based on weight ${kg}kg, ~8mg/kg once daily).`,
+                quantity: 1
+            };
+        } else {
+            return {
+                dosage: "400mg once daily",
+                frequency: "Once daily (QD)",
+                duration: "7 days",
+                route: "Oral",
+                nurseInstructions: "Adult Cefixime 400mg once daily.",
+                quantity: 7
+            };
+        }
+    }
+
+    // Diclofenac
+    if (name.includes('diclofenac')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7);
+            const doseMg = Math.round(kg * 1); // 1mg/kg twice daily
+            return {
+                dosage: `Use Syrup/Liquid: ${doseMg}mg twice daily (or Consult Pediatrician)`,
+                frequency: "Twice daily (BID)",
+                duration: "3 days",
+                route: "Oral",
+                nurseInstructions: `Pediatric Diclofenac (caution: ~1mg/kg/dose = ${doseMg}mg twice daily). Always consult senior pediatrician before giving NSAIDs to children.`,
+                quantity: 1
+            };
+        } else {
+            return {
+                dosage: "50mg twice daily",
+                frequency: "Twice daily (BID)",
+                duration: "5 days",
+                route: "Oral",
+                nurseInstructions: "Adult Diclofenac (50mg twice daily after meals). Take with food or antacids to protect the stomach.",
+                quantity: 10
+            };
+        }
+    }
+
+    // Tramadol
+    if (name.includes('tramadol')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            return {
+                dosage: "CONTRAINDICATED in children under 12",
+                frequency: "Once daily (QD)",
+                duration: "3 days",
+                route: "Oral",
+                nurseInstructions: "⚠️ CONTRAINDICATED: Tramadol is strictly contraindicated in patients under 12 years of age due to risk of serious life-threatening respiratory depression. Choose alternative pain medication.",
+                quantity: 0
+            };
+        } else {
+            return {
+                dosage: "50mg every 8-12 hours as needed",
+                frequency: "As needed (PRN)",
+                duration: "3 days",
+                route: "Oral",
+                nurseInstructions: "Adult Tramadol (50mg every 8-12 hours as needed for moderate-to-severe pain). Monitor for sedation and nausea.",
+                quantity: 6
+            };
+        }
+    }
+
+    // Omeprazole
+    if (name.includes('omeprazole')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7);
+            let pedDose = "10mg once daily";
+            if (kg < 10) pedDose = "5mg once daily";
+            else if (kg >= 20) pedDose = "20mg once daily";
+            return {
+                dosage: pedDose,
+                frequency: "Once daily (QD)",
+                duration: "14 days",
+                route: "Oral",
+                nurseInstructions: `Pediatric Omeprazole (${pedDose} based on weight ${kg.toFixed(1)}kg). Take in the morning on empty stomach.`,
+                quantity: 14
+            };
+        } else {
+            return {
+                dosage: "20mg once daily",
+                frequency: "Once daily (QD)",
+                duration: "14 days",
+                route: "Oral",
+                nurseInstructions: "Adult Omeprazole (20mg once daily in the morning, 30 minutes before first meal/breakfast).",
+                quantity: 14
+            };
+        }
     }
 
     return null;
