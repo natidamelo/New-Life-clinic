@@ -24,6 +24,64 @@ function parseFrequencyToDosesPerDay(frequency) {
     // Normalize frequency string for better detection
     const freq = frequency.toLowerCase().trim();
     
+    // Special Malaria / Loading schedules
+    if (freq.includes('stat, then 8h, then bid')) {
+        return {
+            dosesPerDay: 2,
+            normalizedFrequency: 'STAT, then 8h, then BID'
+        };
+    }
+    if (freq.includes('stat, 6h, 24h, 48h')) {
+        return {
+            dosesPerDay: 2,
+            normalizedFrequency: 'Special schedule (STAT, 6h, 24h, 48h)'
+        };
+    }
+    if (freq.includes('0, 12, 24 hours, then daily') || freq.includes('special schedule (0, 12, 24 hours')) {
+        return {
+            dosesPerDay: 2,
+            normalizedFrequency: 'Special schedule (0, 12, 24 hours, then daily)'
+        };
+    }
+
+    // Hourly intervals and special designations
+    if (freq.includes('q4h') || freq.includes('every 4 hours')) {
+        return {
+            dosesPerDay: 6,
+            normalizedFrequency: 'Every 4 hours'
+        };
+    }
+    if (freq.includes('q6h') || freq.includes('every 6 hours')) {
+        return {
+            dosesPerDay: 4,
+            normalizedFrequency: 'QID (four times daily)'
+        };
+    }
+    if (freq.includes('q8h') || freq.includes('every 8 hours')) {
+        return {
+            dosesPerDay: 3,
+            normalizedFrequency: 'TID (three times daily)'
+        };
+    }
+    if (freq.includes('q12h') || freq.includes('every 12 hours')) {
+        return {
+            dosesPerDay: 2,
+            normalizedFrequency: 'BID (twice daily)'
+        };
+    }
+    if (freq.includes('stat') || freq.includes('immediately')) {
+        return {
+            dosesPerDay: 1,
+            normalizedFrequency: 'STAT (immediately)'
+        };
+    }
+    if (freq.includes('prn') || freq.includes('as needed')) {
+        return {
+            dosesPerDay: 1,
+            normalizedFrequency: 'As needed (PRN)'
+        };
+    }
+
     // ROOT CAUSE FIX: Enhanced frequency detection with comprehensive patterns
     // Check most specific patterns first to avoid false matches
     
@@ -123,6 +181,8 @@ function validateFrequency(frequency) {
         originalFreq.includes('three') || originalFreq.includes('tid') || originalFreq.includes('3x') ||
         originalFreq.includes('twice') || originalFreq.includes('bid') || originalFreq.includes('2x') ||
         originalFreq.includes('once') || originalFreq.includes('daily') || originalFreq.includes('qd') ||
+        originalFreq.includes('stat, then 8h, then bid') || originalFreq.includes('stat, 6h, 24h, 48h') ||
+        originalFreq.includes('0, 12, 24 hours, then daily') || originalFreq.includes('special schedule') ||
         originalFreq.match(/(\d+)\s*times?.*daily/) !== null
     );
     

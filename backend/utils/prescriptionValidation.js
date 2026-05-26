@@ -163,7 +163,11 @@ async function ensureNurseTaskCreation(prescription, assignedNurseId = null) {
     let dosesPerDay = 1;
     
     // Determine doses per day based on frequency
-    if (frequency.includes('bid') || frequency.includes('twice')) {
+    if (frequency.includes('stat, then 8h, then bid') ||
+        frequency.includes('stat, 6h, 24h, 48h') ||
+        frequency.includes('0, 12, 24 hours, then daily')) {
+      dosesPerDay = 2;
+    } else if (frequency.includes('bid') || frequency.includes('twice')) {
       dosesPerDay = 2;
     } else if (frequency.includes('tid') || frequency.includes('three')) {
       dosesPerDay = 3;
@@ -405,11 +409,13 @@ async function createPrescriptionWithValidation(prescriptionData, assignedNurseI
     
     // Validate frequency format
     const validFrequencies = [
-      'Once daily (QD)', 'Twice daily (BID)', 'Three times daily (TID)', 'Four times daily (QID)',
+      'Once daily (QD)', 'Twice daily (BID)', 'STAT, then 8h, then BID', 'Three times daily (TID)', 'Four times daily (QID)',
       'Every 4 hours', 'Every 6 hours', 'Every 8 hours', 'Every 12 hours',
       'With meals (AC)', 'After meals (PC)', 'Before meals', 'At bedtime (HS)',
       'In the morning (AM)', 'In the evening (PM)', 'As needed (PRN)',
-      'Weekly', 'Twice weekly', 'Every other day', 'Monthly'
+      'Weekly', 'Twice daily - morning and evening', 'Three times daily - with meals',
+      'Weekly', 'Twice weekly', 'Every other day', 'Monthly',
+      'Special schedule (STAT, 6h, 24h, 48h)', 'Special schedule (0, 12, 24 hours, then daily)', 'Special schedule'
     ];
     
     if (!validFrequencies.includes(prescriptionData.frequency)) {

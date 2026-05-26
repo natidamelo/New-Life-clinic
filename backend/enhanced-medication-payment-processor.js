@@ -135,6 +135,10 @@ class EnhancedMedicationPaymentProcessor {
     
     const freq = frequency.toLowerCase();
     
+    if (freq.includes('stat, then 8h, then bid')) return 2;
+    if (freq.includes('stat, 6h, 24h, 48h')) return 2;
+    if (freq.includes('0, 12, 24 hours, then daily')) return 2;
+    
     if (freq.includes('bid') || freq.includes('twice')) return 2;
     if (freq.includes('tid') || freq.includes('three')) return 3;
     if (freq.includes('qid') || freq.includes('four')) return 4;

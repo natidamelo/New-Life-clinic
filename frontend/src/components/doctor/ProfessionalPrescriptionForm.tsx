@@ -870,6 +870,7 @@ const COMMON_DURATIONS = [
 const MOST_SUBSCRIBED_FREQUENCIES = [
     "Once daily (QD)",
     "Twice daily (BID)",
+    "STAT, then 8h, then BID",
     "Three times daily (TID)",
     "Every 8 hours",
     "Every 6 hours",
@@ -885,6 +886,7 @@ const ENHANCED_FREQUENCIES = [
     // Standard Daily Frequencies
     "Once daily (QD)",
     "Twice daily (BID)", 
+    "STAT, then 8h, then BID",
     "Three times daily (TID)",
     "Four times daily (QID)",
     "Five times daily",
@@ -945,6 +947,9 @@ const ENHANCED_FREQUENCIES = [
     "Continuous infusion",
     "Bolus dose",
     "Loading dose then maintenance",
+    "STAT, then 8h, then BID",
+    "Special schedule (STAT, 6h, 24h, 48h)",
+    "Special schedule (0, 12, 24 hours, then daily)",
     "Tapering dose",
     "Pulse therapy",
     "Cyclical therapy",
@@ -1142,10 +1147,10 @@ const getSmartPrescriptionSuggestions = (
         const totalTablets = tabletsPerDose * 6; // BID for 3 days = 6 doses
         return {
             dosage: `${tabletsPerDose} tablet(s) per dose`,
-            frequency: "Twice daily (BID)",
+            frequency: "STAT, then 8h, then BID",
             duration: "3 days",
             route: "Oral",
-            nurseInstructions: `Take with fatty food or milk to enhance absorption. Total course: ${totalTablets} tablets. (${reason})`,
+            nurseInstructions: `STAT (immediately), 2nd dose at 8 hours, then twice daily (every 12 hours) for Day 2 & 3. Take with fatty food or milk to enhance absorption. Total course: ${totalTablets} tablets. (${reason})`,
             quantity: totalTablets
         };
     }
@@ -1314,6 +1319,7 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
     const [customDosage, setCustomDosage] = useState<{[index: number]: boolean}>({0: false});
     const [customInstructions, setCustomInstructions] = useState(false);
     const [customDuration, setCustomDuration] = useState<{[key: string]: boolean}>({});
+    const [customFrequency, setCustomFrequency] = useState<{[key: string]: boolean}>({});
     const [customSpecialInstructions, setCustomSpecialInstructions] = useState<{[index: number]: boolean}>({0: false});
     const [drugInteractions, setDrugInteractions] = useState<string[]>([]);
     const [showInteractionWarning, setShowInteractionWarning] = useState(false);
@@ -1394,6 +1400,10 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
         // Check if duration matches standard dropdowns
         const isCustomDuration = !MOST_SUBSCRIBED_DURATIONS.includes(rec.duration) && !COMMON_DURATIONS.includes(rec.duration);
         setCustomDuration(prev => ({ ...prev, [`med-${index}`]: isCustomDuration }));
+
+        // Check if frequency matches standard dropdowns
+        const isCustomFrequency = !MOST_SUBSCRIBED_FREQUENCIES.includes(rec.frequency) && !ENHANCED_FREQUENCIES.includes(rec.frequency);
+        setCustomFrequency(prev => ({ ...prev, [`med-${index}`]: isCustomFrequency }));
 
         toast.success("Applied smart dosage recommendation!");
     };
@@ -1501,6 +1511,7 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
         setCustomMedication({...customMedication, [newIndex]: false});
         setCustomDosage({...customDosage, [newIndex]: false});
         setCustomSpecialInstructions({...customSpecialInstructions, [newIndex]: false});
+        setCustomFrequency(prev => ({ ...prev, [`med-${newIndex}`]: false }));
         
         // Initialize extension eligibility for new medication
         setExtensionEligibility(prev => ({ ...prev, [newIndex]: false }));
@@ -1538,6 +1549,17 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
         setCustomMedication(newCustomMed);
         setCustomDosage(newCustomDosage);
         setCustomSpecialInstructions(newCustomSpecialInstructions);
+
+        setCustomDuration(prev => {
+            const next = { ...prev };
+            delete next[`med-${index}`];
+            return next;
+        });
+        setCustomFrequency(prev => {
+            const next = { ...prev };
+            delete next[`med-${index}`];
+            return next;
+        });
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index?: number) => {
@@ -1620,6 +1642,14 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                 } else {
                     setExtensionEligibility(prev => ({ ...prev, [index]: false }));
                 }
+            }
+
+            // If frequency or duration changes via typing, recalculate quantity
+            if ((name === 'frequency' || name === 'duration') && updatedMedications[index].frequency && updatedMedications[index].duration) {
+                updatedMedications[index].quantity = calculateQuantity(
+                    updatedMedications[index].frequency,
+                    updatedMedications[index].duration
+                );
             }
 
             setMedications(updatedMedications);
@@ -2049,6 +2079,7 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
         // Extract number of times per day from frequency
         let timesPerDay = 1;
         if (frequency.includes('Once') || frequency.includes('QD')) timesPerDay = 1;
+        else if (frequency.includes('STAT, then 8h, then BID') || frequency.includes('STAT, then 8h')) timesPerDay = 2;
         else if (frequency.includes('Twice') || frequency.includes('BID')) timesPerDay = 2;
         else if (frequency.includes('Three times') || frequency.includes('TID')) timesPerDay = 3;
         else if (frequency.includes('Four times') || frequency.includes('QID')) timesPerDay = 4;
@@ -3838,16 +3869,25 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
 
                                                     {/* Frequency */}
                                                     <div>
-                                                        <Label className="text-xs font-medium text-muted-foreground block mb-1">Frequency <span className="text-destructive">*</span></Label>
-                                                        <select value={medication.frequency || ''} onChange={(e) => handleSelectChange('frequency', e.target.value, index)} className={`w-full h-8 text-xs px-2 border rounded bg-background ${errors[`medications[${index}].frequency`] ? 'border-destructive' : 'border-border'}`}>
-                                                            <option value="">Select frequency</option>
-                                                            <optgroup label="Common">
-                                                                {MOST_SUBSCRIBED_FREQUENCIES.map(f => <option key={f} value={f}>{f}</option>)}
-                                                            </optgroup>
-                                                            <optgroup label="All">
-                                                                {ENHANCED_FREQUENCIES.map(f => <option key={f} value={f}>{f}</option>)}
-                                                            </optgroup>
-                                                        </select>
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <Label className="text-xs font-medium text-muted-foreground">Frequency <span className="text-destructive">*</span></Label>
+                                                            <button type="button" className="text-xs text-primary hover:underline" onClick={() => setCustomFrequency({...customFrequency, [`med-${index}`]: !customFrequency[`med-${index}`]})}>
+                                                                {customFrequency[`med-${index}`] ? 'List' : 'Custom'}
+                                                            </button>
+                                                        </div>
+                                                        {!customFrequency[`med-${index}`] ? (
+                                                            <select value={medication.frequency || ''} onChange={(e) => handleSelectChange('frequency', e.target.value, index)} className={`w-full h-8 text-xs px-2 border rounded bg-background ${errors[`medications[${index}].frequency`] ? 'border-destructive' : 'border-border'}`}>
+                                                                <option value="">Select frequency</option>
+                                                                <optgroup label="Common">
+                                                                    {MOST_SUBSCRIBED_FREQUENCIES.map(f => <option key={f} value={f}>{f}</option>)}
+                                                                </optgroup>
+                                                                <optgroup label="All">
+                                                                    {ENHANCED_FREQUENCIES.map(f => <option key={f} value={f}>{f}</option>)}
+                                                                </optgroup>
+                                                            </select>
+                                                        ) : (
+                                                            <Input name="frequency" value={medication.frequency || ''} onChange={(e) => handleInputChange(e, index)} placeholder="e.g. STAT, then 8h, then BID" className={`h-8 text-xs ${errors[`medications[${index}].frequency`] ? 'border-destructive' : ''}`} />
+                                                        )}
                                                         {errors[`medications[${index}].frequency`] && <p className="text-xs text-destructive mt-0.5">{errors[`medications[${index}].frequency`]}</p>}
                                                     </div>
 

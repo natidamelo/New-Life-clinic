@@ -19,6 +19,15 @@ class MedicationCalculator {
     
     const freq = frequency.toLowerCase().trim();
     
+    // Special Malaria / Loading schedules
+    if (freq.includes('stat, then 8h, then bid')) {
+      return 2;
+    } else if (freq.includes('stat, 6h, 24h, 48h')) {
+      return 2;
+    } else if (freq.includes('0, 12, 24 hours, then daily')) {
+      return 2;
+    }
+    
     // Prioritize explicit frequency terms and common variations
     if (freq.includes('qid') || freq.includes('four times') || freq.includes('4x')) {
       return 4;
