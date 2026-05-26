@@ -1099,6 +1099,45 @@ const getSmartPrescriptionSuggestions = (
 ): SmartRecommendation | null => {
     if (!medicationName) return null;
     const name = medicationName.toLowerCase();
+
+    // Helper to calculate daily maintenance fluid volume based on weight and age
+    const calculateMaintenanceFluids = (isDextrose1000ml: boolean): SmartRecommendation => {
+        const kg = weight || (age < 12 ? (age * 3 + 7) : 70);
+        let dailyVolume = 2000; // default for adult if weight is missing
+        let reason = "";
+
+        if (age < 12 || kg < 35) {
+            // Holiday-Segar pediatric formula
+            if (kg <= 10) {
+                dailyVolume = kg * 100;
+            } else if (kg <= 20) {
+                dailyVolume = 1000 + (kg - 10) * 50;
+            } else {
+                dailyVolume = 1500 + (kg - 20) * 20;
+            }
+            reason = `Pediatric fluid maintenance (Holiday-Segar) for weight ${kg.toFixed(0)}kg`;
+        } else {
+            // Adult maintenance formula: ~35 ml/kg/day
+            dailyVolume = kg * 35;
+            reason = `Adult fluid maintenance (~35ml/kg/day) for weight ${kg.toFixed(0)}kg`;
+        }
+
+        // Round to nearest 100ml for clinical cleanliness
+        dailyVolume = Math.round(dailyVolume / 100) * 100;
+
+        const bagSize = isDextrose1000ml ? 1000 : 500;
+        const quantity = Math.ceil(dailyVolume / bagSize);
+        const rateMlPerHour = Math.round(dailyVolume / 24);
+
+        return {
+            dosage: `${dailyVolume}ml IV infusion`,
+            frequency: "Once daily (QD)",
+            duration: "1 day",
+            route: "Intravenous",
+            nurseInstructions: `IV Fluid Hydration: Infuse ${dailyVolume}ml intravenously over 24 hours (approx. ${rateMlPerHour} ml/hr). Dispensing ${quantity} x ${bagSize}ml bag(s). (${reason}).`,
+            quantity: quantity
+        };
+    };
     
     // Coartem / Artemether-Lumefantrine
     if (name.includes('coartem') || (name.includes('artemether') && name.includes('lumefantrine'))) {
@@ -1497,73 +1536,18 @@ const getSmartPrescriptionSuggestions = (
 
     // Normal Saline / Saline
     if (name.includes('normal saline') || (name.includes('saline') && name.includes('0.9%'))) {
-        if (age < 12 || (weight !== null && weight < 35)) {
-            return {
-                dosage: "Consult pediatrician for rate",
-                frequency: "As directed",
-                duration: "1 day",
-                route: "Intravenous",
-                nurseInstructions: "Pediatric IV saline hydration: Calculate infusion rate based on child weight or consult pediatrician.",
-                quantity: 1
-            };
-        } else {
-            return {
-                dosage: "500ml IV infusion",
-                frequency: "Once daily (QD)",
-                duration: "1 day",
-                route: "Intravenous",
-                nurseInstructions: "Adult Normal Saline (500ml IV infusion STAT or as directed). Infuse intravenously at standard maintenance rate.",
-                quantity: 1
-            };
-        }
+        return calculateMaintenanceFluids(false);
     }
 
     // Ringer Lactate / Hartmann Solution
     if (name.includes('ringer') || name.includes('hartmann')) {
-        if (age < 12 || (weight !== null && weight < 35)) {
-            return {
-                dosage: "Consult pediatrician for rate",
-                frequency: "As directed",
-                duration: "1 day",
-                route: "Intravenous",
-                nurseInstructions: "Pediatric IV Ringer Lactate hydration: Calculate infusion rate based on weight/hydration status or consult pediatrician.",
-                quantity: 1
-            };
-        } else {
-            return {
-                dosage: "500ml IV infusion",
-                frequency: "Once daily (QD)",
-                duration: "1 day",
-                route: "Intravenous",
-                nurseInstructions: "Adult Ringer's Lactate (500ml IV infusion STAT or as directed). Infuse intravenously for fluid resuscitation/hydration.",
-                quantity: 1
-            };
-        }
+        return calculateMaintenanceFluids(false);
     }
 
     // Dextrose
     if (name.includes('dextrose')) {
-        if (age < 12 || (weight !== null && weight < 35)) {
-            return {
-                dosage: "Consult pediatrician for rate",
-                frequency: "As directed",
-                duration: "1 day",
-                route: "Intravenous",
-                nurseInstructions: "Pediatric IV Dextrose infusion: Calculate infusion rate based on pediatric maintenance guidelines.",
-                quantity: 1
-            };
-        } else {
-            const isD5 = name.includes('5%') || !name.includes('50%') && !name.includes('10%');
-            const vol = isD5 ? "1000ml" : "500ml";
-            return {
-                dosage: `${vol} IV infusion`,
-                frequency: "Once daily (QD)",
-                duration: "1 day",
-                route: "Intravenous",
-                nurseInstructions: `Adult Dextrose infusion (${vol} IV infusion once daily or as directed). Infuse slowly.`,
-                quantity: 1
-            };
-        }
+        const isD5 = name.includes('5%') || !name.includes('50%') && !name.includes('10%');
+        return calculateMaintenanceFluids(isD5);
     }
 
     // Glucose 40% / Hypertonic Glucose
