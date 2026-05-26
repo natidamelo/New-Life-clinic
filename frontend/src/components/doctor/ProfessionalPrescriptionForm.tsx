@@ -22,14 +22,18 @@ const LOGO_FALLBACK = '/assets/images/logo-placeholder.svg';
 
 // Most subscribed medications (most commonly prescribed)
 const MOST_SUBSCRIBED_MEDICATIONS = [
+    "Coartem (Artemether 20mg / Lumefantrine 120mg)",
     "Paracetamol 500mg",
     "Amoxicillin 500mg", 
     "Ibuprofen 400mg",
     "Azithromycin 500mg",
     "Paracetamol Syrup 250mg/5ml",
     "Amoxicillin Syrup 250mg/5ml",
-    "Cough Syrup",
-    "Exedeve Syrup",
+    "Ceftriaxone 1g Injection",
+    "Amoxicillin/Clavulanate 1g",
+    "Cefuroxime 500mg",
+    "Pantoprazole 40mg",
+    "Ondansetron 4mg",
     "Metformin 500mg",
     "Amlodipine 5mg",
     "Atorvastatin 20mg",
@@ -45,14 +49,29 @@ const MOST_SUBSCRIBED_MEDICATIONS = [
 
 // Common medications list
 const COMMON_MEDICATIONS = [
+    // 🦟 ANTIMALARIALS
+    "Coartem (Artemether 20mg / Lumefantrine 120mg)",
+    "Artesunate 60mg Injection",
+    "Artesunate Rectal Caps 50mg",
+    "Chloroquine Phosphate 250mg",
+    "Quinine Sulfate 300mg",
+    "Primaquine 15mg",
+
     // 🩹 ANTIBIOTICS & ANTI-INFECTIVES
     "Amoxicillin 250mg",
     "Amoxicillin 500mg",
     "Amoxicillin/Clavulanate 625mg",
+    "Amoxicillin/Clavulanate 1g",
     "Azithromycin 250mg",
     "Azithromycin 500mg",
+    "Cefixime 400mg",
+    "Cefuroxime 250mg",
+    "Cefuroxime 500mg",
     "Ciprofloxacin 250mg",
     "Ciprofloxacin 500mg",
+    "Ceftriaxone 500mg Injection",
+    "Ceftriaxone 1g Injection",
+    "Clarithromycin 500mg",
     "Clindamycin 150mg",
     "Clindamycin 300mg",
     "Doxycycline 100mg",
@@ -80,6 +99,8 @@ const COMMON_MEDICATIONS = [
     "Codeine Cough Syrup 15mg/5ml",
     "Dextromethorphan Syrup 15mg/5ml",
     "Expectorant Syrup 100mg/5ml",
+    "Guaifenesin Syrup 100mg/5ml",
+    "Bromhexine Syrup 8mg/5ml",
     "Iron Syrup 50mg/5ml",
     "Multivitamin Syrup",
     "Antacid Syrup 10ml",
@@ -147,12 +168,15 @@ const COMMON_MEDICATIONS = [
     "Omeprazole 40mg",
     "Esomeprazole 20mg",
     "Esomeprazole 40mg",
+    "Pantoprazole 40mg",
     "Ranitidine 150mg",
     "Ranitidine 300mg",
     "Famotidine 20mg",
     "Famotidine 40mg",
     "Domperidone 10mg",
     "Metoclopramide 10mg",
+    "Ondansetron 4mg",
+    "Ondansetron 8mg",
     "Loperamide 2mg",
     "Mebeverine 135mg",
     "Hyoscine Butylbromide 10mg",
@@ -215,6 +239,8 @@ const COMMON_MEDICATIONS = [
     "Calcium + Vitamin D3",
     "Vitamin D3 1000IU",
     "Vitamin D3 5000IU",
+    "Vitamin D3 20000IU",
+    "Vitamin D3 50000IU",
     "Iron 65mg",
     "Iron + Folic Acid",
     "Folic Acid 5mg",
@@ -222,6 +248,7 @@ const COMMON_MEDICATIONS = [
     "Vitamin B Complex",
     "Multivitamin Tablets",
     "Zinc 10mg",
+    "Zinc Sulfate 20mg",
     "Magnesium 200mg",
 
     // 🦠 ANTIFUNGALS
@@ -361,10 +388,25 @@ const COMMON_DOSAGES = [
 // Add this medication-to-dosage mapping after the COMMON_MEDICATIONS list
 // Create a mapping of medications to their appropriate dosages
 const MEDICATION_DOSAGES: Record<string, string[]> = {
+  // ANTIMALARIALS
+  "Coartem (Artemether 20mg / Lumefantrine 120mg)": ["4 tablets twice daily (adult)", "3 tablets twice daily", "2 tablets twice daily", "1 tablet twice daily"],
+  "Artesunate 60mg Injection": ["2.4 mg/kg IV at 0, 12, 24 hours, then daily", "120mg IV STAT, then 120mg at 12h, 24h, then daily", "60mg IV daily"],
+  "Artesunate Rectal Caps 50mg": ["50mg rectally once STAT", "100mg rectally once STAT", "200mg rectally once STAT"],
+  "Chloroquine Phosphate 250mg": ["4 tablets (1g) STAT, then 2 tablets at 6h, 24h, 48h", "250mg once daily"],
+  "Quinine Sulfate 300mg": ["600mg every 8 hours", "300mg every 8 hours"],
+  "Primaquine 15mg": ["15mg once daily for 14 days", "30mg once daily"],
+
   // ANTIBIOTICS & ANTI-INFECTIVES
   "Amoxicillin 250mg": ["250mg"],
   "Amoxicillin 500mg": ["500mg", "1g"],
   "Amoxicillin/Clavulanate 625mg": ["625mg"],
+  "Amoxicillin/Clavulanate 1g": ["1g", "500/125mg"],
+  "Cefixime 400mg": ["400mg once daily", "200mg twice daily"],
+  "Cefuroxime 250mg": ["250mg twice daily"],
+  "Cefuroxime 500mg": ["500mg twice daily"],
+  "Ceftriaxone 500mg Injection": ["500mg IV once daily"],
+  "Ceftriaxone 1g Injection": ["1g IV once daily", "2g IV once daily"],
+  "Clarithromycin 500mg": ["500mg twice daily"],
   "Azithromycin 250mg": ["250mg", "500mg"],
   "Azithromycin 500mg": ["500mg"],
   "Ciprofloxacin 250mg": ["250mg", "750mg"],
@@ -468,12 +510,15 @@ const MEDICATION_DOSAGES: Record<string, string[]> = {
   "Omeprazole 40mg": ["40mg once daily", "20mg once daily"],
   "Esomeprazole 20mg": ["20mg once daily", "40mg once daily"],
   "Esomeprazole 40mg": ["40mg once daily", "20mg once daily"],
+  "Pantoprazole 40mg": ["40mg once daily before breakfast", "40mg twice daily"],
   "Ranitidine 150mg": ["150mg twice daily", "150mg at bedtime"],
   "Ranitidine 300mg": ["300mg at bedtime", "150mg twice daily"],
   "Famotidine 20mg": ["20mg twice daily", "20mg at bedtime"],
   "Famotidine 40mg": ["40mg at bedtime", "20mg twice daily"],
   "Domperidone 10mg": ["10mg three times daily before meals", "10mg four times daily"],
   "Metoclopramide 10mg": ["10mg three times daily", "10mg four times daily"],
+  "Ondansetron 4mg": ["4mg twice daily", "4mg three times daily", "8mg STAT then 4mg twice daily"],
+  "Ondansetron 8mg": ["8mg twice daily", "8mg STAT"],
   "Loperamide 2mg": ["2mg after each loose stool", "4mg initially then 2mg after each stool"],
   "Mebeverine 135mg": ["135mg three times daily", "135mg twice daily"],
   "Hyoscine Butylbromide 10mg": ["10mg three times daily", "10mg four times daily"],
@@ -536,6 +581,8 @@ const MEDICATION_DOSAGES: Record<string, string[]> = {
   "Calcium + Vitamin D3": ["1 tablet daily", "1 tablet twice daily"],
   "Vitamin D3 1000IU": ["1000IU daily", "2000IU daily"],
   "Vitamin D3 5000IU": ["5000IU daily", "5000IU weekly"],
+  "Vitamin D3 20000IU": ["20000IU weekly"],
+  "Vitamin D3 50000IU": ["50000IU weekly"],
   "Iron 65mg": ["65mg once daily", "65mg twice daily"],
   "Iron + Folic Acid": ["1 tablet daily", "1 tablet twice daily"],
   "Folic Acid 5mg": ["5mg daily", "5mg weekly"],
@@ -543,6 +590,7 @@ const MEDICATION_DOSAGES: Record<string, string[]> = {
   "Vitamin B Complex": ["1 tablet daily", "1 tablet twice daily"],
   "Multivitamin Tablets": ["1 tablet daily", "1 tablet with breakfast"],
   "Zinc 10mg": ["10mg daily", "10mg twice daily"],
+  "Zinc Sulfate 20mg": ["20mg once daily", "10mg once daily", "20mg daily for 10-14 days"],
   "Magnesium 200mg": ["200mg daily", "200mg twice daily"],
 
   // ANTIFUNGALS
@@ -657,7 +705,9 @@ const MEDICATION_DOSAGES: Record<string, string[]> = {
   "Oral Rehydration Salts": ["As per WHO guidelines", "200ml after each loose stool"],
   "Zinc Drops 10mg/ml": ["1ml daily", "0.5ml daily"],
   "Iron Drops 25mg/ml": ["1ml daily", "0.5ml daily"],
-  "Vitamin D Drops 400IU/drop": ["1 drop daily", "2 drops daily"]
+  "Vitamin D Drops 400IU/drop": ["1 drop daily", "2 drops daily"],
+  "Guaifenesin Syrup 100mg/5ml": ["5ml three times daily", "2.5ml three times daily", "10ml three times daily"],
+  "Bromhexine Syrup 8mg/5ml": ["5ml three times daily", "2.5ml twice daily", "10ml three times daily"]
 };
 
 // Most subscribed routes (most commonly prescribed)
@@ -1025,6 +1075,203 @@ interface PrescriptionData {
     externalPrescriptionsCount?: number;
 }
 
+// Smart recommendation interface
+interface SmartRecommendation {
+    dosage: string;
+    frequency: string;
+    duration: string;
+    route: string;
+    nurseInstructions: string;
+    quantity: number;
+}
+
+// Smart prescription dosage helper based on patient age and weight
+const getSmartPrescriptionSuggestions = (
+    medicationName: string,
+    age: number,
+    weight: number | null
+): SmartRecommendation | null => {
+    if (!medicationName) return null;
+    const name = medicationName.toLowerCase();
+    
+    // Coartem / Artemether-Lumefantrine
+    if (name.includes('coartem') || (name.includes('artemether') && name.includes('lumefantrine'))) {
+        let tabletsPerDose = 4;
+        let reason = "";
+        
+        if (weight !== null) {
+            if (weight < 5) {
+                return {
+                    dosage: "Consult pediatrician (under 5 kg)",
+                    frequency: "Once daily (QD)",
+                    duration: "3 days",
+                    route: "Oral",
+                    nurseInstructions: "Coartem is not standard for infants under 5 kg. Consult senior pediatrician for alternative treatment.",
+                    quantity: 1
+                };
+            } else if (weight < 15) {
+                tabletsPerDose = 1;
+                reason = `Weight: ${weight} kg (5-14 kg)`;
+            } else if (weight < 25) {
+                tabletsPerDose = 2;
+                reason = `Weight: ${weight} kg (15-24 kg)`;
+            } else if (weight < 35) {
+                tabletsPerDose = 3;
+                reason = `Weight: ${weight} kg (25-34 kg)`;
+            } else {
+                tabletsPerDose = 4;
+                reason = `Weight: ${weight} kg (>=35 kg)`;
+            }
+        } else {
+            // Fallback to age
+            if (age < 3) {
+                tabletsPerDose = 1;
+                reason = `Age: ${age} years (approx. 5-14 kg)`;
+            } else if (age <= 8) {
+                tabletsPerDose = 2;
+                reason = `Age: ${age} years (approx. 15-24 kg)`;
+            } else if (age <= 14) {
+                tabletsPerDose = 3;
+                reason = `Age: ${age} years (approx. 25-34 kg)`;
+            } else {
+                tabletsPerDose = 4;
+                reason = `Age: ${age} years (adult dosing)`;
+            }
+        }
+        
+        const totalTablets = tabletsPerDose * 6; // BID for 3 days = 6 doses
+        return {
+            dosage: `${tabletsPerDose} tablet(s) per dose`,
+            frequency: "Twice daily (BID)",
+            duration: "3 days",
+            route: "Oral",
+            nurseInstructions: `Take with fatty food or milk to enhance absorption. Total course: ${totalTablets} tablets. (${reason})`,
+            quantity: totalTablets
+        };
+    }
+    
+    // Chloroquine Phosphate (for P. vivax)
+    if (name.includes('chloroquine')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7); // estimate
+            const statDose = Math.round(kg * 10);
+            const maintenanceDose = Math.round(kg * 5);
+            return {
+                dosage: `${statDose}mg STAT, then ${maintenanceDose}mg at 6h, 24h, 48h`,
+                frequency: "Special schedule (STAT, 6h, 24h, 48h)",
+                duration: "3 days",
+                route: "Oral",
+                nurseInstructions: `Pediatric chloroquine dosing (based on ~${kg}kg). Give STAT: ${statDose}mg, then ${maintenanceDose}mg at 6h, 24h, 48h.`,
+                quantity: Math.ceil((statDose + maintenanceDose * 3) / 250)
+            };
+        } else {
+            return {
+                dosage: "4 tablets (1g) STAT, then 2 tablets (500mg) after 6 hours, then 2 tablets daily for 2 days",
+                frequency: "Special schedule",
+                duration: "3 days",
+                route: "Oral",
+                nurseInstructions: "Take with food. Standard adult Chloroquine course for P. vivax.",
+                quantity: 10
+            };
+        }
+    }
+    
+    // Quinine Sulfate
+    if (name.includes('quinine')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7);
+            const dose = Math.round(kg * 10);
+            return {
+                dosage: `${dose}mg every 8 hours`,
+                frequency: "Every 8 hours",
+                duration: "7 days",
+                route: "Oral",
+                nurseInstructions: `Pediatric Quinine dosing (10mg/kg every 8 hours for 7 days). Monitor for hypoglycemia and cinchonism.`,
+                quantity: Math.ceil((dose * 3 * 7) / 300)
+            };
+        } else {
+            return {
+                dosage: "600mg (2 tablets)",
+                frequency: "Every 8 hours",
+                duration: "7 days",
+                route: "Oral",
+                nurseInstructions: "Take with food. Adult Quinine therapy (600mg every 8 hours for 7 days).",
+                quantity: 42
+            };
+        }
+    }
+    
+    // Artesunate Injection
+    if (name.includes('artesunate') && name.includes('inject')) {
+        const kg = weight || (age < 12 ? (age * 3 + 7) : 60);
+        const dose = (kg * 2.4).toFixed(1);
+        return {
+            dosage: `${dose}mg IV/IM`,
+            frequency: "Special schedule (0, 12, 24 hours, then daily)",
+            duration: "3 days",
+            route: "Intravenous",
+            nurseInstructions: `Severe Malaria IV/IM protocol: 2.4 mg/kg Artesunate at 0h, 12h, 24h, then daily. Dilute and administer over 1-2 minutes.`,
+            quantity: 3
+        };
+    }
+
+    // Ceftriaxone (Pediatric dosing is smart)
+    if (name.includes('ceftriaxone')) {
+        if (age < 12 || (weight !== null && weight < 35)) {
+            const kg = weight || (age * 3 + 7);
+            const doseMg = Math.round(kg * 75); // 50-80 mg/kg/day, use 75mg/kg
+            const roundedDose = doseMg > 1000 ? 1000 : doseMg;
+            return {
+                dosage: `${roundedDose}mg once daily`,
+                frequency: "Once daily (QD)",
+                duration: "5 days",
+                route: "Intravenous",
+                nurseInstructions: `Pediatric Ceftriaxone (${roundedDose}mg based on approx ${kg}kg at 75mg/kg/day).`,
+                quantity: 5
+            };
+        }
+    }
+
+    // Paracetamol Syrup / Drops (Pediatric dosing is smart)
+    if (name.includes('paracetamol syrup') || name.includes('paracetamol drops')) {
+        const kg = weight || (age * 3 + 7);
+        const doseMg = Math.round(kg * 15);
+        let ml = (doseMg / 250) * 5; // 250mg/5ml
+        let syrupStrength = "250mg/5ml";
+        if (name.includes('drops') || age < 1) {
+            ml = (doseMg / 80) * 0.8;
+            syrupStrength = "80mg/0.8ml drops";
+        }
+        const roundedMl = (Math.round(ml * 2) / 2).toFixed(1);
+        return {
+            dosage: `${roundedMl}ml every 4-6 hours as needed`,
+            frequency: "As needed (PRN)",
+            duration: "3 days",
+            route: "Oral",
+            nurseInstructions: `Pediatric Paracetamol (${roundedMl}ml of ${syrupStrength} based on weight ${kg}kg, dose ~15mg/kg). Max 4 times daily.`,
+            quantity: 1
+        };
+    }
+
+    // Amoxicillin Syrup (Pediatric dosing is smart)
+    if (name.includes('amoxicillin syrup')) {
+        const kg = weight || (age * 3 + 7);
+        const doseMg = Math.round((kg * 45) / 2); // 45mg/kg/day split BID
+        const ml = (doseMg / 250) * 5; // 250mg/5ml
+        const roundedMl = (Math.round(ml * 2) / 2).toFixed(1);
+        return {
+            dosage: `${roundedMl}ml twice daily`,
+            frequency: "Twice daily (BID)",
+            duration: "7 days",
+            route: "Oral",
+            nurseInstructions: `Pediatric Amoxicillin (${roundedMl}ml of 250mg/5ml based on weight ${kg}kg, ~22.5mg/kg/dose). Complete full course.`,
+            quantity: 1
+        };
+    }
+
+    return null;
+};
+
 interface ProfessionalPrescriptionFormProps {
     patient: Patient | null; // Accept the selected patient object
     onClose: () => void;
@@ -1078,6 +1325,39 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
     const SAVED_EXTERNAL_MEDS_KEY = 'nlc_saved_external_meds';
     const SAVED_CUSTOM_DOSAGES_KEY = 'nlc_saved_custom_dosages';
     const [savedCustomDosages, setSavedCustomDosages] = useState<string[]>([]);
+    const [overrideWeight, setOverrideWeight] = useState<string>('');
+    const [overrideHeight, setOverrideHeight] = useState<string>('');
+
+    // Pre-populate overrideWeight and overrideHeight when patient changes
+    useEffect(() => {
+        if (patient) {
+            const w = patient.vitals?.weight || patient.weight || '';
+            const wMatch = String(w).match(/(\d+(?:\.\d+)?)/);
+            if (wMatch) {
+                setOverrideWeight(wMatch[1]);
+            } else {
+                setOverrideWeight('');
+            }
+
+            const h = patient.vitals?.height || patient.height || '';
+            const hMatch = String(h).match(/(\d+(?:\.\d+)?)/);
+            if (hMatch) {
+                setOverrideHeight(hMatch[1]);
+            } else {
+                setOverrideHeight('');
+            }
+        }
+    }, [patient]);
+
+    // Calculate BMI dynamically
+    const calculatedBMI = React.useMemo(() => {
+        const w = parseFloat(overrideWeight);
+        const h = parseFloat(overrideHeight) / 100; // cm to meters
+        if (w && h && h > 0) {
+            return (w / (h * h)).toFixed(1);
+        }
+        return '';
+    }, [overrideWeight, overrideHeight]);
 
     // Persist a custom dosage for next time (on blur of Custom dosage field only, to avoid saving partial typing like "4", "45", "450m")
     const saveCustomDosageForNextTime = (dosage: string) => {
@@ -1090,6 +1370,32 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
             } catch {}
             return next;
         });
+    };
+
+    const applySmartRecommendation = (index: number, rec: SmartRecommendation) => {
+        setMedications(prev => {
+            const next = [...prev];
+            next[index] = {
+                ...next[index],
+                dosage: rec.dosage,
+                frequency: rec.frequency,
+                duration: rec.duration,
+                route: rec.route,
+                nurseInstructions: rec.nurseInstructions,
+                quantity: rec.quantity
+            };
+            return next;
+        });
+
+        // Toggle custom view for custom/complex values
+        setCustomDosage(prev => ({ ...prev, [index]: true }));
+        setCustomSpecialInstructions(prev => ({ ...prev, [index]: true }));
+
+        // Check if duration matches standard dropdowns
+        const isCustomDuration = !MOST_SUBSCRIBED_DURATIONS.includes(rec.duration) && !COMMON_DURATIONS.includes(rec.duration);
+        setCustomDuration(prev => ({ ...prev, [`med-${index}`]: isCustomDuration }));
+
+        toast.success("Applied smart dosage recommendation!");
     };
 
     // Fetch available medications from inventory and nurses on component mount
@@ -2958,7 +3264,7 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                     {/* Patient Information */}
                     <div className="mb-4 p-3 rounded-lg border border-border bg-muted/30">
                         <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Patient Information</p>
-                        <div className="grid grid-cols-4 gap-3 text-xs">
+                        <div className="grid grid-cols-4 sm:grid-cols-7 gap-3 items-center text-xs">
                             <div>
                                 <p className="text-muted-foreground mb-0.5">Full Name</p>
                                 <p className="font-medium text-foreground">{patient.firstName} {patient.lastName}</p>
@@ -2974,6 +3280,32 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                             <div>
                                 <p className="text-muted-foreground mb-0.5">Patient ID</p>
                                 <p className="font-medium text-foreground">{patient.patientId}</p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground mb-0.5">Weight (kg)</p>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    value={overrideWeight}
+                                    onChange={(e) => setOverrideWeight(e.target.value)}
+                                    placeholder="Weight"
+                                    className="h-6 w-16 text-xs px-1 border border-border rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-medium"
+                                />
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground mb-0.5">Height (cm)</p>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    value={overrideHeight}
+                                    onChange={(e) => setOverrideHeight(e.target.value)}
+                                    placeholder="Height"
+                                    className="h-6 w-16 text-xs px-1 border border-border rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-medium"
+                                />
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground mb-0.5">BMI</p>
+                                <p className="font-semibold text-foreground">{calculatedBMI || 'N/A'}</p>
                             </div>
                         </div>
                     </div>
@@ -3422,6 +3754,40 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                                             </div>
                                         ) : (
                                             <>
+                                                {(() => {
+                                                    const smartRec = medication.medication
+                                                        ? getSmartPrescriptionSuggestions(
+                                                            medication.medication,
+                                                            patient.age,
+                                                            overrideWeight ? parseFloat(overrideWeight) : null
+                                                          )
+                                                        : null;
+                                                    
+                                                    return smartRec ? (
+                                                        <div className="p-2.5 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 rounded-md text-xs text-blue-900 dark:text-blue-200 mb-3 flex flex-col gap-1.5 shadow-sm">
+                                                            <div className="flex items-center gap-1.5 font-semibold text-blue-800 dark:text-blue-300">
+                                                                <span className="text-sm">💡</span>
+                                                                <span>Smart Dosage Suggestion (based on patient age/weight):</span>
+                                                            </div>
+                                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 bg-white/50 dark:bg-black/20 p-2 rounded border border-blue-100/50 dark:border-blue-950/50">
+                                                                <div><span className="text-muted-foreground font-medium">Dosage:</span> {smartRec.dosage}</div>
+                                                                <div><span className="text-muted-foreground font-medium">Frequency:</span> {smartRec.frequency}</div>
+                                                                <div><span className="text-muted-foreground font-medium">Duration:</span> {smartRec.duration}</div>
+                                                                <div><span className="text-muted-foreground font-medium">Route:</span> {smartRec.route}</div>
+                                                            </div>
+                                                            <div className="text-[11px] text-blue-700 dark:text-blue-400 font-medium italic mt-0.5">
+                                                                ℹ️ {smartRec.nurseInstructions}
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => applySmartRecommendation(index, smartRec)}
+                                                                className="self-start text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline transition-colors"
+                                                            >
+                                                                Apply Recommendation
+                                                            </button>
+                                                        </div>
+                                                    ) : null;
+                                                })()}
                                                 {/* Fields grid: Dosage, Frequency, Duration, Route */}
                                                 <div className="grid grid-cols-2 gap-3">
                                                     {/* Dosage */}
