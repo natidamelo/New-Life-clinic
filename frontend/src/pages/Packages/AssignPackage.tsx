@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -15,6 +16,7 @@ interface AssignPackageProps {
 }
 
 const AssignPackage: React.FC<AssignPackageProps> = ({ onComplete }) => {
+  const navigate = useNavigate();
   const [packages, setPackages] = useState<HealthPackage[]>([]);
   const [isLoadingPackages, setIsLoadingPackages] = useState<boolean>(true);
   const [selectedPackageId, setSelectedPackageId] = useState<string>('');
@@ -152,6 +154,7 @@ const AssignPackage: React.FC<AssignPackageProps> = ({ onComplete }) => {
       });
       toast.success('Patient package subscribed successfully!');
       onComplete();
+      navigate('/app/billing/invoices');
     } catch (error: any) {
       console.error('Failed to subscribe patient:', error);
       const msg = error?.response?.data?.message || 'Failed to assign package to patient.';
