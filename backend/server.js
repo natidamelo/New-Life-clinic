@@ -6,6 +6,7 @@ const AbsenceDetectionService = require('./services/absenceDetectionService');
 const scheduledOvertimeJob = require('./services/scheduledOvertimeJob');
 const telegramService = require('./services/telegramService');
 const dailyRevenueService = require('./services/dailyRevenueService');
+const packageExpiryService = require('./services/packageExpiryService');
 const autoInventoryDeductionMonitor = require('./services/autoInventoryDeductionMonitor');
 const patientStatusSyncService = require('./services/patientStatusSyncService');
 const { bootstrapSuperAdmin } = require('./services/superAdminBootstrapService');
@@ -194,6 +195,11 @@ const startServices = async (dbConnected) => {
     await dailyRevenueService.start();
     console.log('✅ Daily revenue service started successfully');
 
+    // Start package expiry service
+    console.log('📦 Starting package expiry service...');
+    await packageExpiryService.start();
+    console.log('✅ Package expiry service started successfully');
+
     // Start attendance monitoring
     console.log('🔄 Starting attendance monitoring...');
     attendanceMonitor.startMonitoring();
@@ -254,6 +260,9 @@ const gracefulShutdown = async (signal) => {
     // Stop all services
     console.log('🛑 Stopping attendance monitoring...');
     attendanceMonitor.stopMonitoring();
+
+    console.log('🛑 Stopping package expiry service...');
+    packageExpiryService.stop();
 
     console.log('🛑 Stopping scheduled overtime job...');
     scheduledOvertimeJob.stop();

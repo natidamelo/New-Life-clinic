@@ -107,6 +107,7 @@ const MedicalCertificates = lazy(() => import('./pages/Doctor/MedicalCertificate
 const EMRReferralPaper = lazy(() => import('./components/doctor/EMRReferralPaper'));
 const MedicalTestRequestForm = lazy(() => import('./pages/Doctor/MedicalTestRequestForm'));
 const BusinessIntelligence = lazy(() => import('./pages/Admin/BusinessIntelligence'));
+const PackagesDashboard = lazy(() => import('./pages/Packages/PackagesDashboard'));
 
 
 const router = createBrowserRouter([
@@ -160,6 +161,10 @@ const router = createBrowserRouter([
       {
         path: 'dashboard',
         element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance']}><LazyWrapper><AdminDashboard /></LazyWrapper></ProtectedRoute>
+      },
+      {
+        path: 'packages',
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance']}><LazyWrapper><PackagesDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'patients',

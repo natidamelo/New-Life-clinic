@@ -51,6 +51,7 @@ import {
 // Define menu items for different roles (EXACTLY as in your original sidebar)
 const adminMenuItems = [
   { path: '/app/dashboard', icon: AdminHomeIcon, label: 'Admin Dashboard' },
+  { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
   { path: '/app/clinics', icon: CogIcon, label: 'Clinic Management' },
   { path: '/app/patient-services', icon: PatientsIcon, label: 'Patient Services' },
   { path: '/app/staff-management', icon: UserPlusIcon, label: 'Staff Management' },
@@ -73,6 +74,7 @@ const systemControlsMenuItems = [
 
 const doctorMenuItems = [
   { path: '/app/doctor', icon: DashboardIcon, label: 'Doctor Dashboard' },
+  { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
   { path: '/app/ward/ipd', icon: PatientsIcon, label: 'IPD Management' },
   { path: '/app/doctor/patients', icon: PatientsIcon, label: 'My Patients' },
   { path: '/app/doctor/consultations', icon: DocumentTextIcon, label: 'Consultations' },
@@ -90,6 +92,7 @@ const doctorMenuItems = [
 
 const receptionMenuItems = [
   { path: '/app/reception', icon: DashboardIcon, label: 'Reception Dashboard' },
+  { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
   { path: '/app/reception/register', icon: UserPlusIcon, label: 'Register Patient' },
   { path: '/app/patients', icon: PatientsIcon, label: 'Patients' },
   { path: '/app/reception/service-request', icon: CogIcon, label: 'Request Service' },
@@ -103,6 +106,7 @@ const receptionMenuItems = [
 
 const financeMenuItems = [
   { path: '/app/billing', icon: DashboardIcon, label: 'Billing Dashboard' },
+  { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
   { path: '/app/billing/invoices', icon: CurrencyDollarIcon, label: 'Invoices' },
   { path: '/app/billing/patient-cards', icon: CurrencyDollarIcon, label: 'Patient Cards' },
   { path: '/app/reports/workload', icon: DocumentTextIcon, label: 'Workload Analytics' },
@@ -112,6 +116,7 @@ const financeMenuItems = [
 
 const nurseMenuItems = [
   { path: '/app/ward', icon: DashboardIcon, label: 'Nurse Dashboard' },
+  { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
   { path: '/app/ward/ipd', icon: PatientsIcon, label: 'IPD Management' },
   { path: '/app/ward/vitals', icon: BeakerIcon, label: 'Record Vitals' },
   { path: '/app/ward/medications-backup', icon: ClipboardDocumentCheckIcon, label: 'Administer Meds' },
