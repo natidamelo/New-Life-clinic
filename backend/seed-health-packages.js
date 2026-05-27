@@ -9,7 +9,7 @@ const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/clinic-c
 
 const predefinedPackages = [
   {
-    clinicId: 'default',
+    clinicId: 'new-life',
     name: 'Diabetic Package',
     description: 'Comprehensive tracking for patients with diabetes. Includes routine fasting/random blood sugar levels, HbA1c tests, lipid panels, and regular doctor reviews.',
     total_visits: 6,
@@ -26,7 +26,7 @@ const predefinedPackages = [
     is_active: true
   },
   {
-    clinicId: 'default',
+    clinicId: 'new-life',
     name: 'Hypertension Package',
     description: 'Designed for patients managing hypertension. Focuses on regular blood pressure monitoring, ECG checks, and clinical evaluations.',
     total_visits: 4,
@@ -41,7 +41,7 @@ const predefinedPackages = [
     is_active: true
   },
   {
-    clinicId: 'default',
+    clinicId: 'new-life',
     name: 'Annual Checkup Package',
     description: 'A full-body checkup package to review overall health indicators, blood counts, organ functions, and key clinical vital metrics.',
     total_visits: 3,
@@ -66,28 +66,34 @@ async function seedPackages() {
     await mongoose.connect(MONGO_URI);
     console.log('Connected to MongoDB successfully!');
 
-    // Check if packages already exist
-    const count = await HealthPackage.countDocuments({ clinicId: 'default' });
+    // Check if packages already exist for new-life
+    const count = await HealthPackage.countDocuments({ clinicId: 'new-life' });
     if (count > 0) {
-      console.log(`Found ${count} existing packages in database.`);
+      console.log(`Found ${count} existing packages in database for clinic 'new-life'.`);
       
-      // Let's ask if we want to overwrite, but in non-interactive seed script we can just insert ones that don't exist yet by name
       for (const pkg of predefinedPackages) {
-        const exists = await HealthPackage.findOne({ name: pkg.name, clinicId: 'default' });
+        const exists = await HealthPackage.findOne({ name: pkg.name, clinicId: 'new-life' });
         if (!exists) {
           const newPkg = new HealthPackage(pkg);
           await newPkg.save();
           console.log(`✔ Inserted new package: ${pkg.name}`);
         } else {
-          console.log(`ℹ Package "${pkg.name}" already exists. Skipping.`);
+          console.log(`ℹ Package "${pkg.name}" already exists for clinic 'new-life'. Skipping.`);
         }
       }
     } else {
       // Empty, insert all
-      console.log('Seeding predefined health packages catalog...');
+      console.log('Seeding predefined health packages catalog for clinic \'new-life\'...');
       await HealthPackage.insertMany(predefinedPackages);
       console.log('✔ Successfully seeded all predefined health packages!');
     }
+
+    // Also update any existing packages with 'default' to 'new-life' just in case
+    const updateRes = await HealthPackage.updateMany({ clinicId: 'default' }, { $set: { clinicId: 'new-life' } });
+    if (updateRes.modifiedCount > 0) {
+      console.log(`✔ Updated ${updateRes.modifiedCount} existing packages from clinicId 'default' to 'new-life'`);
+    }
+
   } catch (error) {
     console.error('Error seeding packages:', error);
   } finally {
