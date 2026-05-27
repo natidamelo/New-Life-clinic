@@ -28,7 +28,7 @@ const VisitHistoryTimeline: React.FC<VisitHistoryTimelineProps> = ({ visits }) =
   };
 
   return (
-    <div className="relative pl-6 border-l border-border/80 space-y-8 py-2">
+    <div className="relative ml-6 pl-6 border-l border-border/80 space-y-8 py-2">
       {visits.map((visit, index) => {
         const hasVitals = 
           visit.blood_pressure_systolic || 
