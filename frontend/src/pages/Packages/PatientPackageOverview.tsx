@@ -26,8 +26,10 @@ import RecordVisitForm from './RecordVisitForm';
 import VisitHistoryTimeline from './VisitHistoryTimeline';
 import VitalsTrendCharts from './VitalsTrendCharts';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 
 const PatientPackageOverview: React.FC = () => {
+  const { user } = useAuth();
   const [subscriptions, setSubscriptions] = useState<PatientPackage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   
@@ -304,7 +306,7 @@ const PatientPackageOverview: React.FC = () => {
                         <Eye className="w-3.5 h-3.5 mr-1 text-indigo-500" /> Details
                       </Button>
                       
-                      {sub.status === 'active' && sub.visits_remaining > 0 && (
+                      {user?.role !== 'nurse' && sub.status === 'active' && sub.visits_remaining > 0 && (
                         <Button 
                           size="sm"
                           onClick={() => setActiveCheckinSub(sub)}
@@ -387,7 +389,7 @@ const PatientPackageOverview: React.FC = () => {
             )}
 
             <div className="flex justify-end gap-3 pt-4 border-t border-border/40">
-              {selectedSub.status === 'active' && selectedSub.visits_remaining > 0 && (
+              {user?.role !== 'nurse' && selectedSub.status === 'active' && selectedSub.visits_remaining > 0 && (
                 <Button 
                   onClick={() => {
                     setActiveCheckinSub(selectedSub);

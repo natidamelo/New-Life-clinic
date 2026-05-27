@@ -89,14 +89,16 @@ const PackagesDashboard: React.FC = () => {
             Predefined health packages (BP, Diabetic, Checkups) with subscription management, multi-stage visit tracking (Reception → Nurse → Doctor → Lab), and vital signs trend analytics.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button 
-            onClick={() => setActiveTab('assign-package')}
-            className="shadow-lg shadow-primary/20 hover:scale-105 transition-transform duration-200"
-          >
-            <PlusCircle className="mr-2 h-4 w-4" /> Subscribe Patient
-          </Button>
-        </div>
+        {user?.role !== 'nurse' && (
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={() => setActiveTab('assign-package')}
+              className="shadow-lg shadow-primary/20 hover:scale-105 transition-transform duration-200"
+            >
+              <PlusCircle className="mr-2 h-4 w-4" /> Subscribe Patient
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Stats Summary Cards */}
@@ -185,9 +187,11 @@ const PackagesDashboard: React.FC = () => {
             <TabsTrigger value="active-packages" className="rounded-lg text-sm px-4 py-2 flex items-center gap-2">
               <ClipboardList className="w-4 h-4" /> Active Subscriptions
             </TabsTrigger>
-            <TabsTrigger value="assign-package" className="rounded-lg text-sm px-4 py-2 flex items-center gap-2">
-              <PlusCircle className="w-4 h-4" /> Subscribe Patient
-            </TabsTrigger>
+            {user?.role !== 'nurse' && (
+              <TabsTrigger value="assign-package" className="rounded-lg text-sm px-4 py-2 flex items-center gap-2">
+                <PlusCircle className="w-4 h-4" /> Subscribe Patient
+              </TabsTrigger>
+            )}
             <TabsTrigger value="package-catalog" className="rounded-lg text-sm px-4 py-2 flex items-center gap-2">
               <Award className="w-4 h-4" /> Package Catalog
             </TabsTrigger>
