@@ -87,15 +87,9 @@ router.post('/patients/:id/packages', auth, async (req, res) => {
     const expiryDate = new Date(startDate);
     expiryDate.setDate(expiryDate.getDate() + healthPackage.validity_days);
 
-    const paid = amount_paid || 0;
-    const balance = healthPackage.price - paid;
-    
-    let paymentStatus = 'pending';
-    if (paid >= healthPackage.price) {
-      paymentStatus = 'paid';
-    } else if (paid > 0) {
-      paymentStatus = 'partial';
-    }
+    const paid = 0; // Enforced 0 to ensure initial payment is processed through the billing cashier workflow
+    const balance = healthPackage.price;
+    const paymentStatus = 'pending';
 
     const patientPackage = new PatientPackage({
       clinicId: req.user?.clinicId || 'default',
@@ -109,7 +103,7 @@ router.post('/patients/:id/packages', auth, async (req, res) => {
       status: 'active',
       payment_status: paymentStatus,
       amount_paid: paid,
-      balance_due: Math.max(0, balance)
+      balance_due: balance
     });
 
     await patientPackage.save();
@@ -138,12 +132,12 @@ router.post('/patients/:id/packages', auth, async (req, res) => {
         }],
         subtotal: healthPackage.price,
         total: healthPackage.price,
-        amountPaid: paid,
-        balance: Math.max(0, balance),
-        status: paid >= healthPackage.price ? 'paid' : (paid > 0 ? 'partial' : 'pending'),
+        amountPaid: 0,
+        balance: healthPackage.price,
+        status: 'pending',
         paymentStatus: {
-          current: paid >= healthPackage.price ? 'fully_paid' : (paid > 0 ? 'partial' : 'unpaid'),
-          percentage: Math.round((paid / healthPackage.price) * 100),
+          current: 'unpaid',
+          percentage: 0,
           lastUpdated: new Date()
         },
         createdBy: req.user._id,
@@ -152,30 +146,7 @@ router.post('/patients/:id/packages', auth, async (req, res) => {
         finalizedBy: req.user._id
       };
 
-      if (paid > 0) {
-        const paymentReference = `PKG-SUB-${Date.now()}`;
-        invoiceData.payments = [{
-          amount: paid,
-          method: 'cash',
-          reference: paymentReference,
-          date: new Date(),
-          processedBy: req.user._id,
-          notes: `Initial payment collected for health package subscription: ${healthPackage.name}`
-        }];
-        
-        invoiceData.paymentHistory = [{
-          amount: paid,
-          method: 'cash',
-          reference: paymentReference,
-          date: new Date(),
-          processedBy: req.user._id,
-          notes: `Initial payment collected for health package subscription: ${healthPackage.name}`,
-          paymentType: paid >= healthPackage.price ? 'full' : 'partial',
-          previousBalance: healthPackage.price,
-          newBalance: Math.max(0, balance),
-          paymentPercentage: Math.round((paid / healthPackage.price) * 100)
-        }];
-      }
+
 
       const medicalInvoice = new MedicalInvoice(invoiceData);
       await medicalInvoice.save();

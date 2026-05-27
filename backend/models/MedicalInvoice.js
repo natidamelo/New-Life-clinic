@@ -475,7 +475,7 @@ const MedicalInvoiceSchema = new Schema({
 });
 
 // Pre-save hook to calculate totals and update payment analytics
-MedicalInvoiceSchema.pre('save', function(next) {
+MedicalInvoiceSchema.pre('save', async function(next) {
   // Validate invoice data before saving
   try {
     // Check for zero pricing issues
@@ -658,8 +658,41 @@ MedicalInvoiceSchema.pre('save', function(next) {
       }
     }
 
-    // Update payment status timestamp
-    this.paymentStatus.lastUpdated = new Date();
+    // Update corresponding PatientPackage if this invoice is for a package subscription
+    if (this.items && this.items.length > 0) {
+      const packageItem = this.items.find(item => item.description && item.description.startsWith('Health Package Subscription:'));
+      if (packageItem) {
+        const packageName = packageItem.description.replace('Health Package Subscription:', '').trim();
+        try {
+          const PatientPackage = mongoose.model('PatientPackage');
+          const HealthPackage = mongoose.model('HealthPackage');
+          const healthPackage = await HealthPackage.findOne({ name: packageName });
+          if (healthPackage) {
+            const patientPackage = await PatientPackage.findOne({
+              patient_id: this.patient,
+              package_id: healthPackage._id,
+              status: 'active'
+            });
+            if (patientPackage) {
+              patientPackage.amount_paid = this.amountPaid;
+              patientPackage.balance_due = this.balance;
+              
+              if (this.balance === 0) {
+                patientPackage.payment_status = 'paid';
+              } else if (this.amountPaid > 0) {
+                patientPackage.payment_status = 'partial';
+              } else {
+                patientPackage.payment_status = 'pending';
+              }
+              await patientPackage.save();
+              console.log(`✅ [BILLING INTEGRATION] Synchronized PatientPackage balance with MedicalInvoice ${this.invoiceNumber}`);
+            }
+          }
+        } catch (syncErr) {
+          console.error('❌ [BILLING INTEGRATION] Failed to sync PatientPackage with MedicalInvoice pre-save hook:', syncErr);
+        }
+      }
+    }
 
     next();
   } catch (error) {

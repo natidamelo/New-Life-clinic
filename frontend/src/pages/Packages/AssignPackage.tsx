@@ -32,7 +32,6 @@ const AssignPackage: React.FC<AssignPackageProps> = ({ onComplete }) => {
 
   // Form states
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [amountPaid, setAmountPaid] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Load catalog packages
@@ -68,12 +67,8 @@ const AssignPackage: React.FC<AssignPackageProps> = ({ onComplete }) => {
     if (selectedPackageId) {
       const pkg = packages.find(p => p._id === selectedPackageId || p.id === selectedPackageId);
       setSelectedPackage(pkg || null);
-      if (pkg) {
-        setAmountPaid(pkg.price); // Default to full payment
-      }
     } else {
       setSelectedPackage(null);
-      setAmountPaid(0);
     }
   }, [selectedPackageId, packages]);
 
@@ -135,22 +130,13 @@ const AssignPackage: React.FC<AssignPackageProps> = ({ onComplete }) => {
       toast.error('Please select a package template.');
       return;
     }
-    if (amountPaid < 0) {
-      toast.error('Payment amount cannot be negative.');
-      return;
-    }
-    if (amountPaid > selectedPackage.price) {
-      toast.error(`Payment cannot exceed the package price of ${selectedPackage.price} ETB.`);
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const patientId = selectedPatient._id || selectedPatient.id;
       await healthPackageService.assignPackage(patientId, {
         package_id: selectedPackage._id || selectedPackage.id || '',
         start_date: startDate,
-        amount_paid: amountPaid
+        amount_paid: 0
       });
       toast.success('Patient package subscribed successfully!');
       onComplete();
@@ -163,8 +149,6 @@ const AssignPackage: React.FC<AssignPackageProps> = ({ onComplete }) => {
       setIsSubmitting(false);
     }
   };
-
-  const balanceDue = selectedPackage ? Math.max(0, selectedPackage.price - amountPaid) : 0;
 
   return (
     <Card className="max-w-3xl mx-auto border-primary/10 rounded-2xl overflow-hidden shadow-md">
@@ -338,47 +322,16 @@ const AssignPackage: React.FC<AssignPackageProps> = ({ onComplete }) => {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="amount-paid" className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                  <DollarSign className="w-4 h-4 text-primary" />
-                  Initial Payment Collected (ETB)
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-semibold">ETB</span>
-                  <Input 
-                    id="amount-paid"
-                    type="number"
-                    min={0}
-                    max={selectedPackage.price}
-                    value={amountPaid}
-                    onChange={(e) => setAmountPaid(parseFloat(e.target.value) || 0)}
-                    className="pl-12 h-11 rounded-xl font-bold"
-                    required
-                  />
-                </div>
-                
-                {/* Billing Summary Box */}
-                <div className="bg-muted/40 p-3.5 rounded-xl text-xs space-y-1.5 mt-2 border border-border/50">
-                  <div className="flex justify-between">
-                    <span>Package Cost:</span>
-                    <span className="font-semibold">{selectedPackage.price.toLocaleString()} ETB</span>
+              <div className="space-y-4 bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 p-5 rounded-2xl">
+                <div className="flex items-start gap-3 text-left">
+                  <ShieldAlert className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <h5 className="font-bold text-sm text-indigo-900 dark:text-indigo-200">Billing Information</h5>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Confirming this subscription will automatically generate a pending EMR invoice of <strong className="text-foreground">{selectedPackage.price.toLocaleString()} ETB</strong>. 
+                      The patient must make the payment (fully or partially) at the Billing Department, where the cashier can process it using cash, card, bank transfer, or insurance.
+                    </p>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Payment Collected:</span>
-                    <span className="font-semibold text-emerald-600">{amountPaid.toLocaleString()} ETB</span>
-                  </div>
-                  <div className="flex justify-between border-t border-border/40 pt-1.5 font-bold text-foreground">
-                    <span>Remaining Balance:</span>
-                    <span className={balanceDue > 0 ? 'text-primary' : 'text-emerald-600'}>
-                      {balanceDue.toLocaleString()} ETB
-                    </span>
-                  </div>
-                  {balanceDue > 0 && (
-                    <div className="text-[10px] text-amber-600 flex items-center gap-1 pt-1 font-medium">
-                      <ShieldAlert className="w-3 h-3 shrink-0" />
-                      Marked as Partial payment. Patient can pay balance during subsequent visits.
-                    </div>
-                  )}
                 </div>
               </div>
 
