@@ -663,17 +663,33 @@ MedicalInvoiceSchema.pre('save', async function(next) {
       const packageItem = this.items.find(item => item.description && item.description.startsWith('Health Package Subscription:'));
       if (packageItem) {
         const packageName = packageItem.description.replace('Health Package Subscription:', '').trim();
+        console.log(`🔍 [BILLING INTEGRATION] Pre-save hook matched package subscription invoice: "${packageName}" (Invoice: ${this.invoiceNumber}, AmountPaid: ${this.amountPaid}, Balance: ${this.balance})`);
         try {
           const PatientPackage = mongoose.model('PatientPackage');
           const HealthPackage = mongoose.model('HealthPackage');
-          const healthPackage = await HealthPackage.findOne({ name: packageName });
-          if (healthPackage) {
+          
+          // Case-insensitive query to find all package templates with this name (handles duplicates)
+          const escapedName = packageName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+          const healthPackages = await HealthPackage.find({
+            name: { $regex: new RegExp('^' + escapedName + '$', 'i') }
+          });
+          
+          if (!healthPackages || healthPackages.length === 0) {
+            console.warn(`⚠️ [BILLING INTEGRATION] No HealthPackage templates found with name: "${packageName}"`);
+          } else {
+            const packageIds = healthPackages.map(hp => hp._id);
+            const patientId = this.patient && (this.patient._id || this.patient);
+            console.log(`🔍 [BILLING INTEGRATION] Searching for active PatientPackage for patientId: ${patientId}, packageId (one of): [${packageIds.join(', ')}]`);
+            
             const patientPackage = await PatientPackage.findOne({
-              patient_id: this.patient,
-              package_id: healthPackage._id,
+              patient_id: patientId,
+              package_id: { $in: packageIds },
               status: 'active'
             });
-            if (patientPackage) {
+            
+            if (!patientPackage) {
+              console.warn(`⚠️ [BILLING INTEGRATION] Active PatientPackage not found for patientId: ${patientId}, packageId (one of): [${packageIds.join(', ')}]`);
+            } else {
               patientPackage.amount_paid = this.amountPaid;
               patientPackage.balance_due = this.balance;
               
@@ -685,7 +701,7 @@ MedicalInvoiceSchema.pre('save', async function(next) {
                 patientPackage.payment_status = 'pending';
               }
               await patientPackage.save();
-              console.log(`✅ [BILLING INTEGRATION] Synchronized PatientPackage balance with MedicalInvoice ${this.invoiceNumber}`);
+              console.log(`✅ [BILLING INTEGRATION] Synchronized PatientPackage ${patientPackage._id} (Payment Status: ${patientPackage.payment_status}, Paid: ${patientPackage.amount_paid}, Balance: ${patientPackage.balance_due}) with MedicalInvoice ${this.invoiceNumber}`);
             }
           }
         } catch (syncErr) {
