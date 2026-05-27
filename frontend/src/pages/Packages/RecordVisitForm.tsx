@@ -149,6 +149,16 @@ const RecordVisitForm: React.FC<RecordVisitFormProps> = ({ patientPackage, onCom
     handleFormSubmit(false);
   };
 
+  const services = (patientPackage.package_id as any)?.services || [];
+  const labServicesFromPackage = services.filter((service: string) => {
+    const normalized = service.toLowerCase();
+    return !normalized.includes('consultation') && 
+           !normalized.includes('vitals check') && 
+           !normalized.includes('vitals signs') && 
+           !normalized.includes('vital signs') && 
+           !normalized.includes('physiotherapy');
+  });
+
   return (
     <Card className="border-primary/10 rounded-2xl shadow-lg relative overflow-hidden bg-card/90">
       <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-500" />
@@ -220,37 +230,75 @@ const RecordVisitForm: React.FC<RecordVisitFormProps> = ({ patientPackage, onCom
           {/* Step 2: Lab Orders (Optional at reception, if Lab is checked) */}
           <div className="space-y-4">
             {needsLab && (
-              <div className="p-4 border border-purple-500/20 rounded-xl space-y-3 bg-purple-500/5">
+              <div className="p-4 border border-purple-500/20 rounded-xl space-y-3 bg-purple-500/5 text-left">
                 <div className="flex items-center gap-1.5 border-b border-purple-500/10 pb-2">
                   <FlaskConical className="w-4 h-4 text-purple-500" />
                   <h5 className="text-xs font-bold text-foreground/90">Laboratory Orders</h5>
                 </div>
                 
-                {/* Lab tests list tag editor */}
-                <div className="space-y-2">
-                  <Label className="text-[11px] font-bold text-muted-foreground">Select Lab Service Tests for Patient</Label>
-                  <div className="flex gap-2">
-                    <Input 
-                      placeholder="Type test name (e.g. HbA1c, CBC, FBS) and click Add" 
-                      value={labInput} 
-                      onChange={(e) => setLabInput(e.target.value)} 
-                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddLabTest())} 
-                    />
-                    <Button type="button" variant="secondary" onClick={handleAddLabTest}>Add</Button>
-                  </div>
-                  {labTests.length > 0 ? (
-                    <div className="flex flex-wrap gap-1 border border-border/50 p-2 rounded-lg bg-background">
-                      {labTests.map((test, idx) => (
-                        <Badge key={idx} variant="outline" className="flex items-center gap-1 border-purple-500/30 text-purple-600">
-                          {test}
-                          <button type="button" onClick={() => handleRemoveLabTest(idx)} className="hover:text-destructive"><X className="w-3 h-3" /></button>
-                        </Badge>
-                      ))}
+                <div className="space-y-3">
+                  <Label className="text-[11px] font-bold text-muted-foreground">Select Lab Tests Included in Package</Label>
+                  
+                  {labServicesFromPackage.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {labServicesFromPackage.map((service, idx) => {
+                        const isSelected = labTests.includes(service);
+                        return (
+                          <div 
+                            key={idx} 
+                            onClick={() => {
+                              if (isSelected) {
+                                setLabTests(labTests.filter(t => t !== service));
+                              } else {
+                                setLabTests([...labTests, service]);
+                              }
+                            }}
+                            className={`flex items-center space-x-2.5 px-3 py-2.5 rounded-lg border cursor-pointer transition-all ${
+                              isSelected 
+                                ? 'bg-purple-500/10 border-purple-500 text-purple-700 dark:text-purple-300 font-medium' 
+                                : 'bg-background border-border/80 hover:border-purple-500/30'
+                            }`}
+                          >
+                            <input 
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}} // handled by parent onClick
+                              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 h-4 w-4 pointer-events-none"
+                              readOnly
+                            />
+                            <span className="text-xs">{service}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Type test name (e.g. HbA1c, CBC, FBS) and click Add" 
+                          value={labInput} 
+                          onChange={(e) => setLabInput(e.target.value)} 
+                          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddLabTest())} 
+                        />
+                        <Button type="button" variant="secondary" onClick={handleAddLabTest}>Add</Button>
+                      </div>
+                      {labTests.length > 0 && (
+                        <div className="flex flex-wrap gap-1 border border-border/50 p-2 rounded-lg bg-background">
+                          {labTests.map((test, idx) => (
+                            <Badge key={idx} variant="outline" className="flex items-center gap-1 border-purple-500/30 text-purple-600">
+                              {test}
+                              <button type="button" onClick={() => handleRemoveLabTest(idx)} className="hover:text-destructive"><X className="w-3 h-3" /></button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {labTests.length === 0 && (
                     <p className="text-[10px] text-purple-600 flex items-center gap-1 mt-1 font-semibold">
                       <ShieldAlert className="w-3.5 h-3.5" />
-                      Must list at least one laboratory service test to queue in Lab Dashboard.
+                      Must select at least one laboratory service test to queue in Lab Dashboard.
                     </p>
                   )}
                 </div>
