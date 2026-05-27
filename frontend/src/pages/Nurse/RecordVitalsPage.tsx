@@ -191,6 +191,7 @@ const RecordVitalsPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingPatientId, setLoadingPatientId] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState(0);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'recorded' | 'pending' | 'critical'>('all');
 
   const pageSize = 10;
 
@@ -217,17 +218,25 @@ const RecordVitalsPage: React.FC = () => {
         return Number.isFinite(t) ? t : 0;
       };
 
-      // Sort: Admitted patients first, then most-recent vitals on top.
+      // Sort: Active patients (waiting or Admitted) first.
+      // Among active patients, prioritize those who do NOT have vitals recorded yet.
       const sorted = [...list].sort((a, b) => {
-        const aAdmitted = (a as any).status === 'Admitted' ? 0 : 1;
-        const bAdmitted = (b as any).status === 'Admitted' ? 0 : 1;
-        if (aAdmitted !== bAdmitted) return aAdmitted - bAdmitted;
+        const aActive = (a as any).status === 'waiting' || (a as any).status === 'Admitted' ? 0 : 1;
+        const bActive = (b as any).status === 'waiting' || (b as any).status === 'Admitted' ? 0 : 1;
+        if (aActive !== bActive) return aActive - bActive;
+
+        if (aActive === 0) {
+          const aHasVitals = !!(a.vitals && (a.vitals.temperature || a.vitals.heartRate || a.vitals.bloodPressure));
+          const bHasVitals = !!(b.vitals && (b.vitals.temperature || b.vitals.heartRate || b.vitals.bloodPressure));
+          if (aHasVitals !== bHasVitals) {
+            return aHasVitals ? 1 : -1;
+          }
+        }
 
         const aTs = getVitalsTimestamp(a);
         const bTs = getVitalsTimestamp(b);
         if (aTs !== bTs) return bTs - aTs;
 
-        // Stable-ish fallback so ordering doesn't randomly change.
         const aCreated = new Date((a as any).createdAt || 0).getTime();
         const bCreated = new Date((b as any).createdAt || 0).getTime();
         return bCreated - aCreated;
@@ -245,14 +254,27 @@ const RecordVitalsPage: React.FC = () => {
 
   useEffect(() => {
     const terms = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
-    if (terms.length === 0) {
-      setFilteredPatients(patients);
-      setCurrentPage(1);
-      return;
+    let result = patients;
+
+    // Apply active stats-strip filter
+    if (activeFilter === 'recorded') {
+      result = result.filter(p => p.vitals && (p.vitals.temperature || p.vitals.heartRate || p.vitals.bloodPressure));
+    } else if (activeFilter === 'pending') {
+      result = result.filter(p => !p.vitals || (!p.vitals.temperature && !p.vitals.heartRate && !p.vitals.bloodPressure));
+    } else if (activeFilter === 'critical') {
+      result = result.filter(p => {
+        const v = p.vitals;
+        return (
+          getVitalStatus('temperature', v?.temperature || '') === 'critical' ||
+          getVitalStatus('heartRate', v?.heartRate || '') === 'critical' ||
+          getVitalStatus('bloodPressure', v?.bloodPressure || '') === 'critical'
+        );
+      });
     }
 
-    setFilteredPatients(
-      patients.filter(p => {
+    // Apply search filter terms
+    if (terms.length > 0) {
+      result = result.filter(p => {
         const fullName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
         const patientId = (p.patientId || p.id || p._id || '').toLowerCase();
         const contact = (p.contactNumber || p.phone || '').toLowerCase();
@@ -262,10 +284,12 @@ const RecordVitalsPage: React.FC = () => {
           patientId.includes(term) || 
           contact.includes(term)
         );
-      })
-    );
+      });
+    }
+
+    setFilteredPatients(result);
     setCurrentPage(1);
-  }, [searchTerm, patients]);
+  }, [searchTerm, patients, activeFilter]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(filteredPatients.length / pageSize));
@@ -467,21 +491,31 @@ const RecordVitalsPage: React.FC = () => {
         {/* Stats strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Total Patients', value: patients.length, icon: <User className="h-4 w-4" />, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
-            { label: 'Vitals Recorded', value: withVitals.length, icon: <CheckCircle2 className="h-4 w-4" />, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
-            { label: 'Pending Vitals', value: withoutVitals.length, icon: <Clock className="h-4 w-4" />, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30' },
-            { label: 'Critical Alerts', value: criticalCount, icon: <AlertTriangle className="h-4 w-4" />, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-950/30' },
-          ].map(stat => (
-            <Card key={stat.label} className={`p-3 border-0 ${stat.bg}`}>
-              <div className="flex items-center gap-2">
-                <span className={stat.color}>{stat.icon}</span>
-                <div>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                  <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
+            { id: 'all', label: 'Total Patients', value: patients.length, icon: <User className="h-4 w-4" />, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30', border: 'border-blue-400/40' },
+            { id: 'recorded', label: 'Vitals Recorded', value: withVitals.length, icon: <CheckCircle2 className="h-4 w-4" />, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30', border: 'border-emerald-400/40' },
+            { id: 'pending', label: 'Pending Vitals', value: withoutVitals.length, icon: <Clock className="h-4 w-4" />, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30', border: 'border-amber-400/40' },
+            { id: 'critical', label: 'Critical Alerts', value: criticalCount, icon: <AlertTriangle className="h-4 w-4" />, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-950/30', border: 'border-red-400/40' },
+          ].map(stat => {
+            const isActive = activeFilter === stat.id;
+            return (
+              <Card 
+                key={stat.label} 
+                onClick={() => setActiveFilter(stat.id as any)}
+                className={`p-3 border cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95
+                  ${isActive 
+                    ? `${stat.bg} ${stat.border} shadow-sm ring-1 ring-primary/20` 
+                    : 'bg-card border-border/50 hover:bg-muted/30'}`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={stat.color}>{stat.icon}</span>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                    <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
 
         {/* Search */}
