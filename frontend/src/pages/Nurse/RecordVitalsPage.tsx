@@ -199,7 +199,7 @@ const RecordVitalsPage: React.FC = () => {
   const fetchPatients = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await patientService.getAllPatients(true, false, 200);
+      const data = await patientService.getAllPatients(true, false, 1000);
       const list: Patient[] = Array.isArray(data)
         ? data
         : (data as any)?.patients ?? (data as any)?.data ?? [];
@@ -244,13 +244,25 @@ const RecordVitalsPage: React.FC = () => {
   useEffect(() => { fetchPatients(); }, [fetchPatients]);
 
   useEffect(() => {
-    const term = searchTerm.toLowerCase();
+    const terms = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) {
+      setFilteredPatients(patients);
+      setCurrentPage(1);
+      return;
+    }
+
     setFilteredPatients(
-      patients.filter(p =>
-        `${p.firstName} ${p.lastName}`.toLowerCase().includes(term) ||
-        (p.id || '').toLowerCase().includes(term) ||
-        (p.contactNumber || '').includes(searchTerm)
-      )
+      patients.filter(p => {
+        const fullName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
+        const patientId = (p.patientId || p.id || p._id || '').toLowerCase();
+        const contact = (p.contactNumber || p.phone || '').toLowerCase();
+        
+        return terms.every(term => 
+          fullName.includes(term) || 
+          patientId.includes(term) || 
+          contact.includes(term)
+        );
+      })
     );
     setCurrentPage(1);
   }, [searchTerm, patients]);
