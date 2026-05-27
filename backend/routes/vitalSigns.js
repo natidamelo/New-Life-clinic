@@ -183,6 +183,35 @@ router.post('/', auth, async (req, res) => {
           
           await task.save();
           console.log(`✅ [VITAL SIGNS] Nurse task ${vitalSignsData.taskId} marked as completed`);
+
+          // Sync with health package visit if metadata has packageVisitId
+          if (task.metadata && task.metadata.packageVisitId) {
+            console.log(`📦 [VITAL SIGNS] Syncing vital signs to PackageVisit: ${task.metadata.packageVisitId}`);
+            try {
+              const PackageVisit = require('../models/PackageVisit');
+              const packageVisit = await PackageVisit.findById(task.metadata.packageVisitId);
+              if (packageVisit) {
+                if (vitalSigns.systolic) packageVisit.blood_pressure_systolic = vitalSigns.systolic;
+                if (vitalSigns.diastolic) packageVisit.blood_pressure_diastolic = vitalSigns.diastolic;
+                if (vitalSigns.bloodSugar) {
+                  // Check if fasting is mentioned in notes or descriptions
+                  const isFasting = (task.description || '').toLowerCase().includes('fasting') || (task.notes || '').toLowerCase().includes('fasting');
+                  if (isFasting) {
+                    packageVisit.blood_sugar_fasting = vitalSigns.bloodSugar;
+                  } else {
+                    packageVisit.blood_sugar_random = vitalSigns.bloodSugar;
+                  }
+                }
+                if (vitalSigns.weight) packageVisit.weight_kg = vitalSigns.weight;
+                if (vitalSigns.bmi) packageVisit.bmi = vitalSigns.bmi;
+                
+                await packageVisit.save();
+                console.log(`✅ [VITAL SIGNS] PackageVisit ${task.metadata.packageVisitId} successfully updated with vitals`);
+              }
+            } catch (syncErr) {
+              console.error('❌ [VITAL SIGNS] Error syncing to PackageVisit:', syncErr);
+            }
+          }
         }
       } catch (taskError) {
         console.error('❌ [VITAL SIGNS] Error updating associated nurse task:', taskError);

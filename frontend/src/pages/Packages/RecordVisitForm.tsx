@@ -3,22 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../..
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Textarea } from '../../components/ui/textarea';
-import { Checkbox } from '../../components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Badge } from '../../components/ui/badge';
 import { 
   Activity, 
   User, 
-  FileText, 
   FlaskConical, 
   DollarSign, 
   Calendar, 
   ShieldAlert, 
-  Heart, 
   Plus, 
   X, 
-  Clock, 
   ArrowRightCircle, 
   CheckCircle2 
 } from 'lucide-react';
@@ -35,7 +30,6 @@ interface RecordVisitFormProps {
 const RecordVisitForm: React.FC<RecordVisitFormProps> = ({ patientPackage, onComplete, onCancel }) => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showSameDayDialog, setShowSameDayDialog] = useState<boolean>(false);
-  const [showVitalsConfirm, setShowVitalsConfirm] = useState<boolean>(false);
 
   // Staff lists
   const [doctors, setDoctors] = useState<any[]>([]);
@@ -47,19 +41,7 @@ const RecordVisitForm: React.FC<RecordVisitFormProps> = ({ patientPackage, onCom
   const [needsConsultation, setNeedsConsultation] = useState<boolean>(false);
   const [needsLab, setNeedsLab] = useState<boolean>(false);
 
-  // Vitals State
-  const [systolic, setSystolic] = useState<string>('');
-  const [diastolic, setDiastolic] = useState<string>('');
-  const [fastingSugar, setFastingSugar] = useState<string>('');
-  const [randomSugar, setRandomSugar] = useState<string>('');
-  const [weight, setWeight] = useState<string>('');
-  const [height, setHeight] = useState<string>('');
-  const [bmi, setBmi] = useState<string>('');
-
-  // Clinical State
-  const [diagnosisNotes, setDiagnosisNotes] = useState<string>('');
-  const [medicationInput, setMedicationInput] = useState<string>('');
-  const [medications, setMedications] = useState<string[]>([]);
+  // Lab Tests State
   const [labInput, setLabInput] = useState<string>('');
   const [labTests, setLabTests] = useState<string[]>([]);
 
@@ -94,31 +76,6 @@ const RecordVisitForm: React.FC<RecordVisitFormProps> = ({ patientPackage, onCom
     fetchStaff();
   }, []);
 
-  // Auto-calculate BMI
-  useEffect(() => {
-    const w = parseFloat(weight);
-    const h = parseFloat(height); // in cm
-    if (w > 0 && h > 0) {
-      const heightInMeters = h / 100;
-      const computedBmi = w / (heightInMeters * heightInMeters);
-      setBmi(computedBmi.toFixed(1));
-    } else {
-      setBmi('');
-    }
-  }, [weight, height]);
-
-  // Tag helper functions
-  const handleAddMedication = () => {
-    if (medicationInput.trim() && !medications.includes(medicationInput.trim())) {
-      setMedications([...medications, medicationInput.trim()]);
-      setMedicationInput('');
-    }
-  };
-
-  const handleRemoveMedication = (idx: number) => {
-    setMedications(medications.filter((_, i) => i !== idx));
-  };
-
   const handleAddLabTest = () => {
     if (labInput.trim() && !labTests.includes(labInput.trim())) {
       setLabTests([...labTests, labInput.trim()]);
@@ -136,14 +93,6 @@ const RecordVisitForm: React.FC<RecordVisitFormProps> = ({ patientPackage, onCom
     try {
       const payload: any = {
         bypassSameDayWarning: bypassSameDay,
-        blood_pressure_systolic: systolic ? parseInt(systolic) : undefined,
-        blood_pressure_diastolic: diastolic ? parseInt(diastolic) : undefined,
-        blood_sugar_fasting: fastingSugar ? parseInt(fastingSugar) : undefined,
-        blood_sugar_random: randomSugar ? parseInt(randomSugar) : undefined,
-        weight_kg: weight ? parseFloat(weight) : undefined,
-        bmi: bmi ? parseFloat(bmi) : undefined,
-        diagnosis_notes: diagnosisNotes || undefined,
-        medications_given: medications,
         lab_services_ordered: labTests,
         payment_collected: paymentCollected,
         needs_vitals: needsVitals,
@@ -158,11 +107,7 @@ const RecordVisitForm: React.FC<RecordVisitFormProps> = ({ patientPackage, onCom
       const response = await healthPackageService.recordVisit(patientPackage._id || patientPackage.id || '', payload);
       
       if (response.success) {
-        if (response.vitalsWarning) {
-          toast.success(`Visit saved successfully! (Warning: ${response.vitalsWarning})`, { duration: 5000 });
-        } else {
-          toast.success('Visit checked-in and logged successfully!');
-        }
+        toast.success('Patient checked-in and routed successfully!');
         onComplete();
       }
     } catch (error: any) {
@@ -201,13 +146,6 @@ const RecordVisitForm: React.FC<RecordVisitFormProps> = ({ patientPackage, onCom
       return;
     }
 
-    // Check if vitals are empty but needsVitals is checked (soft warning)
-    const hasVitals = systolic || diastolic || fastingSugar || randomSugar || weight;
-    if (needsVitals && !hasVitals) {
-      setShowVitalsConfirm(true);
-      return;
-    }
-
     handleFormSubmit(false);
   };
 
@@ -238,34 +176,40 @@ const RecordVisitForm: React.FC<RecordVisitFormProps> = ({ patientPackage, onCom
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
               
               <div className="flex items-center space-x-2.5 bg-background border border-border/80 px-3.5 py-3 rounded-lg hover:border-indigo-500/20 transition-colors">
-                <Checkbox 
+                <input 
+                  type="checkbox"
                   id="route-nurse" 
                   checked={needsVitals} 
-                  onCheckedChange={(checked) => setNeedsVitals(checked === true)}
+                  onChange={(e) => setNeedsVitals(e.target.checked)}
+                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                 />
-                <label htmlFor="route-nurse" className="text-xs font-semibold text-foreground cursor-pointer flex-1">
+                <label htmlFor="route-nurse" className="text-xs font-semibold text-foreground cursor-pointer flex-1 pl-2">
                   Nurse (Vitals Signs)
                 </label>
               </div>
 
               <div className="flex items-center space-x-2.5 bg-background border border-border/80 px-3.5 py-3 rounded-lg hover:border-indigo-500/20 transition-colors">
-                <Checkbox 
+                <input 
+                  type="checkbox"
                   id="route-doc" 
                   checked={needsConsultation} 
-                  onCheckedChange={(checked) => setNeedsConsultation(checked === true)}
+                  onChange={(e) => setNeedsConsultation(e.target.checked)}
+                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                 />
-                <label htmlFor="route-doc" className="text-xs font-semibold text-foreground cursor-pointer flex-1">
+                <label htmlFor="route-doc" className="text-xs font-semibold text-foreground cursor-pointer flex-1 pl-2">
                   Doctor (Consultation)
                 </label>
               </div>
 
               <div className="flex items-center space-x-2.5 bg-background border border-border/80 px-3.5 py-3 rounded-lg hover:border-indigo-500/20 transition-colors">
-                <Checkbox 
+                <input 
+                  type="checkbox"
                   id="route-lab" 
                   checked={needsLab} 
-                  onCheckedChange={(checked) => setNeedsLab(checked === true)}
+                  onChange={(e) => setNeedsLab(e.target.checked)}
+                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                 />
-                <label htmlFor="route-lab" className="text-xs font-semibold text-foreground cursor-pointer flex-1">
+                <label htmlFor="route-lab" className="text-xs font-semibold text-foreground cursor-pointer flex-1 pl-2">
                   Laboratory (Lab Order)
                 </label>
               </div>
@@ -273,89 +217,8 @@ const RecordVisitForm: React.FC<RecordVisitFormProps> = ({ patientPackage, onCom
             </div>
           </div>
 
-          {/* Step 2: Clinical Entries (Optional at reception) */}
+          {/* Step 2: Lab Orders (Optional at reception, if Lab is checked) */}
           <div className="space-y-4">
-            <h4 className="text-xs font-bold uppercase text-foreground/80 tracking-wider">
-              2. Clinical Information (Record Vitals, Notes, or Labs)
-            </h4>
-
-            {/* Vitals inputs (only visible or highlighted if routed to Nurse, but available for direct log) */}
-            <div className={`p-4 border border-border/50 rounded-xl space-y-4 bg-muted/20 ${needsVitals ? 'border-primary/20 ring-1 ring-primary/5' : 'opacity-85'}`}>
-              <div className="flex items-center gap-1.5 border-b border-border/40 pb-2">
-                <Heart className="w-4 h-4 text-rose-500" />
-                <h5 className="text-xs font-bold text-foreground/90">Vitals Check-in Info</h5>
-                {needsVitals && <Badge className="ml-auto bg-primary/10 text-primary border-0 text-[9px] font-bold">Vitals Requested</Badge>}
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="space-y-1">
-                  <Label htmlFor="bp-sys" className="text-[11px] font-bold text-muted-foreground">BP Systolic (mmHg)</Label>
-                  <Input id="bp-sys" type="number" placeholder="e.g. 120" value={systolic} onChange={(e) => setSystolic(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="bp-dia" className="text-[11px] font-bold text-muted-foreground">BP Diastolic (mmHg)</Label>
-                  <Input id="bp-dia" type="number" placeholder="e.g. 80" value={diastolic} onChange={(e) => setDiastolic(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="sug-fast" className="text-[11px] font-bold text-muted-foreground">Fasting Sugar (mg/dL)</Label>
-                  <Input id="sug-fast" type="number" placeholder="e.g. 95" value={fastingSugar} onChange={(e) => setFastingSugar(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="sug-rand" className="text-[11px] font-bold text-muted-foreground">Random Sugar (mg/dL)</Label>
-                  <Input id="sug-rand" type="number" placeholder="e.g. 140" value={randomSugar} onChange={(e) => setRandomSugar(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-1">
-                <div className="space-y-1">
-                  <Label htmlFor="weight" className="text-[11px] font-bold text-muted-foreground">Weight (kg)</Label>
-                  <Input id="weight" type="number" step="0.1" placeholder="e.g. 70.5" value={weight} onChange={(e) => setWeight(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="height" className="text-[11px] font-bold text-muted-foreground">Height (cm)</Label>
-                  <Input id="height" type="number" step="1" placeholder="e.g. 175" value={height} onChange={(e) => setHeight(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="bmi" className="text-[11px] font-bold text-muted-foreground">BMI Index (Calculated)</Label>
-                  <Input id="bmi" placeholder="—" value={bmi} className="bg-muted font-bold" readOnly />
-                </div>
-              </div>
-            </div>
-
-            {/* Consultation Inputs */}
-            {needsConsultation && (
-              <div className="p-4 border border-blue-500/20 rounded-xl space-y-3 bg-blue-500/5">
-                <div className="flex items-center gap-1.5 border-b border-blue-500/10 pb-2">
-                  <FileText className="w-4 h-4 text-blue-500" />
-                  <h5 className="text-xs font-bold text-foreground/90">Direct Consultation Logging</h5>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="diagnosis" className="text-[11px] font-bold text-muted-foreground">Diagnosis / Clinical Notes</Label>
-                  <Textarea id="diagnosis" placeholder="Describe symptoms, assessment, diagnosis..." value={diagnosisNotes} onChange={(e) => setDiagnosisNotes(e.target.value)} rows={2} />
-                </div>
-                
-                {/* Medications given tag editor */}
-                <div className="space-y-2">
-                  <Label className="text-[11px] font-bold text-muted-foreground">Prescribe/Dispense Medications</Label>
-                  <div className="flex gap-2">
-                    <Input placeholder="Type medication name and click Add" value={medicationInput} onChange={(e) => setMedicationInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddMedication())} />
-                    <Button type="button" variant="secondary" onClick={handleAddMedication}>Add</Button>
-                  </div>
-                  {medications.length > 0 && (
-                    <div className="flex flex-wrap gap-1 border border-border/50 p-2 rounded-lg bg-background">
-                      {medications.map((med, idx) => (
-                        <Badge key={idx} variant="secondary" className="flex items-center gap-1">
-                          {med}
-                          <button type="button" onClick={() => handleRemoveMedication(idx)} className="hover:text-destructive"><X className="w-3 h-3" /></button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Lab requests */}
             {needsLab && (
               <div className="p-4 border border-purple-500/20 rounded-xl space-y-3 bg-purple-500/5">
                 <div className="flex items-center gap-1.5 border-b border-purple-500/10 pb-2">
@@ -365,9 +228,14 @@ const RecordVisitForm: React.FC<RecordVisitFormProps> = ({ patientPackage, onCom
                 
                 {/* Lab tests list tag editor */}
                 <div className="space-y-2">
-                  <Label className="text-[11px] font-bold text-muted-foreground">Add Clinical Laboratory Tests</Label>
+                  <Label className="text-[11px] font-bold text-muted-foreground">Select Lab Service Tests for Patient</Label>
                   <div className="flex gap-2">
-                    <Input placeholder="Type test name (e.g. HbA1c, CBC, FBS) and click Add" value={labInput} onChange={(e) => setLabInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddLabTest())} />
+                    <Input 
+                      placeholder="Type test name (e.g. HbA1c, CBC, FBS) and click Add" 
+                      value={labInput} 
+                      onChange={(e) => setLabInput(e.target.value)} 
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddLabTest())} 
+                    />
                     <Button type="button" variant="secondary" onClick={handleAddLabTest}>Add</Button>
                   </div>
                   {labTests.length > 0 ? (
@@ -394,7 +262,7 @@ const RecordVisitForm: React.FC<RecordVisitFormProps> = ({ patientPackage, onCom
           {(needsVitals || needsConsultation) && (
             <div className="space-y-4 border-t border-border/40 pt-4">
               <h4 className="text-xs font-bold uppercase text-foreground/80 tracking-wider">
-                3. Dispatch & Staff Assignment
+                2. Dispatch & Staff Assignment
               </h4>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -544,50 +412,6 @@ const RecordVisitForm: React.FC<RecordVisitFormProps> = ({ patientPackage, onCom
                   }}
                 >
                   Yes, Bypass Warning
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Vitals soft warning confirmation */}
-      {showVitalsConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <Card className="max-w-md w-full border-amber-500/20 shadow-2xl relative overflow-hidden bg-background">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-bold flex items-center gap-1.5 text-amber-600">
-                <ShieldAlert className="w-5 h-5 shrink-0" />
-                No Vitals Entered
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-1">
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                You checked routing to "Nurse (Vitals Signs)" but did not record any vital sign metrics (BP, Blood Sugar, Weight).
-              </p>
-              <p className="text-xs font-bold text-foreground">
-                Are you sure you want to bypass recording vitals signs for this visit?
-              </p>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => {
-                    setShowVitalsConfirm(false);
-                  }}
-                >
-                  Go Back to Enter Vitals
-                </Button>
-                <Button 
-                  className="bg-amber-600 hover:bg-amber-700 text-white" 
-                  size="sm"
-                  onClick={() => {
-                    setShowVitalsConfirm(false);
-                    handleFormSubmit(false); // Proceed with empty vitals
-                  }}
-                >
-                  Yes, Skip Vitals
                 </Button>
               </div>
             </CardContent>
