@@ -44,26 +44,35 @@ const VisitHistoryTimeline: React.FC<VisitHistoryTimelineProps> = ({ visits }) =
             
             <div className="bg-card border border-border/50 hover:border-primary/20 hover:shadow-sm rounded-xl p-5 space-y-4 transition-all duration-200">
               
-              {/* Header: Visit #, Date, Attendant */}
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-border/40 pb-3">
-                <div>
+              {/* Header: Visit #, Date, Attendant, Payment Status */}
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-border/40 pb-3">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400 bg-indigo-500/5 dark:bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/10">
                     Visit #{visit.visit_number}
                   </span>
-                  <span className="text-xs text-muted-foreground ml-3 inline-flex items-center gap-1 font-medium">
+                  <span className="text-xs text-muted-foreground inline-flex items-center gap-1 font-semibold">
                     <Calendar className="w-3.5 h-3.5" />
                     {formatDate(visit.visit_date)}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground font-semibold">
-                  <User className="w-3.5 h-3.5 text-primary" />
-                  <span>Attended by: </span>
-                  <span className="text-foreground">
-                    {visit.attended_by 
-                      ? typeof visit.attended_by === 'object'
-                        ? `${visit.attended_by.firstName || ''} ${visit.attended_by.lastName || ''}`.trim()
-                        : visit.attended_by
-                      : 'Unknown Staff'}
+                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-semibold sm:justify-end">
+                  <div className="flex items-center gap-1">
+                    <User className="w-3.5 h-3.5 text-primary" />
+                    <span>Attended by: </span>
+                    <span className="text-foreground">
+                      {visit.attended_by 
+                        ? typeof visit.attended_by === 'object'
+                          ? `${visit.attended_by.firstName || ''} ${visit.attended_by.lastName || ''}`.trim()
+                          : visit.attended_by
+                        : 'Unknown Staff'}
+                    </span>
+                  </div>
+                  <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-extrabold inline-flex items-center gap-1
+                    ${visit.payment_collected > 0 
+                      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' 
+                      : 'bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border-emerald-500/10'}`}>
+                    <CircleDollarSign className="w-3.5 h-3.5" />
+                    {visit.payment_collected > 0 ? `${visit.payment_collected.toLocaleString()} ETB Collected` : 'No additional payment (Included in package)'}
                   </span>
                 </div>
               </div>
@@ -138,52 +147,41 @@ const VisitHistoryTimeline: React.FC<VisitHistoryTimelineProps> = ({ visits }) =
                 </div>
               )}
 
-              {/* Medications, Labs, Payment Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              {/* Medications & Labs Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                 
                 {/* Medications */}
-                <div className="space-y-1.5">
-                  <p className="font-bold text-foreground/80 flex items-center gap-1">
-                    <Pill className="w-3.5 h-3.5 text-indigo-500" />
-                    Medications Given:
+                <div className="bg-muted/10 p-3 rounded-lg border border-border/30 space-y-2">
+                  <p className="font-bold text-foreground/80 flex items-center gap-1.5 border-b border-border/35 pb-1">
+                    <Pill className="w-4 h-4 text-indigo-500" />
+                    Prescribed Medications:
                   </p>
                   {visit.medications_given && visit.medications_given.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1.5">
                       {visit.medications_given.map((med, i) => (
-                        <Badge key={i} variant="secondary" className="px-2 py-0 text-[10px] font-medium">{med}</Badge>
+                        <Badge key={i} variant="secondary" className="px-2.5 py-0.5 text-[10px] font-semibold">{med}</Badge>
                       ))}
                     </div>
                   ) : (
-                    <span className="text-muted-foreground italic font-medium">None prescribed.</span>
+                    <span className="text-muted-foreground italic font-medium block pt-0.5">None prescribed.</span>
                   )}
                 </div>
 
                 {/* Lab Orders */}
-                <div className="space-y-1.5">
-                  <p className="font-bold text-foreground/80 flex items-center gap-1">
-                    <FlaskConical className="w-3.5 h-3.5 text-purple-500" />
-                    Lab Orders:
+                <div className="bg-muted/10 p-3 rounded-lg border border-border/30 space-y-2">
+                  <p className="font-bold text-foreground/80 flex items-center gap-1.5 border-b border-border/35 pb-1">
+                    <FlaskConical className="w-4 h-4 text-purple-500" />
+                    Ordered Laboratory Tests:
                   </p>
                   {visit.lab_services_ordered && visit.lab_services_ordered.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1.5">
                       {visit.lab_services_ordered.map((test, i) => (
-                        <Badge key={i} variant="outline" className="px-2 py-0 text-[10px] font-medium border-purple-500/25 text-purple-600 bg-purple-500/5">{test}</Badge>
+                        <Badge key={i} variant="outline" className="px-2.5 py-0.5 text-[10px] font-semibold border-purple-500/25 text-purple-600 bg-purple-500/5">{test}</Badge>
                       ))}
                     </div>
                   ) : (
-                    <span className="text-muted-foreground italic font-medium">None ordered.</span>
+                    <span className="text-muted-foreground italic font-medium block pt-0.5">None ordered.</span>
                   )}
-                </div>
-
-                {/* Payment Collected */}
-                <div className="space-y-1.5">
-                  <p className="font-bold text-foreground/80 flex items-center gap-1">
-                    <CircleDollarSign className="w-3.5 h-3.5 text-emerald-500" />
-                    Visit Payment Collected:
-                  </p>
-                  <span className={`font-bold ${visit.payment_collected > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
-                    {visit.payment_collected > 0 ? `${visit.payment_collected.toLocaleString()} ETB` : 'No additional payment (Included in package)'}
-                  </span>
                 </div>
 
               </div>
