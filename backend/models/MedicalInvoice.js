@@ -514,8 +514,24 @@ MedicalInvoiceSchema.pre('save', function(next) {
     // Calculate total
     this.total = this.subtotal;
 
-    // Calculate amount paid and balance from both payment arrays
-    const allPayments = [...(this.payments || []), ...(this.paymentHistory || [])];
+    // Deduplicate payments by reference or date/amount to avoid double-counting between legacy payments and paymentHistory
+    const uniquePaymentsMap = new Map();
+    
+    if (this.payments && this.payments.length > 0) {
+      this.payments.forEach(p => {
+        const key = p.reference || `legacy-${p.amount}-${p.date ? new Date(p.date).getTime() : ''}`;
+        uniquePaymentsMap.set(key, p);
+      });
+    }
+    
+    if (this.paymentHistory && this.paymentHistory.length > 0) {
+      this.paymentHistory.forEach(p => {
+        const key = p.reference || `legacy-${p.amount}-${p.date ? new Date(p.date).getTime() : ''}`;
+        uniquePaymentsMap.set(key, p);
+      });
+    }
+    
+    const allPayments = Array.from(uniquePaymentsMap.values());
     
     // Recalculate amountPaid from all payment entries, clamped to invoice total
     const rawAmountPaid = allPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);

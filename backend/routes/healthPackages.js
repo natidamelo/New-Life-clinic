@@ -113,6 +113,77 @@ router.post('/patients/:id/packages', auth, async (req, res) => {
     });
 
     await patientPackage.save();
+
+    // Create MedicalInvoice for health package subscription
+    try {
+      const MedicalInvoice = require('../models/MedicalInvoice');
+      const invoiceNumber = await MedicalInvoice.generateInvoiceNumber();
+      
+      const invoiceData = {
+        clinicId: patient.clinicId || req.user?.clinicId || 'default',
+        invoiceNumber,
+        patient: patient._id,
+        patientId: patient.patientId,
+        patientName: `${patient.firstName} ${patient.lastName}`.trim(),
+        issueDate: startDate,
+        dueDate: expiryDate,
+        items: [{
+          itemType: 'service',
+          category: 'service',
+          description: `Health Package Subscription: ${healthPackage.name}`,
+          quantity: 1,
+          unitPrice: healthPackage.price,
+          total: healthPackage.price,
+          notes: `Predefined package containing ${healthPackage.total_visits} visits, valid for ${healthPackage.validity_days} days.`
+        }],
+        subtotal: healthPackage.price,
+        total: healthPackage.price,
+        amountPaid: paid,
+        balance: Math.max(0, balance),
+        status: paid >= healthPackage.price ? 'paid' : (paid > 0 ? 'partial' : 'pending'),
+        paymentStatus: {
+          current: paid >= healthPackage.price ? 'fully_paid' : (paid > 0 ? 'partial' : 'unpaid'),
+          percentage: Math.round((paid / healthPackage.price) * 100),
+          lastUpdated: new Date()
+        },
+        createdBy: req.user._id,
+        finalized: true,
+        finalizedAt: new Date(),
+        finalizedBy: req.user._id
+      };
+
+      if (paid > 0) {
+        const paymentReference = `PKG-SUB-${Date.now()}`;
+        invoiceData.payments = [{
+          amount: paid,
+          method: 'cash',
+          reference: paymentReference,
+          date: new Date(),
+          processedBy: req.user._id,
+          notes: `Initial payment collected for health package subscription: ${healthPackage.name}`
+        }];
+        
+        invoiceData.paymentHistory = [{
+          amount: paid,
+          method: 'cash',
+          reference: paymentReference,
+          date: new Date(),
+          processedBy: req.user._id,
+          notes: `Initial payment collected for health package subscription: ${healthPackage.name}`,
+          paymentType: paid >= healthPackage.price ? 'full' : 'partial',
+          previousBalance: healthPackage.price,
+          newBalance: Math.max(0, balance),
+          paymentPercentage: Math.round((paid / healthPackage.price) * 100)
+        }];
+      }
+
+      const medicalInvoice = new MedicalInvoice(invoiceData);
+      await medicalInvoice.save();
+      console.log(`✅ [BILLING INTEGRATION] Created MedicalInvoice ${invoiceNumber} for health package subscription.`);
+    } catch (billingErr) {
+      console.error('❌ [BILLING INTEGRATION] Error creating invoice for package subscription:', billingErr);
+    }
+
     res.status(201).json({ success: true, message: 'Package assigned to patient successfully', data: patientPackage });
   } catch (error) {
     console.error('Error assigning package to patient:', error);
@@ -309,6 +380,39 @@ router.post('/patient-packages/:id/visits', auth, async (req, res) => {
         patientPackage.payment_status = 'paid';
       } else {
         patientPackage.payment_status = 'partial';
+      }
+
+      // Update MedicalInvoice for the health package subscription
+      try {
+        const MedicalInvoice = require('../models/MedicalInvoice');
+        const healthPackage = await HealthPackage.findById(patientPackage.package_id);
+        if (healthPackage) {
+          const descriptionStr = `Health Package Subscription: ${healthPackage.name}`;
+          const invoice = await MedicalInvoice.findOne({
+            patient: patientPackage.patient_id,
+            'items.description': descriptionStr,
+            clinicId: patientPackage.clinicId || 'default'
+          });
+
+          if (invoice) {
+            if (invoice.balance > 0) {
+              await invoice.addPaymentWithTracking({
+                amount: parseFloat(payment_collected),
+                method: 'cash',
+                reference: `PKG-VISIT-${newVisit._id}-${Date.now()}`,
+                notes: `Installment payment collected during package visit #${visitNumber}`,
+                processedBy: req.user._id
+              });
+              console.log(`✅ [BILLING INTEGRATION] Updated MedicalInvoice ${invoice.invoiceNumber} with payment ${payment_collected} ETB.`);
+            } else {
+              console.log(`ℹ️ [BILLING INTEGRATION] MedicalInvoice ${invoice.invoiceNumber} is already fully paid.`);
+            }
+          } else {
+            console.warn(`⚠️ [BILLING INTEGRATION] Invoice with description "${descriptionStr}" not found for patient.`);
+          }
+        }
+      } catch (billingErr) {
+        console.error('❌ [BILLING INTEGRATION] Error updating invoice for package visit payment:', billingErr);
       }
     }
 
