@@ -348,7 +348,7 @@ const Procedures: React.FC = () => {
       if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
         toast.error('Request timed out. Please check your connection and try again.');
       } else if (error.message?.includes('Network Error') || error.message?.includes('Failed to fetch') || error.code === 'ERR_NETWORK') {
-        toast.error('Unable to connect to backend server. Please check your connection and try again.', { autoClose: 10000 });
+        toast.error('Unable to connect to backend server. Please check your connection and try again.', { duration: 10000 });
       } else if (error.response) {
         console.error('Failed to fetch procedures:', error.response.status, error.response.statusText);
         toast.error(`Failed to fetch procedures: ${error.response.status}`);

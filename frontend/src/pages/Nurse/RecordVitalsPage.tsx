@@ -417,11 +417,11 @@ const RecordVitalsPage: React.FC = () => {
     !p.vitals || (!p.vitals.temperature && !p.vitals.heartRate && !p.vitals.bloodPressure)
   );
   const criticalCount = withVitals.filter(p => {
-    const v = p.vitals || {};
+    const v = p.vitals;
     return (
-      getVitalStatus('temperature', v.temperature || '') === 'critical' ||
-      getVitalStatus('heartRate', v.heartRate || '') === 'critical' ||
-      getVitalStatus('bloodPressure', v.bloodPressure || '') === 'critical'
+      getVitalStatus('temperature', v?.temperature || '') === 'critical' ||
+      getVitalStatus('heartRate', v?.heartRate || '') === 'critical' ||
+      getVitalStatus('bloodPressure', v?.bloodPressure || '') === 'critical'
     );
   }).length;
 
@@ -507,11 +507,11 @@ const RecordVitalsPage: React.FC = () => {
 
             <div className="divide-y divide-border/40">
               {pagePatients.map(patient => {
-              const v = patient.vitals || {};
-              const hasVitals = !!(v.temperature || v.heartRate || v.bloodPressure);
-              const tempStatus = getVitalStatus('temperature', String(v.temperature || ''));
-              const hrStatus   = getVitalStatus('heartRate',   String(v.heartRate   || ''));
-              const bpStatus   = getVitalStatus('bloodPressure', String(v.bloodPressure || ''));
+              const v = patient.vitals;
+              const hasVitals = !!(v?.temperature || v?.heartRate || v?.bloodPressure);
+              const tempStatus = getVitalStatus('temperature', String(v?.temperature || ''));
+              const hrStatus   = getVitalStatus('heartRate',   String(v?.heartRate   || ''));
+              const bpStatus   = getVitalStatus('bloodPressure', String(v?.bloodPressure || ''));
               const overallStatus: VitalStatus =
                 [tempStatus, hrStatus, bpStatus].includes('critical') ? 'critical' :
                 [tempStatus, hrStatus, bpStatus].includes('warning')  ? 'warning'  : 'normal';
@@ -561,17 +561,17 @@ const RecordVitalsPage: React.FC = () => {
                   <div className="flex items-center gap-2 flex-wrap">
                     {hasVitals ? (
                       <>
-                        {v.temperature && (
+                        {v?.temperature && (
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColors[tempStatus].badge}`}>
                             🌡 {v.temperature}°C
                           </span>
                         )}
-                        {v.heartRate && (
+                        {v?.heartRate && (
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColors[hrStatus].badge}`}>
                             ♥ {v.heartRate} bpm
                           </span>
                         )}
-                        {v.bloodPressure && (
+                        {v?.bloodPressure && (
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColors[bpStatus].badge}`}>
                             {v.bloodPressure}
                           </span>

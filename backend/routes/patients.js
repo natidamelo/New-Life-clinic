@@ -1576,6 +1576,58 @@ router.put('/:id/vitals', auth, async (req, res) => {
       // Don't fail vitals update if notification fails
     }
 
+    // 🎯 Resolve associated VITAL_SIGNS NurseTask and sync to PackageVisit if applicable
+    try {
+      const NurseTask = require('../models/NurseTask');
+      let task = null;
+
+      if (vitalsData.taskId) {
+        task = await NurseTask.findById(vitalsData.taskId);
+      } else {
+        // Fallback: search for the latest pending vital signs task for this patient
+        task = await NurseTask.findOne({
+          patientId: id,
+          taskType: 'VITAL_SIGNS',
+          status: 'PENDING'
+        }).sort({ createdAt: -1 });
+      }
+
+      if (task && task.status !== 'COMPLETED') {
+        console.log(`🎯 [PATIENT VITALS] Resolving associated nurse task ${task._id} for patient ${id}`);
+        task.status = 'COMPLETED';
+        task.completedDate = new Date();
+        task.completedBy = req.user.id;
+        task.completionNotes = `Vital signs recorded via patient vitals update endpoint`;
+        await task.save();
+        console.log(`✅ [PATIENT VITALS] Nurse task ${task._id} marked as COMPLETED`);
+
+        if (task.metadata && task.metadata.packageVisitId) {
+          console.log(`📦 [PATIENT VITALS] Syncing vitals to PackageVisit ${task.metadata.packageVisitId}`);
+          const PackageVisit = require('../models/PackageVisit');
+          const packageVisit = await PackageVisit.findById(task.metadata.packageVisitId);
+          if (packageVisit) {
+            if (systolic !== null && systolic !== undefined) packageVisit.blood_pressure_systolic = systolic;
+            if (diastolic !== null && diastolic !== undefined) packageVisit.blood_pressure_diastolic = diastolic;
+            if (vitalsData.bloodSugar) {
+              const isFasting = (task.description || '').toLowerCase().includes('fasting') || (task.notes || '').toLowerCase().includes('fasting');
+              if (isFasting) {
+                packageVisit.blood_sugar_fasting = parseFloat(vitalsData.bloodSugar);
+              } else {
+                packageVisit.blood_sugar_random = parseFloat(vitalsData.bloodSugar);
+              }
+            }
+            if (vitalsData.weight) packageVisit.weight_kg = parseFloat(vitalsData.weight);
+            if (bmiValue) packageVisit.bmi = bmiValue;
+
+            await packageVisit.save();
+            console.log(`✅ [PATIENT VITALS] PackageVisit ${task.metadata.packageVisitId} successfully updated with vitals`);
+          }
+        }
+      }
+    } catch (taskError) {
+      console.error('❌ [PATIENT VITALS] Error updating associated nurse task:', taskError);
+    }
+
     res.json({
       success: true,
       data: {

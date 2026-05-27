@@ -182,7 +182,7 @@ const VisitHistoryTimeline: React.FC<VisitHistoryTimelineProps> = ({ visits }) =
                     Visit Payment Collected:
                   </p>
                   <span className={`font-bold ${visit.payment_collected > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
-                    {visit.payment_collected > 0 ? `${visit.payment_collected.toLocaleString()} ETB` : 'No payment collected.'}
+                    {visit.payment_collected > 0 ? `${visit.payment_collected.toLocaleString()} ETB` : 'No additional payment (Included in package)'}
                   </span>
                 </div>
 

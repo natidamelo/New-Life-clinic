@@ -17,6 +17,8 @@ interface Patient {
   lastName: string;
   roomNumber?: string;
   medications?: Medication[];
+  age?: number;
+  gender?: string;
 }
 
 interface Medication {

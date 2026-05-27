@@ -212,6 +212,7 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
   const [referralPriority, setReferralPriority] = useState('normal');
   const [isSubmittingReferral, setIsSubmittingReferral] = useState(false);
   const [currentVisitId, setCurrentVisitId] = useState<string | null>(null);
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [prescriptions, setPrescriptions] = useState<Record<string, Prescription[]>>({});
   const [prescriptionsLoading, setPrescriptionsLoading] = useState<boolean>(false);
   
@@ -612,12 +613,20 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
   }, [user, toast]);
 
   // Update vitals handler
-  const handleUpdateVitals = async (patientId: string) => {
+  const handleUpdateVitals = async (patientId: string, taskId?: string) => {
+    setCurrentTaskId(taskId || null);
     let patient = patients.find(p => p.id === patientId || p._id === patientId);
+    if (!patient) {
+      try {
+        patient = await patientService.getPatientById(patientId);
+      } catch (err) {
+        console.warn('Patient not found in local state, and failed to fetch from API:', err);
+      }
+    }
     if (!patient) {
       toast({
         title: "Error",
-        description: "Selected patient not found locally.",
+        description: "Selected patient not found.",
         variant: "destructive",
       });
       return;
@@ -992,7 +1001,8 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
         height: vitalsForm.height || '',
         weight: vitalsForm.weight || '',
         bmi: getCleanBMIValue(vitalsForm.bmi || ''),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        taskId: currentTaskId || undefined
       };
       
       console.log('Formatted vitals data to send to API:', vitalsData);
@@ -1176,11 +1186,11 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
 
   // Render patients table
   const renderPatientsTable = () => {
-    // Exclude patients that have already been sent/notified to doctor (scheduled/waiting)
+    // Exclude patients that have already been sent/notified to doctor (scheduled)
     // or already have vitals recorded; those will appear under the Vitals Log tab.
     const baseList = (searchTerm ? filteredPatients : patients).filter((p: any) => {
       const hasAnyVitals = !!(p?.vitals && (p.vitals.temperature || p.vitals.heartRate || p.vitals.bloodPressure || p.vitals.respiratoryRate || p.vitals.oxygenSaturation));
-      const forwardedToDoctor = p?.status === 'scheduled' || p?.status === 'waiting';
+      const forwardedToDoctor = p?.status === 'scheduled';
       return !hasAnyVitals && !forwardedToDoctor;
     });
     // Sort latest-first using available timestamps
@@ -1656,6 +1666,28 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
                             </Badge>
                             <span className="ml-2 text-xs text-muted-foreground">Due: {new Date(task.dueTime).toLocaleTimeString()}</span>
                           </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {task.type === 'vitals' && (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="text-xs h-7"
+                              onClick={() => handleUpdateVitals(task.patientId, task.id)}
+                            >
+                              Record Vitals
+                            </Button>
+                          )}
+                          {task.type === 'medication' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs h-7"
+                              onClick={() => window.location.href = '/app/nurse/tasks'}
+                            >
+                              Checklist
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -2168,7 +2200,8 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
                       height: vitalsForm.height || '',
                       weight: vitalsForm.weight || '',
                       bmi: getCleanBMIValue(vitalsForm.bmi || ''),
-                      timestamp: new Date().toISOString()
+                      timestamp: new Date().toISOString(),
+                      taskId: currentTaskId || undefined
                     };
                     
                     // Update the vitals - this will also update status to 'scheduled'
