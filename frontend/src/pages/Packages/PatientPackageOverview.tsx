@@ -331,6 +331,7 @@ const PatientPackageOverview: React.FC = () => {
         onClose={() => setSelectedSub(null)}
         title="Subscription History & Vitals Analytics"
         description={selectedSub ? `Patient: ${(selectedSub.patient_id as any)?.firstName} ${(selectedSub.patient_id as any)?.lastName} | Package: ${(selectedSub.package_id as any)?.name}` : ''}
+        size="3xl"
       >
         {selectedSub && (
           <div className="space-y-5 text-left py-2 max-h-[80vh] overflow-y-auto">
