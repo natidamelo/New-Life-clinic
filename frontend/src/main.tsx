@@ -13,14 +13,10 @@ import ErrorBoundary from './components/common/ErrorBoundary'
 import router from './router'
 import './index.css'
 import './styles/globals.css'
-import { initializeAuthFromStorage } from './utils/auth'
 // Debug utilities loaded on-demand only in development (not bundled in production)
 if (import.meta.env.DEV) {
   import('./utils/serviceExposure');
 }
-
-// Initialize auth token from localStorage on app start
-initializeAuthFromStorage();
 
 const queryClient = new QueryClient({
   defaultOptions: {
