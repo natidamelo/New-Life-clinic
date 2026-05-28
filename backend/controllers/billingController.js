@@ -10,6 +10,8 @@ const Service = require('../models/Service');
 const NurseTask = require('../models/NurseTask');
 const LabOrder = require('../models/LabOrder');
 const ImagingOrder = require('../models/ImagingOrder');
+const OperatingExpense = require('../models/OperatingExpense');
+const InventoryTransaction = require('../models/InventoryTransaction');
 
 // Get all billing invoices with pagination and filtering
 exports.getBillingInvoices = asyncHandler(async (req, res) => {
@@ -539,7 +541,6 @@ exports.getMonthlyData = asyncHandler(async (req, res) => {
         ]);
 
         // Get monthly expense data
-        const OperatingExpense = require('../models/OperatingExpense');
         const monthlyExpenses = await OperatingExpense.aggregate([
             { $match: { expenseDate: { $gte: start, $lte: end } } },
             {
