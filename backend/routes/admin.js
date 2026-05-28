@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../middleware/auth');
+const { auth, optionalAuth } = require('../middleware/auth');
 
 // @route   GET /api/admin
 // @desc    Get all admin
@@ -25,7 +25,7 @@ router.get('/', auth, async (req, res) => {
 // @route   GET /api/admin/auto-clockout-setting
 // @desc    Get auto clockout settings
 // @access  Private
-router.get('/auto-clockout-setting', auth, async (req, res) => {
+router.get('/auto-clockout-setting', optionalAuth, async (req, res) => {
   try {
     // Mock auto clockout settings
     const settings = {
