@@ -973,5 +973,7 @@ MedicalInvoiceSchema.index({ patientId: 1, status: 1 });
 MedicalInvoiceSchema.index({ invoiceNumber: 1 });
 MedicalInvoiceSchema.index({ clinicId: 1, issueDate: -1, status: 1 });
 MedicalInvoiceSchema.index({ clinicId: 1, createdAt: -1 });
+MedicalInvoiceSchema.index({ issueDate: -1 });
+MedicalInvoiceSchema.index({ dueDate: 1 });
 
 module.exports = mongoose.model('MedicalInvoice', MedicalInvoiceSchema); 

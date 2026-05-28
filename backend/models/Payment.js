@@ -42,6 +42,9 @@ const PaymentSchema = new mongoose.Schema({
   timestamps: true,
 });
 
+PaymentSchema.index({ invoice: 1 });
+PaymentSchema.index({ paymentDate: -1 });
+
 module.exports = mongoose.model('Payment', PaymentSchema); 
 
 // TODO: Add post-save hook if needed to update Invoice status/amountPaid

@@ -140,115 +140,87 @@ exports.getBillingStats = asyncHandler(async (req, res) => {
         endLocal: end.toLocaleString()
     });
 
-    // Get comprehensive billing statistics
-    const invoiceStats = await MedicalInvoice.aggregate([
-        { $match: { issueDate: { $gte: start, $lte: end } } },
-        {
-            $group: {
-                _id: null,
-                totalRevenue: { $sum: '$total' },
-                totalOutstanding: { $sum: '$balance' },
-                totalOverdue: {
-                    $sum: {
-                        $cond: [
-                            {
-                                $and: [
-                                    { $lt: ['$dueDate', new Date()] },
-                                    { $gt: ['$balance', 0] }
-                                ]
-                            },
-                            '$balance',
-                            0
-                        ]
-                    }
-                },
-                averageInvoiceValue: { $avg: '$total' },
-                invoiceCount: { $sum: 1 }
-            }
-        }
-    ]);
-
-    // Get payment data for the same period
-    const paymentStats = await Payment.aggregate([
-        {
-            $lookup: {
-                from: 'medicalinvoices',
-                localField: 'invoice',
-                foreignField: '_id',
-                as: 'invoice'
-            }
-        },
-        { $unwind: '$invoice' },
-        { $match: { 'invoice.issueDate': { $gte: start, $lte: end } } },
-        {
-            $group: {
-                _id: null,
-                totalPaid: { $sum: '$amount' },
-                paymentCount: { $sum: 1 }
-            }
-        }
-    ]);
-
-    // Debug: Check total invoices in database
-    const totalInvoicesInDB = await MedicalInvoice.countDocuments({});
-    const totalPaymentsInDB = await Payment.countDocuments({});
-    console.log('Total invoices in database:', totalInvoicesInDB);
-    console.log('Total payments in database:', totalPaymentsInDB);
-    console.log('Invoices in date range:', invoiceStats[0]?.invoiceCount || 0);
-    console.log('Payments in date range:', paymentStats[0]?.paymentCount || 0);
-
-    // Get invoices by status for detailed breakdown
-    const invoicesByStatus = await MedicalInvoice.aggregate([
-        { $match: { issueDate: { $gte: start, $lte: end } } },
-        { $group: { _id: '$status', count: { $sum: 1 } } }
-    ]);
-
-    // Get recent invoices for the dashboard
-    const recentInvoices = await MedicalInvoice.aggregate([
-        { $match: { issueDate: { $gte: start, $lte: end } } },
-        { $sort: { issueDate: -1 } },
-        { $limit: 10 },
-        {
-            $lookup: {
-                from: 'patients',
-                localField: 'patient',
-                foreignField: '_id',
-                as: 'patientData'
-            }
-        },
-        { $unwind: { path: '$patientData', preserveNullAndEmptyArrays: true } },
-        {
-            $project: {
-                _id: 1,
-                invoiceNumber: 1,
-                issueDate: 1,
-                total: 1,
-                status: 1,
-                patientName: { $concat: ['$patientData.firstName', ' ', '$patientData.lastName'] }
-            }
-        }
-    ]);
-
-    // Calculate monthly revenue for the last 12 months
-    const monthlyRevenue = await MedicalInvoice.aggregate([
-        {
-            $match: {
-                issueDate: {
-                    $gte: new Date(new Date().getFullYear() - 1, new Date().getMonth(), 1),
-                    $lte: new Date()
+    // Execute aggregation queries in parallel
+    const [invoiceStats, invoicesByStatus, recentInvoices, monthlyRevenue] = await Promise.all([
+        // 1. General invoice statistics: total, balance, amountPaid (no lookup needed!)
+        MedicalInvoice.aggregate([
+            { $match: { issueDate: { $gte: start, $lte: end } } },
+            {
+                $group: {
+                    _id: null,
+                    totalRevenue: { $sum: '$total' },
+                    totalOutstanding: { $sum: '$balance' },
+                    totalPaid: { $sum: '$amountPaid' },
+                    totalOverdue: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $lt: ['$dueDate', new Date()] },
+                                        { $gt: ['$balance', 0] }
+                                    ]
+                                },
+                                '$balance',
+                                0
+                            ]
+                        }
+                    },
+                    averageInvoiceValue: { $avg: '$total' },
+                    invoiceCount: { $sum: 1 }
                 }
             }
-        },
-        {
-            $group: {
-                _id: {
-                    year: { $year: '$issueDate' },
-                    month: { $month: '$issueDate' }
-                },
-                revenue: { $sum: '$total' }
+        ]),
+        // 2. Invoices count grouped by status
+        MedicalInvoice.aggregate([
+            { $match: { issueDate: { $gte: start, $lte: end } } },
+            { $group: { _id: '$status', count: { $sum: 1 } } }
+        ]),
+        // 3. Recent 10 invoices with patient name populated via lookup
+        MedicalInvoice.aggregate([
+            { $match: { issueDate: { $gte: start, $lte: end } } },
+            { $sort: { issueDate: -1 } },
+            { $limit: 10 },
+            {
+                $lookup: {
+                    from: 'patients',
+                    localField: 'patient',
+                    foreignField: '_id',
+                    as: 'patientData'
+                }
+            },
+            { $unwind: { path: '$patientData', preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: 1,
+                    invoiceNumber: 1,
+                    issueDate: 1,
+                    total: 1,
+                    status: 1,
+                    patientName: { $concat: ['$patientData.firstName', ' ', '$patientData.lastName'] }
+                }
             }
-        },
-        { $sort: { '_id.year': 1, '_id.month': 1 } }
+        ]),
+        // 4. Monthly revenue trend for the last 12 months
+        MedicalInvoice.aggregate([
+            {
+                $match: {
+                    issueDate: {
+                        $gte: new Date(new Date().getFullYear() - 1, new Date().getMonth(), 1),
+                        $lte: new Date()
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        year: { $year: '$issueDate' },
+                        month: { $month: '$issueDate' }
+                    },
+                    revenue: { $sum: '$total' }
+                }
+            },
+            { $sort: { '_id.year': 1, '_id.month': 1 } }
+        ])
     ]);
 
     // Convert monthly revenue to array format expected by frontend
@@ -259,15 +231,13 @@ exports.getBillingStats = asyncHandler(async (req, res) => {
     });
 
     const stats = invoiceStats[0] || {};
-    const payments = paymentStats[0] || {};
     const statusCounts = invoicesByStatus.reduce((acc, curr) => ({ ...acc, [curr._id]: curr.count }), {});
 
     console.log('Billing stats summary:', {
         totalRevenue: stats.totalRevenue || 0,
         totalOutstanding: stats.totalOutstanding || 0,
-        totalPaid: payments.totalPaid || 0,
-        invoiceCount: stats.invoiceCount || 0,
-        paymentCount: payments.paymentCount || 0
+        totalPaid: stats.totalPaid || 0,
+        invoiceCount: stats.invoiceCount || 0
     });
 
     res.json({
@@ -275,7 +245,7 @@ exports.getBillingStats = asyncHandler(async (req, res) => {
         data: {
             totalRevenue: stats.totalRevenue || 0,
             outstandingAmount: stats.totalOutstanding || 0,
-            totalPaid: payments.totalPaid || 0,
+            totalPaid: stats.totalPaid || 0,
             invoicesCount: {
                 paid: statusCounts.paid || 0,
                 pending: statusCounts.pending || 0,
@@ -298,152 +268,92 @@ exports.getFinancialSummary = asyncHandler(async (req, res) => {
     const end = endDate ? new Date(endDate) : new Date();
 
     try {
-        // Get revenue data from medical invoices
-        const revenueData = await MedicalInvoice.aggregate([
-            { $match: { issueDate: { $gte: start, $lte: end } } },
-            {
-                $group: {
-                    _id: null,
-                    totalRevenue: { $sum: '$total' },
-                    totalOutstanding: { $sum: { $subtract: ['$total', '$amountPaid'] } },
-                    totalOverdue: {
-                        $sum: {
-                            $cond: [
-                                {
-                                    $and: [
-                                        { $lt: ['$dueDate', new Date()] },
-                                        { $gt: [{ $subtract: ['$total', '$amountPaid'] }, 0] }
-                                    ]
-                                },
-                                { $subtract: ['$total', '$amountPaid'] },
-                                0
-                            ]
-                        }
-                    },
-                    averageInvoiceValue: { $avg: '$total' },
-                    invoiceCount: { $sum: 1 }
-                }
-            }
-        ]);
-
-        // Get total paid from Payment collection
-        const paymentData = await Payment.aggregate([
-            {
-                $lookup: {
-                    from: 'medicalinvoices',
-                    localField: 'invoice',
-                    foreignField: '_id',
-                    as: 'invoice'
-                }
-            },
-            { $unwind: '$invoice' },
-            { $match: { 'invoice.issueDate': { $gte: start, $lte: end } } },
-            {
-                $group: {
-                    _id: null,
-                    totalPaid: { $sum: '$amount' },
-                    paymentCount: { $sum: 1 }
-                }
-            }
-        ]);
-
-        // Get total paid from invoice.payments arrays (avoiding double counting)
-        // Only count payments that are NOT already in the Payment collection
-        const invoicePaymentsData = await MedicalInvoice.aggregate([
-            { $match: { issueDate: { $gte: start, $lte: end } } },
-            { $unwind: { path: '$payments', preserveNullAndEmptyArrays: false } },
-            {
-                $group: {
-                    _id: null,
-                    totalPaidFromInvoices: { $sum: '$payments.amount' },
-                    paymentCountFromInvoices: { $sum: 1 }
-                }
-            }
-        ]);
-
-        // Alternative approach: Use the invoice amountPaid field directly to avoid double counting
-        const invoiceAmountPaidData = await MedicalInvoice.aggregate([
-            { $match: { issueDate: { $gte: start, $lte: end } } },
-            {
-                $group: {
-                    _id: null,
-                    totalAmountPaid: { $sum: '$amountPaid' },
-                    invoiceCount: { $sum: 1 }
-                }
-            }
-        ]);
-
-        // ===== Cost of Goods Sold (COGS) =====
-        // Calculate COGS ONLY from actual inventory deductions (not from invoice items)
-        const InventoryTransaction = require('../models/InventoryTransaction');
-        const inventoryCostAgg = await InventoryTransaction.aggregate([
-            {
-                $match: {
-                    createdAt: { $gte: start, $lte: end },
-                    quantity: { $lt: 0 }, // only stock deductions
-                    status: 'completed',
-                    // Include all deduction types: medical-use, prescription, sale, etc.
-                    transactionType: {
-                        $in: ['medical-use', 'prescription', 'sale', 'damaged', 'expired']
-                    }
-                }
-            },
-            // Join with inventory item to get costPrice if unitCost/totalCost are missing
-            {
-                $lookup: {
-                    from: 'inventoryitems',
-                    localField: 'item',
-                    foreignField: '_id',
-                    as: 'invItem'
-                }
-            },
-            { $unwind: { path: '$invItem', preserveNullAndEmptyArrays: true } },
-            // Determine cost per unit and total cost
-            {
-                $addFields: {
-                    _unitCost: {
-                        $ifNull: [
-                            '$unitCost',
-                            { $ifNull: ['$invItem.costPrice', 0] }
-                        ]
-                    },
-                    _totalCost: {
-                        $cond: [
-                            { $ne: ['$totalCost', null] },
-                            '$totalCost',
-                            {
-                                $multiply: [
-                                    { $abs: '$quantity' }, // Use absolute quantity to get positive cost
-                                    { $ifNull: ['$unitCost', { $ifNull: ['$invItem.costPrice', 0] }] }
+        // Get revenue, paid data, cogs and expenses in parallel
+        const [revenueData, inventoryCostAgg, oneTimeExpenseAgg, recurringExpenseAgg] = await Promise.all([
+            // 1. Revenue & Payment aggregation (single query instead of 4 sequential ones!)
+            MedicalInvoice.aggregate([
+                { $match: { issueDate: { $gte: start, $lte: end } } },
+                {
+                    $group: {
+                        _id: null,
+                        totalRevenue: { $sum: '$total' },
+                        totalOutstanding: { $sum: { $subtract: ['$total', '$amountPaid'] } },
+                        totalAmountPaid: { $sum: '$amountPaid' },
+                        totalOverdue: {
+                            $sum: {
+                                $cond: [
+                                    {
+                                        $and: [
+                                            { $lt: ['$dueDate', new Date()] },
+                                            { $gt: [{ $subtract: ['$total', '$amountPaid'] }, 0] }
+                                        ]
+                                    },
+                                    { $subtract: ['$total', '$amountPaid'] },
+                                    0
                                 ]
                             }
-                        ]
+                        },
+                        averageInvoiceValue: { $avg: '$total' },
+                        invoiceCount: { $sum: 1 }
                     }
                 }
-            },
-            {
-                $group: {
-                    _id: null,
-                    // Sum absolute values to get total positive cost
-                    totalInventoryCost: { $sum: { $abs: '$_totalCost' } },
-                    inventoryTransactionCount: { $sum: 1 }
+            ]),
+            // 2. Inventory Cost (COGS) aggregation
+            InventoryTransaction.aggregate([
+                {
+                    $match: {
+                        createdAt: { $gte: start, $lte: end },
+                        quantity: { $lt: 0 }, // only stock deductions
+                        status: 'completed',
+                        // Include all deduction types: medical-use, prescription, sale, etc.
+                        transactionType: {
+                            $in: ['medical-use', 'prescription', 'sale', 'damaged', 'expired']
+                        }
+                    }
+                },
+                // Join with inventory item to get costPrice if unitCost/totalCost are missing
+                {
+                    $lookup: {
+                        from: 'inventoryitems',
+                        localField: 'item',
+                        foreignField: '_id',
+                        as: 'invItem'
+                    }
+                },
+                { $unwind: { path: '$invItem', preserveNullAndEmptyArrays: true } },
+                // Determine cost per unit and total cost
+                {
+                    $addFields: {
+                        _unitCost: {
+                            $ifNull: [
+                                '$unitCost',
+                                { $ifNull: ['$invItem.costPrice', 0] }
+                            ]
+                        },
+                        _totalCost: {
+                            $cond: [
+                                { $ne: ['$totalCost', null] },
+                                '$totalCost',
+                                {
+                                    $multiply: [
+                                        { $abs: '$quantity' }, // Use absolute quantity to get positive cost
+                                        { $ifNull: ['$unitCost', { $ifNull: ['$invItem.costPrice', 0] }] }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        // Sum absolute values to get total positive cost
+                        totalInventoryCost: { $sum: { $abs: '$_totalCost' } },
+                        inventoryTransactionCount: { $sum: 1 }
+                    }
                 }
-            }
-        ]);
-
-        const inventoryCosts = inventoryCostAgg[0] || { totalInventoryCost: 0, inventoryTransactionCount: 0 };
-
-        // COGS is now ONLY calculated from actual inventory deductions
-        // COGS should be negative (expense) in accounting
-        let totalCogs = -(inventoryCosts.totalInventoryCost || 0);
-
-        // Force COGS to zero if no actual inventory deductions (per user request)
-        // Removed the 40% fallback calculation that was causing incorrect COGS values
-
-        // ===== Expense data =====
-        // Operating expenses = one-time (dated in range) + recurring (monthly amount × months in range)
-        const OperatingExpense = require('../models/OperatingExpense');
-        const [oneTimeExpenseAgg, recurringExpenseAgg] = await Promise.all([
+            ]),
+            // 3. One-time operating expenses
             OperatingExpense.aggregate([
                 {
                     $match: {
@@ -459,6 +369,7 @@ exports.getFinancialSummary = asyncHandler(async (req, res) => {
                     }
                 }
             ]),
+            // 4. Recurring operating expenses
             OperatingExpense.aggregate([
                 { $match: { recurring: true } },
                 {
@@ -470,28 +381,25 @@ exports.getFinancialSummary = asyncHandler(async (req, res) => {
                 }
             ])
         ]);
+
         const oneTimeTotal = oneTimeExpenseAgg[0]?.total || 0;
         const recurringMonthlyTotal = recurringExpenseAgg[0]?.total || 0;
         // Use days-based months so "1 month" range shows 1 month of recurring expenses, not 2
         const daysDiff = Math.ceil((end - start) / (24 * 60 * 60 * 1000)) + 1;
         const monthsInRange = Math.max(1, Math.round(daysDiff / 30.44));
         const totalExpenses = oneTimeTotal + (recurringMonthlyTotal * monthsInRange);
+        const totalExpensesFinal = totalExpenses;
 
         const revenue = revenueData[0] || {};
-        const payments = paymentData[0] || {};
-        const invoicePayments = invoicePaymentsData[0] || {};
-        const invoiceAmountPaid = invoiceAmountPaidData[0] || {};
-        const expenses = {
-            totalExpenses,
-            monthsInRange,
-            oneTimeTotal,
-            recurringMonthlyTotal
-        };
+        const inventoryCosts = inventoryCostAgg[0] || { totalInventoryCost: 0, inventoryTransactionCount: 0 };
+
+        // COGS is now ONLY calculated from actual inventory deductions
+        // COGS should be negative (expense) in accounting
+        let totalCogs = -(inventoryCosts.totalInventoryCost || 0);
 
         const totalRevenue = revenue.totalRevenue || 0;
         // Use the invoice amountPaid field directly to avoid double counting
-        const totalPaid = invoiceAmountPaid.totalAmountPaid || 0;
-        const totalExpensesFinal = expenses.totalExpenses || 0;
+        const totalPaid = revenue.totalAmountPaid || 0;
 
         // Use actual paid amount as revenue for calculations
         const actualRevenue = totalPaid;
