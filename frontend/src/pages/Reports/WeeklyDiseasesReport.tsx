@@ -20,6 +20,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { format, startOfWeek, endOfWeek, addDays } from 'date-fns';
+import weeklyDiseasesReportService from '../../services/weeklyDiseasesReportService';
 
 interface DiseaseData {
   outPatient: number;
@@ -178,20 +179,8 @@ const WeeklyDiseasesReportPage: React.FC = () => {
   const fetchReports = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/weekly-diseases-reports', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setReports(data.data || []);
-      } else {
-        toast.error('Failed to fetch reports');
-      }
+      const data = await weeklyDiseasesReportService.getAllReports();
+      setReports(data.data || []);
     } catch (error) {
       console.error('Error fetching reports:', error);
       toast.error('Error fetching reports');
@@ -204,37 +193,25 @@ const WeeklyDiseasesReportPage: React.FC = () => {
   const getCurrentWeekReport = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/weekly-diseases-reports/current-week', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCurrentReport(data.data);
-        
-        // Initialize form data if report exists
-        if (data.data) {
-          setFormData({
-            weekStartDate: format(new Date(data.data.weekStartDate), 'yyyy-MM-dd'),
-            weekEndDate: format(new Date(data.data.weekEndDate), 'yyyy-MM-dd'),
-            healthCenter: data.data.healthCenter,
-            weeklyIndicators: data.data.weeklyIndicators || initializeWeeklyIndicators(),
-            reportableConditions: data.data.reportableConditions || initializeReportableConditions()
-          });
-        } else {
-          // Initialize with default values
-          setFormData(prev => ({
-            ...prev,
-            weeklyIndicators: initializeWeeklyIndicators(),
-            reportableConditions: initializeReportableConditions()
-          }));
-        }
+      const data = await weeklyDiseasesReportService.getCurrentWeekReport();
+      setCurrentReport(data.data);
+      
+      // Initialize form data if report exists
+      if (data.data) {
+        setFormData({
+          weekStartDate: format(new Date(data.data.weekStartDate), 'yyyy-MM-dd'),
+          weekEndDate: format(new Date(data.data.weekEndDate), 'yyyy-MM-dd'),
+          healthCenter: data.data.healthCenter,
+          weeklyIndicators: data.data.weeklyIndicators || initializeWeeklyIndicators(),
+          reportableConditions: data.data.reportableConditions || initializeReportableConditions()
+        });
       } else {
-        toast.error('Failed to get current week report');
+        // Initialize with default values
+        setFormData(prev => ({
+          ...prev,
+          weeklyIndicators: initializeWeeklyIndicators(),
+          reportableConditions: initializeReportableConditions()
+        }));
       }
     } catch (error) {
       console.error('Error getting current week report:', error);
@@ -248,36 +225,17 @@ const WeeklyDiseasesReportPage: React.FC = () => {
   const saveReport = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      
-      const url = currentReport 
-        ? `/api/weekly-diseases-reports/${currentReport._id}`
-        : '/api/weekly-diseases-reports';
-      
-      const method = currentReport ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
+      const data = currentReport 
+        ? await weeklyDiseasesReportService.updateReport(currentReport._id, formData)
+        : await weeklyDiseasesReportService.createReport(formData);
 
-      if (response.ok) {
-        const data = await response.json();
-        toast.success(currentReport ? 'Report updated successfully' : 'Report created successfully');
-        setCurrentReport(data.data);
-        setEditing(false);
-        fetchReports();
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Failed to save report');
-      }
-    } catch (error) {
+      toast.success(currentReport ? 'Report updated successfully' : 'Report created successfully');
+      setCurrentReport(data.data);
+      setEditing(false);
+      fetchReports();
+    } catch (error: any) {
       console.error('Error saving report:', error);
-      toast.error('Error saving report');
+      toast.error(error.message || 'Failed to save report');
     } finally {
       setLoading(false);
     }
@@ -287,50 +245,35 @@ const WeeklyDiseasesReportPage: React.FC = () => {
   const refreshFromAssessments = async () => {
     setIsRefreshing(true);
     try {
-      const token = localStorage.getItem('token');
-      
       // If no current report, try to get current week report first
       if (!currentReport) {
         await getCurrentWeekReport();
         return;
       }
       
-      const response = await fetch(`/api/weekly-diseases-reports/${currentReport._id}/refresh-counts`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setCurrentReport(result.data);
-          const newFormData = {
-            weekStartDate: format(new Date(result.data.weekStartDate), 'yyyy-MM-dd'),
-            weekEndDate: format(new Date(result.data.weekEndDate), 'yyyy-MM-dd'),
-            healthCenter: result.data.healthCenter || 'Health Center',
-            weeklyIndicators: result.data.weeklyIndicators,
-            reportableConditions: result.data.reportableConditions
-          };
-          setFormData(newFormData);
-          
-          // Debug: Log the diabetes value after refresh
-          console.log('Refresh - Diabetes value:', result.data.weeklyIndicators?.diabeticMellitusNewCase?.outPatient);
-          console.log('Refresh - New formData:', newFormData.weeklyIndicators?.diabeticMellitusNewCase);
-          
-          await getCurrentWeekReport();
-          await fetchReports();
-          toast.success('Disease counts refreshed from assessments');
-        }
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Failed to refresh disease counts');
+      const result = await weeklyDiseasesReportService.refreshDiseaseCounts(currentReport._id);
+      if (result.success) {
+        setCurrentReport(result.data);
+        const newFormData = {
+          weekStartDate: format(new Date(result.data.weekStartDate), 'yyyy-MM-dd'),
+          weekEndDate: format(new Date(result.data.weekEndDate), 'yyyy-MM-dd'),
+          healthCenter: result.data.healthCenter || 'Health Center',
+          weeklyIndicators: result.data.weeklyIndicators,
+          reportableConditions: result.data.reportableConditions
+        };
+        setFormData(newFormData);
+        
+        // Debug: Log the diabetes value after refresh
+        console.log('Refresh - Diabetes value:', result.data.weeklyIndicators?.diabeticMellitusNewCase?.outPatient);
+        console.log('Refresh - New formData:', newFormData.weeklyIndicators?.diabeticMellitusNewCase);
+        
+        await getCurrentWeekReport();
+        await fetchReports();
+        toast.success('Disease counts refreshed from assessments');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error refreshing disease counts:', error);
-      toast.error('Error refreshing disease counts');
+      toast.error(error.message || 'Failed to refresh disease counts');
     } finally {
       setIsRefreshing(false);
     }

@@ -1,16 +1,9 @@
+import api from './apiService';
 import { WeeklyDiseasesReport } from '../types/weeklyDiseasesReport';
 
 const API_BASE_URL = '/api/weekly-diseases-reports';
 
 class WeeklyDiseasesReportService {
-  private getAuthHeaders() {
-    const token = localStorage.getItem('token');
-    return {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    };
-  }
-
   async getAllReports(params?: {
     page?: number;
     limit?: number;
@@ -23,83 +16,33 @@ class WeeklyDiseasesReportService {
     if (params?.startDate) queryParams.append('startDate', params.startDate);
     if (params?.endDate) queryParams.append('endDate', params.endDate);
 
-    const response = await fetch(`${API_BASE_URL}?${queryParams}`, {
-      headers: this.getAuthHeaders()
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch reports');
-    }
-
-    return response.json();
+    const response = await api.get(`${API_BASE_URL}?${queryParams}`);
+    return response.data;
   }
 
   async getReportById(id: string) {
-    const response = await fetch(`${API_BASE_URL}/${id}`, {
-      headers: this.getAuthHeaders()
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch report');
-    }
-
-    return response.json();
+    const response = await api.get(`${API_BASE_URL}/${id}`);
+    return response.data;
   }
 
   async getCurrentWeekReport() {
-    const response = await fetch(`${API_BASE_URL}/current-week`, {
-      headers: this.getAuthHeaders()
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch current week report');
-    }
-
-    return response.json();
+    const response = await api.get(`${API_BASE_URL}/current-week`);
+    return response.data;
   }
 
   async createReport(reportData: Partial<WeeklyDiseasesReport>) {
-    const response = await fetch(API_BASE_URL, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(reportData)
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to create report');
-    }
-
-    return response.json();
+    const response = await api.post(API_BASE_URL, reportData);
+    return response.data;
   }
 
   async updateReport(id: string, reportData: Partial<WeeklyDiseasesReport>) {
-    const response = await fetch(`${API_BASE_URL}/${id}`, {
-      method: 'PUT',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(reportData)
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to update report');
-    }
-
-    return response.json();
+    const response = await api.put(`${API_BASE_URL}/${id}`, reportData);
+    return response.data;
   }
 
   async deleteReport(id: string) {
-    const response = await fetch(`${API_BASE_URL}/${id}`, {
-      method: 'DELETE',
-      headers: this.getAuthHeaders()
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to delete report');
-    }
-
-    return response.json();
+    const response = await api.delete(`${API_BASE_URL}/${id}`);
+    return response.data;
   }
 
   async getReportStatistics(params?: {
@@ -110,29 +53,13 @@ class WeeklyDiseasesReportService {
     if (params?.startDate) queryParams.append('startDate', params.startDate);
     if (params?.endDate) queryParams.append('endDate', params.endDate);
 
-    const response = await fetch(`${API_BASE_URL}/statistics?${queryParams}`, {
-      headers: this.getAuthHeaders()
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch statistics');
-    }
-
-    return response.json();
+    const response = await api.get(`${API_BASE_URL}/statistics?${queryParams}`);
+    return response.data;
   }
 
   async refreshDiseaseCounts(reportId: string) {
-    const response = await fetch(`${API_BASE_URL}/${reportId}/refresh-counts`, {
-      method: 'POST',
-      headers: this.getAuthHeaders()
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to refresh disease counts');
-    }
-
-    return response.json();
+    const response = await api.post(`${API_BASE_URL}/${reportId}/refresh-counts`);
+    return response.data;
   }
 
   async getDiseaseStats(weekStartDate: string, weekEndDate: string) {
@@ -140,15 +67,8 @@ class WeeklyDiseasesReportService {
     queryParams.append('weekStartDate', weekStartDate);
     queryParams.append('weekEndDate', weekEndDate);
 
-    const response = await fetch(`${API_BASE_URL}/disease-stats?${queryParams}`, {
-      headers: this.getAuthHeaders()
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch disease statistics');
-    }
-
-    return response.json();
+    const response = await api.get(`${API_BASE_URL}/disease-stats?${queryParams}`);
+    return response.data;
   }
 }
 
