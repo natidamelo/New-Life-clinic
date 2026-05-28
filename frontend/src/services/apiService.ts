@@ -243,17 +243,9 @@ class ApiService {
       return;
     }
 
-    // Check if this is a token-related error (including user not found in DB - stale token)
-    const isTokenError = code === 'AUTH_TOKEN_EXPIRED' || 
-                        code === 'AUTH_INVALID_TOKEN' || 
-                        code === 'AUTH_NO_TOKEN' ||
-                        code === 'AUTH_USER_NOT_FOUND' ||
-                        code === 'AUTH_INVALID_PAYLOAD' ||
-                        message.toLowerCase().includes('expired') ||
-                        message.toLowerCase().includes('invalid token') ||
-                        message.toLowerCase().includes('invalid payload') ||
-                        message.toLowerCase().includes('not found') ||
-                        message.toLowerCase().includes('authorization denied');
+    // Any 401 Unauthorized response outside of the login flow indicates
+    // that the current token is invalid or expired.
+    const isTokenError = true;
 
     if (isTokenError) {
       console.log('🧹 [ApiService] Token error detected, clearing authentication');
@@ -273,15 +265,6 @@ class ApiService {
         setTimeout(() => {
           window.location.href = '/login';
         }, 2000);
-      }
-    } else {
-      console.log('🔒 [ApiService] Permission denied error');
-      // Only show toast if not already on the login page (avoid confusing toasts on login page)
-      if (window.location.pathname !== '/login') {
-        toast.error('Access denied. You do not have permission to perform this action.', {
-          position: 'top-center',
-          autoClose: 5000,
-        });
       }
     }
   }

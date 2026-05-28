@@ -9,6 +9,7 @@ import { AUTH_TOKEN_KEY } from '../config';
 // Token storage keys
 export const TOKEN_KEYS = {
   PRIMARY: AUTH_TOKEN_KEY,
+  CLINIC: 'clinic_auth_token',
   LEGACY: 'token',
   AUTH: 'authToken'
 };

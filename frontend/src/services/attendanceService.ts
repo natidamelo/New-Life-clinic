@@ -167,6 +167,11 @@ class AttendanceService {
 
   // Record logout activity
   async recordLogoutActivity() {
+    const token = getToken();
+    if (!token) {
+      console.log('ℹ️ No active token found, skipping remote logout activity logging.');
+      return;
+    }
     try {
       console.log('🔄 Recording logout activity...');
       
