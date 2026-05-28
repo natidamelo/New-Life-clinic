@@ -265,7 +265,7 @@ const OptimizedDashboardWrapper: React.FC<OptimizedDashboardWrapperProps> = ({
       <MemoizedStatCard
         key="patients"
         title="Total Patients"
-        value={displayStats.totalPatients}
+        value={displayStats.totalPatients ?? 0}
         icon={Users}
         color="blue"
       />
@@ -276,7 +276,7 @@ const OptimizedDashboardWrapper: React.FC<OptimizedDashboardWrapperProps> = ({
         <MemoizedStatCard
           key="appointments"
           title="Appointments"
-          value={displayStats.totalAppointments}
+          value={displayStats.totalAppointments ?? 0}
           icon={Clock}
           color="green"
         />
@@ -284,14 +284,16 @@ const OptimizedDashboardWrapper: React.FC<OptimizedDashboardWrapperProps> = ({
     }
 
     if (['admin', 'finance', 'billing', 'reception'].includes(role)) {
+      const todayRev = displayStats.todayRevenue ?? 0;
+      const totalRev = displayStats.totalRevenue ?? 0;
       cards.push(
         <MemoizedStatCard
           key="revenue"
           title="Today's Revenue"
-          value={`$${displayStats.todayRevenue.toLocaleString()}`}
+          value={`$${todayRev.toLocaleString()}`}
           icon={DollarSign}
           color="green"
-          subtitle={`Total: $${displayStats.totalRevenue.toLocaleString()}`}
+          subtitle={`Total: $${totalRev.toLocaleString()}`}
         />
       );
     }
@@ -301,7 +303,7 @@ const OptimizedDashboardWrapper: React.FC<OptimizedDashboardWrapperProps> = ({
         <MemoizedStatCard
           key="tasks"
           title="Pending Tasks"
-          value={displayStats.pendingTasks}
+          value={displayStats.pendingTasks ?? 0}
           icon={Activity}
           color="orange"
         />
@@ -313,20 +315,20 @@ const OptimizedDashboardWrapper: React.FC<OptimizedDashboardWrapperProps> = ({
         <MemoizedStatCard
           key="lab"
           title="Lab Tests"
-          value={displayStats.pendingLabTests}
+          value={displayStats.pendingLabTests ?? 0}
           icon={Activity}
           color="purple"
-          subtitle={`Completed: ${displayStats.completedLabTests}`}
+          subtitle={`Completed: ${displayStats.completedLabTests ?? 0}`}
         />
       );
     }
 
-    if (displayStats.criticalAlerts > 0) {
+    if (Number(displayStats.criticalAlerts || 0) > 0) {
       cards.push(
         <MemoizedStatCard
           key="alerts"
           title="Critical Alerts"
-          value={displayStats.criticalAlerts}
+          value={displayStats.criticalAlerts ?? 0}
           icon={AlertTriangle}
           color="red"
         />
