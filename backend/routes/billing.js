@@ -4281,7 +4281,14 @@ router.get('/revenue-by-service', auth, checkRole('admin', 'finance'), async (re
       {
         $group: {
           _id: '$items.description',
-          revenue: { $sum: { $multiply: ['$items.quantity', '$items.unitPrice'] } },
+          revenue: {
+            $sum: {
+              $multiply: [
+                { $ifNull: ['$items.quantity', 0] },
+                { $ifNull: ['$items.unitPrice', 0] }
+              ]
+            }
+          },
           quantity: { $sum: '$items.quantity' },
           averagePrice: { $avg: '$items.unitPrice' }
         }
@@ -4366,7 +4373,12 @@ router.get('/item-revenue-report', auth, checkRole('admin', 'finance'), async (r
           itemType: { $ifNull: ['$items.itemType', 'other'] },
           description: '$items.description',
           serviceName: { $ifNull: ['$items.serviceName', '$items.description'] },
-          revenue: { $multiply: ['$items.quantity', '$items.unitPrice'] },
+          revenue: {
+            $multiply: [
+              { $ifNull: ['$items.quantity', 0] },
+              { $ifNull: ['$items.unitPrice', 0] }
+            ]
+          },
           quantity: '$items.quantity',
           unitPrice: '$items.unitPrice',
           month: { $dateToString: { format: '%Y-%m', date: '$issueDate' } },
@@ -4517,12 +4529,24 @@ router.get('/card-insurance-report', auth, checkRole('admin', 'finance'), async 
               }
             }
           },
-          totalRevenue: { $sum: { $multiply: ['$items.quantity', '$items.unitPrice'] } },
+          totalRevenue: {
+            $sum: {
+              $multiply: [
+                { $ifNull: ['$items.quantity', 0] },
+                { $ifNull: ['$items.unitPrice', 0] }
+              ]
+            }
+          },
           totalCount: { $sum: 1 },
           months: {
             $push: {
               month: { $dateToString: { format: '%Y-%m', date: '$issueDate' } },
-              revenue: { $multiply: ['$items.quantity', '$items.unitPrice'] },
+              revenue: {
+                $multiply: [
+                  { $ifNull: ['$items.quantity', 0] },
+                  { $ifNull: ['$items.unitPrice', 0] }
+                ]
+              },
             }
           }
         }
