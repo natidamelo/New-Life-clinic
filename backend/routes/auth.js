@@ -108,4 +108,11 @@ router.put('/profile',
  */
 router.get('/verify', auth, authController.verify);
 
+/**
+ * @route   POST /api/auth/logout
+ * @desc    Logout user
+ * @access  Public
+ */
+router.post('/logout', authController.logout);
+
 module.exports = router; 

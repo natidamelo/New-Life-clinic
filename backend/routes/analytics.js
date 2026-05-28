@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../middleware/auth');
+const { auth, optionalAuth } = require('../middleware/auth');
 const RouteUsage = require('../models/RouteUsage');
 const { cacheMiddleware } = require('../middleware/cacheMiddleware');
 
@@ -10,7 +10,7 @@ router.get('/ping', (req, res) => {
 });
 
 // Ingest route usage events
-router.post('/route-usage', auth, async (req, res) => {
+router.post('/route-usage', optionalAuth, async (req, res) => {
   try {
     const { path, label, role, userId, action, durationMs, timestamp } = req.body || {};
     if (!path || !action) {

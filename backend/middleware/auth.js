@@ -117,6 +117,63 @@ const auth = async (req, res, next) => {
     }
 };
 
+const optionalAuth = async (req, res, next) => {
+    try {
+        const authHeader = req.header('Authorization');
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return next();
+        }
+
+        const token = authHeader.substring(7);
+        if (!token) {
+            return next();
+        }
+
+        const jwtSecret = process.env.JWT_SECRET || 'clinic-management-system-default-secret-key-12345';
+        
+        let decoded;
+        try {
+            decoded = jwt.verify(token, jwtSecret);
+        } catch (jwtError) {
+            return next();
+        }
+
+        const userId = decoded.userId || decoded.id;
+        if (!userId) {
+            return next();
+        }
+
+        const dbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+        if (!dbConnected) {
+            return next();
+        }
+
+        const user = await User.findById(userId)
+          .setOptions({ skipTenantScope: true })
+          .select('-password');
+        if (!user) {
+            return next();
+        }
+
+        const isSuperAdmin = user.role === 'super_admin';
+        const requestedClinicId = req.headers['x-clinic-id'];
+
+        req.user = user;
+        req.tenantId = isSuperAdmin
+          ? (requestedClinicId === 'all' ? '*' : (requestedClinicId || user.clinicId || 'default'))
+          : (user.clinicId || 'default');
+        req.isSuperAdmin = isSuperAdmin;
+        setTenantInCurrentContext(req.tenantId);
+        
+        next();
+        
+    } catch (error) {
+        next();
+    }
+};
+
+
 // Role-based authorization middleware (new version)
 const authorize = (...roles) => {
     return (req, res, next) => {
@@ -186,4 +243,4 @@ const checkPermission = (permission) => {
     };
 };
 
-module.exports = { auth, authorize, checkRole, checkPermission };
+module.exports = { auth, optionalAuth, authorize, checkRole, checkPermission };

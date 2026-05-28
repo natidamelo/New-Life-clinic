@@ -296,6 +296,21 @@ const authController = {
    */
   verify: (req, res) => {
     res.status(200).json({ success: true, user: req.user });
+  },
+
+  /**
+   * Logout user
+   * @route POST /api/auth/logout
+   */
+  logout: async (req, res, next) => {
+    try {
+      res.status(200).json({
+        success: true,
+        message: 'Logged out successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 };
 
