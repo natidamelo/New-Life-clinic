@@ -1726,7 +1726,7 @@ const billingService = {
       };
     } catch (error) {
       console.error('Error generating financial summary:', error);
-      throw new Error('Failed to generate financial summary');
+      throw new Error('Failed to generate financial summary: ' + error.message);
     }
   },
 
@@ -1785,7 +1785,7 @@ const billingService = {
       return agingData[0] || { current: 0, days30: 0, days60: 0, over90: 0 };
     } catch (error) {
       console.error('Error generating aging report:', error);
-      throw new Error('Failed to generate aging report');
+      throw new Error('Failed to generate aging report: ' + error.message);
     }
   },
 
@@ -1834,7 +1834,7 @@ const billingService = {
       return monthlyData;
     } catch (error) {
       console.error('Error generating monthly data:', error);
-      throw new Error('Failed to generate monthly data');
+      throw new Error('Failed to generate monthly data: ' + error.message);
     }
   },
 
@@ -1868,7 +1868,7 @@ const billingService = {
       return serviceData;
     } catch (error) {
       console.error('Error generating service revenue data:', error);
-      throw new Error('Failed to generate service revenue data');
+      throw new Error('Failed to generate service revenue data: ' + error.message);
     }
   },
 
@@ -1901,7 +1901,7 @@ const billingService = {
       return paymentData;
     } catch (error) {
       console.error('Error generating payment method data:', error);
-      throw new Error('Failed to generate payment method data');
+      throw new Error('Failed to generate payment method data: ' + error.message);
     }
   }
 };
