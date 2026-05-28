@@ -126,12 +126,37 @@ class AutoInventoryDeductionMonitor {
           });
 
           if (!inventoryItem) {
-            console.log(`❌ [AUTO-DEDUCTION] Medication "${medicationName}" not found in inventory`);
+            console.log(`❌ [AUTO-DEDUCTION] Medication "${medicationName}" not found in inventory. Marking as processed (skipped) to prevent retry loop.`);
+            await NurseTask.updateOne(
+              { _id: task._id },
+              { 
+                $set: { 
+                  'medicationDetails.doseRecords.$[elem].inventoryDeducted': true,
+                  'medicationDetails.doseRecords.$[elem].inventoryDetails': { status: 'skipped_not_in_inventory', medicationName: medicationName }
+                } 
+              },
+              { arrayFilters: [{ 'elem.administered': true, 'elem.inventoryDeducted': { $ne: true } }] }
+            );
             continue;
           }
 
           if (inventoryItem.quantity < dosesNeedingDeduction.length) {
-            console.log(`❌ [AUTO-DEDUCTION] Insufficient inventory for ${medicationName}: ${inventoryItem.quantity} < ${dosesNeedingDeduction.length}`);
+            console.log(`❌ [AUTO-DEDUCTION] Insufficient inventory for ${medicationName}: ${inventoryItem.quantity} < ${dosesNeedingDeduction.length}. Marking as processed (skipped) to prevent retry loop.`);
+            await NurseTask.updateOne(
+              { _id: task._id },
+              { 
+                $set: { 
+                  'medicationDetails.doseRecords.$[elem].inventoryDeducted': true,
+                  'medicationDetails.doseRecords.$[elem].inventoryDetails': { 
+                    status: 'skipped_insufficient_inventory', 
+                    medicationName: medicationName,
+                    availableQuantity: inventoryItem.quantity,
+                    neededQuantity: dosesNeedingDeduction.length
+                  }
+                } 
+              },
+              { arrayFilters: [{ 'elem.administered': true, 'elem.inventoryDeducted': { $ne: true } }] }
+            );
             continue;
           }
 
