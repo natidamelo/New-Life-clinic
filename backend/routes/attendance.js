@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../middleware/auth');
+const { auth, optionalAuth } = require('../middleware/auth');
 
 // @route   GET /api/attendance
 // @desc    Get all attendance
@@ -106,10 +106,10 @@ router.post('/login-activity', auth, async (req, res) => {
 // @route   POST /api/attendance/logout-activity
 // @desc    Record logout activity
 // @access  Private
-router.post('/logout-activity', auth, async (req, res) => {
+router.post('/logout-activity', optionalAuth, async (req, res) => {
   try {
     const { autoClockOut } = req.body;
-    const userId = req.user._id;
+    const userId = req.user ? req.user._id : null;
     
     console.log(`🚪 Logout activity recorded for user ${userId}, autoClockOut: ${autoClockOut}`);
     
