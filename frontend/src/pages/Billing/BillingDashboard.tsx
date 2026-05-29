@@ -208,8 +208,10 @@ const BillingDashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (startDate && endDate && startDate <= endDate) fetchStats(startDate, endDate);
-  }, [startDate, endDate, fetchStats]);
+    if (activeTab === 'overview' && startDate && endDate && startDate <= endDate) {
+      fetchStats(startDate, endDate);
+    }
+  }, [startDate, endDate, fetchStats, activeTab]);
 
   const handleQuickRange = (value: 'year' | 'six' | 'month') => {
     setPeriod(value);

@@ -255,5 +255,7 @@ InventoryTransactionSchema.index({ item: 1, createdAt: -1 });
 InventoryTransactionSchema.index({ transactionType: 1, createdAt: -1 });
 InventoryTransactionSchema.index({ patient: 1, createdAt: -1 });
 InventoryTransactionSchema.index({ performedBy: 1, createdAt: -1 });
+InventoryTransactionSchema.index({ createdAt: -1 });
+InventoryTransactionSchema.index({ status: 1, transactionType: 1, createdAt: -1 });
 
 module.exports = mongoose.model('InventoryTransaction', InventoryTransactionSchema); 

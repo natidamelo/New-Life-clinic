@@ -12,6 +12,9 @@ require('dotenv').config();
 const NurseTask = require('../models/NurseTask');
 const User = require('../models/User');
 const Patient = require('../models/Patient');
+const MedicalInvoice = require('../models/MedicalInvoice');
+const InventoryTransaction = require('../models/InventoryTransaction');
+const OperatingExpense = require('../models/OperatingExpense');
 
 const buildIndexes = async () => {
   try {
@@ -59,6 +62,36 @@ const buildIndexes = async () => {
       successCount++;
     } catch (error) {
       console.error('❌ Failed to create Patient indexes:', error.message);
+      failCount++;
+    }
+
+    console.log('\n📄 Building MedicalInvoice indexes...');
+    try {
+      await MedicalInvoice.createIndexes();
+      console.log('✅ MedicalInvoice indexes created');
+      successCount++;
+    } catch (error) {
+      console.error('❌ Failed to create MedicalInvoice indexes:', error.message);
+      failCount++;
+    }
+
+    console.log('\n📦 Building InventoryTransaction indexes...');
+    try {
+      await InventoryTransaction.createIndexes();
+      console.log('✅ InventoryTransaction indexes created');
+      successCount++;
+    } catch (error) {
+      console.error('❌ Failed to create InventoryTransaction indexes:', error.message);
+      failCount++;
+    }
+
+    console.log('\n💸 Building OperatingExpense indexes...');
+    try {
+      await OperatingExpense.createIndexes();
+      console.log('✅ OperatingExpense indexes created');
+      successCount++;
+    } catch (error) {
+      console.error('❌ Failed to create OperatingExpense indexes:', error.message);
       failCount++;
     }
     

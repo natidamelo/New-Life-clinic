@@ -156,32 +156,42 @@ const SectionHeader: React.FC<{ icon: React.ReactNode; title: string; sub?: stri
 // ─── Main Component ───────────────────────────────────────────────────────────
 const StandardFinancialReport: React.FC = () => {
   const navigate = useNavigate();
-  const [startDate, setStartDate] = useState<Date>(() => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d; });
+  const [startDate, setStartDate] = useState<Date>(() => { const d = new Date(); d.setMonth(d.getMonth() - 3); return d; });
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [showEthiopianCalendar, setShowEthiopianCalendar] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [agingLoading, setAgingLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
-  const [dashboardStats, setDashboardStats] = useState<any>(null);
   const [agingData, setAgingData] = useState<AgingData | null>(null);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [revenueByService, setRevenueByService] = useState<any[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
 
+  const fetchAgingData = useCallback(async () => {
+    setAgingLoading(true);
+    try {
+      const agingRes = await billingService.getAccountsReceivableAging();
+      setAgingData(agingRes || { current: 0, days30: 0, days60: 0, days90: 0, over90: 0 });
+    } catch (err) {
+      console.error('Failed to fetch aging data:', err);
+    } finally {
+      setAgingLoading(false);
+    }
+  }, []);
+
   const fetchData = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [summaryRes, agingRes, monthlyRes, serviceRes, paymentRes, statsRes] = await Promise.all([
+      const [summaryRes, monthlyRes, serviceRes, paymentRes] = await Promise.all([
         billingService.getFinancialSummary(startDate, endDate),
-        billingService.getAccountsReceivableAging(),
         billingService.getMonthlyFinancialData(startDate, endDate),
         billingService.getRevenueByService(startDate, endDate),
         billingService.getPaymentMethodBreakdown(startDate, endDate),
-        billingService.getBillingStats(startDate, endDate),
       ]);
+
       setFinancialSummary(summaryRes || { totalRevenue: 0, totalOutstanding: 0, totalPaid: 0, totalOverdue: 0, totalCostOfGoodsSold: 0, grossProfit: 0, grossMargin: 0, operatingExpenses: 0, netProfit: 0, netMargin: 0, averageInvoiceValue: 0, collectionRate: 0 });
-      setAgingData(agingRes || { current: 0, days30: 0, days60: 0, days90: 0, over90: 0 });
       setMonthlyData(Array.isArray(monthlyRes) ? monthlyRes : []);
       // Normalize API shape { service, revenue } → { name, value, shortName, category }
       const rawServices = Array.isArray(serviceRes) ? serviceRes : [];
@@ -209,7 +219,6 @@ const StandardFinancialReport: React.FC = () => {
           .slice(0, 8)
       );
       setPaymentMethods(Array.isArray(paymentRes) ? paymentRes : []);
-      setDashboardStats(statsRes || null);
     } catch (err: any) {
       const status = err.response?.status;
       setError(
@@ -220,8 +229,15 @@ const StandardFinancialReport: React.FC = () => {
     } finally { setLoading(false); }
   }, [startDate, endDate]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchAgingData();
+  }, [fetchAgingData]);
 
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  
   const downloadReport = async (type: 'pdf' | 'csv') => {
     try {
       setLoading(true);
@@ -383,7 +399,7 @@ const StandardFinancialReport: React.FC = () => {
             <SectionHeader icon={<TrendingUp className="h-5 w-5 text-emerald-600" />} title="Executive Summary" sub="High-level financial overview for the selected period" />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatCard title="Total Revenue" value={fmtCurrency(fs.totalInvoiced ?? fs.totalRevenue)} icon={<DollarSign className="h-5 w-5 text-white" />} bg="bg-gradient-to-br from-blue-600 to-indigo-700" sub="Total invoiced amount" />
-              <StatCard title="Collections" value={fmtCurrency(fs.totalCollections)} icon={<CheckCircle2 className="h-5 w-5 text-white" />} bg="bg-gradient-to-br from-emerald-500 to-teal-600" sub={dashboardStats?.invoicesCount?.paid ? `${dashboardStats.invoicesCount.paid} paid invoices` : 'Cash received'} />
+              <StatCard title="Collections" value={fmtCurrency(fs.totalCollections)} icon={<CheckCircle2 className="h-5 w-5 text-white" />} bg="bg-gradient-to-br from-emerald-500 to-teal-600" sub="Total collections in period" />
               <StatCard title="Outstanding" value={fmtCurrency(fs.totalOutstanding)} icon={<Clock className="h-5 w-5 text-white" />} bg="bg-gradient-to-br from-amber-500 to-orange-600" sub="Pending collection" />
               <StatCard title="Overdue" value={fmtCurrency(fs.totalOverdue)} icon={<AlertTriangle className="h-5 w-5 text-white" />} bg="bg-gradient-to-br from-red-500 to-rose-700" sub="Requires attention" />
             </div>

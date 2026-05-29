@@ -14,4 +14,7 @@ const OperatingExpenseSchema = new mongoose.Schema({
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
+OperatingExpenseSchema.index({ expenseDate: -1 });
+OperatingExpenseSchema.index({ recurring: 1, expenseDate: -1 });
+
 module.exports = mongoose.model('OperatingExpense', OperatingExpenseSchema); 
