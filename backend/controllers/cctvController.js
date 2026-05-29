@@ -25,7 +25,8 @@ const ENCRYPTION_KEY = (() => {
   const key = process.env.CCTV_ENCRYPTION_KEY || '';
   if (key.length < 32) {
     console.warn('[CCTV] ⚠️  CCTV_ENCRYPTION_KEY is missing or too short. Using insecure fallback.');
-    return 'insecure-default-key-replace-me!!';
+    // Pad to exactly 32 bytes for AES-256
+    return 'insecure-default-key-replace-me!'.padEnd(32, '0').slice(0, 32);
   }
   return key.slice(0, 32); // ensure exactly 32 bytes for AES-256
 })();
@@ -140,9 +141,15 @@ async function writeAudit(req, action, resource, details = {}) {
 const RECORDINGS_DIR = process.env.CCTV_RECORDINGS_DIR ||
   path.join(__dirname, '../recordings');
 
-if (!fs.existsSync(RECORDINGS_DIR)) {
-  fs.mkdirSync(RECORDINGS_DIR, { recursive: true });
-  console.log(`[CCTV] Created recordings directory: ${RECORDINGS_DIR}`);
+try {
+  if (!fs.existsSync(RECORDINGS_DIR)) {
+    fs.mkdirSync(RECORDINGS_DIR, { recursive: true });
+    console.log(`[CCTV] Created recordings directory: ${RECORDINGS_DIR}`);
+  }
+} catch (dirErr) {
+  // Render.com and other cloud platforms may have read-only filesystems.
+  // Recording to disk won't work but camera management still functions.
+  console.warn('[CCTV] ⚠️  Could not create recordings directory:', dirErr.message);
 }
 
 // Track active FFmpeg processes: { recordingId -> ChildProcess }
