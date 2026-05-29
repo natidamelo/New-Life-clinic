@@ -832,7 +832,7 @@ const MedicalCertificates: React.FC = () => {
         console.log('Digital signature data:', certificateData.digitalSignature);
         
         // Convert signature image to base64 if it exists
-        let signatureBase64 = null;
+        let signatureBase64: string | null = null;
         if (certificateData.digitalSignature) {
           try {
             const signatureResponse = await fetch(`http://localhost:5002/uploads/signatures/${certificateData.digitalSignature.filename}`);
@@ -840,7 +840,7 @@ const MedicalCertificates: React.FC = () => {
               const signatureBlob = await signatureResponse.blob();
               const reader = new FileReader();
               signatureBase64 = await new Promise((resolve) => {
-                reader.onload = () => resolve(reader.result);
+                reader.onload = () => resolve(reader.result as string);
                 reader.readAsDataURL(signatureBlob);
               });
               console.log('Signature converted to base64 successfully');
@@ -849,6 +849,13 @@ const MedicalCertificates: React.FC = () => {
             console.error('Error converting signature to base64:', error);
           }
         }
+        
+        // Fallback: use the doctor's global profile digital signature if no per-certificate signature
+        if (!signatureBase64 && (user as any)?.digitalSignature) {
+          signatureBase64 = (user as any).digitalSignature;
+          console.log('Using doctor profile digital signature as fallback');
+        }
+
         
         // Open print window with certificate data
         const printWindow = window.open('', '_blank', 'width=800,height=600');

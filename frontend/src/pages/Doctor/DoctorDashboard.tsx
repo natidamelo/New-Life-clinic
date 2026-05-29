@@ -4569,7 +4569,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                                   <div style="font-size: 10px;"><strong>Prescriber:</strong> ${(prescription as any).doctorName || (prescription.doctorDetails as any)?.name || ((user?.firstName || '') + ' ' + (user?.lastName || '')).trim() || ('Dr. ' + (user?.firstName || 'Unknown'))}</div>
                                   <div style="font-size: 10px;"><strong>License:</strong> ${(prescription.doctorDetails as any)?.licenseNumber || 'N/A'}</div>
                                   <div style="font-size: 10px;"><strong>Date:</strong> ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                                  <div style="font-size: 10px; margin-top: 5px;"><strong>Signature:</strong> _______________________________________</div>
+                                  <div style="font-size: 10px; margin-top: 5px;"><strong>Signature:</strong> ${(user as any)?.digitalSignature ? `<br><img src="${(user as any).digitalSignature}" alt="Doctor Signature" style="max-height:55px;max-width:160px;margin-top:4px;border:1px solid #eee;background:white;padding:2px;">` : '_______________________________________'}</div>
                                 </div>
                                 <div class="dispenser-info">
                                   <div style="margin-bottom: 8px;"><strong>DISPENSER</strong></div>
@@ -4930,7 +4930,18 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                       <div style={{ fontSize: '10px' }}><strong>Prescriber:</strong> DR Natan</div>
                       <div style={{ fontSize: '10px' }}><strong>License:</strong> N/A</div>
                       <div style={{ fontSize: '10px' }}><strong>Date:</strong> {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                      <div style={{ fontSize: '10px', marginTop: '5px' }}><strong>Signature:</strong> _______________________________________</div>
+                      <div style={{ fontSize: '10px', marginTop: '5px' }}>
+                        <strong>Signature:</strong>{' '}
+                        {(user as any)?.digitalSignature ? (
+                          <img
+                            src={(user as any).digitalSignature}
+                            alt="Doctor Signature"
+                            style={{ maxHeight: '55px', maxWidth: '160px', marginTop: '4px', display: 'block', border: '1px solid #eee', background: 'white', padding: '2px' }}
+                          />
+                        ) : (
+                          ' _______________________________________'
+                        )}
+                      </div>
                     </div>
                     <div className="dispenser-info">
                       <div style={{ marginBottom: '8px' }}><strong>DISPENSER</strong></div>

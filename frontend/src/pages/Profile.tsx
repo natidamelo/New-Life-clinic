@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -27,6 +27,141 @@ const Profile: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditingBasicInfo, setIsEditingBasicInfo] = useState(false);
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
+  const [isUpdatingSignature, setIsUpdatingSignature] = useState(false);
+  const [signatureMode, setSignatureMode] = useState<'upload' | 'draw'>('draw');
+  const [signaturePreview, setSignaturePreview] = useState<string | null>((user as any)?.digitalSignature || null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasDrawing, setHasDrawing] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const lastPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Keep signaturePreview in sync with user data
+  useEffect(() => {
+    if ((user as any)?.digitalSignature) {
+      setSignaturePreview((user as any).digitalSignature);
+    }
+  }, [(user as any)?.digitalSignature]);
+
+  // Canvas drawing helpers
+  const getCanvasPos = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    if ('touches' in e) {
+      const touch = e.touches[0];
+      return { x: (touch.clientX - rect.left) * scaleX, y: (touch.clientY - rect.top) * scaleY };
+    }
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+  };
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    setIsDrawing(true);
+    const pos = getCanvasPos(e);
+    lastPosRef.current = pos;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 1, 0, Math.PI * 2);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fill();
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx || !lastPosRef.current) return;
+    const pos = getCanvasPos(e);
+    ctx.beginPath();
+    ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = '#1a1a2e';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    lastPosRef.current = pos;
+    setHasDrawing(true);
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+    lastPosRef.current = null;
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawing(false);
+  };
+
+  const saveDrawnSignature = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !hasDrawing) return;
+    const dataUrl = canvas.toDataURL('image/png');
+    await saveSignature(dataUrl);
+  };
+
+  const handleSignatureFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string;
+      setSignaturePreview(result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const saveSignature = async (signatureData: string) => {
+    if (!user) return;
+    setIsUpdatingSignature(true);
+    try {
+      await api.put('/api/auth/profile', { digitalSignature: signatureData });
+      updateUser({ ...user, digitalSignature: signatureData } as any);
+      setSignaturePreview(signatureData);
+      toast.success('Digital signature saved successfully!');
+    } catch (error) {
+      console.error('Error saving digital signature:', error);
+      toast.error('Failed to save digital signature');
+    } finally {
+      setIsUpdatingSignature(false);
+    }
+  };
+
+  const removeSignature = async () => {
+    if (!user) return;
+    setIsUpdatingSignature(true);
+    try {
+      await api.put('/api/auth/profile', { digitalSignature: null });
+      updateUser({ ...user, digitalSignature: null } as any);
+      setSignaturePreview(null);
+      clearCanvas();
+      toast.success('Digital signature removed');
+    } catch (error) {
+      toast.error('Failed to remove digital signature');
+    } finally {
+      setIsUpdatingSignature(false);
+    }
+  };
 
   const basicInfoFormik = useFormik({
     initialValues: {
@@ -270,7 +405,142 @@ const Profile: React.FC = () => {
           )}
         </div>
 
-        {/* Change Password Section */}
+        {/* Digital Signature Section */}
+        <div className="p-6 border-b border-border/30">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-muted-foreground">Digital Signature</h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Your signature will appear automatically on printed prescriptions, medical certificates, and other documents.
+              </p>
+            </div>
+            {signaturePreview && (
+              <button
+                onClick={removeSignature}
+                disabled={isUpdatingSignature}
+                className="text-sm text-red-500 hover:text-red-700 transition-colors"
+              >
+                Remove Signature
+              </button>
+            )}
+          </div>
+
+          {/* Current saved signature preview */}
+          {signaturePreview && (
+            <div className="mb-5 p-3 bg-muted/10 border border-border/40 rounded-md">
+              <p className="text-xs text-muted-foreground mb-2 font-medium">Current Signature:</p>
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', padding: '8px', display: 'inline-block' }}>
+                <img
+                  src={signaturePreview}
+                  alt="Digital Signature"
+                  style={{ maxHeight: '80px', maxWidth: '280px', objectFit: 'contain' }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Mode selector */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setSignatureMode('draw')}
+              className={`px-4 py-2 text-sm font-medium rounded-md border transition-colors ${
+                signatureMode === 'draw'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-transparent text-muted-foreground border-border/40 hover:border-primary/50'
+              }`}
+            >
+              ✏️ Draw Signature
+            </button>
+            <button
+              onClick={() => setSignatureMode('upload')}
+              className={`px-4 py-2 text-sm font-medium rounded-md border transition-colors ${
+                signatureMode === 'upload'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-transparent text-muted-foreground border-border/40 hover:border-primary/50'
+              }`}
+            >
+              📁 Upload Image
+            </button>
+          </div>
+
+          {signatureMode === 'draw' && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">Draw your signature below using your mouse or touchscreen:</p>
+              <div style={{ border: '2px dashed #d1d5db', borderRadius: '8px', background: 'white', display: 'inline-block', touchAction: 'none' }}>
+                <canvas
+                  ref={canvasRef}
+                  width={480}
+                  height={160}
+                  style={{ display: 'block', cursor: 'crosshair', borderRadius: '6px', maxWidth: '100%' }}
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={draw}
+                  onTouchEnd={stopDrawing}
+                />
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={clearCanvas}
+                  className="px-3 py-1.5 text-sm text-muted-foreground border border-border/40 rounded-md hover:bg-muted/10 transition-colors"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={saveDrawnSignature}
+                  disabled={!hasDrawing || isUpdatingSignature}
+                  className={`px-4 py-1.5 text-sm font-medium rounded-md text-primary-foreground bg-primary transition-colors ${
+                    (!hasDrawing || isUpdatingSignature) ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
+                  }`}
+                >
+                  {isUpdatingSignature ? 'Saving...' : 'Save Drawn Signature'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {signatureMode === 'upload' && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">Upload a signature image (PNG with transparent background works best):</p>
+              <div className="flex items-center gap-3">
+                <label
+                  htmlFor="sig-upload"
+                  className="cursor-pointer px-4 py-2 text-sm font-medium border border-border/40 rounded-md hover:bg-muted/10 transition-colors text-muted-foreground"
+                >
+                  Choose Image File
+                  <input
+                    id="sig-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleSignatureFileUpload}
+                  />
+                </label>
+                <span className="text-xs text-muted-foreground">PNG, JPG, GIF — max 5MB</span>
+              </div>
+              {signaturePreview && (
+                <div className="mt-4 flex items-end gap-3">
+                  <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', padding: '8px' }}>
+                    <img src={signaturePreview} alt="Preview" style={{ maxHeight: '80px', maxWidth: '250px', objectFit: 'contain' }} />
+                  </div>
+                  <button
+                    onClick={() => saveSignature(signaturePreview)}
+                    disabled={isUpdatingSignature}
+                    className={`px-4 py-2 text-sm font-medium rounded-md text-primary-foreground bg-primary transition-colors ${
+                      isUpdatingSignature ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
+                    }`}
+                  >
+                    {isUpdatingSignature ? 'Saving...' : 'Save Signature'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+
         <form onSubmit={passwordFormik.handleSubmit} className="p-6">
           <h2 className="text-xl font-semibold text-muted-foreground mb-4">Change Password</h2>
           <div className="space-y-6">

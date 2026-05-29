@@ -198,6 +198,7 @@ const validate = {
       body('firstName').optional().trim().isLength({ min: 2, max: 50 }),
       body('lastName').optional().trim().isLength({ min: 2, max: 50 }),
       body('photo').optional().isString().isLength({ max: 10000000 }).withMessage('Photo must be a valid URL or base64 string (max 10MB)'),
+      body('digitalSignature').optional().isString().isLength({ max: 10000000 }).withMessage('Digital signature must be a valid base64 string (max 10MB)'),
       processValidationErrors
     ],
     
@@ -210,6 +211,7 @@ const validate = {
       body('firstName').optional().trim().isLength({ min: 2, max: 50 }),
       body('lastName').optional().trim().isLength({ min: 2, max: 50 }),
       body('photo').optional().isString().isLength({ max: 10000000 }).withMessage('Photo must be a valid URL or base64 string (max 10MB)'),
+      body('digitalSignature').optional().isString().isLength({ max: 10000000 }).withMessage('Digital signature must be a valid base64 string (max 10MB)'),
       body('currentPassword').optional().isString().withMessage('Current password is required for password changes'),
       body('newPassword').optional().isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
       processValidationErrors

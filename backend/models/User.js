@@ -73,6 +73,10 @@ const userSchema = new mongoose.Schema({
     type: String, // URL to the photo
     default: null
   },
+  digitalSignature: {
+    type: String, // Base64 encoded signature image
+    default: null
+  },
   // Telegram notification settings (for all staff)
   telegramChatId: {
     type: String,
