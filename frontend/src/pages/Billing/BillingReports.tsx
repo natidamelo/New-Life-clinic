@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
   Download, Calendar, FileText, BarChart3, AlertCircle,
-  RefreshCw, ChevronLeft, CheckCircle2, FileSpreadsheet, FilePdf
+  RefreshCw, ChevronLeft, CheckCircle2, FileSpreadsheet
 } from 'lucide-react';
 
 type ReportFormat = 'pdf' | 'csv';

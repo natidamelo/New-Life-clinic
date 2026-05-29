@@ -200,15 +200,15 @@ const router = createBrowserRouter([
       },
       {
         path: 'billing/patient-cards',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><LazyWrapper><PatientCardSettings /></LazyWrapper></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><LazyWrapper><BillingDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/reports',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><BillingReports /></LazyWrapper></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><BillingDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/reports/detailed',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><DetailedBillingReport /></LazyWrapper></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><BillingDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/expense-manager',
@@ -216,15 +216,15 @@ const router = createBrowserRouter([
       },
       {
         path: 'billing/financial-report',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><StandardFinancialReport /></LazyWrapper></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><BillingDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/item-revenue-report',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><ItemRevenueReport /></LazyWrapper></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><BillingDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/patient-demographics',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><BillingPatientDemographics /></LazyWrapper></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><BillingDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'nurse',
@@ -412,7 +412,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'patient-card-settings',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><PatientCardSettings /></LazyWrapper></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><BillingDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'staff-management',
