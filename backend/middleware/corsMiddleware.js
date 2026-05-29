@@ -7,7 +7,8 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'http://192.168.1.8:5175',
   'http://10.56.140.157:5175',
   'http://localhost:3000',
-  'http://127.0.0.1:3000'
+  'http://127.0.0.1:3000',
+  'https://new-life-clinic-4i51.vercel.app'
 ];
 
 function getAllowedOrigins() {

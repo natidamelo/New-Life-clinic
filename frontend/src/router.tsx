@@ -108,6 +108,7 @@ const EMRReferralPaper = lazy(() => import('./components/doctor/EMRReferralPaper
 const MedicalTestRequestForm = lazy(() => import('./pages/Doctor/MedicalTestRequestForm'));
 const BusinessIntelligence = lazy(() => import('./pages/Admin/BusinessIntelligence'));
 const PackagesDashboard = lazy(() => import('./pages/Packages/PackagesDashboard'));
+const CCTVDashboard = lazy(() => import('./pages/CCTV/CCTVDashboard'));
 
 
 const router = createBrowserRouter([
@@ -465,6 +466,10 @@ const router = createBrowserRouter([
       {
         path: 'lab/service-results',
         element: <ProtectedRoute allowedRoles={['admin', 'lab_technician', 'lab']}><LazyWrapper><ServiceResults /></LazyWrapper></ProtectedRoute>
+      },
+      {
+        path: 'cctv',
+        element: <ProtectedRoute allowedRoles={['admin', 'super_admin']}><LazyWrapper><CCTVDashboard /></LazyWrapper></ProtectedRoute>
       }
     ]
   }

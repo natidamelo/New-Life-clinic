@@ -56,7 +56,24 @@ const createApp = () => {
     console.warn('Advanced CORS middleware failed, using simple CORS:', corsError.message);
     // Fallback to simple CORS configuration
     app.use(require('cors')({
-      origin: ['http://localhost:5175', 'http://127.0.0.1:5175', 'http://localhost:3000', 'http://127.0.0.1:3000'],
+      origin: function(origin, callback) {
+        // Allow requests with no origin (server-to-server)
+        if (!origin) return callback(null, true);
+        // Allow localhost, LAN IPs, Vercel deployments, and Render deployments
+        const allowed = [
+          'http://localhost:5175',
+          'http://127.0.0.1:5175',
+          'http://localhost:3000',
+          'http://127.0.0.1:3000',
+          'https://new-life-clinic-4i51.vercel.app'
+        ];
+        if (allowed.includes(origin)) return callback(null, true);
+        // Allow any *.vercel.app, *.onrender.com, or private-network origin
+        if (/\.vercel\.app$/i.test(origin)) return callback(null, true);
+        if (/\.onrender\.com$/i.test(origin)) return callback(null, true);
+        if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/i.test(origin)) return callback(null, true);
+        return callback(null, true); // Permissive fallback
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: [
@@ -1092,6 +1109,14 @@ const createApp = () => {
   // Weekly Diseases Report routes
   app.use('/api/weekly-diseases-reports', require('./routes/weeklyDiseasesReport'));
   
+  // CCTV Security Module routes (admin only)
+  try {
+    app.use('/api/cctv', require('./routes/cctv'));
+    console.log('✅ CCTV module loaded');
+  } catch (err) {
+    console.error('Failed to load CCTV routes:', err.message);
+  }
+
   // Analytics routes (route usage/workload)
   app.use('/api/analytics', require('./routes/analytics'));
   

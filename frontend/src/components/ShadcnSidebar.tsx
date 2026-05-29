@@ -22,7 +22,8 @@ import {
   UsersIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
-  DocumentIcon
+  DocumentIcon,
+  VideoCameraIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { useSafeTheme } from '../hooks/useSafeTheme';
@@ -60,6 +61,7 @@ const adminMenuItems = [
   { path: '/app/patient-card-settings', icon: CurrencyDollarIcon, label: 'Patient Card Settings' },
   { path: '/app/reports/workload', icon: DocumentTextIcon, label: 'Workload Analytics' },
   { path: '/app/weekly-diseases-report', icon: DocumentTextIcon, label: 'Weekly Diseases Report' },
+  { path: '/app/cctv', icon: VideoCameraIcon, label: 'CCTV Security' },
   { path: '/app/profile', icon: UserCircleIcon, label: 'Profile' },
   { path: '/app/settings', icon: CogIcon, label: 'Settings' },
   { path: '/app/theme-settings', icon: CogIcon, label: 'Appearance' },

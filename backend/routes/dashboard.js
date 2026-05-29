@@ -11,7 +11,7 @@ const Notification = require('../models/Notification');
 const Appointment = require('../models/Appointment');
 
 // Import middleware
-const { auth } = require('../middleware/auth');
+const { auth, optionalAuth } = require('../middleware/auth');
 const { cacheMiddleware } = require('../middleware/cacheMiddleware');
 
 // Cache duration for stats (5 minutes)
@@ -581,20 +581,11 @@ router.get('/dashboard/universal-stats', auth, cacheMiddleware(STATS_CACHE_DURAT
 });
 
 // @route   GET /api/admin/auto-clockout-setting
-// @desc    Get auto clockout setting for admin
-// @access  Private (Admin only) - but allows access in development
-router.get('/admin/auto-clockout-setting', auth, async (req, res) => {
+// @desc    Get auto clockout setting
+// @access  Public (no auth required - used on page load by all roles)
+router.get('/admin/auto-clockout-setting', optionalAuth, async (req, res) => {
   try {
-    // In development, allow access without admin role check
-    if (process.env.NODE_ENV === 'production' && req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin role required.'
-      });
-    }
-
-    // For now, return a default setting
-    // In a real application, this would come from a settings table
+    // Return default auto clockout settings - accessible to all roles
     res.json({
       success: true,
       data: {

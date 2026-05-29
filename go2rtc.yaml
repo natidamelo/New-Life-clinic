@@ -1,0 +1,38 @@
+# go2rtc configuration — New Life Clinic CCTV
+# Documentation: https://github.com/AlexxIT/go2rtc
+#
+# go2rtc acts as a secure stream relay:
+#   EZVIZ camera (RTSP) → go2rtc → browser (HLS / WebRTC)
+# Camera credentials never reach the browser.
+#
+# Streams are added/removed dynamically by the Node.js backend via the API.
+# This file only sets the server-level config.
+
+api:
+  listen: :1984
+  origin: "*"
+  # Uncomment and set a strong key in production:
+  # key: ${GO2RTC_API_KEY}
+
+rtsp:
+  listen: :8554
+  # username: ${RTSP_USERNAME}
+  # password: ${RTSP_PASSWORD}
+
+webrtc:
+  listen: :8555/tcp
+  candidates:
+    - stun:stun.l.google.com:19302
+
+# Start with empty streams — backend populates them at runtime via REST API
+streams: {}
+
+ffmpeg:
+  # Timestamp overlay drawn by FFmpeg (optional — enable if you want burned-in timestamps)
+  # bin: ffmpeg
+  # drawtext options applied to all streams:
+  # args: "-vf drawtext=fontfile=/path/to/font.ttf:text='%{localtime}':x=10:y=10:fontsize=18:fontcolor=white@0.8:box=1:boxcolor=black@0.5"
+
+log:
+  level: warn
+  # To debug stream issues, temporarily set to: debug

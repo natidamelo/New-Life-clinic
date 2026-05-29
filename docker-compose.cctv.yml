@@ -1,0 +1,28 @@
+version: "3.9"
+
+# Docker Compose — CCTV services ONLY
+# This does NOT touch the existing clinic backend or frontend.
+# Run: docker compose -f docker-compose.cctv.yml up -d
+
+services:
+
+  go2rtc:
+    image: alexxit/go2rtc:latest
+    container_name: clinic_go2rtc
+    restart: unless-stopped
+    network_mode: host        # Host network for RTSP access to camera LAN
+    volumes:
+      - ./go2rtc.yaml:/config/go2rtc.yaml:ro
+    environment:
+      - GO2RTC_CONFIG=/config/go2rtc.yaml
+    ports:
+      - "1984:1984"   # go2rtc API + HLS
+      - "8554:8554"   # RTSP relay
+      - "8555:8555"   # WebRTC
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:1984/api/streams"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes: {}
