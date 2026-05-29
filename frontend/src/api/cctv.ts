@@ -1,9 +1,11 @@
 import axios from 'axios';
+import authService from '../services/authService';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  // Use the same token retrieval as the rest of the app (authService checks clinic_auth_token first)
+  const token = authService.getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
@@ -13,6 +15,7 @@ api.interceptors.request.use(config => {
   config.headers = { ...config.headers, ...getAuthHeaders() };
   return config;
 });
+
 
 // ── Cameras ────────────────────────────────────────────────────────────────
 export const getCameras = () => api.get('/cameras').then(r => r.data);
