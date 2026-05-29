@@ -68,12 +68,13 @@ const go2rtcHeaders = GO2RTC_API_KEY
 
 async function registerStreamInGo2rtc(streamKey, rtspUrl) {
   try {
-    await axios.post(
+    // go2rtc v1.x API: PUT /api/streams?name=KEY with JSON body { "rtsp://...": {} }
+    await axios.put(
       `${GO2RTC_API}/api/streams`,
-      null,
+      { [rtspUrl]: {} },
       {
-        params: { name: streamKey, src: rtspUrl },
-        headers: go2rtcHeaders,
+        params: { name: streamKey },
+        headers: { ...go2rtcHeaders, 'Content-Type': 'application/json' },
         timeout: 5000
       }
     );
