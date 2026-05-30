@@ -87,7 +87,8 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
           });
           hlsRef.current = hls;
 
-          hls.loadSource(src);
+          const playUrl = src.includes('?') ? `${src}&_t=${Date.now()}` : `${src}?_t=${Date.now()}`;
+          hls.loadSource(playUrl);
           hls.attachMedia(video);
 
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -117,7 +118,8 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
 
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
           // Native HLS (Safari / iOS)
-          video.src = src;
+          const playUrl = src.includes('?') ? `${src}&_t=${Date.now()}` : `${src}?_t=${Date.now()}`;
+          video.src = playUrl;
           video.addEventListener('loadedmetadata', () => {
             setIsLoading(false);
             if (autoPlay) video.play().catch(() => {});

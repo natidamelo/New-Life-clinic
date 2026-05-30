@@ -30,9 +30,9 @@ import { getAuthToken, getClinicTenantId, CLINIC_TENANT_KEY } from '../utils/aut
 
 // Request retry configuration
 const RETRY_CONFIG = {
-  maxRetries: 3,
+  maxRetries: 1, // Keep low so cold-start warmup is detected quickly
   retryDelay: 1000, // 1 second
-  retryableStatuses: [408, 429, 500, 502, 503, 504],
+  retryableStatuses: [408, 429, 502, 504], // Removed 500/503 — login warmup handles those
 };
 
 class ApiService {

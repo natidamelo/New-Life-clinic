@@ -20,3 +20,5 @@ services:
         sync: false
       - key: SUPER_ADMIN_EMAIL
         value: superadmin@clinic.local
+      - key: ALLOWED_ORIGINS
+        value: https://new-life-clinic-4i51.vercel.app
