@@ -673,39 +673,44 @@ exports.getAllCamerasStatus = async (req, res) => {
 
     // Probe go2rtc for all streams
     let go2rtcStreams = {};
+    let go2rtcReachable = false;
     try {
       const r = await axios.get(`${GO2RTC_API}/api/streams`, {
         headers: go2rtcHeaders,
         timeout: 3000
       });
       go2rtcStreams = r.data || {};
+      go2rtcReachable = true;
     } catch {
-      // go2rtc may not be running yet
+      // go2rtc unreachable — could be cloud deployment with local go2rtc
     }
 
     const statuses = cameras.map(c => ({
       _id: c._id,
       name: c.name,
       room: c.room,
-      status: go2rtcStreams[c.streamKey] ? 'online' : (c.status || 'offline'),
+      // If go2rtc is reachable: use live check. If not: use stored DB status.
+      status: go2rtcReachable
+        ? (go2rtcStreams[c.streamKey] ? 'online' : 'offline')
+        : (c.status || 'unknown'),
       lastSeenAt: c.lastSeenAt,
       recordingActive: c.recordingActive,
-      streamRegistered: !!go2rtcStreams[c.streamKey]
+      streamRegistered: go2rtcReachable ? !!go2rtcStreams[c.streamKey] : c.streamRegistered
     }));
 
-    // Update DB in background
-    for (const cam of cameras) {
-      const isOnline = !!go2rtcStreams[cam.streamKey];
-      if ((cam.status === 'online') !== isOnline) {
-        Camera.findByIdAndUpdate(cam._id, {
-          status: isOnline ? 'online' : 'offline',
-          lastSeenAt: isOnline ? new Date() : cam.lastSeenAt,
-          streamRegistered: isOnline
-        }).catch(() => {});
+    // Only update DB status when go2rtc is actually reachable locally
+    if (go2rtcReachable) {
+      for (const cam of cameras) {
+        const isOnline = !!go2rtcStreams[cam.streamKey];
+        if ((cam.status === 'online') !== isOnline) {
+          Camera.findByIdAndUpdate(cam._id, {
+            status: isOnline ? 'online' : 'offline',
+            lastSeenAt: isOnline ? new Date() : cam.lastSeenAt,
+            streamRegistered: isOnline
+          }).catch(() => {});
+        }
       }
     }
-
-    const go2rtcOnline = Object.keys(go2rtcStreams).length > 0;
 
     res.json({
       success: true,
