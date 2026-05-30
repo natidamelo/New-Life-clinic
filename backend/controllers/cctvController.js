@@ -59,7 +59,7 @@ function decryptRtspUrl(encryptedHex, ivHex, authTagHex) {
 
 // ─── go2rtc helpers ────────────────────────────────────────────────────────────
 
-const GO2RTC_API = process.env.GO2RTC_API_URL || 'http://localhost:1984';
+const GO2RTC_API = process.env.GO2RTC_API_URL || process.env.GO2RTC_PUBLIC_URL || 'http://localhost:1984';
 const GO2RTC_API_KEY = process.env.GO2RTC_API_KEY || '';
 
 const go2rtcHeaders = GO2RTC_API_KEY

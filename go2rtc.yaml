@@ -31,7 +31,7 @@ streams:
   # EZVIZ camera streams H265 — browsers can't decode H265 in HLS.
   # FFmpeg transcodes H265→H264 on the fly so the browser can play it.
   6b8dd2bb-3e59-432e-ace3-3ffa27c64e66:
-    - "ffmpeg:rtsp://admin:CWIQMH@192.168.1.2:554/Streaming/Channels/101#video=h264#hardware"
+    - "ffmpeg:rtsp://admin:CWIQMH@192.168.1.2:554/Streaming/Channels/101#video=h264"
 
 
 ffmpeg:
@@ -41,5 +41,4 @@ ffmpeg:
   # args: "-vf drawtext=fontfile=/path/to/font.ttf:text='%{localtime}':x=10:y=10:fontsize=18:fontcolor=white@0.8:box=1:boxcolor=black@0.5"
 
 log:
-  level: warn
-  # To debug stream issues, temporarily set to: debug
+  level: debug
