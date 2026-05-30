@@ -80,10 +80,17 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
         if (Hls.isSupported()) {
           const hls = new Hls({
             enableWorker: true,
-            lowLatencyMode: true,
-            backBufferLength: 30,
-            maxBufferLength: 20,
-            maxMaxBufferLength: 60,
+            lowLatencyMode: false,
+            liveSyncDurationCount: 3,
+            liveMaxLatencyDurationCount: 10,
+            maxBufferLength: 10,
+            maxMaxBufferLength: 20,
+            manifestLoadingMaxRetry: 6,
+            manifestLoadingRetryDelay: 1000,
+            levelLoadingMaxRetry: 6,
+            levelLoadingRetryDelay: 1000,
+            fragLoadingMaxRetry: 8,
+            fragLoadingRetryDelay: 1000,
           });
           hlsRef.current = hls;
 
@@ -91,8 +98,11 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
           hls.loadSource(playUrl);
           hls.attachMedia(video);
 
+          let recoveryAttempts = 0;
+
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
             retryCountRef.current = 0;
+            recoveryAttempts = 0;
             setIsLoading(false);
             setErrorMsg(null);
             if (autoPlay) {
@@ -103,8 +113,24 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
           });
 
           hls.on(Hls.Events.ERROR, (_: any, data: any) => {
-            if (data.fatal) {
-              console.error('[HLSPlayer] Fatal error:', data);
+            if (!data.fatal) return;
+
+            console.error('[HLSPlayer] Fatal error:', data);
+
+            if (recoveryAttempts < 3) {
+              recoveryAttempts++;
+              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                console.log(`[HLSPlayer] Attempting network recovery (${recoveryAttempts}/3)...`);
+                hls.startLoad();
+              } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                console.log(`[HLSPlayer] Attempting media recovery (${recoveryAttempts}/3)...`);
+                hls.recoverMediaError();
+              } else {
+                setErrorMsg('Stream error — reconnecting...');
+                retryWithBackoff(initPlayer);
+              }
+            } else {
+              console.warn('[HLSPlayer] Max recovery attempts reached. Re-initializing player...');
               setErrorMsg('Stream error — reconnecting...');
               retryWithBackoff(initPlayer);
             }
@@ -113,6 +139,7 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
           video.addEventListener('playing', () => {
             setIsLoading(false);
             setErrorMsg(null);
+            recoveryAttempts = 0;
             onPlaying?.();
           });
 
