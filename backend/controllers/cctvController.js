@@ -718,7 +718,8 @@ exports.getAllCamerasStatus = async (req, res) => {
       success: true,
       data: {
         cameras: statuses,
-        go2rtcOnline,
+        go2rtcOnline: go2rtcReachable,
+        go2rtcReachable,
         totalCameras: cameras.length,
         onlineCameras: statuses.filter(s => s.status === 'online').length,
         offlineCameras: statuses.filter(s => s.status !== 'online').length,
