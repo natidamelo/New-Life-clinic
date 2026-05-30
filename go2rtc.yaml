@@ -27,8 +27,11 @@ webrtc:
 # Camera streams — keyed by streamKey from MongoDB
 # The streamKey is a UUID that the backend uses to serve HLS without exposing RTSP credentials
 streams:
-  # Camera 1 — Outdoor Parking (192.168.1.2, verified with ffprobe)
-  6b8dd2bb-3e59-432e-ace3-3ffa27c64e66: rtsp://admin:CWIQMH@192.168.1.2:554/Streaming/Channels/101
+  # Camera 1 — Outdoor Parking (192.168.1.2)
+  # EZVIZ camera streams H265 — browsers can't decode H265 in HLS.
+  # FFmpeg transcodes H265→H264 on the fly so the browser can play it.
+  6b8dd2bb-3e59-432e-ace3-3ffa27c64e66:
+    - "ffmpeg:rtsp://admin:CWIQMH@192.168.1.2:554/Streaming/Channels/101#video=h264#hardware"
 
 
 ffmpeg:
