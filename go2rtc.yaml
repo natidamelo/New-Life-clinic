@@ -24,8 +24,12 @@ webrtc:
   candidates:
     - stun:stun.l.google.com:19302
 
-# Start with empty streams — backend populates them at runtime via REST API
-streams: {}
+# Camera streams — keyed by streamKey from MongoDB
+# The streamKey is a UUID that the backend uses to serve HLS without exposing RTSP credentials
+streams:
+  # Camera 1 — Outdoor Parking (192.168.1.2, verified with ffprobe)
+  6b8dd2bb-3e59-432e-ace3-3ffa27c64e66: rtsp://admin:CWIQMH@192.168.1.2:554/Streaming/Channels/101
+
 
 ffmpeg:
   # Timestamp overlay drawn by FFmpeg (optional — enable if you want burned-in timestamps)

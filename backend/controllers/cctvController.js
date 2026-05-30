@@ -334,8 +334,9 @@ exports.getStreamUrl = async (req, res) => {
     if (!camera) return res.status(404).json({ success: false, message: 'Camera not found' });
 
     const go2rtcHost = process.env.GO2RTC_PUBLIC_URL || 'http://localhost:1984';
-    const hlsUrl = `${go2rtcHost}/stream.m3u8?src=${camera.streamKey}`;
-    const webrtcUrl = `${go2rtcHost}/webrtc?src=${camera.streamKey}`;
+    // go2rtc v1.x URL format: http://host:1984/{streamKey}/index.m3u8
+    const hlsUrl    = `${go2rtcHost}/${camera.streamKey}/index.m3u8`;
+    const webrtcUrl = `${go2rtcHost}/${camera.streamKey}/webrtc`;
 
     res.json({
       success: true,
@@ -354,6 +355,7 @@ exports.getStreamUrl = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
 
 /**
  * GET /api/cctv/cameras/:id/status
