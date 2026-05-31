@@ -22,50 +22,54 @@ const isNonPublicApiHost = (url: string): boolean => {
 };
 
 const resolveApiBaseUrl = (): string => {
-  if (typeof window !== 'undefined') {
-    const runtimeWindow = window as any;
-    const fromWindowConfig =
-      runtimeWindow.API_BASE_URL ||
-      runtimeWindow?.envConfig?.API_BASE_URL ||
-      runtimeWindow?._env_?.VITE_API_URL ||
-      runtimeWindow?._env_?.VITE_API_BASE_URL ||
-      runtimeWindow?._env_?.API_BASE_URL ||
-      runtimeWindow?._env_?.REACT_APP_API_URL;
-
-    if (fromWindowConfig && String(fromWindowConfig).trim()) {
-      const candidate = normalizeBaseUrl(String(fromWindowConfig));
-      if (import.meta.env.PROD && isNonPublicApiHost(candidate)) {
-        console.warn(
-          '[Config] Ignoring non-public API URL from env-config in production:',
-          candidate
-        );
-      } else {
-        return candidate;
-      }
-    }
-  }
-
-  const fromBuildEnv = (
-    import.meta.env.VITE_API_URL ||
-    import.meta.env.VITE_API_BASE_URL ||
-    ''
-  );
-
-  if (fromBuildEnv && String(fromBuildEnv).trim()) {
-    return normalizeBaseUrl(String(fromBuildEnv));
-  }
-
   // In local dev we intentionally use relative /api with Vite proxy.
   if (import.meta.env.DEV) {
     return '';
   }
 
-  // In production, empty API URL causes requests to hit the frontend origin
-  // and often return HTML (index/404), which surfaces as JSON parse errors.
-  console.warn(
-    '[Config] API base URL is empty or missing in production. Falling back to default Render backend URL.'
-  );
-  return 'https://new-life-clinic.onrender.com';
+  if (typeof window !== 'undefined') {
+    // 1. If we are on HTTPS, we must use a secure public URL (like Render) due to mixed content restrictions
+    if (window.location.protocol === 'https:') {
+      const runtimeWindow = window as any;
+      const fromWindowConfig =
+        runtimeWindow.API_BASE_URL ||
+        runtimeWindow?.envConfig?.API_BASE_URL ||
+        runtimeWindow?._env_?.VITE_API_URL ||
+        runtimeWindow?._env_?.VITE_API_BASE_URL ||
+        runtimeWindow?._env_?.API_BASE_URL ||
+        runtimeWindow?._env_?.REACT_APP_API_URL;
+
+      if (fromWindowConfig && String(fromWindowConfig).trim()) {
+        const candidate = normalizeBaseUrl(String(fromWindowConfig));
+        if (!isNonPublicApiHost(candidate)) {
+          return candidate;
+        }
+      }
+
+      const fromBuildEnv = (
+        import.meta.env.VITE_API_URL ||
+        import.meta.env.VITE_API_BASE_URL ||
+        ''
+      );
+      if (fromBuildEnv && String(fromBuildEnv).trim()) {
+        const candidate = normalizeBaseUrl(String(fromBuildEnv));
+        if (!isNonPublicApiHost(candidate)) {
+          return candidate;
+        }
+      }
+
+      // Default secure production fallback
+      return 'https://new-life-clinic.onrender.com';
+    }
+
+    // 2. If we are on HTTP, resolve the backend URL dynamically to the same host but on port 5002.
+    // This allows accessing the clinic management system from localhost or any LAN IP dynamically.
+    const hostname = window.location.hostname;
+    return `http://${hostname}:5002`;
+  }
+
+  // Server-side rendering (SSR) fallback
+  return 'http://localhost:5002';
 };
 
 // Empty string means "use the Vite proxy" in local dev.

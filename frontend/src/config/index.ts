@@ -1,19 +1,50 @@
 // API configuration - always uses Vite proxy so the backend URL never
 // needs to change when you switch networks or access from a different IP.
 // The Vite dev-server proxy (vite.config.ts) forwards /api → localhost:5002.
-function getApiUrl() {
-  // Allow a hard override via VITE_API_URL env var (rarely needed)
-  const envApiUrl = (window as any)._env_?.REACT_APP_API_URL || import.meta.env.VITE_API_URL;
-  if (envApiUrl) {
-    console.log('✅ Using environment API URL:', envApiUrl);
-    return envApiUrl;
+const isNonPublicApiHost = (url: string): boolean => {
+  try {
+    const { hostname } = new URL(url);
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+    const parts = hostname.split('.').map((p) => parseInt(p, 10));
+    if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return false;
+    const [a, b] = parts;
+    if (a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    return false;
+  } catch {
+    return false;
+  }
+};
+
+const normalizeBaseUrl = (url: string): string =>
+  url.trim().replace(/\/+$/, '');
+
+function getApiUrl(): string {
+  // In local dev we intentionally use relative /api with Vite proxy.
+  if (import.meta.env.DEV) {
+    return '';
   }
 
-  // Always use the Vite proxy — works whether you open the app on
-  // localhost, a LAN IP, or any other hostname, because the proxy
-  // runs on the same origin as the frontend and forwards to localhost:5002.
-  console.log('✅ Accessing via Vite proxy (network-independent)');
-  return '';
+  if (typeof window !== 'undefined') {
+    // 1. If we are on HTTPS, we must use a secure public URL (like Render) due to mixed content restrictions
+    if (window.location.protocol === 'https:') {
+      const envApiUrl = (window as any)._env_?.REACT_APP_API_URL || import.meta.env.VITE_API_URL;
+      if (envApiUrl && String(envApiUrl).trim()) {
+        const candidate = normalizeBaseUrl(String(envApiUrl));
+        if (!isNonPublicApiHost(candidate)) {
+          return candidate;
+        }
+      }
+      return 'https://new-life-clinic.onrender.com';
+    }
+
+    // 2. If we are on HTTP, resolve the backend URL dynamically to the same host but on port 5002.
+    const hostname = window.location.hostname;
+    return `http://${hostname}:5002`;
+  }
+
+  return 'http://localhost:5002';
 }
 
 export const API_BASE_URL = getApiUrl();

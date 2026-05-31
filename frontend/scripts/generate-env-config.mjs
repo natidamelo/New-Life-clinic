@@ -2,16 +2,42 @@
  * Writes public/env-config.js before vite build so static hosting (e.g. Vercel)
  * gets a public API base URL from CI env vars — not a committed LAN address.
  */
-import { writeFileSync } from 'fs';
+import { writeFileSync, readFileSync, existsSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const envPath = join(__dirname, '..', '.env');
 const outPath = join(__dirname, '..', 'public', 'env-config.js');
+
+// Load environment variables from frontend/.env if it exists
+let envVars = {};
+if (existsSync(envPath)) {
+  try {
+    const envContent = readFileSync(envPath, 'utf8');
+    envContent.split(/\r?\n/).forEach(line => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return;
+      const index = trimmed.indexOf('=');
+      if (index > 0) {
+        const key = trimmed.substring(0, index).trim();
+        let val = trimmed.substring(index + 1).trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        envVars[key] = val;
+      }
+    });
+  } catch (err) {
+    console.warn('[generate-env-config] Warning: Failed to parse .env file:', err.message);
+  }
+}
 
 const raw =
   process.env.VITE_API_URL ||
   process.env.VITE_API_BASE_URL ||
+  envVars.VITE_API_URL ||
+  envVars.VITE_API_BASE_URL ||
   'https://new-life-clinic.onrender.com';
 const url = String(raw).trim().replace(/\/+$/, '');
 
