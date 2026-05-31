@@ -11,6 +11,7 @@ const autoInventoryDeductionMonitor = require('./services/autoInventoryDeduction
 const patientStatusSyncService = require('./services/patientStatusSyncService');
 const { bootstrapSuperAdmin } = require('./services/superAdminBootstrapService');
 const { backfillMissingClinicIds } = require('./services/clinicIdBackfillService');
+const selfPingService = require('./services/selfPingService');
 const net = require('net');
 require('dotenv').config();
 
@@ -174,6 +175,9 @@ const startServer = async (dbConnected) => {
 // Function to start all services
 const startServices = async (dbConnected) => {
   try {
+    // Start self-pinging to keep server awake on Render free tier
+    selfPingService.start();
+
     if (!dbConnected) {
       console.log(
         '⚠️  MongoDB not connected — skipping background jobs (attendance, revenue, sync, overtime, inventory). Add MONGODB_URI on Render.'
@@ -272,6 +276,9 @@ const gracefulShutdown = async (signal) => {
     
     console.log('🛑 Stopping patient status sync service...');
     patientStatusSyncService.stop();
+
+    console.log('🛑 Stopping self-ping service...');
+    selfPingService.stop();
 
     console.log('🛑 Telegram service cleanup completed');
     
