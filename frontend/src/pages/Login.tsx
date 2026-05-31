@@ -116,10 +116,18 @@ const Login: React.FC = () => {
     }
   };
 
-  // Treat as a warm-up/retry situation: genuine timeouts OR backend 503 database_unavailable
+  // Treat as a warm-up/retry situation: genuine timeouts OR backend 503 database_unavailable OR network errors
   const isWarmupError = (err: any): boolean => {
     if (err?.name === 'TimeoutError') return true;
     if (typeof err?.message === 'string' && err.message.toLowerCase().includes('timeout')) return true;
+    // Network errors (server not reachable yet during cold start)
+    if (typeof err?.message === 'string' && (
+      err.message.includes('Network Error') ||
+      err.message.includes('ERR_NETWORK') ||
+      err.message.includes('Failed to fetch') ||
+      err.message.includes('ECONNREFUSED') ||
+      err.message.toLowerCase().includes('not responding')
+    )) return true;
     // 503 with database_unavailable means Atlas isn't connected yet
     const responseData = err?.response?.data ?? err?.data;
     if (responseData?.error === 'database_unavailable') return true;

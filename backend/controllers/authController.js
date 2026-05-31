@@ -48,6 +48,17 @@ const authController = {
    */
   login: async (req, res, next) => {
     try {
+      // Fast-fail if the database isn't connected yet (Render cold start / Atlas reconnect)
+      const dbState = mongoose.connection.readyState;
+      if (dbState !== 1) {
+        logger.warn('Login attempt while database is not ready', { readyState: dbState });
+        return res.status(503).json({
+          success: false,
+          error: 'database_unavailable',
+          message: 'Database is still connecting. Please wait a moment and try again.'
+        });
+      }
+
       const { identifier, password } = req.body;
       const clinicId = req.body.clinicId || req.headers['x-clinic-id'] || 'default';
       
