@@ -268,7 +268,7 @@ const Login: React.FC = () => {
                 <span className={`font-black ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>New Life Clinic</span> Platform
               </p>
               <h1 className={`${isDarkMode ? 'text-white' : 'text-slate-900'} font-black leading-[1.02] tracking-tight text-[clamp(2.9rem,4.5vw,4.6rem)]`}>
-                Smarter access for
+                Specialized access for
                 <span className={`block text-transparent bg-clip-text bg-gradient-to-r ${isDarkMode ? 'from-cyan-300 via-blue-300 to-indigo-300' : 'from-teal-600 to-cyan-600'}`}>
                   every care team
                 </span>

@@ -33,6 +33,10 @@ streams:
   6b8dd2bb-3e59-432e-ace3-3ffa27c64e66:
     - "ffmpeg:rtsp://admin:CWIQMH@192.168.1.2:554/Streaming/Channels/101#video=h264"
 
+# Preload streams so they are active 24/7, eliminating connection/transcoding startup delay (4-7 seconds)
+preload:
+  6b8dd2bb-3e59-432e-ace3-3ffa27c64e66:
+
 
 ffmpeg:
   # Timestamp overlay drawn by FFmpeg (optional — enable if you want burned-in timestamps)
