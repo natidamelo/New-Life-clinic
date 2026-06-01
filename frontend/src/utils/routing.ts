@@ -23,6 +23,8 @@ export const getRoleBasedRoute = (role: string, user?: { role?: string; email?: 
       return '/app/dashboard';
     case 'doctor':
       return '/app/doctor';
+    case 'mch':
+      return '/app/mch';
     case 'nurse':
       return '/app/ward';
     case 'receptionist': // Database role

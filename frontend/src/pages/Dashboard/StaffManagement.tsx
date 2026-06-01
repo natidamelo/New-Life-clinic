@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 
 const availableRoles = [
-  'admin', 'reception', 'nurse', 'lab', 'imaging', 'doctor', 'billing', 'inventory', 'finance', 'pharmacy'
+  'admin', 'reception', 'nurse', 'lab', 'imaging', 'doctor', 'billing', 'inventory', 'finance', 'pharmacy', 'mch'
 ];
 
 const roleColors: Record<string, string> = {
@@ -43,11 +43,12 @@ const roleColors: Record<string, string> = {
   inventory: 'bg-orange-100 text-orange-700 border-orange-200',
   finance: 'bg-yellow-100 text-yellow-700 border-yellow-200',
   pharmacy: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+  mch: 'bg-pink-100 text-pink-700 border-pink-200',
 };
 
 const roleIcons: Record<string, string> = {
   admin: '🛡️', reception: '🖥️', nurse: '🩺', lab: '🔬', imaging: '📡',
-  doctor: '👨‍⚕️', billing: '💳', inventory: '📦', finance: '💰', pharmacy: '💊',
+  doctor: '👨‍⚕️', billing: '💳', inventory: '📦', finance: '💰', pharmacy: '💊', mch: '🤰',
 };
 
 const isAdminUser = (user: { email?: string; username?: string; role?: string }): boolean => {

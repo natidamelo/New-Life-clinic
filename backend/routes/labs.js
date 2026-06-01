@@ -92,7 +92,7 @@ router.get('/doctor/:doctorId', auth, async (req, res) => {
 
   // Create a lab test result from an existing lab order
   router.post('/from-order/:orderId', [auth,
-    checkRole('labtech', 'doctor', 'admin'),
+    checkRole('labtech', 'doctor', 'admin', 'mch'),
   body('results', 'Test results are required').notEmpty(),
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -204,7 +204,7 @@ router.get('/doctor/:doctorId', auth, async (req, res) => {
 
   // Bulk update lab tests
   router.post('/bulk-update', [auth,
-    checkRole('labtech', 'doctor', 'admin'),
+    checkRole('labtech', 'doctor', 'admin', 'mch'),
   body('testIds', 'Test IDs are required').isArray().notEmpty(),
   body('update', 'Update data is required').notEmpty(),
 ], async (req, res) => {
@@ -305,7 +305,7 @@ router.get('/:id', auth, async (req, res) => {
 
   // Create a new lab test
   router.post('/', [auth,
-    checkRole('doctor', 'nurse', 'labtech', 'admin'),
+    checkRole('doctor', 'nurse', 'labtech', 'admin', 'mch'),
   body('patient', 'Patient ID is required').not().isEmpty().isMongoId(),
   body('testName', 'Test name is required').not().isEmpty(),
   body('testType', 'Test type is required').not().isEmpty(),
@@ -347,7 +347,7 @@ router.get('/:id', auth, async (req, res) => {
 
   // Update a lab test
   router.put('/:id', [auth,
-    checkRole('doctor', 'nurse', 'labtech', 'admin'),
+    checkRole('doctor', 'nurse', 'labtech', 'admin', 'mch'),
   body('status').optional().isIn(['Pending', 'In Progress', 'Completed', 'Cancelled']),
 ], async (req, res) => {
   const errors = validationResult(req);

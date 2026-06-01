@@ -650,8 +650,8 @@ router.get('/consultations', [auth,
     } 
   };
   
-  // If user is a doctor, only show their consultation records
-  if (req.user.role === 'doctor') {
+  // If user is a doctor or MCH staff, only show their consultation records
+  if (req.user.role === 'doctor' || req.user.role === 'mch') {
     query.createdBy = req.user._id;
   }
   
@@ -860,8 +860,8 @@ router.get('/completed-patient-history', [auth,
     }
   };
   
-  // If user is a doctor, only show their records
-  if (req.user.role === 'doctor') {
+  // If user is a doctor or MCH staff, only show their records
+  if (req.user.role === 'doctor' || req.user.role === 'mch') {
     query.createdBy = req.user._id;
   }
   
@@ -937,8 +937,8 @@ router.get('/', [auth,
   // Build query filters
   let query = {};
   
-  // If user is a doctor, only show their records
-  if (req.user.role === 'doctor') {
+  // If user is a doctor or MCH staff, only show their records
+  if (req.user.role === 'doctor' || req.user.role === 'mch') {
     query.createdBy = req.user._id;
   }
   

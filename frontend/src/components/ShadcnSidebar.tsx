@@ -155,6 +155,14 @@ const imagingMenuItems = [
   { path: '/app/leave-request', icon: Calendar, label: 'Request Leave' },
 ];
 
+const mchMenuItems = [
+  { path: '/app/mch', icon: DashboardIcon, label: 'MCH Dashboard' },
+  { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
+  { path: '/app/profile', icon: UserCircleIcon, label: 'Profile' },
+  { path: '/app/theme-settings', icon: CogIcon, label: 'Appearance' },
+  { path: '/app/leave-request', icon: Calendar, label: 'Request Leave' },
+];
+
 interface ShadcnSidebarProps {
   children: React.ReactNode;
 }
@@ -265,6 +273,9 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
         case 'finance':
           allSidebarPaths = financeMenuItems.map(item => item.path);
           break;
+        case 'mch':
+          allSidebarPaths = mchMenuItems.map(item => item.path);
+          break;
         case 'admin':
         case 'super_admin':
         default:
@@ -334,6 +345,9 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
             case 'super_admin':
               testPaths = ['/app/dashboard', '/app/staff-management', '/app/patients'];
               break;
+            case 'mch':
+              testPaths = ['/app/mch', '/app/packages'];
+              break;
             default:
               testPaths = ['/app/dashboard', '/app/reception', location.pathname];
           }
@@ -364,6 +378,9 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               break;
             case 'nurse':
               paths = nurseMenuItems.map(item => item.path);
+              break;
+            case 'mch':
+              paths = mchMenuItems.map(item => item.path);
               break;
             case 'admin':
             case 'super_admin':
@@ -474,6 +491,9 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
     switch (user.role.toLowerCase()) {
       case 'doctor':
         currentMenuItems = doctorMenuItems;
+        break;
+      case 'mch':
+        currentMenuItems = mchMenuItems;
         break;
       case 'reception':
         currentMenuItems = receptionMenuItems;

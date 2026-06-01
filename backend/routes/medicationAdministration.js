@@ -66,7 +66,7 @@ const standardizeTimeSlot = (timeSlot) => {
 router.get(
   '/test-auth',
   auth,
-  authorize('nurse', 'admin', 'doctor'),
+  authorize('nurse', 'admin', 'doctor', 'mch'),
   asyncHandler(async (req, res) => {
     console.log(`🔐 [TEST AUTH] Route hit`);
     console.log(`🔐 [TEST AUTH] User info:`, req.user);
@@ -90,7 +90,7 @@ router.get(
 router.post(
   '/administer-dose',
   auth,
-  authorize('nurse', 'admin', 'doctor'), // Allow nurses, admins, and doctors to administer medications
+  authorize('nurse', 'admin', 'doctor', 'mch'), // Allow nurses, admins, and doctors to administer medications
   asyncHandler(async (req, res) => {
     console.log(`🚀 [DOSE ADMIN] Route hit with body:`, req.body);
     console.log(`🔐 [DOSE ADMIN] User info:`, req.user);
@@ -898,7 +898,7 @@ router.post(
 router.get(
   '/dose-status/:taskId/:day/:timeSlot',
   auth,
-  authorize('nurse', 'admin', 'doctor'), // Allow nurses, admins, and doctors to check dose status
+  authorize('nurse', 'admin', 'doctor', 'mch'), // Allow nurses, admins, and doctors to check dose status
   asyncHandler(async (req, res) => {
   const { taskId, day, timeSlot } = req.params;
   const standardizedTimeSlot = standardizeTimeSlot(timeSlot);

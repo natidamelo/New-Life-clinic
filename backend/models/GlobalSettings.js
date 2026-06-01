@@ -431,6 +431,87 @@ const globalSettingsSchema = new mongoose.Schema({
           default: 'pending'
         }
       }
+    },
+
+    // MCH role settings
+    mch: {
+      appearance: {
+        theme: {
+          type: String,
+          enum: ['light', 'dark', 'auto'],
+          default: 'light'
+        },
+        primaryColor: {
+          type: String,
+          default: '#DB2777' // Pink for MCH
+        },
+        secondaryColor: {
+          type: String,
+          default: '#059669' // Green
+        },
+        colorTheme: {
+          type: String,
+          enum: ['default-light', 'default-dark', 'aqua', 'teal', 'light-blue', 'rose', 'pink', 'gold', 'orange', 'charcoal', 'navy', 'indigo', 'purple', 'maroon', 'forest-green', 'blue', 'green', 'red', 'gray', 'slate', 'zinc', 'neutral', 'stone', 'emerald', 'cyan', 'sky', 'violet', 'fuchsia', 'amber', 'lime', 'cool-breeze', 'icy-mint', 'custom'],
+          default: 'default-light'
+        },
+        fontSize: {
+          type: String,
+          enum: ['small', 'medium', 'large'],
+          default: 'medium'
+        },
+        compactMode: {
+          type: Boolean,
+          default: false
+        },
+        sidebarCollapsed: {
+          type: Boolean,
+          default: false
+        }
+      },
+      notifications: {
+        enabled: {
+          type: Boolean,
+          default: true
+        },
+        soundEnabled: {
+          type: Boolean,
+          default: true
+        },
+        desktopNotifications: {
+          type: Boolean,
+          default: true
+        },
+        emailNotifications: {
+          type: Boolean,
+          default: true
+        },
+        smsNotifications: {
+          type: Boolean,
+          default: false
+        }
+      },
+      dashboard: {
+        refreshInterval: {
+          type: Number,
+          default: 30000 // 30 seconds
+        },
+        showWelcomeMessage: {
+          type: Boolean,
+          default: true
+        },
+        enableQuickActions: {
+          type: Boolean,
+          default: true
+        },
+        autoRefreshTasks: {
+          type: Boolean,
+          default: true
+        },
+        showVitalSigns: {
+          type: Boolean,
+          default: true
+        }
+      }
     }
   },
 

@@ -12,7 +12,7 @@ router.get('/upcoming', auth, appointmentController.getUpcomingAppointments);
 // Note: Removed test endpoints to prevent confusion
 
 // Get all appointments
-router.get('/', auth, checkRole('admin', 'reception', 'doctor', 'nurse'), appointmentController.getAppointments);
+router.get('/', auth, checkRole('admin', 'reception', 'doctor', 'nurse', 'mch'), appointmentController.getAppointments);
 
 // Get appointment by ID
 router.get('/:id', auth, appointmentController.getAppointmentById);
@@ -23,7 +23,7 @@ router.get('/slots', auth, appointmentController.getAvailableTimeSlots);
 // Create a new appointment
 router.post('/', [
   auth, 
-  checkRole('admin', 'reception', 'doctor', 'nurse'),
+  checkRole('admin', 'reception', 'doctor', 'nurse', 'mch'),
   body('patient').isString().notEmpty().withMessage('Patient ID is required'),
   body('doctor').isString().notEmpty().withMessage('Doctor ID is required'),
   body('dateTime').isString().notEmpty().withMessage('Date and time is required'),
@@ -48,7 +48,7 @@ router.post('/', [
 // Update an appointment
 router.put('/:id', [
   auth, 
-  checkRole('admin', 'reception', 'doctor', 'nurse'),
+  checkRole('admin', 'reception', 'doctor', 'nurse', 'mch'),
   body('patientId').optional().isString(),
   body('doctorId').optional().isString(),
   body('date').optional().isString(),

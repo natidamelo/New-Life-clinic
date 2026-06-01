@@ -132,7 +132,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/*",
-    element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance', 'lab', 'imaging', 'billing']}><ShadcnSidebarLayout>
+    element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance', 'lab', 'imaging', 'billing', 'mch']}><ShadcnSidebarLayout>
       <Outlet />
     </ShadcnSidebarLayout></ProtectedRoute>,
     errorElement: <ErrorFallback />
@@ -156,7 +156,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/app',
-    element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance', 'lab', 'imaging', 'billing']}><ShadcnSidebarLayout>
+    element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance', 'lab', 'imaging', 'billing', 'mch']}><ShadcnSidebarLayout>
       <Outlet />
     </ShadcnSidebarLayout></ProtectedRoute>,
     children: [
@@ -170,11 +170,11 @@ const router = createBrowserRouter([
       },
       {
         path: 'patients',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception']}><LazyWrapper><Patients /></LazyWrapper></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'mch']}><LazyWrapper><Patients /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'appointments',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception']}><LazyWrapper><Appointments /></LazyWrapper></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'mch']}><LazyWrapper><Appointments /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'lab-tests',
@@ -330,7 +330,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'mch',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse']}><LazyWrapper><MCHDashboard /></LazyWrapper></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'mch']}><LazyWrapper><MCHDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'imaging',

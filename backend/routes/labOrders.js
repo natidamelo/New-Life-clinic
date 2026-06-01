@@ -4,7 +4,7 @@ const labOrderController = require('../controllers/labOrderController');
 const { auth, checkRole } = require('../middleware/auth');
 
 // Get all lab orders - allow admin, lab, and doctor roles
-router.get('/', auth, checkRole('admin', 'lab', 'doctor'), labOrderController.getLabOrders);
+router.get('/', auth, checkRole('admin', 'lab', 'doctor', 'mch'), labOrderController.getLabOrders);
 
 // GET pending lab orders for reception - MUST be before /:id route
 router.get('/pending-for-reception', async (req, res) => {
@@ -72,7 +72,7 @@ router.get('/pending-for-reception', async (req, res) => {
 });
 
 // Create lab order(s) - handles both single and bulk creation
-router.post('/', auth, checkRole('admin', 'doctor'), async (req, res) => {
+router.post('/', auth, checkRole('admin', 'doctor', 'mch'), async (req, res) => {
   try {
     // Check if this is a bulk request (has tests array) or individual request
     if (req.body.tests && Array.isArray(req.body.tests)) {
@@ -95,7 +95,7 @@ router.post('/', auth, checkRole('admin', 'doctor'), async (req, res) => {
 });
 
 // Get a specific lab order by ID
-router.get('/:id', auth, checkRole('admin', 'lab', 'doctor'), labOrderController.getLabOrderById);
+router.get('/:id', auth, checkRole('admin', 'lab', 'doctor', 'mch'), labOrderController.getLabOrderById);
 
 // Update a lab order
 router.put('/:id', auth, checkRole('admin', 'lab'), labOrderController.updateLabOrder);

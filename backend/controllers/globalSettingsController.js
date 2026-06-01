@@ -99,7 +99,7 @@ exports.applySettingsToDashboards = asyncHandler(async (req, res) => {
     console.log('🔧 [GlobalSettingsController] Applying settings to dashboards:', { dashboardTypes, settings, userId });
     
     // Validate dashboard types
-    const validDashboardTypes = ['doctor', 'lab', 'imaging', 'reception', 'nurse'];
+    const validDashboardTypes = ['doctor', 'lab', 'imaging', 'reception', 'nurse', 'mch'];
     const invalidTypes = dashboardTypes.filter(type => !validDashboardTypes.includes(type));
     
     if (invalidTypes.length > 0) {
@@ -143,7 +143,7 @@ exports.getRoleSettings = asyncHandler(async (req, res) => {
     const userRole = req.user.role;
     
     // Validate role and ensure user can only access their own role settings
-    const validRoles = ['doctor', 'lab', 'imaging', 'reception', 'nurse'];
+    const validRoles = ['doctor', 'lab', 'imaging', 'reception', 'nurse', 'mch'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
@@ -187,7 +187,7 @@ exports.updateRoleSettings = asyncHandler(async (req, res) => {
     const updates = req.body;
     
     // Validate role and ensure user can only update their own role settings
-    const validRoles = ['doctor', 'lab', 'imaging', 'reception', 'nurse'];
+    const validRoles = ['doctor', 'lab', 'imaging', 'reception', 'nurse', 'mch'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
@@ -229,7 +229,7 @@ exports.getDashboardSettings = asyncHandler(async (req, res) => {
     const { dashboardType } = req.params;
     
     // Validate dashboard type
-    const validDashboardTypes = ['doctor', 'lab', 'imaging', 'reception', 'nurse'];
+    const validDashboardTypes = ['doctor', 'lab', 'imaging', 'reception', 'nurse', 'mch'];
     if (!validDashboardTypes.includes(dashboardType)) {
       return res.status(400).json({
         success: false,

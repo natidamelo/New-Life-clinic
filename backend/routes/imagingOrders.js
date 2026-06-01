@@ -449,7 +449,7 @@ router.put(
 
 // POST create new imaging order
 router.post('/', [auth,
-  checkRole('doctor', 'nurse'), // Roles that can order imaging
+  checkRole('doctor', 'nurse', 'mch'), // Roles that can order imaging
   body('patientId', 'Patient ID is required').not().isEmpty().isMongoId(),
   body('visitId').optional().isMongoId(),
   body('imagingType', 'Imaging type is required').not().isEmpty(),
@@ -712,7 +712,7 @@ router.post('/', [auth,
 
 // PUT update imaging order (e.g., change status, add results)
 router.put('/:id', [auth,
-  checkRole('doctor', 'nurse', 'radiologist', 'admin', 'imaging'), // Roles that can update imaging orders
+  checkRole('doctor', 'nurse', 'radiologist', 'admin', 'imaging', 'mch'), // Roles that can update imaging orders
   body('status').optional().isIn(['Ordered', 'Scheduled', 'In Progress', 'Completed', 'Results Available', 'Cancelled']),
 ], async (req, res) => {
   const errors = validationResult(req);

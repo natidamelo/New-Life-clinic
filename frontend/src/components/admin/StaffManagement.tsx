@@ -177,6 +177,7 @@ const StaffManagement: React.FC = () => {
                 <SelectItem value="reception">Reception</SelectItem>
                 <SelectItem value="finance">Finance</SelectItem>
                 <SelectItem value="pharmacy">Pharmacy</SelectItem>
+                <SelectItem value="mch">MCH Staff</SelectItem>
               </SelectContent>
             </Select>
           </div>

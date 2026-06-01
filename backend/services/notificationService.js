@@ -33,33 +33,33 @@ class NotificationService {
       let roleFilter = {};
       switch (notificationType) {
         case this.notificationTypes.PATIENT_ASSIGNMENT:
-          roleFilter = { role: { $in: ['doctor', 'nurse'] } };
+          roleFilter = { role: { $in: ['doctor', 'nurse', 'mch'] } };
           break;
         case this.notificationTypes.VITALS_UPDATE:
-          roleFilter = { role: { $in: ['nurse', 'doctor'] } };
+          roleFilter = { role: { $in: ['nurse', 'doctor', 'mch'] } };
           break;
         case 'labOrder':
         case this.notificationTypes.LAB_ORDER:
-          roleFilter = { role: { $in: ['lab', 'doctor'] } };
+          roleFilter = { role: { $in: ['lab', 'doctor', 'mch'] } };
           break;
         case this.notificationTypes.IMAGING_REQUEST:
-          roleFilter = { role: { $in: ['imaging', 'doctor'] } };
+          roleFilter = { role: { $in: ['imaging', 'doctor', 'mch'] } };
           break;
         case this.notificationTypes.PROCEDURE:
-          roleFilter = { role: { $in: ['nurse', 'doctor'] } };
+          roleFilter = { role: { $in: ['nurse', 'doctor', 'mch'] } };
           break;
         case this.notificationTypes.MEDICATION_ORDER:
-          roleFilter = { role: { $in: ['pharmacy', 'nurse', 'doctor'] } };
+          roleFilter = { role: { $in: ['pharmacy', 'nurse', 'doctor', 'mch'] } };
           break;
         case this.notificationTypes.EMERGENCY_ALERT:
-          roleFilter = { role: { $in: ['doctor', 'nurse', 'reception'] } };
+          roleFilter = { role: { $in: ['doctor', 'nurse', 'reception', 'mch'] } };
           break;
         case this.notificationTypes.SYSTEM_UPDATE:
           roleFilter = { role: { $in: ['admin', 'reception'] } };
           break;
         case 'billingUpdate':
         case this.notificationTypes.BILLING_UPDATE:
-          roleFilter = { role: { $in: ['admin', 'finance', 'reception', 'doctor'] } };
+          roleFilter = { role: { $in: ['admin', 'finance', 'reception', 'doctor', 'mch'] } };
           break;
         case 'dailyRevenue':
         case this.notificationTypes.DAILY_REVENUE:
@@ -67,7 +67,7 @@ class NotificationService {
           break;
         case 'paymentAlert':
         case this.notificationTypes.PAYMENT_ALERT:
-          roleFilter = { role: { $in: ['admin', 'finance', 'reception', 'doctor'] } };
+          roleFilter = { role: { $in: ['admin', 'finance', 'reception', 'doctor', 'mch'] } };
           break;
         case 'attendanceUpdate':
         case this.notificationTypes.ATTENDANCE_UPDATE:
