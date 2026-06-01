@@ -81,6 +81,8 @@ interface MCHRecord {
   para?: number;
   abortions?: number;
   ttDoses?: Record<string, string>; // tt1: '2026-05-12'
+  otherVaccines?: Record<string, string>; // tdap: '2026-06-01'
+  supplements?: Record<string, string>; // ifa: '2026-06-01'
   ancVisits?: Array<{
     id: string;
     date: string;
@@ -287,6 +289,8 @@ const MCHDashboard: React.FC = () => {
         para: 0,
         abortions: 0,
         ttDoses: {},
+        otherVaccines: {},
+        supplements: {},
         ancVisits: []
       };
     } else if (enrollProgram === 'PNC') {
@@ -449,6 +453,34 @@ const MCHDashboard: React.FC = () => {
     }
 
     updateMchRecordField('ttDoses', doses);
+  };
+
+  // Toggle other maternal vaccines
+  const toggleOtherVaccine = (vaccineKey: string) => {
+    if (!mchRecord || !selectedPatient) return;
+    const vaccines = { ...(mchRecord.otherVaccines || {}) };
+
+    if (vaccines[vaccineKey]) {
+      delete vaccines[vaccineKey];
+    } else {
+      vaccines[vaccineKey] = new Date().toISOString().split('T')[0];
+    }
+
+    updateMchRecordField('otherVaccines', vaccines);
+  };
+
+  // Toggle maternal supplements
+  const toggleSupplement = (supplementKey: string) => {
+    if (!mchRecord || !selectedPatient) return;
+    const supplements = { ...(mchRecord.supplements || {}) };
+
+    if (supplements[supplementKey]) {
+      delete supplements[supplementKey];
+    } else {
+      supplements[supplementKey] = new Date().toISOString().split('T')[0];
+    }
+
+    updateMchRecordField('supplements', supplements);
   };
 
   // Filter and sort patients in sidebar based on filter pills and enrollment status
@@ -1088,6 +1120,93 @@ const MCHDashboard: React.FC = () => {
                                 );
                               })}
                             </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      {/* Maternal Immunizations & Supplements Row */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Additional Maternal Vaccines */}
+                        <Card className="rounded-2xl bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 shadow-sm">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-base font-bold">Additional Prenatal Immunizations</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            {[
+                              { key: 'tdap', name: 'Tdap Booster', description: 'Tetanus, Diphtheria, Pertussis (Recommended 27–36 weeks)' },
+                              { key: 'influenza', name: 'Influenza (Flu Vaccine)', description: 'Recommended once during pregnancy' },
+                              { key: 'covid19', name: 'COVID-19 Vaccine', description: 'Safe & recommended per guidelines' }
+                            ].map((vaccine) => {
+                              const givenDate = mchRecord.otherVaccines?.[vaccine.key];
+                              return (
+                                <div
+                                  key={vaccine.key}
+                                  onClick={() => toggleOtherVaccine(vaccine.key)}
+                                  className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                                    givenDate
+                                      ? 'bg-emerald-500/10 border-emerald-500/30'
+                                      : 'bg-gray-50 border-gray-100 dark:bg-gray-850 dark:border-gray-800 hover:bg-gray-100/50 dark:hover:bg-gray-800/60'
+                                  }`}
+                                >
+                                  <div>
+                                    <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{vaccine.name}</p>
+                                    <p className="text-xs text-gray-400 mt-0.5">{vaccine.description}</p>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1">
+                                    {givenDate ? (
+                                      <>
+                                        <Badge className="bg-emerald-600 font-semibold rounded-lg text-[10px]">ADMINISTERED</Badge>
+                                        <span className="text-[10px] text-gray-400 font-medium">{givenDate}</span>
+                                      </>
+                                    ) : (
+                                      <Badge variant="outline" className="text-gray-400 font-semibold rounded-lg text-[10px]">NOT ADMINISTERED</Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </CardContent>
+                        </Card>
+
+                        {/* Routine Supplements */}
+                        <Card className="rounded-2xl bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 shadow-sm">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-base font-bold">Maternal Supplements & Preventive Care</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            {[
+                              { key: 'ifa', name: 'Iron & Folic Acid (IFA)', description: 'Prevents maternal anemia & neural tube defects' },
+                              { key: 'calcium', name: 'Calcium Supplementation', description: 'Prevents gestational pre-eclampsia risk' },
+                              { key: 'deworming', name: 'Deworming (Albendazole)', description: 'Single dose administered after 1st trimester' }
+                            ].map((supp) => {
+                              const givenDate = mchRecord.supplements?.[supp.key];
+                              return (
+                                <div
+                                  key={supp.key}
+                                  onClick={() => toggleSupplement(supp.key)}
+                                  className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                                    givenDate
+                                      ? 'bg-purple-500/10 border-purple-500/30'
+                                      : 'bg-gray-50 border-gray-100 dark:bg-gray-850 dark:border-gray-800 hover:bg-gray-100/50 dark:hover:bg-gray-800/60'
+                                  }`}
+                                >
+                                  <div>
+                                    <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{supp.name}</p>
+                                    <p className="text-xs text-gray-400 mt-0.5">{supp.description}</p>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1">
+                                    {givenDate ? (
+                                      <>
+                                        <Badge className="bg-purple-600 font-semibold rounded-lg text-[10px]">INITIATED</Badge>
+                                        <span className="text-[10px] text-gray-400 font-medium">{givenDate}</span>
+                                      </>
+                                    ) : (
+                                      <Badge variant="outline" className="text-gray-400 font-semibold rounded-lg text-[10px]">PENDING</Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </CardContent>
                         </Card>
                       </div>
