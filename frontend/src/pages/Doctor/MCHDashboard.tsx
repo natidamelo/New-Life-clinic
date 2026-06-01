@@ -133,6 +133,10 @@ const MCHDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'anc' | 'pnc' | 'child' | 'consultation' | 'prescriptions' | 'labs'>('overview');
   
+  // Filter and tracking states for MCH enrolled patients
+  const [sidebarFilter, setSidebarFilter] = useState<'all' | 'enrolled' | 'anc' | 'pnc' | 'child'>('all');
+  const [enrolledMap, setEnrolledMap] = useState<Record<string, string>>({});
+  
   // Enrollment modal state
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
   const [enrollProgram, setEnrollProgram] = useState<'ANC' | 'PNC' | 'Child Health'>('ANC');
@@ -173,18 +177,22 @@ const MCHDashboard: React.FC = () => {
     urineTest: false
   });
 
-  // Calculate MCH general statistics
+  // Calculate MCH general statistics and update enrolled map
   const updateStats = useCallback(() => {
     let anc = 0;
     let pnc = 0;
     let vaccinesCount = 0;
     let growthCount = 0;
+    const newEnrolledMap: Record<string, string> = {};
 
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith('mch_record_')) {
         try {
           const rec: MCHRecord = JSON.parse(localStorage.getItem(key) || '{}');
+          if (rec.patientId) {
+            newEnrolledMap[rec.patientId] = rec.program;
+          }
           if (rec.program === 'ANC') anc++;
           if (rec.program === 'PNC') pnc++;
           if (rec.givenVaccines) {
@@ -196,6 +204,8 @@ const MCHDashboard: React.FC = () => {
         } catch (_) {}
       }
     }
+    
+    setEnrolledMap(newEnrolledMap);
     setMchStats({
       ancMothers: anc,
       pncPairs: pnc,
@@ -441,18 +451,39 @@ const MCHDashboard: React.FC = () => {
     updateMchRecordField('ttDoses', doses);
   };
 
-  // Filter patients in sidebar
+  // Filter and sort patients in sidebar based on filter pills and enrollment status
   const filteredPatients = useMemo(() => {
-    return patients.filter(p => {
+    const list = patients.filter(p => {
       const search = searchTerm.toLowerCase();
       const fullName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
       const idCode = (p.patientId || p._id || '').toLowerCase();
       
       const matchesSearch = fullName.includes(search) || idCode.includes(search);
+      if (!matchesSearch) return false;
+
+      const patientId = (p.id || p._id) as string;
+      const enrolledProgram = enrolledMap[patientId];
+
+      if (sidebarFilter === 'all') return true;
+      if (sidebarFilter === 'enrolled') return !!enrolledProgram;
+      if (sidebarFilter === 'anc') return enrolledProgram === 'ANC';
+      if (sidebarFilter === 'pnc') return enrolledProgram === 'PNC';
+      if (sidebarFilter === 'child') return enrolledProgram === 'Child Health';
       
-      return matchesSearch;
+      return true;
     });
-  }, [patients, searchTerm]);
+
+    // Sort: Enrolled patients first, then others
+    return [...list].sort((a, b) => {
+      const aId = (a.id || a._id) as string;
+      const bId = (b.id || b._id) as string;
+      const aHas = !!enrolledMap[aId];
+      const bHas = !!enrolledMap[bId];
+      if (aHas && !bHas) return -1;
+      if (!aHas && bHas) return 1;
+      return 0;
+    });
+  }, [patients, searchTerm, sidebarFilter, enrolledMap]);
 
   // Submit integrated medical record consultation
   const handleSaveConsultation = async () => {
@@ -727,6 +758,35 @@ const MCHDashboard: React.FC = () => {
                 className="pl-9 bg-white dark:bg-gray-950"
               />
             </div>
+            
+            {/* Elegant, Premium MCH Filter Pills */}
+            <div className="flex gap-1.5 overflow-x-auto mt-3 pb-1 scrollbar-none">
+              {(['all', 'enrolled', 'anc', 'pnc', 'child'] as const).map((filter) => {
+                const label = {
+                  all: 'All',
+                  enrolled: 'Active MCH',
+                  anc: 'ANC',
+                  pnc: 'PNC',
+                  child: 'Child'
+                }[filter];
+                
+                const isActive = sidebarFilter === filter;
+                
+                return (
+                  <button
+                    key={filter}
+                    onClick={() => setSidebarFilter(filter)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all duration-200 whitespace-nowrap transform active:scale-95 border ${
+                      isActive
+                        ? 'bg-gradient-to-r from-pink-500 to-purple-600 border-pink-500 text-white shadow-md shadow-pink-500/10'
+                        : 'bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-900 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
@@ -742,12 +802,12 @@ const MCHDashboard: React.FC = () => {
             ) : (
               filteredPatients.map((patient) => {
                 const active = selectedPatient?.id === patient.id || selectedPatient?._id === patient._id;
-                const recStored = localStorage.getItem(`mch_record_${patient.id || patient._id}`);
-                const parsed = recStored ? JSON.parse(recStored) : null;
+                const patientId = (patient.id || patient._id) as string;
+                const enrolledProgram = enrolledMap[patientId];
                 
                 return (
                   <div
-                    key={patient.id || patient._id}
+                    key={patientId}
                     onClick={() => setSelectedPatient(patient)}
                     className={`p-3 cursor-pointer transition-all flex items-center justify-between ${
                       active ? 'bg-pink-500/10 border-l-4 border-pink-500 dark:bg-pink-500/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40'
@@ -768,9 +828,9 @@ const MCHDashboard: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    {parsed && (
-                      <Badge variant="secondary" className="bg-pink-100 text-pink-800 dark:bg-pink-950/40 dark:text-pink-300">
-                        {parsed.program}
+                    {enrolledProgram && (
+                      <Badge variant="secondary" className="bg-pink-100 text-pink-800 dark:bg-pink-950/40 dark:text-pink-300 font-semibold rounded-lg">
+                        {enrolledProgram}
                       </Badge>
                     )}
                   </div>
