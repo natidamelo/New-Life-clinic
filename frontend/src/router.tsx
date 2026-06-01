@@ -45,6 +45,7 @@ const ViewResults = lazy(() => import('./pages/Lab/ViewResults'));
 const CreateServiceResult = lazy(() => import('./pages/Lab/CreateServiceResult'));
 const ServiceResults = lazy(() => import('./pages/Lab/ServiceResults'));
 const DoctorDashboard = lazy(() => import('./pages/Doctor/DoctorDashboard'));
+const MCHDashboard = lazy(() => import('./pages/Doctor/MCHDashboard'));
 // Replace legacy imaging dashboard with the newer component
 const MahletImagingDashboard = lazy(() => import('./components/doctor/ImagingDashboard'));
 const InvoiceList = lazy(() => import('./pages/Billing/InvoiceList'));
@@ -326,6 +327,10 @@ const router = createBrowserRouter([
       {
         path: 'depo-injections',
         element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse']}><LazyWrapper><DepoInjectionManagement /></LazyWrapper></ProtectedRoute>
+      },
+      {
+        path: 'mch',
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse']}><LazyWrapper><MCHDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'imaging',
