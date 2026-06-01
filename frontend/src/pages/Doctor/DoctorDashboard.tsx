@@ -3091,6 +3091,13 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </button>
+              <button
+                onClick={() => navigate('/app/mch')}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-pink-500 hover:bg-pink-600 text-white transition-all transform active:scale-95 shadow-sm border border-pink-400/20"
+              >
+                <span>🤰</span>
+                MCH Dashboard
+              </button>
             </div>
           </div>
         </div>
