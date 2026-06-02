@@ -1360,18 +1360,19 @@ exports.addPaymentToInvoice = asyncHandler(async (req, res) => {
 
         console.log(`💰 [PAYMENT NOTIFICATION] Sending notification with data:`, JSON.stringify(notificationData, null, 2));
 
-        // Send billing update notification
-        const notificationResult = await notificationService.sendNotification(
+        // Send billing update notification (non-blocking)
+        notificationService.sendNotification(
             'billingUpdate',
             notificationData
-        );
-
-        console.log(`💰 [PAYMENT NOTIFICATION] Notification result:`, JSON.stringify(notificationResult, null, 2));
-        console.log(`✅ [addPaymentToInvoice] Step 6.8: Telegram notification sent successfully`);
+        ).then(notificationResult => {
+            console.log(`💰 [PAYMENT NOTIFICATION] Notification result:`, JSON.stringify(notificationResult, null, 2));
+            console.log(`✅ [addPaymentToInvoice] Step 6.8: Telegram notification sent successfully`);
+        }).catch(notificationError => {
+            console.error(`❌ [addPaymentToInvoice] Step 6.8: Error sending Telegram notification:`, notificationError);
+            console.error(`❌ [addPaymentToInvoice] Step 6.8: Error stack:`, notificationError.stack);
+        });
     } catch (notificationError) {
-        console.error(`❌ [addPaymentToInvoice] Step 6.8: Error sending Telegram notification:`, notificationError);
-        console.error(`❌ [addPaymentToInvoice] Step 6.8: Error stack:`, notificationError.stack);
-        // Don't fail the payment if notification fails
+        console.error(`❌ [addPaymentToInvoice] Step 6.9: General error setting up Telegram notification:`, notificationError);
     }
 
     // 7. Return success response with updated invoice data
@@ -1412,7 +1413,7 @@ exports.addPaymentToInvoice = asyncHandler(async (req, res) => {
     // 9. GUARANTEED PAYMENT SYNC - Root cause fix
     try {
         const GuaranteedPaymentSync = require('../utils/guaranteedPaymentSync');
-        await GuaranteedPaymentSync.syncPaymentStatus(invoice._id, session);
+        await GuaranteedPaymentSync.syncPaymentStatus(invoice._id);
         console.log('✅ [GUARANTEED SYNC] Payment status synchronized across all entities');
     } catch (syncError) {
         console.error('❌ [GUARANTEED SYNC] Error synchronizing payment status:', syncError);
@@ -1441,7 +1442,7 @@ exports.addPaymentToInvoice = asyncHandler(async (req, res) => {
                 console.log(`📱 Found ${labOrders.length} paid lab orders, sending notifications...`);
 
                 for (const labOrder of labOrders) {
-                    const labNotification = await notificationService.sendNotification(
+                    notificationService.sendNotification(
                         'labOrder',
                         {
                             patientId: labOrder.patient.patientId || labOrder.patient._id,
@@ -1453,13 +1454,15 @@ exports.addPaymentToInvoice = asyncHandler(async (req, res) => {
                                 type: labOrder.patient.specimenType || 'Lab Test'
                             }]
                         }
-                    );
-
-                    if (labNotification.success) {
-                        console.log(`📱 Lab order notification sent for ${labOrder.testName}`);
-                    } else {
-                        console.log(`❌ Lab order notification failed for ${labOrder.testName}:`, labNotification.message);
-                    }
+                    ).then(labNotification => {
+                        if (labNotification && labNotification.success) {
+                            console.log(`📱 Lab order notification sent for ${labOrder.testName}`);
+                        } else {
+                            console.log(`❌ Lab order notification failed for ${labOrder.testName}:`, labNotification ? labNotification.message : 'No response');
+                        }
+                    }).catch(err => {
+                        console.error(`❌ Error sending lab order notification for ${labOrder.testName}:`, err);
+                    });
                 }
             } else {
                 console.log('📱 No lab orders found for this invoice');

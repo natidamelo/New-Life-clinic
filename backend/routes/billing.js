@@ -2085,8 +2085,8 @@ router.post('/process-partial-payment', auth, [
       const isFullPayment = newBalance === 0;
       const paymentType = isFullPayment ? 'Full Payment' : 'Partial Payment';
 
-      // Send billing update notification
-      await notificationService.sendNotification(
+      // Send billing update notification (non-blocking)
+      notificationService.sendNotification(
         'billingUpdate',
         {
           amount: amountPaid,
@@ -2099,12 +2099,13 @@ router.post('/process-partial-payment', auth, [
           paymentMethod: paymentMethod,
           remainingBalance: newBalance
         }
-      );
-
-      console.log('✅ [PARTIAL PAYMENT] Telegram notification sent successfully');
+      ).then(() => {
+        console.log('✅ [PARTIAL PAYMENT] Telegram notification sent successfully');
+      }).catch(notificationError => {
+        console.error('⚠️ [PARTIAL PAYMENT] Error sending Telegram notification:', notificationError);
+      });
     } catch (notificationError) {
-      console.error('⚠️ [PARTIAL PAYMENT] Error sending Telegram notification:', notificationError);
-      // Don't fail the payment if notification fails
+      console.error('⚠️ [PARTIAL PAYMENT] Error setting up Telegram notification:', notificationError);
     }
 
     // Verify the final state
@@ -5229,8 +5230,8 @@ router.post('/process-consolidated-payment', auth, [
       const isFullPayment = invoice.status === 'paid';
       const paymentType = isFullPayment ? 'Full Payment' : 'Partial Payment';
 
-      // Send billing update notification
-      await notificationService.sendNotification(
+      // Send billing update notification (non-blocking)
+      notificationService.sendNotification(
         'billingUpdate',
         {
           amount: amountPaid,
@@ -5245,12 +5246,13 @@ router.post('/process-consolidated-payment', auth, [
           paymentMethod: paymentMethod,
           remainingBalance: invoice.balance
         }
-      );
-
-      console.log('✅ [CONSOLIDATED PAYMENT] Telegram notification sent successfully');
+      ).then(() => {
+        console.log('✅ [CONSOLIDATED PAYMENT] Telegram notification sent successfully');
+      }).catch(notificationError => {
+        console.error('⚠️ [CONSOLIDATED PAYMENT] Error sending Telegram notification:', notificationError);
+      });
     } catch (notificationError) {
-      console.error('⚠️ [CONSOLIDATED PAYMENT] Error sending Telegram notification:', notificationError);
-      // Don't fail the payment if notification fails
+      console.error('⚠️ [CONSOLIDATED PAYMENT] Error setting up Telegram notification:', notificationError);
     }
 
     res.status(200).json({
