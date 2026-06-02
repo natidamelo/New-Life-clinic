@@ -44,5 +44,9 @@ ffmpeg:
   # drawtext options applied to all streams:
   # args: "-vf drawtext=fontfile=/path/to/font.ttf:text='%{localtime}':x=10:y=10:fontsize=18:fontcolor=white@0.8:box=1:boxcolor=black@0.5"
 
+hls:
+  playlist_length: 10
+  segment_duration: 2
+
 log:
   level: debug
