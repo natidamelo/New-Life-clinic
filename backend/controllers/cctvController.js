@@ -59,7 +59,17 @@ function decryptRtspUrl(encryptedHex, ivHex, authTagHex) {
 
 // ─── go2rtc helpers ────────────────────────────────────────────────────────────
 
-const GO2RTC_API = process.env.GO2RTC_API_URL || process.env.GO2RTC_PUBLIC_URL || 'http://localhost:1984';
+async function getGo2rtcApiUrl() {
+  try {
+    const SystemSetting = require('../models/SystemSetting');
+    const dbUrl = await SystemSetting.getValue('go2rtc_public_url');
+    if (dbUrl) return dbUrl;
+  } catch (err) {
+    console.error('[CCTV] Error reading go2rtc_public_url from settings:', err);
+  }
+  return process.env.GO2RTC_API_URL || process.env.GO2RTC_PUBLIC_URL || 'http://localhost:1984';
+}
+
 const GO2RTC_API_KEY = process.env.GO2RTC_API_KEY || '';
 
 const go2rtcHeaders = GO2RTC_API_KEY
@@ -68,9 +78,10 @@ const go2rtcHeaders = GO2RTC_API_KEY
 
 async function registerStreamInGo2rtc(streamKey, rtspUrl) {
   try {
+    const apiUrl = await getGo2rtcApiUrl();
     // go2rtc v1.x API: PUT /api/streams?name=KEY with JSON body { "rtsp://...": {} }
     await axios.put(
-      `${GO2RTC_API}/api/streams`,
+      `${apiUrl}/api/streams`,
       { [rtspUrl]: {} },
       {
         params: { name: streamKey },
@@ -87,8 +98,9 @@ async function registerStreamInGo2rtc(streamKey, rtspUrl) {
 
 async function removeStreamFromGo2rtc(streamKey) {
   try {
+    const apiUrl = await getGo2rtcApiUrl();
     await axios.delete(
-      `${GO2RTC_API}/api/streams`,
+      `${apiUrl}/api/streams`,
       {
         params: { name: streamKey },
         headers: go2rtcHeaders,
@@ -104,7 +116,8 @@ async function removeStreamFromGo2rtc(streamKey) {
 
 async function go2rtcStreamInfo(streamKey) {
   try {
-    const res = await axios.get(`${GO2RTC_API}/api/streams`, {
+    const apiUrl = await getGo2rtcApiUrl();
+    const res = await axios.get(`${apiUrl}/api/streams`, {
       headers: go2rtcHeaders,
       timeout: 5000
     });
@@ -333,7 +346,7 @@ exports.getStreamUrl = async (req, res) => {
     const camera = await Camera.findById(req.params.id).lean();
     if (!camera) return res.status(404).json({ success: false, message: 'Camera not found' });
 
-    const go2rtcHost = process.env.GO2RTC_PUBLIC_URL || 'http://localhost:1984';
+    const go2rtcHost = await getGo2rtcApiUrl();
     // go2rtc v1.9.x correct HLS endpoint: /api/stream.m3u8?src={streamName}
     const hlsUrl    = `${go2rtcHost}/api/stream.m3u8?src=${camera.streamKey}`;
     const webrtcUrl = `${go2rtcHost}/api/webrtc?src=${camera.streamKey}`;
@@ -677,7 +690,8 @@ exports.getAllCamerasStatus = async (req, res) => {
     let go2rtcStreams = {};
     let go2rtcReachable = false;
     try {
-      const r = await axios.get(`${GO2RTC_API}/api/streams`, {
+      const apiUrl = await getGo2rtcApiUrl();
+      const r = await axios.get(`${apiUrl}/api/streams`, {
         headers: go2rtcHeaders,
         timeout: 3000
       });

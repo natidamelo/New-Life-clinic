@@ -15,11 +15,9 @@ module.exports = {
       }
     },
     {
-      name: 'go2rtc',
-      script: 'go2rtc.exe',
+      name: 'go2rtc-tunnel',
+      script: 'start-go2rtc-tunnel.js',
       cwd: 'C:\\Users\\HP\\OneDrive\\Desktop\\clinic new life',
-      args: '-config go2rtc.yaml',
-      interpreter: 'none',
       autorestart: true,
       watch: false,
       max_restarts: 10,
