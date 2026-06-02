@@ -28,10 +28,19 @@ if (fs.existsSync(LOG_FILE)) {
 }
 
 console.log('🚀 Starting go2rtc stream relay...');
+// Clear old go2rtc log file
+const GO2RTC_LOG_FILE = path.join(__dirname, 'go2rtc-app.log');
+if (fs.existsSync(GO2RTC_LOG_FILE)) {
+  try {
+    fs.unlinkSync(GO2RTC_LOG_FILE);
+  } catch (e) {}
+}
+const go2rtcLog = fs.openSync(GO2RTC_LOG_FILE, 'a');
+
 // Start go2rtc.exe in background if it's not already running
 const go2rtc = spawn('go2rtc.exe', ['-config', 'go2rtc.yaml'], {
   cwd: __dirname,
-  stdio: 'ignore',
+  stdio: ['ignore', go2rtcLog, go2rtcLog],
   detached: true
 });
 go2rtc.unref();
