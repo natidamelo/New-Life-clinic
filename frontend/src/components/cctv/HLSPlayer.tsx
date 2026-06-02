@@ -120,6 +120,13 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
             if (recoveryAttempts < 3) {
               recoveryAttempts++;
               if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                // If it is a 404 (Not Found), session has expired/changed. Re-initialize immediately.
+                if (data.response && data.response.code === 404) {
+                  console.warn('[HLSPlayer] 404 error detected (session expired). Re-initializing player...');
+                  setErrorMsg('Reconnecting stream...');
+                  retryWithBackoff(initPlayer);
+                  return;
+                }
                 console.log(`[HLSPlayer] Attempting network recovery (${recoveryAttempts}/3)...`);
                 hls.startLoad();
               } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
