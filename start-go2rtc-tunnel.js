@@ -86,6 +86,13 @@ const proxyServer = http.createServer((req, res) => {
       'Access-Control-Expose-Headers': '*'
     };
 
+    // Prevent caching of playlists (.m3u8) to ensure dynamic session IDs are never cached
+    if (req.url.includes('.m3u8')) {
+      responseHeaders['Cache-Control'] = 'no-cache, no-store, must-revalidate, private';
+      responseHeaders['Pragma'] = 'no-cache';
+      responseHeaders['Expires'] = '0';
+    }
+
     res.writeHead(proxyRes.statusCode, responseHeaders);
     proxyRes.pipe(res, { end: true });
   });

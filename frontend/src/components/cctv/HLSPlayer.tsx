@@ -90,16 +90,7 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
             levelLoadingMaxRetry: 6,
             levelLoadingRetryDelay: 1000,
             fragLoadingMaxRetry: 8,
-            fragLoadingRetryDelay: 1000,
-            xhrSetup: function (xhr: any, url: string) {
-              if (url.includes('.m3u8')) {
-                const separator = url.includes('?') ? '&' : '?';
-                const busterUrl = url + separator + '_cb=' + Date.now();
-                xhr.open('GET', busterUrl, true);
-              } else {
-                xhr.open('GET', url, true);
-              }
-            }
+            fragLoadingRetryDelay: 1000
           });
           hlsRef.current = hls;
 
