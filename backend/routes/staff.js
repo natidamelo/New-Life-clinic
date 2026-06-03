@@ -13,7 +13,7 @@ router.get('/', auth, async (req, res) => {
     const staff = await User.find({ 
       role: { $nin: ['admin'] },
       isActive: true 
-    }).select('-password');
+    }).select('-password').lean();
     
     res.json({
       success: true,
@@ -38,7 +38,7 @@ router.get('/overview', auth, async (req, res) => {
     const allStaff = await User.find({ 
       role: { $nin: ['admin'] },
       isActive: true 
-    });
+    }).lean();
 
     // Get today's attendance data
     const today = new Date();
@@ -141,7 +141,7 @@ router.get('/attendance-data', auth, async (req, res) => {
       staffQuery.department = department;
     }
 
-    const allStaff = await User.find(staffQuery);
+    const allStaff = await User.find(staffQuery).lean();
 
     // Get attendance data for the specified date from Timesheet collection
     let attendanceQuery = {
@@ -397,7 +397,7 @@ router.get('/monthly-attendance', auth, async (req, res) => {
       staffQuery.department = department;
     }
 
-    const allStaff = await User.find(staffQuery);
+    const allStaff = await User.find(staffQuery).lean();
 
     // Get all timesheet records for the entire month
     const timesheetQuery = {
@@ -667,7 +667,8 @@ router.get('/members', auth, async (req, res) => {
       .select('-password')
       .skip(skip)
       .limit(parseInt(limit))
-      .sort({ firstName: 1, lastName: 1 });
+      .sort({ firstName: 1, lastName: 1 })
+      .lean();
 
     // Transform data to match expected format
     const transformedMembers = staffMembers.map(staff => ({
@@ -713,7 +714,7 @@ router.get('/patient-assignments/stats', auth, async (req, res) => {
     const staffMembers = await User.find({ 
       role: { $in: ['doctor', 'nurse'] },
       isActive: true 
-    });
+    }).lean();
 
     // For now, we'll return basic stats since patient assignment data might not exist yet
     const stats = {
@@ -764,7 +765,7 @@ router.get('/patient-assignments/available-staff', auth, async (req, res) => {
       query.department = department;
     }
 
-    const staffMembers = await User.find(query).select('-password');
+    const staffMembers = await User.find(query).select('-password').lean();
     
     // Transform to match expected format
     const availableStaff = staffMembers.map(staff => ({
@@ -1010,7 +1011,7 @@ router.post('/patient-assignments/rebalance', auth, async (req, res) => {
     const staffMembers = await User.find({ 
       role: { $in: ['doctor', 'nurse'] },
       isActive: true 
-    });
+    }).lean();
     
     // For now, return basic rebalance info
     // In a real implementation, you would redistribute unassigned patients
@@ -1089,7 +1090,7 @@ router.get('/departments', auth, async (req, res) => {
     const allStaff = await User.find({ 
       role: { $nin: ['admin'] },
       isActive: true 
-    });
+    }).lean();
 
     // Group by department
     const departmentStats = {};

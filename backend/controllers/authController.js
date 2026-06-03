@@ -92,17 +92,24 @@ const authController = {
    */
   getMe: async (req, res, next) => {
     try {
-      // User is already available from auth middleware
+      const User = require('../models/User');
+      const user = await User.findById(req.user._id).select('+photo +digitalSignature');
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
       console.log('getMe: Returning user data:', {
-        id: req.user._id,
-        email: req.user.email,
-        hasPhoto: !!req.user.photo,
-        photoLength: req.user.photo ? req.user.photo.length : 0
+        id: user._id,
+        email: user.email,
+        hasPhoto: !!user.photo,
+        photoLength: user.photo ? user.photo.length : 0
       });
       res.status(200).json({
         success: true,
         data: {
-          user: req.user
+          user
         }
       });
     } catch (error) {

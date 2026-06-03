@@ -182,6 +182,9 @@ class AuthService {
       if (!isPasswordValid) {
         throw this.createAuthError('Invalid credentials', 401);
       }
+
+      // Fetch user with photo and digitalSignature explicitly for login response
+      user = await User.findById(user._id).select('+photo +digitalSignature');
       
       // Update last login
       user.lastLogin = new Date();
