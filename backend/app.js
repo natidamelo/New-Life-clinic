@@ -1140,6 +1140,76 @@ const createApp = () => {
     });
   });
 
+  // Diagnostic endpoint to debug DB connection and DNS resolution times
+  app.get('/api/diagnose-db', async (req, res) => {
+    const dns = require('dns');
+    const mongoose = require('mongoose');
+    
+    const diagnostic = {
+      timestamp: new Date().toISOString(),
+      readyState: mongoose.connection.readyState,
+      readyStateName: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState],
+      dns: {},
+      queries: {},
+      env: {
+        hasMongoUri: !!(process.env.MONGODB_URI || process.env.MONGO_URI),
+        nodeVersion: process.version,
+        platform: process.platform
+      }
+    };
+
+    const mongoURI = process.env.MONGODB_URI || process.env.MONGO_URI;
+    
+    // 1. Resolve hostnames
+    if (mongoURI) {
+      try {
+        const urlMatch = mongoURI.match(/@([^/]+)/);
+        if (urlMatch) {
+          const hostPort = urlMatch[1];
+          const host = hostPort.split(':')[0].split(',')[0]; // Handle comma-separated list of hosts
+          diagnostic.env.dbHost = host;
+
+          const dnsStart = Date.now();
+          const dnsPromise = new Promise((resolve, reject) => {
+            dns.lookup(host, (err, address, family) => {
+              if (err) reject(err);
+              else resolve({ address, family });
+            });
+          });
+          
+          diagnostic.dns.lookup = await Promise.race([
+            dnsPromise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('dns.lookup timeout 15s')), 15000))
+          ]).then(r => ({ ...r, timeMs: Date.now() - dnsStart }))
+            .catch(e => ({ error: e.message, timeMs: Date.now() - dnsStart }));
+        }
+      } catch (err) {
+        diagnostic.dns.error = err.message;
+      }
+    }
+
+    // 2. Perform DB operations
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const pingStart = Date.now();
+        await mongoose.connection.db.admin().ping();
+        diagnostic.queries.dbPingTimeMs = Date.now() - pingStart;
+
+        const countStart = Date.now();
+        const Patient = mongoose.models.Patient || require('./models/Patient');
+        const patientCount = await Patient.countDocuments();
+        diagnostic.queries.patientCount = patientCount;
+        diagnostic.queries.patientCountTimeMs = Date.now() - countStart;
+      } catch (err) {
+        diagnostic.queries.error = err.message;
+      }
+    } else {
+      diagnostic.queries.message = "Database not connected, skipping queries";
+    }
+
+    res.status(200).json(diagnostic);
+  });
+
   // Initialization of default data moved to server startup after successful DB connection
   
   // =========================================
