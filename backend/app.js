@@ -1135,7 +1135,7 @@ const createApp = () => {
     res.status(200).json({ 
       success: true, 
       message: 'API is responding', 
-      version: '1.0.4-query-test',
+      version: '1.0.5-tcp-test',
       timestamp: new Date().toISOString() 
     });
   });
@@ -1243,6 +1243,33 @@ const createApp = () => {
                     targetTest.resolve6 = { addresses: resolve6Res, timeMs: Date.now() - resolve6Start };
                   } catch (e) {
                     targetTest.resolve6 = { error: e.message, timeMs: Date.now() - resolve6Start };
+                  }
+
+                  // Test TCP connection to port 27017
+                  const net = require('net');
+                  const tcpStart = Date.now();
+                  try {
+                    const tcpRes = await new Promise((resolve, reject) => {
+                      const socket = new net.Socket();
+                      const timer = setTimeout(() => {
+                        socket.destroy();
+                        reject(new Error('timeout 5s'));
+                      }, 5000);
+
+                      socket.connect(record.port, target, () => {
+                        clearTimeout(timer);
+                        socket.end();
+                        resolve('connected');
+                      });
+
+                      socket.on('error', (err) => {
+                        clearTimeout(timer);
+                        reject(err);
+                      });
+                    });
+                    targetTest.tcp = { success: true, result: tcpRes, timeMs: Date.now() - tcpStart };
+                  } catch (e) {
+                    targetTest.tcp = { success: false, error: e.message, timeMs: Date.now() - tcpStart };
                   }
 
                   diagnostic.dns.srv.targets.push(targetTest);
