@@ -2,6 +2,8 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
+const http = require('http');
+const net = require('net');
 
 // Load environment variables from backend/.env
 const backendEnvPath = path.join(__dirname, 'backend', '.env');
@@ -19,22 +21,21 @@ if (!mongoUri) {
 }
 
 const LOG_FILE = path.join(__dirname, 'cloudflared-tunnel.log');
+const GO2RTC_LOG_FILE = path.join(__dirname, 'go2rtc-app.log');
 
-// Clear old log file
+// Clear old log files
 if (fs.existsSync(LOG_FILE)) {
   try {
     fs.unlinkSync(LOG_FILE);
   } catch (e) {}
 }
-
-console.log('🚀 Starting go2rtc stream relay...');
-// Clear old go2rtc log file
-const GO2RTC_LOG_FILE = path.join(__dirname, 'go2rtc-app.log');
 if (fs.existsSync(GO2RTC_LOG_FILE)) {
   try {
     fs.unlinkSync(GO2RTC_LOG_FILE);
   } catch (e) {}
 }
+
+console.log('🚀 Starting go2rtc stream relay...');
 const go2rtcLog = fs.openSync(GO2RTC_LOG_FILE, 'a');
 
 // Start go2rtc.exe in background if it's not already running
@@ -45,10 +46,98 @@ const go2rtc = spawn('go2rtc.exe', ['-config', 'go2rtc.yaml'], {
 });
 go2rtc.unref();
 
+// Start local CORS Proxy to resolve browser preflight Access-Control-Allow-Headers errors (such as 'expires')
+const PROXY_PORT = 1985;
+const GO2RTC_PORT = 1984;
+
+const proxyServer = http.createServer((req, res) => {
+  // Set permissive CORS headers for all responses
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Expose-Headers', '*');
+
+  // Handle preflight OPTIONS requests directly
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  // Forward standard HTTP request to go2rtc
+  const options = {
+    hostname: 'localhost',
+    port: GO2RTC_PORT,
+    path: req.url,
+    method: req.method,
+    headers: { ...req.headers }
+  };
+
+  // Delete host header to prevent host mismatch errors on target
+  delete options.headers['host'];
+
+  const proxyReq = http.request(options, (proxyRes) => {
+    // Merge target response headers with our CORS headers
+    const responseHeaders = {
+      ...proxyRes.headers,
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': '*',
+      'Access-Control-Expose-Headers': '*'
+    };
+
+    res.writeHead(proxyRes.statusCode, responseHeaders);
+    proxyRes.pipe(res, { end: true });
+  });
+
+  proxyReq.on('error', (err) => {
+    console.error(`[CORS Proxy Error] Failed to reach go2rtc: ${err.message}`);
+    res.writeHead(502);
+    res.end('Bad Gateway: go2rtc may not be fully initialized or running.');
+  });
+
+  req.pipe(proxyReq, { end: true });
+});
+
+// Handle WebSocket proxying (needed for real-time controls/feeds)
+proxyServer.on('upgrade', (req, socket, head) => {
+  const targetSocket = net.connect(GO2RTC_PORT, 'localhost', () => {
+    let rawHeaders = `${req.method} ${req.url} HTTP/${req.httpVersion}\r\n`;
+    for (let i = 0; i < req.rawHeaders.length; i += 2) {
+      if (req.rawHeaders[i].toLowerCase() === 'host') {
+        rawHeaders += `Host: localhost:${GO2RTC_PORT}\r\n`;
+      } else {
+        rawHeaders += `${req.rawHeaders[i]}: ${req.rawHeaders[i+1]}\r\n`;
+      }
+    }
+    rawHeaders += '\r\n';
+
+    targetSocket.write(rawHeaders);
+    targetSocket.write(head);
+
+    socket.pipe(targetSocket);
+    targetSocket.pipe(socket);
+  });
+
+  targetSocket.on('error', (err) => {
+    console.error(`[CORS WS Proxy Error] ${err.message}`);
+    socket.destroy();
+  });
+
+  socket.on('error', () => {
+    targetSocket.destroy();
+  });
+});
+
+proxyServer.listen(PROXY_PORT, () => {
+  console.log(`🚀 CORS Proxy listening on port ${PROXY_PORT} -> forwarding to ${GO2RTC_PORT}`);
+});
+
 console.log('🚀 Starting Cloudflare Tunnel...');
+// Tunnel points to the CORS proxy on port 1985 instead of go2rtc directly on 1984
 const cloudflared = spawn('cloudflared.exe', [
   'tunnel',
-  '--url', 'http://localhost:1984',
+  '--url', `http://localhost:${PROXY_PORT}`,
   '--logfile', LOG_FILE
 ], {
   cwd: __dirname
@@ -115,7 +204,9 @@ async function updateDatabase(url) {
 
 // Keep script alive and handle exit gracefully
 process.on('SIGINT', () => {
-  console.log('\nStopping tunnel...');
+  console.log('\nStopping tunnel and proxy...');
   cloudflared.kill();
+  go2rtc.kill();
+  proxyServer.close();
   process.exit();
 });
