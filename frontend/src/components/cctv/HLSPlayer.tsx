@@ -99,9 +99,6 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
               } else {
                 xhr.open('GET', url, true);
               }
-              xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-              xhr.setRequestHeader('Pragma', 'no-cache');
-              xhr.setRequestHeader('Expires', '0');
             }
           });
           hlsRef.current = hls;
