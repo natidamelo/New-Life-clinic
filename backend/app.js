@@ -28,6 +28,30 @@ const createApp = () => {
   const app = express();
   
   // =========================================
+  // CORS - EARLIEST POSSIBLE (before helmet, before everything)
+  // This ensures CORS headers are ALWAYS present, even on error/timeout responses.
+  // Without this, Render proxy 502s or auth failures strip CORS headers,
+  // causing the browser to report "CORS error" instead of the real error.
+  // =========================================
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    // Handle preflight immediately — don't let it pass through heavy middleware
+    if (req.method === 'OPTIONS') {
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers',
+        'Content-Type, Authorization, X-Requested-With, Accept, Cache-Control, Pragma, Origin, X-CSRF-Token, X-Request-ID, x-request-id, x-clinic-id, X-Clinic-Id, Expires, Access-Control-Request-Method, Access-Control-Request-Headers');
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range, Cache-Control, Pragma');
+      res.setHeader('Access-Control-Max-Age', '86400');
+      return res.status(204).end();
+    }
+    next();
+  });
+
+  // =========================================
   // MIDDLEWARE - BEFORE ROUTES
   // =========================================
   
@@ -52,7 +76,7 @@ const createApp = () => {
     next();
   });
   
-  // CORS middleware setup - try the advanced one first, fallback to simple CORS
+  // CORS middleware setup (secondary layer — reinforces headers set above)
   try {
     app.use(corsMiddleware);
   } catch (corsError) {
@@ -89,10 +113,6 @@ const createApp = () => {
       ]
     }));
   }
-  
-  // Enable pre-flight requests for all routes using a dedicated OPTIONS handler
-  // This ensures proper Access-Control-* headers are always set for CORS preflight
-  app.options('*', handleOptions);
   
   // Prevent NoSQL injection attacks
   app.use(mongoSanitize());
@@ -1135,7 +1155,7 @@ const createApp = () => {
     res.status(200).json({ 
       success: true, 
       message: 'API is responding', 
-      version: '2.0.0-perf-fix',
+      version: '2.1.0-cors-fix',
       timestamp: new Date().toISOString() 
     });
   });
