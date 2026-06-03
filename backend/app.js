@@ -1135,7 +1135,7 @@ const createApp = () => {
     res.status(200).json({ 
       success: true, 
       message: 'API is responding', 
-      version: '1.0.2-diagnose-v2',
+      version: '1.0.3-dns-test',
       timestamp: new Date().toISOString() 
     });
   });
@@ -1182,6 +1182,76 @@ const createApp = () => {
             new Promise((_, reject) => setTimeout(() => reject(new Error('dns.lookup timeout 15s')), 15000))
           ]).then(r => ({ ...r, timeMs: Date.now() - dnsStart }))
             .catch(e => ({ error: e.message, timeMs: Date.now() - dnsStart }));
+
+          // Perform SRV lookup and test targets
+          if (mongoURI.startsWith('mongodb+srv://')) {
+            diagnostic.dns.srv = {};
+            try {
+              const srvStart = Date.now();
+              const srvRecords = await new Promise((resolve, reject) => {
+                dns.resolveSrv('_mongodb._tcp.' + host, (err, addresses) => {
+                  if (err) reject(err);
+                  else resolve(addresses);
+                });
+              });
+              diagnostic.dns.srv.records = srvRecords;
+              diagnostic.dns.srv.resolveTimeMs = Date.now() - srvStart;
+
+              if (srvRecords && srvRecords.length > 0) {
+                diagnostic.dns.srv.targets = [];
+                for (const record of srvRecords.slice(0, 3)) { // test first 3 shards
+                  const target = record.name;
+                  const targetTest = { name: target };
+
+                  // Test dns.lookup (default order)
+                  const lookupStart = Date.now();
+                  try {
+                    const lookupRes = await new Promise((resolve, reject) => {
+                      dns.lookup(target, (err, address, family) => {
+                        if (err) reject(err);
+                        else resolve({ address, family });
+                      });
+                    });
+                    targetTest.lookup = { ...lookupRes, timeMs: Date.now() - lookupStart };
+                  } catch (e) {
+                    targetTest.lookup = { error: e.message, timeMs: Date.now() - lookupStart };
+                  }
+
+                  // Test dns.resolve4 (ONLY IPv4 query)
+                  const resolve4Start = Date.now();
+                  try {
+                    const resolve4Res = await new Promise((resolve, reject) => {
+                      dns.resolve4(target, (err, addresses) => {
+                        if (err) reject(err);
+                        else resolve(addresses);
+                      });
+                    });
+                    targetTest.resolve4 = { addresses: resolve4Res, timeMs: Date.now() - resolve4Start };
+                  } catch (e) {
+                    targetTest.resolve4 = { error: e.message, timeMs: Date.now() - resolve4Start };
+                  }
+
+                  // Test dns.resolve6 (ONLY IPv6 query)
+                  const resolve6Start = Date.now();
+                  try {
+                    const resolve6Res = await new Promise((resolve, reject) => {
+                      dns.resolve6(target, (err, addresses) => {
+                        if (err) reject(err);
+                        else resolve(addresses);
+                      });
+                    });
+                    targetTest.resolve6 = { addresses: resolve6Res, timeMs: Date.now() - resolve6Start };
+                  } catch (e) {
+                    targetTest.resolve6 = { error: e.message, timeMs: Date.now() - resolve6Start };
+                  }
+
+                  diagnostic.dns.srv.targets.push(targetTest);
+                }
+              }
+            } catch (srvErr) {
+              diagnostic.dns.srv.error = srvErr.message;
+            }
+          }
         }
       } catch (err) {
         diagnostic.dns.error = err.message;
