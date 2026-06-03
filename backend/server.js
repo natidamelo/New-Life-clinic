@@ -1,3 +1,6 @@
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 const createApp = require('./app');
 const mongoose = require('mongoose');
 const { initializeDefaultCardTypes } = require('./controllers/cardTypeController');
@@ -332,6 +335,7 @@ const connectDB = async () => {
     minPoolSize: 2,                    // Keep at least 2 connections alive
     retryWrites: true,
     retryReads: true,
+    family: 4,                         // Force IPv4 to avoid 30s connection timeouts on Render
   };
 
   const attempts = 5;   // Increased from 3
