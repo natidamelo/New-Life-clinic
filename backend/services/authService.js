@@ -184,7 +184,7 @@ class AuthService {
       }
 
       // Fetch user with photo and digitalSignature explicitly for login response
-      user = await User.findById(user._id).select('+photo +digitalSignature');
+      user = await User.findById(user._id).setOptions({ skipTenantScope: true }).select('+photo +digitalSignature');
       
       // Update last login
       user.lastLogin = new Date();
