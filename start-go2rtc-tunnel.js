@@ -46,25 +46,185 @@ const go2rtc = spawn('go2rtc.exe', ['-config', 'go2rtc.yaml'], {
 });
 go2rtc.unref();
 
-// Start local CORS Proxy to resolve browser preflight Access-Control-Allow-Headers errors (such as 'expires')
+// Start local CORS Proxy with HLS Session Manager
+// go2rtc HLS sessions expire in ~3s of inactivity. Through a Cloudflare tunnel the
+// added latency causes sessions to die between browser polling intervals (→ 404s).
+// This proxy keeps sessions alive, auto-renews them, and rewrites manifest URLs so
+// the browser always gets a valid playlist.
 const PROXY_PORT = 1985;
 const GO2RTC_PORT = 1984;
 
-const proxyServer = http.createServer((req, res) => {
-  // Set permissive CORS headers for all responses
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', '*');
-  res.setHeader('Access-Control-Expose-Headers', '*');
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': '*',
+  'Access-Control-Expose-Headers': '*'
+};
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-cache, no-store, must-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0'
+};
 
-  // Handle preflight OPTIONS requests directly
+// ── HLS Session Manager ─────────────────────────────────────────────────────
+// Keeps go2rtc sessions alive and transparently recreates them when they expire.
+const hlsSessions = new Map(); // streamKey → { sessionId, codecs, keepaliveTimer, lastBrowserAccess }
+const SESSION_KEEPALIVE_MS = 2000;   // poll every 2 s to keep session alive
+const SESSION_IDLE_TIMEOUT = 60000;  // stop keepalive after 60 s with no browser requests
+
+async function createGo2rtcSession(streamKey) {
+  const res = await fetch(`http://localhost:${GO2RTC_PORT}/api/stream.m3u8?src=${encodeURIComponent(streamKey)}`);
+  if (res.status !== 200) return null;
+  const text = await res.text();
+  const idMatch = text.match(/hls\/playlist\.m3u8\?id=(\S+)/);
+  if (!idMatch) return null;
+  const codecMatch = text.match(/CODECS="([^"]+)"/);
+  return { sessionId: idMatch[1], codecs: codecMatch ? codecMatch[1] : 'avc1.640029' };
+}
+
+async function getOrCreateSession(streamKey) {
+  const existing = hlsSessions.get(streamKey);
+
+  // If we already have a session, verify it's still alive
+  if (existing) {
+    try {
+      const r = await fetch(`http://localhost:${GO2RTC_PORT}/api/hls/playlist.m3u8?id=${existing.sessionId}`);
+      if (r.status === 200) return existing;
+    } catch {}
+    // Dead – clean up
+    if (existing.keepaliveTimer) clearInterval(existing.keepaliveTimer);
+    hlsSessions.delete(streamKey);
+  }
+
+  // Create a fresh session
+  const result = await createGo2rtcSession(streamKey);
+  if (!result) return null;
+
+  // Keepalive: periodically fetch playlist so go2rtc doesn't garbage-collect the session
+  const keepaliveTimer = setInterval(async () => {
+    const sess = hlsSessions.get(streamKey);
+    if (!sess) return;
+
+    // Auto-cleanup when nobody is watching
+    if (Date.now() - sess.lastBrowserAccess > SESSION_IDLE_TIMEOUT) {
+      clearInterval(sess.keepaliveTimer);
+      hlsSessions.delete(streamKey);
+      console.log(`[HLS] Cleaned up idle session for ${streamKey.substring(0, 8)}…`);
+      return;
+    }
+
+    try {
+      const r = await fetch(`http://localhost:${GO2RTC_PORT}/api/hls/playlist.m3u8?id=${sess.sessionId}`);
+      if (r.status === 404) {
+        // Session died despite keepalive → recreate immediately
+        console.log(`[HLS] Session expired for ${streamKey.substring(0, 8)}…, recreating…`);
+        const fresh = await createGo2rtcSession(streamKey);
+        if (fresh) {
+          sess.sessionId = fresh.sessionId;
+          sess.codecs = fresh.codecs;
+        }
+      }
+    } catch {}
+  }, SESSION_KEEPALIVE_MS);
+
+  const session = {
+    sessionId: result.sessionId,
+    codecs: result.codecs,
+    keepaliveTimer,
+    lastBrowserAccess: Date.now()
+  };
+  hlsSessions.set(streamKey, session);
+  console.log(`[HLS] Created session ${result.sessionId} for stream ${streamKey.substring(0, 8)}…`);
+  return session;
+}
+
+// ── HTTP Proxy Server ────────────────────────────────────────────────────────
+const proxyServer = http.createServer(async (req, res) => {
+  // CORS for every response
+  Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
+
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
     return;
   }
 
-  // Forward standard HTTP request to go2rtc
+  try {
+    const url = new URL(req.url, 'http://localhost');
+
+    // ── 1. HLS Master Manifest (/api/stream.m3u8?src=STREAM_KEY) ─────────
+    //    Intercept, create/reuse session, return manifest with proxy-managed URLs.
+    if (req.url.startsWith('/api/stream.m3u8')) {
+      const streamKey = url.searchParams.get('src');
+      if (streamKey) {
+        const session = await getOrCreateSession(streamKey);
+        if (session) {
+          const manifest = [
+            '#EXTM3U',
+            `#EXT-X-STREAM-INF:BANDWIDTH=192000,CODECS="${session.codecs}"`,
+            `proxy-hls/playlist.m3u8?stream=${encodeURIComponent(streamKey)}`
+          ].join('\n') + '\n';
+          res.writeHead(200, { 'Content-Type': 'application/vnd.apple.mpegurl', ...NO_CACHE_HEADERS, ...CORS_HEADERS });
+          res.end(manifest);
+          return;
+        }
+      }
+      // Fallback: forward raw if session creation failed
+    }
+
+    // ── 2. HLS Proxy Playlist (/proxy-hls/playlist.m3u8?stream=KEY) ──────
+    if (req.url.startsWith('/proxy-hls/playlist.m3u8')) {
+      const streamKey = url.searchParams.get('stream');
+      if (streamKey) {
+        const session = await getOrCreateSession(streamKey);
+        if (session) {
+          session.lastBrowserAccess = Date.now();
+          const pr = await fetch(`http://localhost:${GO2RTC_PORT}/api/hls/playlist.m3u8?id=${session.sessionId}`);
+          if (pr.status === 200) {
+            let text = await pr.text();
+            // Rewrite segment URLs → proxy endpoint (strip go2rtc session ID)
+            text = text.replace(
+              /segment\.ts\?id=[^&\s]+&n=(\d+)/g,
+              (_, n) => `proxy-hls/segment.ts?stream=${encodeURIComponent(streamKey)}&n=${n}`
+            );
+            res.writeHead(200, { 'Content-Type': 'application/vnd.apple.mpegurl', ...NO_CACHE_HEADERS, ...CORS_HEADERS });
+            res.end(text);
+            return;
+          }
+        }
+        res.writeHead(404, CORS_HEADERS);
+        res.end('HLS session unavailable');
+        return;
+      }
+    }
+
+    // ── 3. HLS Proxy Segment (/proxy-hls/segment.ts?stream=KEY&n=N) ──────
+    if (req.url.startsWith('/proxy-hls/segment.ts')) {
+      const streamKey = url.searchParams.get('stream');
+      const n = url.searchParams.get('n');
+      if (streamKey && n !== null) {
+        const session = hlsSessions.get(streamKey);
+        if (session) {
+          session.lastBrowserAccess = Date.now();
+          const sr = await fetch(`http://localhost:${GO2RTC_PORT}/api/hls/segment.ts?id=${session.sessionId}&n=${n}`);
+          if (sr.status === 200) {
+            const buf = Buffer.from(await sr.arrayBuffer());
+            res.writeHead(200, { 'Content-Type': 'video/MP2T', ...CORS_HEADERS });
+            res.end(buf);
+            return;
+          }
+        }
+        res.writeHead(404, CORS_HEADERS);
+        res.end('Segment not found');
+        return;
+      }
+    }
+  } catch (err) {
+    console.error(`[HLS Proxy] Error handling ${req.url}: ${err.message}`);
+    // Fall through to general proxy
+  }
+
+  // ── 4. General CORS Proxy (all other requests) ────────────────────────
   const options = {
     hostname: 'localhost',
     port: GO2RTC_PORT,
@@ -72,41 +232,24 @@ const proxyServer = http.createServer((req, res) => {
     method: req.method,
     headers: { ...req.headers }
   };
-
-  // Delete host header to prevent host mismatch errors on target
   delete options.headers['host'];
 
   const proxyReq = http.request(options, (proxyRes) => {
-    // Merge target response headers with our CORS headers
-    const responseHeaders = {
-      ...proxyRes.headers,
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': '*',
-      'Access-Control-Expose-Headers': '*'
-    };
-
-    // Prevent caching of playlists (.m3u8) to ensure dynamic session IDs are never cached
-    if (req.url.includes('.m3u8')) {
-      responseHeaders['Cache-Control'] = 'no-cache, no-store, must-revalidate, private';
-      responseHeaders['Pragma'] = 'no-cache';
-      responseHeaders['Expires'] = '0';
-    }
-
+    const responseHeaders = { ...proxyRes.headers, ...CORS_HEADERS };
+    if (req.url.includes('.m3u8')) Object.assign(responseHeaders, NO_CACHE_HEADERS);
     res.writeHead(proxyRes.statusCode, responseHeaders);
     proxyRes.pipe(res, { end: true });
   });
 
   proxyReq.on('error', (err) => {
     console.error(`[CORS Proxy Error] Failed to reach go2rtc: ${err.message}`);
-    res.writeHead(502);
-    res.end('Bad Gateway: go2rtc may not be fully initialized or running.');
+    if (!res.headersSent) { res.writeHead(502); res.end('Bad Gateway'); }
   });
 
   req.pipe(proxyReq, { end: true });
 });
 
-// Handle WebSocket proxying (needed for real-time controls/feeds)
+// Handle WebSocket proxying (needed for WebRTC signaling & real-time controls)
 proxyServer.on('upgrade', (req, socket, head) => {
   const targetSocket = net.connect(GO2RTC_PORT, 'localhost', () => {
     let rawHeaders = `${req.method} ${req.url} HTTP/${req.httpVersion}\r\n`;
@@ -118,10 +261,8 @@ proxyServer.on('upgrade', (req, socket, head) => {
       }
     }
     rawHeaders += '\r\n';
-
     targetSocket.write(rawHeaders);
     targetSocket.write(head);
-
     socket.pipe(targetSocket);
     targetSocket.pipe(socket);
   });
@@ -130,14 +271,11 @@ proxyServer.on('upgrade', (req, socket, head) => {
     console.error(`[CORS WS Proxy Error] ${err.message}`);
     socket.destroy();
   });
-
-  socket.on('error', () => {
-    targetSocket.destroy();
-  });
+  socket.on('error', () => targetSocket.destroy());
 });
 
 proxyServer.listen(PROXY_PORT, () => {
-  console.log(`🚀 CORS Proxy listening on port ${PROXY_PORT} -> forwarding to ${GO2RTC_PORT}`);
+  console.log(`🚀 CORS Proxy + HLS Session Manager on port ${PROXY_PORT} → forwarding to ${GO2RTC_PORT}`);
 });
 
 console.log('🚀 Starting Cloudflare Tunnel...');
