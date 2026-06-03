@@ -1155,7 +1155,7 @@ const createApp = () => {
     res.status(200).json({ 
       success: true, 
       message: 'API is responding', 
-      version: '2.1.0-cors-fix',
+      version: '2.1.1-query-fix',
       timestamp: new Date().toISOString() 
     });
   });
