@@ -13,7 +13,7 @@ const mongoose = require('mongoose');
 class AutoInventoryDeductionMonitor {
   constructor() {
     this.isRunning = false;
-    this.checkInterval = 30000; // Check every 30 seconds
+    this.checkInterval = 5 * 60 * 1000; // Check every 5 minutes (was 30s — too aggressive for Render free tier)
     this.intervalId = null;
   }
 
@@ -86,7 +86,10 @@ class AutoInventoryDeductionMonitor {
         return; // No tasks to check
       }
 
-      console.log(`🔍 [AUTO-DEDUCTION] Found ${tasksWithAdministeredDoses.length} tasks needing inventory deduction`);
+      // Only log at debug level to reduce noise
+      if (tasksWithAdministeredDoses.length > 0) {
+        console.log(`🔍 [AUTO-DEDUCTION] Found ${tasksWithAdministeredDoses.length} tasks needing inventory deduction`);
+      }
       let fixedCount = 0;
 
       for (const task of tasksWithAdministeredDoses) {

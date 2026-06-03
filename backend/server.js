@@ -154,8 +154,9 @@ const startServer = async (dbConnected) => {
       console.log(`📱 Network API endpoints: http://${networkIP}:${availablePort}/api`);
       console.log(`\n💡 Frontend should be accessed at: http://${networkIP}:5175`);
       
-      // Start services after server is ready
-      startServices(dbConnected);
+      // Delay background services to let Render's health check succeed first
+      console.log('⏳ Waiting 15s before starting background services (Render cold-start grace period)...');
+      setTimeout(() => startServices(dbConnected), 15000);
     });
     
     // Handle server errors
@@ -235,17 +236,22 @@ const startServices = async (dbConnected) => {
     console.log('💰 Starting medication pricing monitor...');
     console.log('✅ Medication pricing monitor started successfully');
     
-    // Start automatic inventory deduction monitor (ROOT CAUSE FIX)
-    console.log('🔧 Starting automatic inventory deduction monitor...');
-    await autoInventoryDeductionMonitor.start();
-    console.log('✅ Automatic inventory deduction monitor started successfully');
+    // Stagger heavy background jobs to avoid overwhelming Render free tier
+    // Auto-inventory deduction — delay 30s after services start
+    setTimeout(async () => {
+      console.log('🔧 Starting automatic inventory deduction monitor (delayed)...');
+      await autoInventoryDeductionMonitor.start();
+      console.log('✅ Automatic inventory deduction monitor started successfully');
+    }, 30000);
     
-    // Start patient status sync service (ENSURES FINALIZED PATIENTS ARE MARKED COMPLETED)
-    console.log('🔄 Starting patient status sync service...');
-    patientStatusSyncService.start();
-    console.log('✅ Patient status sync service started successfully');
+    // Patient status sync — delay 60s after services start
+    setTimeout(() => {
+      console.log('🔄 Starting patient status sync service (delayed)...');
+      patientStatusSyncService.start();
+      console.log('✅ Patient status sync service started successfully');
+    }, 60000);
     
-    console.log('🎉 All startup services completed successfully');
+    console.log('🎉 Core startup services completed. Heavy jobs will start in 30-60s.');
     
   } catch (error) {
     console.error('❌ Error starting services:', error);
@@ -326,16 +332,17 @@ const connectDB = async () => {
 
   const opts = {
     // Atlas + Render cold start often needs >5s to pick a server
-    serverSelectionTimeoutMS: 60000,   // 60s to find a server
-    connectTimeoutMS: 30000,           // 30s to establish TCP
-    socketTimeoutMS: 60000,            // 60s idle socket timeout
-    heartbeatFrequencyMS: 10000,       // Ping Atlas every 10s (keeps connection alive)
+    serverSelectionTimeoutMS: 30000,   // 30s to find a server (was 60s - fail faster)
+    connectTimeoutMS: 20000,           // 20s to establish TCP (was 30s)
+    socketTimeoutMS: 45000,            // 45s idle socket timeout (was 60s)
+    heartbeatFrequencyMS: 30000,       // Ping Atlas every 30s (was 10s - reduce overhead)
     bufferCommands: false,
-    maxPoolSize: 10,
-    minPoolSize: 2,                    // Keep at least 2 connections alive
+    maxPoolSize: 5,                    // Reduced from 10 - free tier doesn't need many connections
+    minPoolSize: 1,                    // Reduced from 2 - save resources
     retryWrites: true,
     retryReads: true,
     family: 4,                         // Force IPv4 to avoid 30s connection timeouts on Render
+    maxIdleTimeMS: 30000,              // Close idle connections after 30s
   };
 
   const attempts = 5;   // Increased from 3

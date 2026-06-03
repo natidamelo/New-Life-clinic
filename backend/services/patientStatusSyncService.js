@@ -15,7 +15,7 @@ const MedicalRecord = require('../models/MedicalRecord');
 class PatientStatusSyncService {
   constructor() {
     this.isRunning = false;
-    this.syncInterval = 5 * 60 * 1000; // 5 minutes
+    this.syncInterval = 15 * 60 * 1000; // 15 minutes (was 5min — too frequent for Render free tier)
     this.intervalId = null;
   }
 
