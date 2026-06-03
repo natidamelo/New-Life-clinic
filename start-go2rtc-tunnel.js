@@ -162,7 +162,7 @@ const proxyServer = http.createServer(async (req, res) => {
           const manifest = [
             '#EXTM3U',
             `#EXT-X-STREAM-INF:BANDWIDTH=192000,CODECS="${session.codecs}"`,
-            `proxy-hls/playlist.m3u8?stream=${encodeURIComponent(streamKey)}`
+            `/api/proxy-hls/playlist.m3u8?stream=${encodeURIComponent(streamKey)}`
           ].join('\n') + '\n';
           res.writeHead(200, { 'Content-Type': 'application/vnd.apple.mpegurl', ...NO_CACHE_HEADERS, ...CORS_HEADERS });
           res.end(manifest);
@@ -173,7 +173,7 @@ const proxyServer = http.createServer(async (req, res) => {
     }
 
     // ── 2. HLS Proxy Playlist (/proxy-hls/playlist.m3u8?stream=KEY) ──────
-    if (req.url.startsWith('/proxy-hls/playlist.m3u8')) {
+    if (req.url.includes('proxy-hls/playlist.m3u8')) {
       const streamKey = url.searchParams.get('stream');
       if (streamKey) {
         const session = await getOrCreateSession(streamKey);
@@ -185,7 +185,7 @@ const proxyServer = http.createServer(async (req, res) => {
             // Rewrite segment URLs → proxy endpoint (strip go2rtc session ID)
             text = text.replace(
               /segment\.ts\?id=[^&\s]+&n=(\d+)/g,
-              (_, n) => `proxy-hls/segment.ts?stream=${encodeURIComponent(streamKey)}&n=${n}`
+              (_, n) => `/api/proxy-hls/segment.ts?stream=${encodeURIComponent(streamKey)}&n=${n}`
             );
             res.writeHead(200, { 'Content-Type': 'application/vnd.apple.mpegurl', ...NO_CACHE_HEADERS, ...CORS_HEADERS });
             res.end(text);
@@ -199,7 +199,7 @@ const proxyServer = http.createServer(async (req, res) => {
     }
 
     // ── 3. HLS Proxy Segment (/proxy-hls/segment.ts?stream=KEY&n=N) ──────
-    if (req.url.startsWith('/proxy-hls/segment.ts')) {
+    if (req.url.includes('proxy-hls/segment.ts')) {
       const streamKey = url.searchParams.get('stream');
       const n = url.searchParams.get('n');
       if (streamKey && n !== null) {
