@@ -2504,7 +2504,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
 
       const response = await api.get(endpoint, {
         params,
-        timeout: 8000, // 8 second timeout
+        timeout: 60000, // 60s — Render free-tier cold start can take 30-120s
       });
 
       const loadTime = Date.now() - startTime;
@@ -2654,7 +2654,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
 
       const response = await api.get(endpoint, {
         params,
-        timeout: 10000, // 10 second timeout for finalized records
+        timeout: 60000, // 60s — Render free-tier cold start can take 30-120s
       });
 
       const loadTime = Date.now() - startTime;

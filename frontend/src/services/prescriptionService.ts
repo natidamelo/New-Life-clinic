@@ -9,7 +9,7 @@ import axios from 'axios';
 const _apiBaseUrl = (window as any)?._env_?.REACT_APP_API_URL || (window as any)?._env_?.VITE_API_URL || '';
 const debugAxios = axios.create({
     baseURL: _apiBaseUrl,
-    timeout: 30000,
+    timeout: 120000, // 120s — Render free-tier cold start can take 30-120s
 });
 
 // Improved error handling function for API calls
@@ -99,7 +99,7 @@ const createPrescription = async (
                 Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-                        timeout: 15000
+                        timeout: 120000 // 120s — Render free-tier cold start can take 30-120s
                     });
 
             // Check if response includes extension information
@@ -197,7 +197,7 @@ const syncPrescriptionsWithMedicalRecords = async (patientId: string): Promise<b
         try {
 
             const response = await api.post(`/api/medical-records/sync-prescriptions/${patientId}`, {}, {
-                timeout: 5000  // Reduced timeout to 5 seconds
+                timeout: 30000  // 30s — allow time for Render cold-start
             });
             
             if (response.data && response.data.success) {

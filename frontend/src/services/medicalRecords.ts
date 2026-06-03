@@ -252,7 +252,7 @@ const medicalRecordsApi = {
       // Try using fetch with a shorter timeout for better performance
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s — Render cold start
         
         const fetchUrl = `${window.location.origin.replace('5173', '5002')}/api/medical-records/patient/${patientId}?page=${page}&limit=${limit}`;
         console.log(`[MedicalRecordsApi] Direct fetch with URL: ${fetchUrl}`);
@@ -482,7 +482,7 @@ const medicalRecordsApi = {
       // Use the draft endpoint for complex medical record data
       try {
         const response = await api.post('/api/medical-records/draft', recordData, {
-          timeout: 8000 // 8 second timeout
+          timeout: 60000 // 60s — Render free-tier cold start can take 30-120s
         });
         console.log('Enhanced medical record create response:', response.data);
         return response.data;
@@ -506,7 +506,7 @@ const medicalRecordsApi = {
           
           // Use the test endpoint that doesn't require auth
           const fallbackResponse = await api.post('/api/medical-records/test-create', simplifiedData, {
-            timeout: 8000
+            timeout: 60000 // 60s — Render free-tier cold start can take 30-120s
           });
           
           console.log('Fallback medical record create response:', fallbackResponse.data);

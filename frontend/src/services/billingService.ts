@@ -308,7 +308,7 @@ class BillingService {
           'Content-Type': 'application/json',
           // You might want to add any additional headers here
         },
-        timeout: 10000 // 10-second timeout
+        timeout: 60000 // 60s — Render free-tier cold start can take 30-120s
       };
 
       // Build a body that satisfies both legacy and new backend validators

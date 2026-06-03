@@ -202,7 +202,7 @@ const MedicalRecordSection: React.FC<MedicalRecordSectionProps> = ({
     setIsLoadingVitals(true);
       try {
         const response = await axios.get(`${API_BASE_URL}/api/doctor/vitals/latest/${patientId}`, {
-        timeout: 5000
+        timeout: 30000 // 30s — Render free-tier cold start
         });
         
         if (response.data.success && response.data.data) {

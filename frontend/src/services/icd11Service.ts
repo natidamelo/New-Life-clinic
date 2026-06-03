@@ -69,7 +69,7 @@ class ICD11Service {
           q: query,
           maxResults
         },
-        timeout: 10000 // 10 second timeout
+        timeout: 30000 // 30s — Render free-tier cold start
       });
 
       if (response.data.success) {
@@ -105,7 +105,7 @@ class ICD11Service {
       console.log(`[ICD-11 Service] Searching by code: ${code}`);
 
       const response = await api.get(`${this.baseURL}/code/${code}`, {
-        timeout: 10000
+        timeout: 30000 // 30s — Render free-tier cold start
       });
 
       if (response.data.success) {
@@ -133,7 +133,7 @@ class ICD11Service {
       console.log(`[ICD-11 Service] Fetching entity details: ${entityId}`);
 
       const response = await api.get(`${this.baseURL}/entity/${entityId}`, {
-        timeout: 10000
+        timeout: 30000 // 30s — Render free-tier cold start
       });
 
       if (response.data.success) {

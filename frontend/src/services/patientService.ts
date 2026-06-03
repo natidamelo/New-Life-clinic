@@ -539,7 +539,7 @@ export const createPatient = async (patientData: CreatePatientDto): Promise<any>
   try {
     console.log('Patient server ping attempt...');
     const pingUrl = patientServerUrl ? `${patientServerUrl}/api/ping` : '/api/ping';
-    await axios.get(pingUrl, { timeout: 5000 });
+    await axios.get(pingUrl, { timeout: 15000 }); // 15s — Render cold start
     console.log('Patient server ping succeeded');
   } catch (error) {
     console.warn('Patient server ping failed; proceeding with patient creation request', error);
@@ -703,7 +703,7 @@ const patientService = {
         try {
           console.log(`Setting patient ${patientId} status to scheduled`);
           const statusResponse = await api.put(`/api/patients/${patientId}/status`, { status: 'scheduled' }, {
-            timeout: 10000 // 10 seconds for status update
+            timeout: 30000 // 30s — Render free-tier cold start
           });
           console.log(`Patient status updated successfully:`, statusResponse.data);
         } catch (statusError) {
