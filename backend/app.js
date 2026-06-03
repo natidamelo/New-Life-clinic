@@ -1135,6 +1135,7 @@ const createApp = () => {
     res.status(200).json({ 
       success: true, 
       message: 'API is responding', 
+      version: '1.0.1-ipv4-fix',
       timestamp: new Date().toISOString() 
     });
   });
