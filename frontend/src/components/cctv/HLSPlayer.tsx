@@ -113,17 +113,17 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
           });
 
           hls.on(Hls.Events.ERROR, (_: any, data: any) => {
-            // Check for 404 errors (expired session) first, even if not marked fatal
+            if (!data.fatal) return;
+
+            console.error('[HLSPlayer] Fatal error:', data);
+
+            // Check for 404 errors (expired session)
             if (data.response && data.response.code === 404) {
-              console.warn('[HLSPlayer] 404 error detected (session expired). Re-initializing player...');
+              console.warn('[HLSPlayer] Fatal 404 error detected (session expired). Re-initializing player...');
               setErrorMsg('Reconnecting stream...');
               retryWithBackoff(initPlayer);
               return;
             }
-
-            if (!data.fatal) return;
-
-            console.error('[HLSPlayer] Fatal error:', data);
 
             if (recoveryAttempts < 3) {
               recoveryAttempts++;
