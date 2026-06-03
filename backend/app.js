@@ -1135,7 +1135,7 @@ const createApp = () => {
     res.status(200).json({ 
       success: true, 
       message: 'API is responding', 
-      version: '1.0.3-dns-test',
+      version: '1.0.4-query-test',
       timestamp: new Date().toISOString() 
     });
   });
@@ -1265,11 +1265,41 @@ const createApp = () => {
         await mongoose.connection.db.admin().ping();
         diagnostic.queries.dbPingTimeMs = Date.now() - pingStart;
 
-        const countStart = Date.now();
         const Patient = mongoose.models.Patient || require('./models/Patient');
-        const patientCount = await Patient.countDocuments();
-        diagnostic.queries.patientCount = patientCount;
-        diagnostic.queries.patientCountTimeMs = Date.now() - countStart;
+        const User = mongoose.models.User || require('./models/User');
+        const NurseTask = mongoose.models.NurseTask || require('./models/NurseTask');
+        const LabOrder = mongoose.models.LabOrder || require('./models/LabOrder');
+        const MedicalInvoice = mongoose.models.MedicalInvoice || require('./models/MedicalInvoice');
+        const Notification = mongoose.models.Notification || require('./models/Notification');
+        const Appointment = mongoose.models.Appointment || require('./models/Appointment');
+        const Timesheet = mongoose.models.Timesheet || require('./models/Timesheet');
+
+        const testQueries = async () => {
+          const results = {};
+          const runQuery = async (name, promiseFn) => {
+            const start = Date.now();
+            try {
+              const res = await promiseFn();
+              results[name] = { success: true, count: typeof res === 'number' ? res : (res ? 1 : 0), timeMs: Date.now() - start };
+            } catch (e) {
+              results[name] = { error: e.message, timeMs: Date.now() - start };
+            }
+          };
+
+          await runQuery('Patient', () => Patient.countDocuments());
+          await runQuery('User', () => User.countDocuments({ role: { $ne: 'patient' } }));
+          await runQuery('NurseTask', () => NurseTask.countDocuments({ status: 'pending' }));
+          await runQuery('LabOrderPending', () => LabOrder.countDocuments({ status: 'pending' }));
+          await runQuery('LabOrderCompleted', () => LabOrder.countDocuments({ status: 'completed' }));
+          await runQuery('Notification', () => Notification.countDocuments({ status: 'active', read: false }));
+          await runQuery('Appointment', () => Appointment.countDocuments());
+          await runQuery('MedicalInvoice', () => MedicalInvoice.countDocuments());
+          await runQuery('Timesheet', () => Timesheet.countDocuments());
+
+          return results;
+        };
+
+        diagnostic.queries.individual = await testQueries();
       } catch (err) {
         diagnostic.queries.error = err.message;
       }
