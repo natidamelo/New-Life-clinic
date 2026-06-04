@@ -46,11 +46,9 @@ const go2rtc = spawn('go2rtc.exe', ['-config', 'go2rtc.yaml'], {
 });
 go2rtc.unref();
 
-// Start local CORS Proxy with HLS Session Manager
-// go2rtc HLS sessions expire in ~3s of inactivity. Through a Cloudflare tunnel the
-// added latency causes sessions to die between browser polling intervals (→ 404s).
-// This proxy keeps sessions alive, auto-renews them, and rewrites manifest URLs so
-// the browser always gets a valid playlist.
+// Start local CORS Proxy — transparent pass-through to go2rtc with CORS headers.
+// go2rtc's native HLS session management works fine when HLS.js talks to it directly.
+// This proxy only adds CORS headers and cache-busting for .m3u8 files.
 const PROXY_PORT = 1985;
 const GO2RTC_PORT = 1984;
 
@@ -66,80 +64,8 @@ const NO_CACHE_HEADERS = {
   'Expires': '0'
 };
 
-// ── HLS Session Manager ─────────────────────────────────────────────────────
-// Keeps go2rtc sessions alive and transparently recreates them when they expire.
-const hlsSessions = new Map(); // streamKey → { sessionId, codecs, keepaliveTimer, lastBrowserAccess }
-const SESSION_KEEPALIVE_MS = 2000;   // poll every 2 s to keep session alive
-const SESSION_IDLE_TIMEOUT = 60000;  // stop keepalive after 60 s with no browser requests
-
-async function createGo2rtcSession(streamKey) {
-  const res = await fetch(`http://localhost:${GO2RTC_PORT}/api/stream.m3u8?src=${encodeURIComponent(streamKey)}`);
-  if (res.status !== 200) return null;
-  const text = await res.text();
-  const idMatch = text.match(/hls\/playlist\.m3u8\?id=(\S+)/);
-  if (!idMatch) return null;
-  const codecMatch = text.match(/CODECS="([^"]+)"/);
-  return { sessionId: idMatch[1], codecs: codecMatch ? codecMatch[1] : 'avc1.640029' };
-}
-
-async function getOrCreateSession(streamKey) {
-  const existing = hlsSessions.get(streamKey);
-
-  // If we already have a session, verify it's still alive
-  if (existing) {
-    try {
-      const r = await fetch(`http://localhost:${GO2RTC_PORT}/api/hls/playlist.m3u8?id=${existing.sessionId}`);
-      if (r.status === 200) return existing;
-    } catch {}
-    // Dead – clean up
-    if (existing.keepaliveTimer) clearInterval(existing.keepaliveTimer);
-    hlsSessions.delete(streamKey);
-  }
-
-  // Create a fresh session
-  const result = await createGo2rtcSession(streamKey);
-  if (!result) return null;
-
-  // Keepalive: periodically fetch playlist so go2rtc doesn't garbage-collect the session
-  const keepaliveTimer = setInterval(async () => {
-    const sess = hlsSessions.get(streamKey);
-    if (!sess) return;
-
-    // Auto-cleanup when nobody is watching
-    if (Date.now() - sess.lastBrowserAccess > SESSION_IDLE_TIMEOUT) {
-      clearInterval(sess.keepaliveTimer);
-      hlsSessions.delete(streamKey);
-      console.log(`[HLS] Cleaned up idle session for ${streamKey.substring(0, 8)}…`);
-      return;
-    }
-
-    try {
-      const r = await fetch(`http://localhost:${GO2RTC_PORT}/api/hls/playlist.m3u8?id=${sess.sessionId}`);
-      if (r.status === 404) {
-        // Session died despite keepalive → recreate immediately
-        console.log(`[HLS] Session expired for ${streamKey.substring(0, 8)}…, recreating…`);
-        const fresh = await createGo2rtcSession(streamKey);
-        if (fresh) {
-          sess.sessionId = fresh.sessionId;
-          sess.codecs = fresh.codecs;
-        }
-      }
-    } catch {}
-  }, SESSION_KEEPALIVE_MS);
-
-  const session = {
-    sessionId: result.sessionId,
-    codecs: result.codecs,
-    keepaliveTimer,
-    lastBrowserAccess: Date.now()
-  };
-  hlsSessions.set(streamKey, session);
-  console.log(`[HLS] Created session ${result.sessionId} for stream ${streamKey.substring(0, 8)}…`);
-  return session;
-}
-
 // ── HTTP Proxy Server ────────────────────────────────────────────────────────
-const proxyServer = http.createServer(async (req, res) => {
+const proxyServer = http.createServer((req, res) => {
   // CORS for every response
   Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
 
@@ -149,86 +75,7 @@ const proxyServer = http.createServer(async (req, res) => {
     return;
   }
 
-  try {
-    const url = new URL(req.url, 'http://localhost');
-
-    // ── 1. HLS Master Manifest (/api/stream.m3u8?src=STREAM_KEY) ─────────
-    //    Intercept, create/reuse session, return manifest with proxy-managed URLs.
-    if (req.url.startsWith('/api/stream.m3u8')) {
-      const streamKey = url.searchParams.get('src');
-      if (streamKey) {
-        const session = await getOrCreateSession(streamKey);
-        if (session) {
-          const manifest = [
-            '#EXTM3U',
-            `#EXT-X-STREAM-INF:BANDWIDTH=192000,CODECS="${session.codecs}"`,
-            `/api/proxy-hls/playlist.m3u8?stream=${encodeURIComponent(streamKey)}`
-          ].join('\n') + '\n';
-          res.writeHead(200, { 'Content-Type': 'application/vnd.apple.mpegurl', ...NO_CACHE_HEADERS, ...CORS_HEADERS });
-          res.end(manifest);
-          return;
-        }
-        // Session creation failed — camera is likely offline / unreachable
-        console.warn(`[HLS] Stream unavailable for ${streamKey.substring(0, 8)}… (camera offline?)`);
-        res.writeHead(503, { 'Content-Type': 'application/json', ...NO_CACHE_HEADERS, ...CORS_HEADERS });
-        res.end(JSON.stringify({ error: 'camera_offline', message: 'Camera stream unavailable — camera may be offline or unreachable' }));
-        return;
-      }
-    }
-
-    // ── 2. HLS Proxy Playlist (/proxy-hls/playlist.m3u8?stream=KEY) ──────
-    if (req.url.includes('proxy-hls/playlist.m3u8')) {
-      const streamKey = url.searchParams.get('stream');
-      if (streamKey) {
-        const session = await getOrCreateSession(streamKey);
-        if (session) {
-          session.lastBrowserAccess = Date.now();
-          const pr = await fetch(`http://localhost:${GO2RTC_PORT}/api/hls/playlist.m3u8?id=${session.sessionId}`);
-          if (pr.status === 200) {
-            let text = await pr.text();
-            // Rewrite segment URLs → proxy endpoint (strip go2rtc session ID)
-            text = text.replace(
-              /segment\.ts\?id=[^&\s]+&n=(\d+)/g,
-              (_, n) => `/api/proxy-hls/segment.ts?stream=${encodeURIComponent(streamKey)}&n=${n}`
-            );
-            res.writeHead(200, { 'Content-Type': 'application/vnd.apple.mpegurl', ...NO_CACHE_HEADERS, ...CORS_HEADERS });
-            res.end(text);
-            return;
-          }
-        }
-        res.writeHead(404, CORS_HEADERS);
-        res.end('HLS session unavailable');
-        return;
-      }
-    }
-
-    // ── 3. HLS Proxy Segment (/proxy-hls/segment.ts?stream=KEY&n=N) ──────
-    if (req.url.includes('proxy-hls/segment.ts')) {
-      const streamKey = url.searchParams.get('stream');
-      const n = url.searchParams.get('n');
-      if (streamKey && n !== null) {
-        const session = hlsSessions.get(streamKey);
-        if (session) {
-          session.lastBrowserAccess = Date.now();
-          const sr = await fetch(`http://localhost:${GO2RTC_PORT}/api/hls/segment.ts?id=${session.sessionId}&n=${n}`);
-          if (sr.status === 200) {
-            const buf = Buffer.from(await sr.arrayBuffer());
-            res.writeHead(200, { 'Content-Type': 'video/MP2T', ...CORS_HEADERS });
-            res.end(buf);
-            return;
-          }
-        }
-        res.writeHead(404, CORS_HEADERS);
-        res.end('Segment not found');
-        return;
-      }
-    }
-  } catch (err) {
-    console.error(`[HLS Proxy] Error handling ${req.url}: ${err.message}`);
-    // Fall through to general proxy
-  }
-
-  // ── 4. General CORS Proxy (all other requests) ────────────────────────
+  // Transparent CORS proxy — forward everything to go2rtc
   const options = {
     hostname: 'localhost',
     port: GO2RTC_PORT,
@@ -240,6 +87,7 @@ const proxyServer = http.createServer(async (req, res) => {
 
   const proxyReq = http.request(options, (proxyRes) => {
     const responseHeaders = { ...proxyRes.headers, ...CORS_HEADERS };
+    // Prevent caching of HLS manifests/playlists
     if (req.url.includes('.m3u8')) Object.assign(responseHeaders, NO_CACHE_HEADERS);
     res.writeHead(proxyRes.statusCode, responseHeaders);
     proxyRes.pipe(res, { end: true });
