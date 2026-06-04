@@ -168,8 +168,12 @@ const proxyServer = http.createServer(async (req, res) => {
           res.end(manifest);
           return;
         }
+        // Session creation failed — camera is likely offline / unreachable
+        console.warn(`[HLS] Stream unavailable for ${streamKey.substring(0, 8)}… (camera offline?)`);
+        res.writeHead(503, { 'Content-Type': 'application/json', ...NO_CACHE_HEADERS, ...CORS_HEADERS });
+        res.end(JSON.stringify({ error: 'camera_offline', message: 'Camera stream unavailable — camera may be offline or unreachable' }));
+        return;
       }
-      // Fallback: forward raw if session creation failed
     }
 
     // ── 2. HLS Proxy Playlist (/proxy-hls/playlist.m3u8?stream=KEY) ──────

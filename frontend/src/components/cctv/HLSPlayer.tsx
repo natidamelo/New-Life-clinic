@@ -117,6 +117,17 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
 
             console.error('[HLSPlayer] Fatal error:', data);
 
+            // Camera offline — proxy returns 503 or go2rtc returns empty manifest
+            if (data.details === 'manifestParsingError' || 
+                (data.response && data.response.code === 503)) {
+              console.warn('[HLSPlayer] Camera appears offline (empty/invalid manifest)');
+              setErrorMsg('Camera offline — check camera power and network');
+              setIsLoading(false);
+              // Retry with long backoff — camera might come back online
+              retryWithBackoff(initPlayer);
+              return;
+            }
+
             // Check for 404 errors (expired session)
             if (data.response && data.response.code === 404) {
               console.warn('[HLSPlayer] Fatal 404 error detected (session expired). Re-initializing player...');
