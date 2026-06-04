@@ -64,6 +64,59 @@ const NO_CACHE_HEADERS = {
   'Expires': '0'
 };
 
+// ── HLS Session Keepalive Manager ────────────────────────────────────────────
+const activeSessions = new Map(); // sessionId -> { lastAccess: timestamp, interval: timer }
+
+function startKeepalive(sessionId, clientHeaders) {
+  if (activeSessions.has(sessionId)) {
+    activeSessions.get(sessionId).lastAccess = Date.now();
+    return;
+  }
+  
+  console.log(`[HLS Proxy] Starting keepalive for session: ${sessionId}`);
+  
+  const headers = { ...clientHeaders };
+  delete headers['host']; // Prevent host header mismatch errors on target localhost:1984
+  
+  const interval = setInterval(async () => {
+    const session = activeSessions.get(sessionId);
+    if (!session) {
+      clearInterval(interval);
+      return;
+    }
+    
+    // Check for idle timeout (30 seconds of no browser access)
+    if (Date.now() - session.lastAccess > 30000) {
+      console.log(`[HLS Proxy] Session ${sessionId} idle timeout, stopping keepalive`);
+      clearInterval(interval);
+      activeSessions.delete(sessionId);
+      return;
+    }
+    
+    // Fetch playlist to keep the session alive in go2rtc
+    try {
+      const res = await fetch(`http://localhost:${GO2RTC_PORT}/api/hls/playlist.m3u8?id=${sessionId}`, { headers });
+      if (res.status === 404) {
+        console.log(`[HLS Proxy] Keepalive fetch returned 404 for session ${sessionId} (transcoder initializing...)`);
+      }
+    } catch (err) {
+      // Ignore fetch errors
+    }
+  }, 1500);
+  
+  activeSessions.set(sessionId, {
+    lastAccess: Date.now(),
+    interval
+  });
+}
+
+function touchSession(sessionId) {
+  const session = activeSessions.get(sessionId);
+  if (session) {
+    session.lastAccess = Date.now();
+  }
+}
+
 // ── HTTP Proxy Server ────────────────────────────────────────────────────────
 const proxyServer = http.createServer((req, res) => {
   // CORS for every response
@@ -73,6 +126,14 @@ const proxyServer = http.createServer((req, res) => {
     res.writeHead(204);
     res.end();
     return;
+  }
+
+  // Parse URL to check query params
+  let urlObj;
+  try {
+    urlObj = new URL(req.url, 'http://localhost');
+  } catch (e) {
+    urlObj = { searchParams: { get: () => null } };
   }
 
   // Transparent CORS proxy — forward everything to go2rtc
@@ -85,12 +146,39 @@ const proxyServer = http.createServer((req, res) => {
   };
   delete options.headers['host'];
 
+  const isMasterManifest = req.url.includes('/api/stream.m3u8');
+
+  // If this is a request to playlist or segment, touch the session to keep it alive
+  const sessId = urlObj.searchParams.get('id');
+  if (sessId) {
+    touchSession(sessId);
+  }
+
   const proxyReq = http.request(options, (proxyRes) => {
     const responseHeaders = { ...proxyRes.headers, ...CORS_HEADERS };
     // Prevent caching of HLS manifests/playlists
     if (req.url.includes('.m3u8')) Object.assign(responseHeaders, NO_CACHE_HEADERS);
-    res.writeHead(proxyRes.statusCode, responseHeaders);
-    proxyRes.pipe(res, { end: true });
+
+    if (isMasterManifest && proxyRes.statusCode === 200) {
+      // If it is the master manifest, we need to read the body to extract the session ID
+      let body = '';
+      res.writeHead(proxyRes.statusCode, responseHeaders);
+      proxyRes.on('data', chunk => {
+        body += chunk;
+        res.write(chunk);
+      });
+      proxyRes.on('end', () => {
+        res.end();
+        // Parse the body to find "id=..."
+        const match = body.match(/id=([A-Za-z0-9_-]+)/);
+        if (match) {
+          startKeepalive(match[1], req.headers);
+        }
+      });
+    } else {
+      res.writeHead(proxyRes.statusCode, responseHeaders);
+      proxyRes.pipe(res, { end: true });
+    }
   });
 
   proxyReq.on('error', (err) => {
