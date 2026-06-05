@@ -582,7 +582,7 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
           {/* Title & meta */}
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-lg font-bold text-slate-800 leading-tight">{displayMedicationName}</h3>
+              <h3 className="text-lg font-bold text-slate-900 leading-tight">{displayMedicationName}</h3>
               {showSuccessAnimation && (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full animate-bounce">
                   <CheckCircle size={12} /> Administered!
@@ -591,33 +591,33 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
             </div>
             {orderContextLine && (
               <div
-                className="flex items-center gap-1.5 mt-1 text-xs text-slate-500"
+                className="flex items-center gap-1.5 mt-1 text-xs text-slate-600 font-medium"
                 title="Use date and time to tell apart another visit or a second order the same day"
               >
-                <Clock size={12} className="text-slate-400 shrink-0" />
+                <Clock size={12} className="text-slate-500 shrink-0" />
                 <span>{orderContextLine}</span>
               </div>
             )}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-slate-500">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-sm text-slate-700 font-medium">
               <span className="flex items-center gap-1">
-                <User size={13} className="text-slate-400" />
-                <span className="font-medium text-slate-700">{patientName}</span>
+                <User size={13} className="text-slate-500" />
+                <span className="font-semibold text-slate-800">{patientName}</span>
                 {patientData && (
-                  <span className="text-slate-400 text-xs">
+                  <span className="text-slate-500 text-xs font-normal">
                     · {patientData.age ? `${patientData.age}y` : '—'}, {patientData.gender || '—'}
                   </span>
                 )}
               </span>
-              <span className="flex items-center gap-1">
-                <Activity size={13} className="text-slate-400" />
+              <span className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-100 rounded-md text-xs font-semibold">
+                <Activity size={12} className="text-blue-600" />
                 <span>{freqLabel}</span>
               </span>
-              <span className="flex items-center gap-1">
-                <Zap size={13} className="text-slate-400" />
+              <span className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 text-indigo-800 border border-indigo-100 rounded-md text-xs font-semibold">
+                <Zap size={12} className="text-indigo-600" />
                 <span>{dosage}</span>
               </span>
-              <span className="flex items-center gap-1">
-                <ChevronRight size={13} className="text-slate-400" />
+              <span className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-100 rounded-md text-xs font-semibold">
+                <ChevronRight size={12} className="text-amber-600" />
                 <span>{route}</span>
               </span>
             </div>
@@ -657,14 +657,14 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
 
       {/* ── Info pills row ───────────────────────────────────────────────────── */}
       <div className="px-6 mb-4 flex flex-wrap gap-2">
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full">
-          <Calendar size={12} /> {totalDays} days
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-800 px-3 py-1.5 rounded-full shadow-sm">
+          <Calendar size={12} className="text-slate-500" /> {totalDays} days
         </span>
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full">
-          <TrendingUp size={12} /> {freqLabel}
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-blue-50 border border-blue-200 text-blue-900 px-3 py-1.5 rounded-full shadow-sm">
+          <TrendingUp size={12} className="text-blue-600" /> {freqLabel}
         </span>
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full">
-          <Pill size={12} /> {route}
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-amber-50 border border-amber-200 text-amber-900 px-3 py-1.5 rounded-full shadow-sm">
+          <Pill size={12} className="text-amber-600" /> {route}
         </span>
 
         {/* Payment badge — hidden when summary is shown at the top */}
