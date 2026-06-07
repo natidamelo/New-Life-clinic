@@ -29,6 +29,7 @@ import ItemRevenueReport from './ItemRevenueReport';
 import BillingReports from './BillingReports';
 import DetailedBillingReport from './DetailedBillingReport';
 import PatientDemographics from './PatientDemographics';
+import AIAdvisorPanel from '../../components/Billing/AIAdvisorPanel';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmtCurrency = (n: number) =>
@@ -542,6 +543,8 @@ const BillingDashboard: React.FC = () => {
                     )}
                   </CardContent>
                 </Card>
+              {/* ── AI Financial Advisor Panel ──────────────────────────── */}
+              <AIAdvisorPanel currentMonthRevenue={stats?.totalRevenue ?? 0} />
               </>
             )}
           </div>

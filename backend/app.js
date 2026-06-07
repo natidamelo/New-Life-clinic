@@ -1142,6 +1142,16 @@ const createApp = () => {
 
   // Analytics routes (route usage/workload)
   app.use('/api/analytics', require('./routes/analytics'));
+
+  // ── AI Financial Advisor Module ────────────────────────────────────────────
+  try {
+    app.use('/api/loans', require('./routes/loans'));
+    app.use('/api/financial-snapshots', require('./routes/financialSnapshots'));
+    app.use('/api/ai', require('./routes/aiFinancialInsight'));
+    console.log('✅ AI Financial Advisor routes loaded');
+  } catch (err) {
+    console.error('Failed to load AI Financial Advisor routes:', err.message);
+  }
   
   // Set up cache management routes
   setupCacheRoutes(app);
