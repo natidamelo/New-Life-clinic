@@ -118,6 +118,33 @@ router.get('/', auth, async (req, res) => {
     const collectionRate    = totalBilled > 0 ? Math.round((totalRevenue / totalBilled) * 100) : 100;
     const avgRevenuePerPatient = patientCount > 0 ? Math.round(totalRevenue / patientCount) : 0;
 
+    // Load OperatingExpense model dynamically
+    let OperatingExpense;
+    try {
+      OperatingExpense = mongoose.model('OperatingExpense');
+    } catch (_) {
+      try {
+        OperatingExpense = require('../models/OperatingExpense');
+      } catch (__) {
+        OperatingExpense = null;
+      }
+    }
+
+    let operatingExpenses = 0;
+    if (OperatingExpense) {
+      try {
+        const expenseList = await OperatingExpense.find({
+          $or: [
+            { recurring: true },
+            { expenseDate: { $gte: startDate, $lte: endDate } }
+          ]
+        });
+        operatingExpenses = expenseList.reduce((sum, exp) => sum + exp.amount, 0);
+      } catch (err) {
+        console.warn('Failed to calculate operating expenses in snapshot:', err.message);
+      }
+    }
+
     const snapshot = {
       clinicId,
       period,
@@ -130,6 +157,7 @@ router.get('/', auth, async (req, res) => {
       collectionRate,
       patientCount,
       avgRevenuePerPatient,
+      operatingExpenses,
       createdAt: new Date(),
     };
 

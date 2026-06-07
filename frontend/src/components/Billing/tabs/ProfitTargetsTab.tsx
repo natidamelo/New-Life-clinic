@@ -81,6 +81,14 @@ const ProfitTargetsTab: React.FC = () => {
   }, [snapshot.avgRevenuePerPatient]);
 
   useEffect(() => {
+    if (snapshot.operatingExpenses > 0) {
+      setFixedCosts(snapshot.operatingExpenses);
+    } else {
+      setFixedCosts(80_000);
+    }
+  }, [snapshot.operatingExpenses]);
+
+  useEffect(() => {
     if (totalLoanRepay > 0) setLoanRepay(Math.round(totalLoanRepay));
   }, [totalLoanRepay]);
 
