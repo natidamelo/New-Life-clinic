@@ -103,9 +103,81 @@ router.get('/', auth, async (req, res) => {
       }
     };
 
+    const getTrendData = async (Model, period, startDate, endDate) => {
+      if (!Model) return [];
+      try {
+        const invoices = await Model.find({
+          status: 'paid',
+          $or: [
+            { createdAt: { $gte: startDate, $lte: endDate } },
+            { dateIssued: { $gte: startDate, $lte: endDate } },
+            { issueDate:  { $gte: startDate, $lte: endDate } },
+          ],
+        });
+
+        if (period === 'day') {
+          const trend = Array.from({ length: 12 }, (_, i) => ({
+            name: `${i * 2}:00`,
+            Revenue: 0,
+          }));
+          invoices.forEach(inv => {
+            const dateVal = inv.createdAt || inv.dateIssued || inv.issueDate;
+            if (!dateVal) return;
+            const date = new Date(dateVal);
+            if (isNaN(date.getTime())) return;
+            const hour = date.getHours();
+            const blockIndex = Math.min(11, Math.floor(hour / 2));
+            trend[blockIndex].Revenue += inv.total || 0;
+          });
+          return trend;
+        }
+
+        if (period === 'month') {
+          const trend = Array.from({ length: 4 }, (_, i) => ({
+            name: `Week ${i + 1}`,
+            Revenue: 0,
+          }));
+          invoices.forEach(inv => {
+            const dateVal = inv.createdAt || inv.dateIssued || inv.issueDate;
+            if (!dateVal) return;
+            const date = new Date(dateVal);
+            if (isNaN(date.getTime())) return;
+            const day = date.getDate();
+            const weekIndex = Math.min(3, Math.floor((day - 1) / 7));
+            trend[weekIndex].Revenue += inv.total || 0;
+          });
+          return trend;
+        }
+
+        const trend = Array.from({ length: 12 }, (_, i) => {
+          const d = new Date(startDate.getFullYear(), i, 1);
+          return {
+            name: d.toLocaleString('default', { month: 'short' }),
+            Revenue: 0,
+          };
+        });
+        invoices.forEach(inv => {
+          const dateVal = inv.createdAt || inv.dateIssued || inv.issueDate;
+          if (!dateVal) return;
+          const date = new Date(dateVal);
+          if (isNaN(date.getTime())) return;
+          const month = date.getMonth();
+          if (month >= 0 && month < 12) {
+            trend[month].Revenue += inv.total || 0;
+          }
+        });
+        return trend;
+      } catch (e) {
+        console.warn('Trend calculation warning:', e.message);
+        return [];
+      }
+    };
+
     let data = await aggregate(Invoice);
+    let trend = await getTrendData(Invoice, period, startDate, endDate);
     if (!data || data.totalCount === 0) {
       data = await aggregate(MedicalInvoice);
+      trend = await getTrendData(MedicalInvoice, period, startDate, endDate);
     }
 
     const totalRevenue      = data?.totalRevenue      ?? 0;
@@ -175,6 +247,7 @@ router.get('/', auth, async (req, res) => {
       patientCount,
       avgRevenuePerPatient,
       operatingExpenses,
+      trend,
       createdAt: new Date(),
     };
 

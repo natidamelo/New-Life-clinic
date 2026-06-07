@@ -72,7 +72,9 @@ const AnalysisTab: React.FC<AnalysisTabProps> = ({ loans }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, snapLoading]);
 
-  const chartData = buildChartData(period, snapshot.totalRevenue);
+  const chartData = snapshot.trend && snapshot.trend.length > 0
+    ? snapshot.trend
+    : buildChartData(period, snapshot.totalRevenue);
 
   const metrics = [
     { label: 'Total Revenue',     value: fmtETB(snapshot.totalRevenue),      icon: <DollarSign className="h-4 w-4 text-teal-600" />,    bg: 'bg-teal-50', accent: 'text-teal-700' },

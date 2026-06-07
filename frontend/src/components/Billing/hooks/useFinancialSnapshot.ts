@@ -16,6 +16,7 @@ export interface FinancialSnapshot {
   patientCount: number;
   avgRevenuePerPatient: number;
   operatingExpenses: number;
+  trend?: any[];
   createdAt: string;
 }
 
@@ -32,6 +33,7 @@ const defaultSnapshot = (): FinancialSnapshot => ({
   patientCount: 0,
   avgRevenuePerPatient: 0,
   operatingExpenses: 0,
+  trend: [],
   createdAt: new Date().toISOString(),
 });
 
