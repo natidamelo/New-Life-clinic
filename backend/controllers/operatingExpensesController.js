@@ -8,13 +8,31 @@ const getExpenses = asyncHandler(async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
-    // Build query filter
+    // Build query filter to support both Date object and String formats stored in DB
     const filter = {};
     if (startDate && endDate) {
-      filter.expenseDate = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
+      const startD = new Date(startDate);
+      const endD = new Date(endDate);
+      filter.$or = [
+        {
+          expenseDate: {
+            $gte: startD,
+            $lte: endD
+          }
+        },
+        {
+          expenseDate: {
+            $gte: startDate,
+            $lte: endDate
+          }
+        },
+        {
+          expenseDate: {
+            $gte: startD.toISOString(),
+            $lte: endD.toISOString()
+          }
+        }
+      ];
     }
     
     // Get expenses with pagination
@@ -22,17 +40,22 @@ const getExpenses = asyncHandler(async (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
     
-    const expenses = await OperatingExpense.find(filter)
+    // Query raw MongoDB collection directly to bypass Mongoose type coercion for expenseDate
+    const expenseDocs = await OperatingExpense.collection.find(filter)
       .sort({ expenseDate: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('createdBy', 'firstName lastName');
+      .toArray();
+      
+    // Hydrate raw documents to full Mongoose documents to support population
+    const expenses = expenseDocs.map(doc => OperatingExpense.hydrate(doc));
+    await OperatingExpense.populate(expenses, { path: 'createdBy', select: 'firstName lastName' });
     
-    // Get total count for pagination
-    const total = await OperatingExpense.countDocuments(filter);
+    // Get total count for pagination via raw collection
+    const total = await OperatingExpense.collection.countDocuments(filter);
     
-    // Calculate summary
-    const summary = await OperatingExpense.aggregate([
+    // Calculate summary via raw collection
+    const summary = await OperatingExpense.collection.aggregate([
       { $match: filter },
       {
         $group: {
@@ -41,7 +64,7 @@ const getExpenses = asyncHandler(async (req, res) => {
           count: { $sum: 1 }
         }
       }
-    ]);
+    ]).toArray();
     
     res.json({
       success: true,

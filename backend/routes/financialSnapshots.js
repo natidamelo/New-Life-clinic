@@ -133,12 +133,29 @@ router.get('/', auth, async (req, res) => {
     let operatingExpenses = 0;
     if (OperatingExpense) {
       try {
-        const expenseList = await OperatingExpense.find({
+        const expenseList = await OperatingExpense.collection.find({
           $or: [
             { recurring: true },
-            { expenseDate: { $gte: startDate, $lte: endDate } }
+            {
+              expenseDate: {
+                $gte: startDate,
+                $lte: endDate
+              }
+            },
+            {
+              expenseDate: {
+                $gte: startDate.toISOString(),
+                $lte: endDate.toISOString()
+              }
+            },
+            {
+              expenseDate: {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate)
+              }
+            }
           ]
-        });
+        }).toArray();
         operatingExpenses = expenseList.reduce((sum, exp) => sum + exp.amount, 0);
       } catch (err) {
         console.warn('Failed to calculate operating expenses in snapshot:', err.message);
