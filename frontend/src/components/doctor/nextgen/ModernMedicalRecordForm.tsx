@@ -3632,11 +3632,16 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
               const isActive = (formData.specialty || 'general') === specKey;
               const label = specKey.charAt(0).toUpperCase() + specKey.slice(1);
               
+              // If patient age is under 12 or registered department is pediatrics, lock/disable other options
+              const isPediatricPatient = patientData.age < 12 || patientData.department === 'pediatrics';
+              const isDisabled = isPediatricPatient && specKey !== 'pediatrics';
+              
               return (
                 <Chip
                   key={specKey}
                   label={label}
-                  onClick={() => {
+                  disabled={isDisabled}
+                  onClick={isDisabled ? undefined : () => {
                     const oldSpecialty = formData.specialty || 'general';
                     const updatedDetails = { ...formData.details };
                     const oldConfig = specialtyConfigs[oldSpecialty as keyof typeof specialtyConfigs];
@@ -3656,7 +3661,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                     if (!isFirstRender.current) autoSaveDraft(updated);
                   }}
                   sx={{
-                    cursor: 'pointer',
+                    cursor: isDisabled ? 'not-allowed' : 'pointer',
                     fontWeight: 600,
                     fontSize: '0.78rem',
                     height: 26,
@@ -3673,17 +3678,35 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                           color: 'text.secondary',
                           border: '1.5px solid transparent',
                           '&:hover': { bgcolor: 'grey.200' }
-                        })
+                        }),
+                    ...(isDisabled && {
+                      opacity: 0.5,
+                      pointerEvents: 'none'
+                    })
                   }}
                 />
               );
             })}
             <Chip
               label="+ Add More"
-              onClick={() => toast.info('Additional specialties can be configured by system administrators.')}
+              disabled={patientData.age < 12 || patientData.department === 'pediatrics'}
+              onClick={
+                (patientData.age < 12 || patientData.department === 'pediatrics')
+                  ? undefined
+                  : () => toast.info('Additional specialties can be configured by system administrators.')
+              }
               variant="outlined"
               size="small"
-              sx={{ height: 26, fontSize: '0.78rem', borderStyle: 'dashed', cursor: 'pointer' }}
+              sx={{ 
+                height: 26, 
+                fontSize: '0.78rem', 
+                borderStyle: 'dashed', 
+                cursor: (patientData.age < 12 || patientData.department === 'pediatrics') ? 'not-allowed' : 'pointer',
+                ...((patientData.age < 12 || patientData.department === 'pediatrics') && {
+                  opacity: 0.5,
+                  pointerEvents: 'none'
+                })
+              }}
             />
           </Box>
         </Box>
