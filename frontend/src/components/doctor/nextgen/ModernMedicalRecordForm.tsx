@@ -3627,87 +3627,105 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           
           {/* Specialty Selector Pills */}
           <Box display="flex" gap={1} alignItems="center" mt={1.5} flexWrap="wrap">
-            {['general', 'pediatrics', 'gynecology', 'cardiology'].map((specKey) => {
-              const specColors = specialtyColors[specKey as keyof typeof specialtyColors] || specialtyColors.general;
-              const isActive = (formData.specialty || 'general') === specKey;
-              const label = specKey.charAt(0).toUpperCase() + specKey.slice(1);
+            {(() => {
+              // Determine if the selector is locked to a specific specialty based on age or department
+              const mappedSpecialty = mapDepartmentToSpecialty(patientData.department);
+              const isPediatricAge = patientData.age < 12;
               
-              // If patient age is under 12 or registered department is pediatrics, lock/disable other options
-              const isPediatricPatient = patientData.age < 12 || patientData.department === 'pediatrics';
-              const isDisabled = isPediatricPatient && specKey !== 'pediatrics';
-              
-              return (
-                <Chip
-                  key={specKey}
-                  label={label}
-                  disabled={isDisabled}
-                  onClick={isDisabled ? undefined : () => {
-                    const oldSpecialty = formData.specialty || 'general';
-                    const updatedDetails = { ...formData.details };
-                    const oldConfig = specialtyConfigs[oldSpecialty as keyof typeof specialtyConfigs];
-                    if (oldConfig) {
-                      Object.values(oldConfig).forEach((fieldsList: any) => {
-                        fieldsList.forEach((field: any) => {
-                          delete updatedDetails[field.name];
-                        });
-                      });
-                    }
-                    const updated = {
-                      ...formData,
-                      specialty: specKey,
-                      details: updatedDetails
-                    };
-                    setFormData(updated);
-                    if (!isFirstRender.current) autoSaveDraft(updated);
-                  }}
-                  sx={{
-                    cursor: isDisabled ? 'not-allowed' : 'pointer',
-                    fontWeight: 600,
-                    fontSize: '0.78rem',
-                    height: 26,
-                    transition: 'all 0.2s',
-                    ...(isActive
-                      ? {
-                          bgcolor: specColors.bg,
-                          color: specColors.text,
-                          border: `1.5px solid ${specColors.border}`,
-                          '&:hover': { bgcolor: specColors.bg }
-                        }
-                      : {
-                          bgcolor: 'grey.100',
-                          color: 'text.secondary',
-                          border: '1.5px solid transparent',
-                          '&:hover': { bgcolor: 'grey.200' }
-                        }),
-                    ...(isDisabled && {
-                      opacity: 0.5,
-                      pointerEvents: 'none'
-                    })
-                  }}
-                />
-              );
-            })}
-            <Chip
-              label="+ Add More"
-              disabled={patientData.age < 12 || patientData.department === 'pediatrics'}
-              onClick={
-                (patientData.age < 12 || patientData.department === 'pediatrics')
-                  ? undefined
-                  : () => toast.info('Additional specialties can be configured by system administrators.')
+              let lockedSpecialty: string | null = null;
+              if (isPediatricAge || mappedSpecialty === 'pediatrics') {
+                lockedSpecialty = 'pediatrics';
+              } else if (mappedSpecialty === 'gynecology') {
+                lockedSpecialty = 'gynecology';
+              } else if (mappedSpecialty === 'cardiology') {
+                lockedSpecialty = 'cardiology';
               }
-              variant="outlined"
-              size="small"
-              sx={{ 
-                height: 26, 
-                fontSize: '0.78rem', 
-                borderStyle: 'dashed', 
-                cursor: (patientData.age < 12 || patientData.department === 'pediatrics') ? 'not-allowed' : 'pointer',
-                ...((patientData.age < 12 || patientData.department === 'pediatrics') && {
-                  opacity: 0.5,
-                  pointerEvents: 'none'
-                })
-              }}
-            />
+              
+              const isLocked = lockedSpecialty !== null;
+
+              return (
+                <>
+                  {['general', 'pediatrics', 'gynecology', 'cardiology'].map((specKey) => {
+                    const specColors = specialtyColors[specKey as keyof typeof specialtyColors] || specialtyColors.general;
+                    const isActive = (formData.specialty || 'general') === specKey;
+                    const label = specKey.charAt(0).toUpperCase() + specKey.slice(1);
+                    const isDisabled = isLocked && specKey !== lockedSpecialty;
+                    
+                    return (
+                      <Chip
+                        key={specKey}
+                        label={label}
+                        disabled={isDisabled}
+                        onClick={isDisabled ? undefined : () => {
+                          const oldSpecialty = formData.specialty || 'general';
+                          const updatedDetails = { ...formData.details };
+                          const oldConfig = specialtyConfigs[oldSpecialty as keyof typeof specialtyConfigs];
+                          if (oldConfig) {
+                            Object.values(oldConfig).forEach((fieldsList: any) => {
+                              fieldsList.forEach((field: any) => {
+                                delete updatedDetails[field.name];
+                              });
+                            });
+                          }
+                          const updated = {
+                            ...formData,
+                            specialty: specKey,
+                            details: updatedDetails
+                          };
+                          setFormData(updated);
+                          if (!isFirstRender.current) autoSaveDraft(updated);
+                        }}
+                        sx={{
+                          cursor: isDisabled ? 'not-allowed' : 'pointer',
+                          fontWeight: 600,
+                          fontSize: '0.78rem',
+                          height: 26,
+                          transition: 'all 0.2s',
+                          ...(isActive
+                            ? {
+                                bgcolor: specColors.bg,
+                                color: specColors.text,
+                                border: `1.5px solid ${specColors.border}`,
+                                '&:hover': { bgcolor: specColors.bg }
+                              }
+                            : {
+                                bgcolor: 'grey.100',
+                                color: 'text.secondary',
+                                border: '1.5px solid transparent',
+                                '&:hover': { bgcolor: 'grey.200' }
+                              }),
+                          ...(isDisabled && {
+                            opacity: 0.5,
+                            pointerEvents: 'none'
+                          })
+                        }}
+                      />
+                    );
+                  })}
+                  <Chip
+                    label="+ Add More"
+                    disabled={isLocked}
+                    onClick={
+                      isLocked
+                        ? undefined
+                        : () => toast.info('Additional specialties can be configured by system administrators.')
+                    }
+                    variant="outlined"
+                    size="small"
+                    sx={{ 
+                      height: 26, 
+                      fontSize: '0.78rem', 
+                      borderStyle: 'dashed', 
+                      cursor: isLocked ? 'not-allowed' : 'pointer',
+                      ...(isLocked && {
+                        opacity: 0.5,
+                        pointerEvents: 'none'
+                      })
+                    }}
+                  />
+                </>
+              );
+            })()}
           </Box>
         </Box>
         {/* Quality progress bar */}
