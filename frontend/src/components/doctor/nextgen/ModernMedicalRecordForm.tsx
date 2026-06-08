@@ -6563,42 +6563,70 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                         </Box>
                       )}
                       {/* Specialty Details Card */}
-                      {record.details && Object.keys(record.details).length > 0 && (
-                        <Box sx={{
-                          p: 1.5,
-                          borderRadius: 2,
-                          bgcolor: specColors.bg,
-                          border: `1px solid ${specColors.border}`,
-                          mt: 1.5
-                        }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
-                            <MedicalIcon sx={{ fontSize: '0.95rem', color: specColors.text }} />
-                            <Typography variant="caption" fontWeight={700} sx={{ color: specColors.text, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.68rem' }}>
-                              {recSpecialty.charAt(0).toUpperCase() + recSpecialty.slice(1)} Details
-                            </Typography>
-                          </Box>
-                          <Grid container spacing={1}>
-                            {Object.entries(record.details).map(([key, value]) => {
-                              let label = key;
+                      {record.details && Object.keys(record.details).length > 0 && (() => {
+                        const detailsEntries: { key: string; label: string; value: any }[] = [];
+                        
+                        // Flatten record.details to unpack nested objects
+                        const flattenDetails = (obj: any) => {
+                          if (!obj) return;
+                          Object.entries(obj).forEach(([k, v]) => {
+                            if (v === null || v === undefined || v === '') return;
+                            
+                            if (typeof v === 'object' && !Array.isArray(v)) {
+                              // It's a nested object like pediatricVitals or gynaeVitals, unpack it
+                              flattenDetails(v);
+                            } else {
+                              // Look up label from configs
+                              let label = k;
                               const config = specialtyConfigs[recSpecialty as keyof typeof specialtyConfigs];
                               if (config) {
                                 Object.values(config).forEach((fieldsList: any) => {
-                                  const field = fieldsList.find((f: any) => f.name === key);
+                                  const field = fieldsList.find((f: any) => f.name === k);
                                   if (field) label = field.label;
                                 });
                               }
-                              return (
-                                <Grid key={key} size={{ xs: 6, sm: 4 }}>
-                                  <Typography variant="caption" color="text.secondary" display="block">{label}</Typography>
-                                  <Typography variant="body2" fontWeight={600} color="text.primary">
+                              
+                              // Add if not already present (prevent duplicates)
+                              if (!detailsEntries.some(e => e.key === k)) {
+                                detailsEntries.push({ key: k, label, value: v });
+                              }
+                            }
+                          });
+                        };
+                        
+                        flattenDetails(record.details);
+                        
+                        if (detailsEntries.length === 0) return null;
+                        
+                        return (
+                          <Box sx={{
+                            p: 1.5,
+                            borderRadius: 2,
+                            bgcolor: specColors.bg,
+                            border: `1px solid ${specColors.border}`,
+                            mt: 1.5
+                          }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+                              <MedicalIcon sx={{ fontSize: '0.95rem', color: specColors.text }} />
+                              <Typography variant="caption" fontWeight={700} sx={{ color: specColors.text, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.68rem' }}>
+                                {recSpecialty.charAt(0).toUpperCase() + recSpecialty.slice(1)} Details
+                              </Typography>
+                            </Box>
+                            <Grid container spacing={1.5}>
+                              {detailsEntries.map(({ key, label, value }) => (
+                                <Grid item key={key} xs={6} sm={4}>
+                                  <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem' }}>
+                                    {label}
+                                  </Typography>
+                                  <Typography variant="body2" fontWeight={600} color="text.primary" sx={{ fontSize: '0.78rem' }}>
                                     {Array.isArray(value) ? value.join(', ') : value?.toString() || '—'}
                                   </Typography>
                                 </Grid>
-                              );
-                            })}
-                          </Grid>
-                        </Box>
-                      )}
+                              ))}
+                            </Grid>
+                          </Box>
+                        );
+                      })()}
                   </Box>
                 </Box>
                 );

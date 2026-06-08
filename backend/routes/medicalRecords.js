@@ -762,7 +762,7 @@ router.get('/finalized', [auth,
   
   // Get complete medical record data for history view
   const records = await MedicalRecord.find(query)
-    .select('patient createdBy createdAt updatedAt status chiefComplaint diagnoses prescriptions plan treatmentPlan vitalSigns physicalExamination historyOfPresentIllness assessment followUpPlan notes visitDate')
+    .select('patient createdBy createdAt updatedAt status chiefComplaint diagnoses prescriptions plan treatmentPlan vitalSigns physicalExamination historyOfPresentIllness assessment followUpPlan notes visitDate specialty details')
     .populate('patient', 'firstName lastName dateOfBirth gender patientId')
     .populate('createdBy', 'firstName lastName')
     .sort({ createdAt: -1 }) // Sort by newest first
@@ -889,7 +889,7 @@ router.get('/completed-patient-history', [auth,
   
   // Get complete medical record data for history view
   const records = await MedicalRecord.find(query)
-    .select('patient createdBy createdAt updatedAt status chiefComplaint diagnoses prescriptions labRequests plan treatmentPlan vitalSigns physicalExamination historyOfPresentIllness assessment followUpPlan notes visitDate')
+    .select('patient createdBy createdAt updatedAt status chiefComplaint diagnoses prescriptions labRequests plan treatmentPlan vitalSigns physicalExamination historyOfPresentIllness assessment followUpPlan notes visitDate specialty details')
     .populate('patient', 'firstName lastName dateOfBirth gender patientId')
     .populate('createdBy', 'firstName lastName')
     .populate('prescriptions', 'medicationName dosage frequency duration route status createdAt')
@@ -969,7 +969,7 @@ router.get('/', [auth,
   
   // Optimized query with minimal population and selected fields only
   const records = await MedicalRecord.find(query)
-    .select('patient createdBy createdAt updatedAt status chiefComplaint diagnoses prescriptions')
+    .select('patient createdBy createdAt updatedAt status chiefComplaint diagnoses prescriptions specialty details')
     .populate('patient', 'firstName lastName dateOfBirth gender patientId')
     .populate('createdBy', 'firstName lastName')
     .sort({ createdAt: -1 }) // Sort by newest first
