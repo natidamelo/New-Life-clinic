@@ -977,10 +977,13 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   const mapDepartmentToSpecialty = (dept?: string): string => {
     if (!dept) return 'general';
     const d = dept.toLowerCase().trim();
+    if (d === 'general' || d === 'general medicine' || d === 'opd') return 'general';
     if (d === 'pediatrics' || d === 'pediatric') return 'pediatrics';
     if (d === 'cardiology' || d === 'cardio') return 'cardiology';
     if (d === 'gynecology' || d === 'obstetrics & gynecology' || d === 'ob-gyn' || d === 'gynae' || d === 'gynecological') return 'gynecology';
-    return 'general';
+    if (d === 'dermatology' || d === 'derm' || d === 'dermatological') return 'dermatology';
+    // Any other department (Dental, ENT, Orthopedics, etc.) maps to 'other'
+    return 'other';
   };
 
   const [patientData, setPatientData] = useState(() => {
@@ -3639,13 +3642,17 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                 lockedSpecialty = 'gynecology';
               } else if (mappedSpecialty === 'cardiology') {
                 lockedSpecialty = 'cardiology';
+              } else if (mappedSpecialty === 'dermatology') {
+                lockedSpecialty = 'dermatology';
+              } else if (mappedSpecialty === 'other') {
+                lockedSpecialty = 'other';
               }
               
               const isLocked = lockedSpecialty !== null;
 
               return (
                 <>
-                  {['general', 'pediatrics', 'gynecology', 'cardiology'].map((specKey) => {
+                  {['general', 'pediatrics', 'gynecology', 'cardiology', 'dermatology', 'other'].map((specKey) => {
                     const specColors = specialtyColors[specKey as keyof typeof specialtyColors] || specialtyColors.general;
                     const isActive = (formData.specialty || 'general') === specKey;
                     const label = specKey.charAt(0).toUpperCase() + specKey.slice(1);
@@ -6024,7 +6031,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', mr: 1, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.75rem' }}>
             Filter Specialty:
           </Typography>
-          {['All', 'General', 'Pediatrics', 'Gynecology', 'Cardiology'].map((spec) => {
+          {['All', 'General', 'Pediatrics', 'Gynecology', 'Cardiology', 'Dermatology', 'Other'].map((spec) => {
             const isActive = filterSpecialty === spec;
             const specLower = spec.toLowerCase();
             const colors = specialtyColors[specLower as keyof typeof specialtyColors] || { bg: '#EFF6FF', border: '#3B82F6', text: '#1D4ED8' };

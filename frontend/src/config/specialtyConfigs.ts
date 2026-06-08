@@ -61,11 +61,43 @@ export const specialtyConfigs = {
       { name: "echoRequired", label: "Echo required", type: "select", options: ["Yes", "No", "Already done"] },
     ],
   },
+
+  dermatology: {
+    step1_patientHistory: [
+      { name: "lesionDuration", label: "Lesion duration (days)", type: "number" },
+      { name: "lesionLocation", label: "Primary location of lesion", type: "text" },
+      { name: "associatedSymptoms", label: "Associated symptoms", type: "multi-select", options: ["Itching", "Pain", "Bleeding", "Burning", "Scaling", "None"] },
+      { name: "skinType", label: "Skin type (Fitzpatrick scale)", type: "select", options: ["Type I", "Type II", "Type III", "Type IV", "Type V", "Type VI"] },
+    ],
+    step2_physicalExam: [
+      { name: "lesionType", label: "Lesion type", type: "select", options: ["Macule", "Papule", "Plaque", "Vesicle", "Nodule", "Pustule", "Erythema"] },
+      { name: "lesionSize", label: "Lesion size (mm)", type: "number" },
+    ],
+    step3_assessment: [
+      { name: "biopsyRequired", label: "Biopsy required", type: "select", options: ["Yes", "No", "Already done"] },
+      { name: "sunExposureRisk", label: "Sun exposure risk level", type: "select", options: ["Low", "Moderate", "High"] },
+      { name: "recommendedTopical", label: "Recommended topical treatment", type: "text" },
+    ],
+  },
+
+  other: {
+    step1_patientHistory: [
+      { name: "otherSpecialtyName", label: "Specialty / Medical Record Type", type: "text" },
+      { name: "customClinicalNotes", label: "Specific clinical history notes", type: "textarea" },
+    ],
+    step2_physicalExam: [],
+    step3_assessment: [
+      { name: "customAssessmentPlan", label: "Custom assessment & plan notes", type: "textarea" },
+    ],
+  },
 };
 
 export const specialtyColors = {
-  general:    { bg: "#EFF6FF", border: "#3B82F6", text: "#1D4ED8" },
-  pediatrics: { bg: "#F0FDF4", border: "#22C55E", text: "#15803D" },
-  gynecology: { bg: "#FDF4FF", border: "#A855F7", text: "#7E22CE" },
-  cardiology: { bg: "#FFF7ED", border: "#F97316", text: "#C2410C" },
+  general:     { bg: "#EFF6FF", border: "#3B82F6", text: "#1D4ED8" },
+  pediatrics:  { bg: "#F0FDF4", border: "#22C55E", text: "#15803D" },
+  gynecology:  { bg: "#FDF4FF", border: "#A855F7", text: "#7E22CE" },
+  cardiology:  { bg: "#FFF7ED", border: "#F97316", text: "#C2410C" },
+  dermatology: { bg: "#FFF1F2", border: "#FDA4AF", text: "#BE123C" },
+  other:       { bg: "#F8FAFC", border: "#CBD5E1", text: "#334155" },
 };
+
