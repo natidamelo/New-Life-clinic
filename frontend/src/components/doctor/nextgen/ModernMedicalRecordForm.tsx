@@ -1640,8 +1640,8 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
     console.log('ModernMedicalRecordForm mounted with props:', { patientId, recordId, mode });
     
     const fetchPatientData = async () => {
-      // Skip fetching if we already have patient data from props
-      if (propPatientData) {
+      // Skip fetching if we already have patient data from props AND it has department information
+      if (propPatientData && propPatientData.department !== undefined) {
         console.log('🔍 [ModernMedicalRecordForm] Using patient data from props:', propPatientData);
         
         // Calculate age from date of birth if not provided
@@ -3363,8 +3363,14 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
             'Content-Type': 'application/json'
           }
         });
-        if (!res.ok) return;
-        const data = await res.json();
+        
+        let data: any = { data: [] };
+        if (res.ok) {
+          data = await res.json();
+        } else {
+          console.warn('🔍 [ModernMedicalRecordForm] Failed to fetch patient medical records history. Status:', res.status);
+        }
+        
         if (data.data && data.data.length > 0) {
           // Prefer the most recent record that was created by the current doctor (or current user)
           // Helper to safely get current user id from context/localStorage

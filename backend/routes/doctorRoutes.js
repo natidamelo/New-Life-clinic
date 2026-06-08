@@ -191,7 +191,7 @@ router.get('/patients/active', auth, async (req, res) => {
 
     // Get patients with pagination
     const patients = await Patient.find(query)
-      .select('firstName lastName patientId age gender contactNumber status assignedDoctorId assignedNurseId lastUpdated vitals cardType cardStatus')
+      .select('firstName lastName patientId age gender contactNumber status department assignedDoctorId assignedNurseId lastUpdated vitals cardType cardStatus')
       .populate('assignedDoctorId', 'firstName lastName')
       .populate('assignedNurseId', 'firstName lastName')
       .populate('cardType')
@@ -213,6 +213,7 @@ router.get('/patients/active', auth, async (req, res) => {
       gender: patient.gender,
       contactNumber: patient.contactNumber,
       status: patient.status,
+      department: patient.department,
       assignedDoctor: patient.assignedDoctorId ? {
         id: patient.assignedDoctorId._id.toString(),
         name: `${patient.assignedDoctorId.firstName} ${patient.assignedDoctorId.lastName}`
@@ -327,7 +328,7 @@ router.get('/patients/completed', auth, async (req, res) => {
     
     // Get completed patients with pagination
     const patients = await Patient.find(query)
-      .select('firstName lastName patientId age gender contactNumber status assignedDoctorId assignedNurseId lastUpdated vitals completedAt')
+      .select('firstName lastName patientId age gender contactNumber status department assignedDoctorId assignedNurseId lastUpdated vitals completedAt')
       .populate('assignedDoctorId', 'firstName lastName')
       .populate('assignedNurseId', 'firstName lastName')
       .sort({ lastUpdated: -1, completedAt: -1 })
@@ -348,6 +349,7 @@ router.get('/patients/completed', auth, async (req, res) => {
       gender: patient.gender,
       contactNumber: patient.contactNumber,
       status: patient.status,
+      department: patient.department,
       assignedDoctor: patient.assignedDoctorId ? {
         id: patient.assignedDoctorId._id.toString(),
         name: `${patient.assignedDoctorId.firstName} ${patient.assignedDoctorId.lastName}`
