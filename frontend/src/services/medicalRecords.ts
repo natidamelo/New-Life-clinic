@@ -31,7 +31,7 @@ export interface MedicalRecord {
   socialHistory?: string;
   allergies?: string;
   reviewOfSystems?: string;
-  physicalExam?: string;
+  physicalExam?: any;
   diagnosis?: string;
   diagnoses?: Array<{
     code?: string; // NHDD code

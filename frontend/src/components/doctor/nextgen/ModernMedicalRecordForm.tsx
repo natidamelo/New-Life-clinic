@@ -68,6 +68,7 @@ import {
   ListSubheader,
   Skeleton,
   Popper,
+  InputBase,
   // MuiPaper
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
@@ -123,6 +124,14 @@ import {
   CalendarToday as CalendarIcon,
   AccessTime as TimeIcon,
   Refresh as RefreshIcon
+} from '@mui/icons-material';
+import {
+  Hearing as HearingIcon,
+  EmojiEmotions as EmojiEmotionsIcon,
+  RecordVoiceOver as RecordVoiceOverIcon,
+  MedicalServices as MedicalServicesIcon,
+  AccessibilityNew as AccessibilityNewIcon,
+  FlashOn as FlashOnIcon
 } from '@mui/icons-material';
 import { styled, useTheme, alpha } from '@mui/material/styles';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -236,8 +245,8 @@ const API_BASE_URL: string = (() => {
     w?._env_?.API_BASE_URL ||
     w?.API_BASE_URL ||
     w?.envConfig?.API_BASE_URL ||
-    import.meta.env.VITE_API_URL ||
-    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta as any).env?.VITE_API_URL ||
+    (import.meta as any).env?.VITE_API_BASE_URL ||
     CONFIG_API_BASE_URL ||
     ''
   );
@@ -287,7 +296,149 @@ const debounce = <T extends (...args: any[]) => any>(
     });
 
     return result;
-};
+  };
+
+  const mapPhysicalExamFromRecord = (record: any) => {
+    if (record?.physicalExam && typeof record.physicalExam === 'object') {
+      const pe = record.physicalExam;
+      return {
+        vitals: {
+          bloodPressure: pe.vitals?.bloodPressure || '',
+          heartRate: pe.vitals?.heartRate || '',
+          temperature: pe.vitals?.temperature || '',
+          spo2: pe.vitals?.spo2 || '',
+          respiratoryRate: pe.vitals?.respiratoryRate || '',
+          weight: pe.vitals?.weight || '',
+          height: pe.vitals?.height || '',
+          bmi: pe.vitals?.bmi || '',
+          headCircumference: pe.vitals?.headCircumference || '',
+          muac: pe.vitals?.muac || '',
+          weightForAge: pe.vitals?.weightForAge || '',
+          heightForAge: pe.vitals?.heightForAge || '',
+          fundalHeight: pe.vitals?.fundalHeight || '',
+          fetalHeartRate: pe.vitals?.fetalHeartRate || '',
+          gestationalAge: pe.vitals?.gestationalAge || ''
+        },
+        systems: {
+          generalAppearance: pe.systems?.generalAppearance || { status: 'none' as const, findings: '' },
+          head: pe.systems?.head || { status: 'none' as const, findings: '' },
+          eyes: pe.systems?.eyes || { status: 'none' as const, findings: '' },
+          ears: pe.systems?.ears || { status: 'none' as const, findings: '' },
+          nose: pe.systems?.nose || { status: 'none' as const, findings: '' },
+          throat: pe.systems?.throat || { status: 'none' as const, findings: '' },
+          cardiovascular: pe.systems?.cardiovascular || { status: 'none' as const, findings: '' },
+          respiratory: pe.systems?.respiratory || { status: 'none' as const, findings: '' },
+          abdomen: pe.systems?.abdomen || { status: 'none' as const, findings: '' },
+          musculoskeletal: pe.systems?.musculoskeletal || { status: 'none' as const, findings: '' },
+          neurological: pe.systems?.neurological || { status: 'none' as const, findings: '' },
+          genitourinary: pe.systems?.genitourinary || { status: 'none' as const, findings: '' }
+        }
+      };
+    }
+
+    const legacyVitals = record?.vitalSigns || {};
+    const legacyPE = record?.physicalExamination || {};
+    
+    let bp = legacyVitals.bloodPressure || '';
+    if (!bp && legacyPE.vitals?.bloodPressure) {
+      bp = `${legacyPE.vitals.bloodPressure.systolic || ''}/${legacyPE.vitals.bloodPressure.diastolic || ''}`;
+      if (bp === '/') bp = '';
+    }
+
+    const vitals = {
+      bloodPressure: bp || '',
+      heartRate: legacyVitals.heartRate || legacyPE.vitals?.heartRate?.toString() || '',
+      temperature: legacyVitals.temperature || legacyPE.vitals?.temperature?.toString() || '',
+      spo2: legacyVitals.oxygenSaturation || legacyPE.vitals?.oxygenSaturation?.toString() || '',
+      respiratoryRate: legacyVitals.respiratoryRate || legacyPE.vitals?.respiratoryRate?.toString() || '',
+      weight: legacyVitals.weight || legacyPE.vitals?.weight?.toString() || '',
+      height: legacyVitals.height || legacyPE.vitals?.height?.toString() || '',
+      bmi: legacyVitals.bmi || legacyPE.vitals?.bmi?.toString() || '',
+      headCircumference: record?.details?.pediatricVitals?.headCircumference || '',
+      muac: record?.details?.pediatricVitals?.muac || '',
+      weightForAge: record?.details?.pediatricVitals?.weightForAge || '',
+      heightForAge: record?.details?.pediatricVitals?.heightForAge || '',
+      fundalHeight: record?.details?.gynaeVitals?.fundalHeight || '',
+      fetalHeartRate: record?.details?.gynaeVitals?.fetalHeartRate || '',
+      gestationalAge: record?.details?.gynaeVitals?.gestationalAge || ''
+    };
+
+    let heentHead = '';
+    let heentEyes = '';
+    let heentEars = '';
+    let heentNose = '';
+    let heentThroat = '';
+    
+    if (legacyPE.heent) {
+      if (typeof legacyPE.heent === 'object') {
+        heentHead = legacyPE.heent.head || '';
+        heentEyes = legacyPE.heent.eyes || '';
+        heentEars = legacyPE.heent.ears || '';
+        heentNose = legacyPE.heent.nose || '';
+        heentThroat = legacyPE.heent.throat || '';
+      } else if (typeof legacyPE.heent === 'string') {
+        const parsed = parseHeentString(legacyPE.heent);
+        heentHead = parsed.head || '';
+        heentEyes = parsed.eyes || '';
+        heentEars = parsed.ears || '';
+        heentNose = parsed.nose || '';
+        heentThroat = parsed.throat || '';
+      }
+    }
+
+    const systems = {
+      generalAppearance: {
+        status: legacyPE.general ? 'normal' as const : 'none' as const,
+        findings: legacyPE.general || ''
+      },
+      head: {
+        status: heentHead ? 'normal' as const : 'none' as const,
+        findings: heentHead
+      },
+      eyes: {
+        status: heentEyes ? 'normal' as const : 'none' as const,
+        findings: heentEyes
+      },
+      ears: {
+        status: heentEars ? 'normal' as const : 'none' as const,
+        findings: heentEars
+      },
+      nose: {
+        status: heentNose ? 'normal' as const : 'none' as const,
+        findings: heentNose
+      },
+      throat: {
+        status: heentThroat ? 'normal' as const : 'none' as const,
+        findings: heentThroat
+      },
+      cardiovascular: {
+        status: legacyPE.cardiovascular ? 'normal' as const : 'none' as const,
+        findings: legacyPE.cardiovascular || ''
+      },
+      respiratory: {
+        status: (legacyPE.respiratory || legacyPE.chest) ? 'normal' as const : 'none' as const,
+        findings: legacyPE.respiratory || legacyPE.chest || ''
+      },
+      abdomen: {
+        status: (legacyPE.gastrointestinal || legacyPE.abdomen) ? 'normal' as const : 'none' as const,
+        findings: legacyPE.gastrointestinal || legacyPE.abdomen || ''
+      },
+      musculoskeletal: {
+        status: (legacyPE.musculoskeletal || legacyPE.extremities) ? 'normal' as const : 'none' as const,
+        findings: legacyPE.musculoskeletal || legacyPE.extremities || ''
+      },
+      neurological: {
+        status: legacyPE.neurological ? 'normal' as const : 'none' as const,
+        findings: legacyPE.neurological || ''
+      },
+      genitourinary: {
+        status: 'none' as const,
+        findings: ''
+      }
+    };
+
+    return { vitals, systems };
+  };
 
 // Enhanced search utilities
 const searchHistory = new Set<string>();
@@ -782,6 +933,7 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [currentRecordId, setCurrentRecordId] = useState<string | null>(recordId || null);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [activeExamTab, setActiveExamTab] = useState('All systems');
 
   // --- HPI & Voice Features State ---
   const [hpiHistory, setHpiHistory] = useState<string[]>([]);
@@ -1136,8 +1288,8 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
         try {
           const prescs = await prescriptionService.getPrescriptionsByPatient(patientId);
           // Also try fetching by patientData._id in case patientId is a custom string ID
-          if ((!prescs || prescs.length === 0) && patientData?._id && patientData._id !== patientId) {
-            const prescs2 = await prescriptionService.getPrescriptionsByPatient(patientData._id);
+          if ((!prescs || prescs.length === 0) && (patientData as any)?._id && (patientData as any)._id !== patientId) {
+            const prescs2 = await prescriptionService.getPrescriptionsByPatient((patientData as any)._id);
             setAllPrescriptions(prescs2 || []);
           } else {
             setAllPrescriptions(prescs || []);
@@ -1595,6 +1747,20 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
               height: data.data.height || '',
               weight: data.data.weight || '',
               bmi: data.data.bmi || ''
+            },
+            physicalExam: {
+              ...prev.physicalExam,
+              vitals: {
+                ...prev.physicalExam.vitals,
+                temperature: data.data.temperature || '',
+                bloodPressure: data.data.bloodPressure || '',
+                heartRate: data.data.heartRate || '',
+                respiratoryRate: data.data.respiratoryRate || '',
+                spo2: data.data.oxygenSaturation || '',
+                height: data.data.height || '',
+                weight: data.data.weight || '',
+                bmi: data.data.bmi || ''
+              }
             }
           }));
         } else {
@@ -1622,6 +1788,20 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
                 height: vitals.height || '',
                 weight: vitals.weight || '',
                 bmi: vitals.bmi || ''
+              },
+              physicalExam: {
+                ...prev.physicalExam,
+                vitals: {
+                  ...prev.physicalExam.vitals,
+                  temperature: vitals.temperature || '',
+                  bloodPressure: vitals.systolic && vitals.diastolic ? `${vitals.systolic}/${vitals.diastolic}` : '',
+                  heartRate: vitals.pulse || '',
+                  respiratoryRate: vitals.respiratoryRate || '',
+                  spo2: vitals.spo2 || '',
+                  height: vitals.height || '',
+                  weight: vitals.weight || '',
+                  bmi: vitals.bmi || ''
+                }
               }
             }));
           } else {
@@ -1650,6 +1830,7 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   const [formData, setFormData] = useState({
     specialty: 'general',
     details: {} as Record<string, any>,
+    historyOfPresentIllness: '',
     chiefComplaint: {
       description: '',
       duration: '',
@@ -1685,13 +1866,47 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
       skin: '',
       summary: ''
     } as PhysicalExaminationData,
+    physicalExam: {
+      vitals: {
+        bloodPressure: '120/80',
+        heartRate: '72',
+        temperature: '36.8',
+        spo2: '98',
+        respiratoryRate: '16',
+        weight: '',
+        height: '',
+        bmi: '',
+        headCircumference: '',
+        muac: '',
+        weightForAge: '',
+        heightForAge: '',
+        fundalHeight: '',
+        fetalHeartRate: '',
+        gestationalAge: ''
+      },
+      systems: {
+        generalAppearance: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
+        head: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
+        eyes: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
+        ears: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
+        nose: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
+        throat: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
+        cardiovascular: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
+        respiratory: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
+        abdomen: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
+        musculoskeletal: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
+        neurological: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
+        genitourinary: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' }
+      }
+    },
     assessment: {
       primaryDiagnosis: '',
       secondaryDiagnoses: [],
       plan: '',
       prescriptions: [],
       labOrders: [],
-      followUp: ''
+      followUp: '',
+      primaryDiagnosisICD11: { code: '', description: '', chapter: '', block: '', category: '', subcategory: '' }
     },
     qualityChecks: {
       documentationComplete: false,
@@ -1913,14 +2128,14 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
         age: patientData.age,
         gender: patientData.gender,
         historyOfPresentIllness: (formData as any).historyOfPresentIllness || undefined,
-        onset: formData.chiefComplaint.onsetPattern || undefined,
+        onset: (formData.chiefComplaint as any).onsetPattern || undefined,
         duration: durationToUse || undefined,
         severity: formData.chiefComplaint.severity,
         progression: formData.chiefComplaint.progression,
         location: formData.chiefComplaint.location,
-        aggravatingFactors: formData.chiefComplaint.aggravatingFactors || [],
-        relievingFactors: formData.chiefComplaint.relievingFactors || [],
-        associatedSymptoms: formData.chiefComplaint.associatedSymptoms || [],
+        aggravatingFactors: (formData.chiefComplaint as any).aggravatingFactors || [],
+        relievingFactors: (formData.chiefComplaint as any).relievingFactors || [],
+        associatedSymptoms: (formData.chiefComplaint as any).associatedSymptoms || [],
         pastMedicalHistory: propPatientData?.pastMedicalHistory || ''
       };
 
@@ -1990,14 +2205,14 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
         age: patientData.age,
         gender: patientData.gender,
         historyOfPresentIllness: hpiText,
-        onset: formData.chiefComplaint.onsetPattern || undefined,
+        onset: (formData.chiefComplaint as any).onsetPattern || undefined,
         duration: durationToUse || undefined,
         severity: formData.chiefComplaint.severity,
         progression: formData.chiefComplaint.progression,
         location: formData.chiefComplaint.location,
-        aggravatingFactors: formData.chiefComplaint.aggravatingFactors || [],
-        relievingFactors: formData.chiefComplaint.relievingFactors || [],
-        associatedSymptoms: formData.chiefComplaint.associatedSymptoms || [],
+        aggravatingFactors: (formData.chiefComplaint as any).aggravatingFactors || [],
+        relievingFactors: (formData.chiefComplaint as any).relievingFactors || [],
+        associatedSymptoms: (formData.chiefComplaint as any).associatedSymptoms || [],
         pastMedicalHistory: propPatientData?.pastMedicalHistory || ''
       };
 
@@ -2125,7 +2340,7 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
 
               const extractedData = await AIAssistantService.extractAmbientClinicalData(
                 finalContent, 
-                patientData.name || 'Patient',
+                (patientData as any).name || `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim() || 'Patient',
                 API_BASE_URL,
                 getAuthToken() || undefined
               );
@@ -2240,6 +2455,59 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
         neurological: suggestions.neurological.join(', '),
         musculoskeletal: suggestions.musculoskeletal.join(', '),
         skin: suggestions.skin.join(', ')
+      },
+      physicalExam: {
+        ...formData.physicalExam,
+        systems: {
+          generalAppearance: {
+            status: suggestions.general.length > 0 ? 'normal' as const : 'none' as const,
+            findings: suggestions.general.join(', ')
+          },
+          head: {
+            status: suggestions.heent.head.length > 0 ? 'normal' as const : 'none' as const,
+            findings: suggestions.heent.head.join(', ')
+          },
+          eyes: {
+            status: suggestions.heent.eyes.length > 0 ? 'normal' as const : 'none' as const,
+            findings: suggestions.heent.eyes.join(', ')
+          },
+          ears: {
+            status: suggestions.heent.ears.length > 0 ? 'normal' as const : 'none' as const,
+            findings: suggestions.heent.ears.join(', ')
+          },
+          nose: {
+            status: suggestions.heent.nose.length > 0 ? 'normal' as const : 'none' as const,
+            findings: suggestions.heent.nose.join(', ')
+          },
+          throat: {
+            status: suggestions.heent.throat.length > 0 ? 'normal' as const : 'none' as const,
+            findings: suggestions.heent.throat.join(', ')
+          },
+          cardiovascular: {
+            status: suggestions.cardiovascular.length > 0 ? 'normal' as const : 'none' as const,
+            findings: suggestions.cardiovascular.join(', ')
+          },
+          respiratory: {
+            status: suggestions.respiratory.length > 0 ? 'normal' as const : 'none' as const,
+            findings: suggestions.respiratory.join(', ')
+          },
+          abdomen: {
+            status: suggestions.gastrointestinal.length > 0 ? 'normal' as const : 'none' as const,
+            findings: suggestions.gastrointestinal.join(', ')
+          },
+          musculoskeletal: {
+            status: suggestions.musculoskeletal.length > 0 ? 'normal' as const : 'none' as const,
+            findings: suggestions.musculoskeletal.join(', ')
+          },
+          neurological: {
+            status: suggestions.neurological.length > 0 ? 'normal' as const : 'none' as const,
+            findings: suggestions.neurological.join(', ')
+          },
+          genitourinary: {
+            status: 'none' as const,
+            findings: ''
+          }
+        }
       }
     };
 
@@ -2449,7 +2717,20 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
         doctor: userId,
         status: finalize ? 'Finalized' : 'Draft', // Set status based on finalize parameter
         specialty: formData.specialty || 'general',
-        details: formData.details || {},
+        details: {
+          ...(formData.details || {}),
+          pediatricVitals: formData.specialty === 'pediatrics' ? {
+            headCircumference: formData.physicalExam.vitals.headCircumference || '',
+            muac: formData.physicalExam.vitals.muac || '',
+            weightForAge: formData.physicalExam.vitals.weightForAge || '',
+            heightForAge: formData.physicalExam.vitals.heightForAge || ''
+          } : undefined,
+          gynaeVitals: formData.specialty === 'gynecology' ? {
+            fundalHeight: formData.physicalExam.vitals.fundalHeight || '',
+            fetalHeartRate: formData.physicalExam.vitals.fetalHeartRate || '',
+            gestationalAge: formData.physicalExam.vitals.gestationalAge || ''
+          } : undefined
+        },
         chiefComplaint: {
           description: typeof formData.chiefComplaint === 'string' ? formData.chiefComplaint : formData.chiefComplaint.description || '',
           duration: formData.chiefComplaint.duration || '',
@@ -2468,32 +2749,33 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
         },
         historyOfPresentIllness: (formData as any).historyOfPresentIllness || '',
         physicalExamination: {
-          general: formData.physicalExamination?.general || '',
+          general: formData.physicalExam.systems.generalAppearance.findings || '',
           heent: {
-            head: formData.physicalExamination?.heent?.head || '',
-            eyes: formData.physicalExamination?.heent?.eyes || '',
-            ears: formData.physicalExamination?.heent?.ears || '',
-            nose: formData.physicalExamination?.heent?.nose || '',
-            throat: formData.physicalExamination?.heent?.throat || ''
+            head: formData.physicalExam.systems.head.findings || '',
+            eyes: formData.physicalExam.systems.eyes.findings || '',
+            ears: formData.physicalExam.systems.ears.findings || '',
+            nose: formData.physicalExam.systems.nose.findings || '',
+            throat: formData.physicalExam.systems.throat.findings || ''
           },
-          cardiovascular: formData.physicalExamination?.cardiovascular || '',
-          respiratory: formData.physicalExamination?.respiratory || '',
-          gastrointestinal: formData.physicalExamination?.gastrointestinal || '',
-          neurological: formData.physicalExamination?.neurological || '',
-          musculoskeletal: formData.physicalExamination?.musculoskeletal || '',
-          skin: formData.physicalExamination?.skin || '',
+          cardiovascular: formData.physicalExam.systems.cardiovascular.findings || '',
+          respiratory: formData.physicalExam.systems.respiratory.findings || '',
+          gastrointestinal: formData.physicalExam.systems.abdomen.findings || '',
+          neurological: formData.physicalExam.systems.neurological.findings || '',
+          musculoskeletal: formData.physicalExam.systems.musculoskeletal.findings || '',
+          skin: formData.physicalExam.systems.generalAppearance.findings || '',
           summary: formData.physicalExamination?.summary || ''
         },
         vitalSigns: {
-          temperature: formData.vitalSigns?.temperature || '',
-          bloodPressure: formData.vitalSigns?.bloodPressure || '',
-          heartRate: formData.vitalSigns?.heartRate || '',
-          respiratoryRate: formData.vitalSigns?.respiratoryRate || '',
-          oxygenSaturation: formData.vitalSigns?.oxygenSaturation || '',
-          height: formData.vitalSigns?.height || '',
-          weight: formData.vitalSigns?.weight || '',
-          bmi: formData.vitalSigns?.bmi || ''
+          temperature: formData.physicalExam.vitals.temperature || '',
+          bloodPressure: formData.physicalExam.vitals.bloodPressure || '',
+          heartRate: formData.physicalExam.vitals.heartRate || '',
+          respiratoryRate: formData.physicalExam.vitals.respiratoryRate || '',
+          oxygenSaturation: formData.physicalExam.vitals.spo2 || '',
+          height: formData.physicalExam.vitals.height || '',
+          weight: formData.physicalExam.vitals.weight || '',
+          bmi: formData.physicalExam.vitals.bmi || ''
         },
+        physicalExam: formData.physicalExam,
         followUpPlan: {
           instructions: (formData as any).followUpPlan?.instructions || '',
           timing: (formData as any).followUpPlan?.timing || '',
@@ -2917,13 +3199,15 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
               skin: record.physicalExamination?.skin || '',
               summary: record.physicalExamination?.summary || ''
             },
+            physicalExam: mapPhysicalExamFromRecord(record),
             assessment: {
               primaryDiagnosis: record.diagnosis || record.primaryDiagnosis?.description || record.assessment?.primaryDiagnosis || '',
               secondaryDiagnoses: record.secondaryDiagnoses || record.assessment?.secondaryDiagnoses || [],
               plan: record.plan || record.treatmentPlan || record.assessment?.plan || '',
               prescriptions: record.prescriptions || record.assessment?.prescriptions || [],
               labOrders: record.labOrders || record.assessment?.labOrders || [],
-              followUp: record.followUpPlan?.instructions || record.assessment?.followUp || ''
+              followUp: record.followUpPlan?.instructions || record.assessment?.followUp || '',
+              primaryDiagnosisICD11: record.assessment?.primaryDiagnosisICD11 || { code: '', description: '', chapter: '', block: '', category: '', subcategory: '' }
             },
             qualityChecks: {
               documentationComplete: record.status !== 'Draft',
@@ -3126,6 +3410,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           const loadedForm = {
             specialty: record.specialty || 'general',
             details: record.details || {},
+            historyOfPresentIllness: record.historyOfPresentIllness || '',
             chiefComplaint: {
               description: record.chiefComplaint?.description || '',
               duration: record.chiefComplaint?.duration || '',
@@ -3180,13 +3465,15 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
               skin: record.physicalExamination?.skin || '',
               summary: record.physicalExamination?.summary || ''
             },
+            physicalExam: mapPhysicalExamFromRecord(record),
             assessment: {
               primaryDiagnosis: record.diagnosis || record.primaryDiagnosis?.description || '',
               secondaryDiagnoses: [],
               plan: record.plan || record.treatmentPlan || record.assessment?.plan || '',
               prescriptions: [],
               labOrders: [],
-              followUp: record.followUpPlan?.instructions || ''
+              followUp: record.followUpPlan?.instructions || '',
+              primaryDiagnosisICD11: record.assessment?.primaryDiagnosisICD11 || { code: '', description: '', chapter: '', block: '', category: '', subcategory: '' }
             },
             qualityChecks: {
               documentationComplete: record.status !== 'Draft',
@@ -3521,6 +3808,148 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
     </Box>
   );
 
+  const syncLegacyPE = (legacyPE: any, systemKey: string, findings: string) => {
+    const updated = { ...legacyPE };
+    if (systemKey === 'generalAppearance') {
+      updated.general = findings;
+      updated.skin = findings;
+    } else if (['head', 'eyes', 'ears', 'nose', 'throat'].includes(systemKey)) {
+      updated.heent = {
+        ...(updated.heent || {}),
+        [systemKey]: findings
+      };
+    } else if (systemKey === 'cardiovascular') {
+      updated.cardiovascular = findings;
+    } else if (systemKey === 'respiratory') {
+      updated.respiratory = findings;
+    } else if (systemKey === 'abdomen') {
+      updated.gastrointestinal = findings;
+    } else if (systemKey === 'musculoskeletal') {
+      updated.musculoskeletal = findings;
+    } else if (systemKey === 'neurological') {
+      updated.neurological = findings;
+    }
+    return updated;
+  };
+
+  const handleVitalChange = (key: string, value: string) => {
+    setFormData(prev => {
+      const newVitals = {
+        ...prev.physicalExam.vitals,
+        [key]: value
+      };
+
+      if (key === 'weight' || key === 'height') {
+        const weightNum = parseFloat(key === 'weight' ? value : newVitals.weight);
+        const heightNum = parseFloat(key === 'height' ? value : newVitals.height);
+        
+        if (!isNaN(weightNum) && !isNaN(heightNum) && heightNum > 0) {
+          const bmiVal = (weightNum / Math.pow(heightNum / 100, 2)).toFixed(1);
+          newVitals.bmi = bmiVal;
+        } else {
+          newVitals.bmi = '';
+        }
+      }
+
+      const legacyVitalsMapping: Record<string, string> = {
+        temperature: 'temperature',
+        bloodPressure: 'bloodPressure',
+        heartRate: 'heartRate',
+        respiratoryRate: 'respiratoryRate',
+        spo2: 'oxygenSaturation',
+        height: 'height',
+        weight: 'weight',
+        bmi: 'bmi'
+      };
+
+      const updatedLegacyVitals = { ...prev.vitalSigns };
+      if (legacyVitalsMapping[key]) {
+        updatedLegacyVitals[legacyVitalsMapping[key]] = newVitals[key as keyof typeof newVitals] || '';
+      } else if (key === 'weight' || key === 'height') {
+        updatedLegacyVitals.bmi = newVitals.bmi || '';
+      }
+
+      const updated = {
+        ...prev,
+        physicalExam: {
+          ...prev.physicalExam,
+          vitals: newVitals
+        },
+        vitalSigns: updatedLegacyVitals
+      };
+
+      if (!isFirstRender.current) autoSaveDraft(updated);
+      return updated;
+    });
+  };
+
+  const cycleStatus = (systemKey: string) => {
+    setFormData(prev => {
+      const currentStatus = prev.physicalExam.systems[systemKey as keyof typeof prev.physicalExam.systems]?.status || 'none';
+      let nextStatus: 'none' | 'normal' | 'abnormal' = 'none';
+      if (currentStatus === 'none') nextStatus = 'normal';
+      else if (currentStatus === 'normal') nextStatus = 'abnormal';
+      else if (currentStatus === 'abnormal') nextStatus = 'none';
+
+      const updatedSystems = {
+        ...prev.physicalExam.systems,
+        [systemKey]: {
+          ...prev.physicalExam.systems[systemKey as keyof typeof prev.physicalExam.systems],
+          status: nextStatus
+        }
+      };
+
+      const updatedLegacyPE = syncLegacyPE(prev.physicalExamination, systemKey, updatedSystems[systemKey as keyof typeof updatedSystems].findings);
+
+      const updated = {
+        ...prev,
+        physicalExam: {
+          ...prev.physicalExam,
+          systems: updatedSystems
+        },
+        physicalExamination: updatedLegacyPE
+      };
+
+      if (!isFirstRender.current) autoSaveDraft(updated);
+      return updated;
+    });
+  };
+
+  const handleSystemFindingsChange = (systemKey: string, value: string) => {
+    setFormData(prev => {
+      const currentSystem = prev.physicalExam.systems[systemKey as keyof typeof prev.physicalExam.systems] || { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' };
+      let nextStatus: 'none' | 'normal' | 'abnormal' = currentSystem.status;
+
+      if (value.trim().length > 0 && currentSystem.status === 'none') {
+        nextStatus = 'normal';
+      } else if (value.trim().length === 0 && currentSystem.status === 'normal') {
+        nextStatus = 'none';
+      }
+
+      const updatedSystems = {
+        ...prev.physicalExam.systems,
+        [systemKey]: {
+          status: nextStatus,
+          findings: value
+        }
+      };
+
+      const updatedLegacyPE = syncLegacyPE(prev.physicalExamination, systemKey, value);
+
+      const updated = {
+        ...prev,
+        physicalExam: {
+          ...prev.physicalExam,
+          systems: updatedSystems
+        },
+        physicalExamination: updatedLegacyPE
+      };
+
+      if (!isFirstRender.current) autoSaveDraft(updated);
+      return updated;
+    });
+  };
+
   const renderStepContent = () => {
     // Debug: Log current formData values
     console.log('🔍 [RENDER] Current formData:', {
@@ -3848,9 +4277,15 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                                       sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'primary.50' }, fontSize: '0.7rem' }} 
                                       onClick={() => {
                                         // Auto-append lab order
-                                        const currentOrders = formData.plan?.labOrders || [];
+                                        const currentOrders = formData.assessment?.labOrders || [];
                                         if (!currentOrders.includes(lab)) {
-                                          const updated = { ...formData, plan: { ...formData.plan, labOrders: [...currentOrders, lab] } };
+                                          const updated = {
+                                            ...formData,
+                                            assessment: {
+                                              ...formData.assessment,
+                                              labOrders: [...currentOrders, lab]
+                                            }
+                                          };
                                           setFormData(updated);
                                           toast.success(`Added ${lab} to Lab Orders`);
                                         } else {
@@ -3967,7 +4402,83 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           </Box>
         );
 
-      case 1:
+      case 1: {
+        const vitalsConfig = [
+          { key: "bloodPressure",    label: "Blood pressure",  unit: "mmHg",        placeholder: "120/80" },
+          { key: "heartRate",        label: "Heart rate",       unit: "bpm",         placeholder: "72" },
+          { key: "temperature",      label: "Temperature",      unit: "°C",          placeholder: "36.8" },
+          { key: "spo2",             label: "SpO₂",             unit: "%",           placeholder: "98" },
+          { key: "respiratoryRate",  label: "Resp. rate",       unit: "breaths/min", placeholder: "16" },
+          { key: "weight",           label: "Weight",           unit: "kg",          placeholder: "70" },
+          { key: "height",           label: "Height",           unit: "cm",          placeholder: "170" },
+          { key: "bmi",              label: "BMI",              unit: "kg/m²",       placeholder: "24.2", disabled: true }
+        ];
+
+        const pedExtraVitals = [
+          { key: "headCircumference", label: "Head circ.", unit: "cm", placeholder: "35" },
+          { key: "muac",              label: "MUAC",       unit: "cm", placeholder: "12.5" },
+          { key: "weightForAge",      label: "Weight/Age", unit: "%tile", placeholder: "50" },
+          { key: "heightForAge",      label: "Height/Age", unit: "%tile", placeholder: "50" }
+        ];
+
+        const gynExtraVitals = [
+          { key: "fundalHeight",   label: "Fundal height", unit: "cm", placeholder: "20" },
+          { key: "fetalHeartRate", label: "Fetal HR",      unit: "bpm", placeholder: "140" },
+          { key: "gestationalAge", label: "Gest. age",     unit: "weeks", placeholder: "20" }
+        ];
+
+        const getVitalsToDisplay = () => {
+          const list = [...vitalsConfig];
+          if (formData.specialty === 'pediatrics') {
+            list.push(...pedExtraVitals);
+          } else if (formData.specialty === 'gynecology') {
+            list.push(...gynExtraVitals);
+          }
+          return list;
+        };
+
+        const systemConfig = [
+          { key: 'generalAppearance', displayName: 'General Appearance', icon: PersonIcon },
+          { key: 'head', displayName: 'Head', icon: EmojiEmotionsIcon },
+          { key: 'eyes', displayName: 'Eyes', icon: VisibilityIcon },
+          { key: 'ears', displayName: 'Ears', icon: HearingIcon },
+          { key: 'nose', displayName: 'Nose', icon: SecurityIcon },
+          { key: 'throat', displayName: 'Throat', icon: RecordVoiceOverIcon },
+          { key: 'cardiovascular', displayName: 'Cardiovascular', icon: HeartIcon },
+          { key: 'respiratory', displayName: 'Respiratory', icon: LungsIcon },
+          { key: 'abdomen', displayName: 'Abdomen', icon: MedicalServicesIcon },
+          { key: 'musculoskeletal', displayName: 'Musculoskeletal', icon: AccessibilityNewIcon },
+          { key: 'neurological', displayName: 'Neurological', icon: AIIcon },
+          { key: 'genitourinary', displayName: 'Genitourinary', icon: FlashOnIcon }
+        ];
+
+        const tabGroups: Record<string, string[]> = {
+          'All systems': [
+            'generalAppearance', 'head', 'eyes', 'ears', 'nose', 'throat', 
+            'cardiovascular', 'respiratory', 'abdomen', 'musculoskeletal', 
+            'neurological', 'genitourinary'
+          ],
+          'HEENT': ['head', 'eyes', 'ears', 'nose', 'throat'],
+          'Cardiorespiratory': ['cardiovascular', 'respiratory'],
+          'Abdomen/GI': ['abdomen'],
+          'Neuro/Musculoskeletal': ['neurological', 'musculoskeletal'],
+          'Other': ['generalAppearance', 'genitourinary']
+        };
+
+        const tabsList = [
+          'All systems',
+          'HEENT',
+          'Cardiorespiratory',
+          'Abdomen/GI',
+          'Neuro/Musculoskeletal',
+          'Other'
+        ];
+
+        const filteredSystems = systemConfig.filter(sys => tabGroups[activeExamTab].includes(sys.key));
+
+        const totalExamined = Object.values(formData.physicalExam.systems).filter((sys: any) => sys.status !== 'none').length;
+        const totalAbnormal = Object.values(formData.physicalExam.systems).filter((sys: any) => sys.status === 'abnormal').length;
+
         return (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <GradientCard>
@@ -4002,1211 +4513,289 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                   </Tooltip>
                 )}
               </Box>
-              <CardContent sx={{ p: 2.5 }}>
-                <Stack spacing={2}>
-                  {/* Vital Signs */}
-                  <Box>
-                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
-                      <Typography variant="body2" fontWeight={700} color="text.primary">
-                        Vital Signs (from Nurse)
-                      </Typography>
-                      <Button
-                        startIcon={<RefreshIcon />}
-                        onClick={fetchNurseVitalSigns}
-                        disabled={loadingVitalSigns}
-                        size="small"
-                        variant="outlined"
-                        sx={{ textTransform: 'none', fontSize: '0.75rem' }}
-                      >
-                        {loadingVitalSigns ? 'Loading…' : 'Refresh'}
-                      </Button>
+              <CardContent sx={{ p: 2.5, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                
+                {/* Vitals Grid Section */}
+                <Box>
+                  <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                    <Typography variant="body2" fontWeight={700} color="text.primary">
+                      Patient Vitals
+                    </Typography>
+                    <Button
+                      startIcon={<RefreshIcon />}
+                      onClick={fetchNurseVitalSigns}
+                      disabled={loadingVitalSigns}
+                      size="small"
+                      variant="outlined"
+                      sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                    >
+                      {loadingVitalSigns ? 'Loading…' : 'Refresh from Nurse'}
+                    </Button>
+                  </Box>
+
+                  {loadingVitalSigns ? (
+                    <Box display="flex" alignItems="center" gap={1.5} py={2}>
+                      <CircularProgress size={16} />
+                      <Typography variant="body2" color="text.secondary">Loading vital signs…</Typography>
                     </Box>
-                          
-                          {loadingVitalSigns ? (
-                            <Box display="flex" alignItems="center" gap={1.5} py={1}>
-                              <CircularProgress size={16} />
-                              <Typography variant="body2" color="text.secondary">Loading vital signs…</Typography>
-                            </Box>
-                          ) : vitalSignsError ? (
-                            <Alert severity="warning" sx={{ py: 0.5 }}>
-                              <Typography variant="body2">{vitalSignsError || 'Error loading vital signs'}</Typography>
-                            </Alert>
-                          ) : nurseVitalSigns ? (
-                            <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
-                              <Grid container>
-                                {[
-                                  { label: 'Temperature', value: nurseVitalSigns.temperature },
-                                  { label: 'Blood Pressure', value: nurseVitalSigns.systolic && nurseVitalSigns.diastolic ? `${nurseVitalSigns.systolic}/${nurseVitalSigns.diastolic}` : null },
-                                  { label: 'Heart Rate', value: nurseVitalSigns.pulse },
-                                  { label: 'Resp. Rate', value: nurseVitalSigns.respiratoryRate },
-                                  { label: 'SpO₂', value: nurseVitalSigns.spo2 },
-                                  { label: 'Height', value: nurseVitalSigns.height },
-                                  { label: 'Weight', value: nurseVitalSigns.weight },
-                                  { label: 'BMI', value: nurseVitalSigns.bmi },
-                                ].map((item, i) => (
-                                  <Grid key={i} size={{ xs: 6, sm: 3 }}>
-                                    <Box sx={{ p: 1.5, borderRight: '1px solid', borderBottom: '1px solid', borderColor: 'divider' }}>
-                                      <Typography variant="caption" color="text.secondary" display="block">{item.label}</Typography>
-                                      <Typography variant="body2" fontWeight={700} color={item.value ? 'text.primary' : 'text.disabled'}>
-                                        {item.value || '—'}
-                                      </Typography>
-                                    </Box>
-                                  </Grid>
-                                ))}
-                              </Grid>
-                              <Box sx={{ px: 1.5, py: 0.75, bgcolor: 'grey.50', borderTop: '1px solid', borderColor: 'divider' }}>
-                                <Typography variant="caption" color="text.secondary">
-                                  Recorded by {nurseVitalSigns.measuredByName || 'Nurse'} · {nurseVitalSigns.measurementDate ? new Date(nurseVitalSigns.measurementDate).toLocaleString() : 'N/A'}
-                                </Typography>
-                              </Box>
-                            </Box>
-                          ) : (
-                            <Alert severity="info" sx={{ py: 0.5 }}>
-                              <Typography variant="body2">No vital signs recorded yet. Click Refresh to check.</Typography>
-                            </Alert>
-                          )}
+                  ) : vitalSignsError ? (
+                    <Alert severity="warning" sx={{ py: 0.5, mb: 2 }}>
+                      <Typography variant="body2">{vitalSignsError || 'Error loading vital signs'}</Typography>
+                    </Alert>
+                  ) : null}
+
+                  <Box sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+                    gap: 1.5
+                  }}>
+                    {getVitalsToDisplay().map((item) => (
+                      <Box key={item.key} sx={{
+                        p: 1.5,
+                        borderRadius: 2,
+                        bgcolor: 'hsl(var(--secondary))',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 0.5,
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          borderColor: 'primary.light',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+                        }
+                      }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={500}>{item.label}</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                          <InputBase
+                            value={formData.physicalExam.vitals[item.key as keyof typeof formData.physicalExam.vitals] || ''}
+                            placeholder={item.placeholder}
+                            disabled={item.disabled || mode === 'view'}
+                            onChange={(e) => handleVitalChange(item.key, e.target.value)}
+                            inputProps={{ style: { fontWeight: 700, fontSize: '0.9rem', padding: 0 } }}
+                            sx={{ flexGrow: 1 }}
+                          />
+                          <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>{item.unit}</Typography>
                         </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
 
-                  <Divider />
+                <Divider />
 
-                  <Typography variant="body2" fontWeight={700} color="text.primary" sx={{ letterSpacing: '0.02em', mb: 1.5 }}>
-                    System-Based Physical Examination
+                {/* Filter Tabs Section */}
+                <Box>
+                  <Typography variant="body2" fontWeight={700} color="text.primary" mb={2}>
+                    System-Based Examination
                   </Typography>
-                        
-                        {/* General Appearance */}
-                        <Grid container spacing={3}>
-                          <Grid size={{ xs: 12, sm: 6 }}>
-                            <Paper 
-                              elevation={0}
-                              sx={{ 
-                                p: 2.5, 
-                                borderRadius: 3,
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                borderLeft: '4px solid',
-                                borderLeftColor: 'primary.main',
+
+                  <Box sx={{
+                    display: 'flex',
+                    gap: 1,
+                    overflowX: 'auto',
+                    pb: 1.5,
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    mb: 2,
+                    '&::-webkit-scrollbar': { display: 'none' },
+                    msOverflowStyle: 'none',
+                    scrollbarWidth: 'none'
+                  }}>
+                    {tabsList.map((tab) => {
+                      const isActive = activeExamTab === tab;
+                      return (
+                        <Button
+                          key={tab}
+                          variant="outlined"
+                          size="small"
+                          onClick={() => setActiveExamTab(tab)}
+                          sx={{
+                            textTransform: 'none',
+                            borderRadius: '20px',
+                            px: 2,
+                            py: 0.5,
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap',
+                            ...(isActive ? {
+                              bgcolor: '#EFF6FF',
+                              borderColor: '#93C5FD',
+                              color: '#1D4ED8',
+                              '&:hover': {
+                                bgcolor: '#EFF6FF',
+                                borderColor: '#93C5FD',
+                              }
+                            } : {
+                              color: 'text.secondary',
+                              borderColor: 'divider',
+                              '&:hover': {
                                 bgcolor: 'grey.50',
-                                transition: 'all 0.2s ease',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                '&:hover': {
-                                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                                  borderColor: 'primary.light'
-                                }
+                                borderColor: 'grey.300',
+                              }
+                            })
+                          }}
+                        >
+                          {tab}
+                        </Button>
+                      );
+                    })}
+                  </Box>
+
+                  {/* Systems Rows Section */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    {filteredSystems.map((system) => {
+                      const SystemIcon = system.icon;
+                      const findingsValue = formData.physicalExam.systems[system.key as keyof typeof formData.physicalExam.systems]?.findings || '';
+                      
+                      return (
+                        <Box key={system.key} sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          py: 1,
+                          px: 1.5,
+                          borderRadius: 2,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'background.paper',
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            borderColor: 'grey.300',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                          }
+                        }}>
+                          {/* Centered Icon */}
+                          <Box sx={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            bgcolor: 'grey.50',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'text.secondary',
+                            flexShrink: 0
+                          }}>
+                            <SystemIcon sx={{ fontSize: '1.1rem' }} />
+                          </Box>
+
+                          {/* 90px Fixed Width Label */}
+                          <Typography sx={{
+                            width: 90,
+                            flexShrink: 0,
+                            fontWeight: 600,
+                            fontSize: '0.85rem',
+                            color: 'text.primary'
+                          }}>
+                            {system.displayName}
+                          </Typography>
+
+                          {/* Transparent Flex-Grow Input */}
+                          <InputBase
+                            fullWidth
+                            value={findingsValue}
+                            placeholder={`Enter ${system.displayName.toLowerCase()} findings...`}
+                            disabled={mode === 'view'}
+                            onChange={(e) => handleSystemFindingsChange(system.key, e.target.value)}
+                            inputProps={{ style: { fontSize: '0.875rem' } }}
+                            sx={{
+                              flexGrow: 1,
+                              borderBottom: '1px solid transparent',
+                              '&:hover': { borderBottom: '1px solid', borderColor: 'divider' },
+                              '&.Mui-focused': { borderBottom: '1px solid', borderColor: 'primary.main' }
+                            }}
+                          />
+
+                          {/* Clickable Status Dot */}
+                          <Tooltip title={mode === 'view' ? '' : 'Cycle status: Gray (None) -> Green (Normal) -> Red (Abnormal)'}>
+                            <Box
+                              onClick={() => mode !== 'view' && cycleStatus(system.key)}
+                              sx={{
+                                cursor: mode === 'view' ? 'default' : 'pointer',
+                                width: 24,
+                                height: 24,
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s',
+                                '&:hover': mode === 'view' ? {} : { bgcolor: 'grey.100' }
                               }}
                             >
-                              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                <Box sx={{ 
-                                  width: 40, 
-                                  height: 40, 
-                                  borderRadius: '50%', 
-                                  bgcolor: 'primary.50',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  mr: 1.5,
-                                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                                }}>
-                                  <Typography sx={{ fontSize: '1.25rem' }}>👤</Typography>
-                                </Box>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                  General Appearance
-                                </Typography>
-                              </Box>
-                              <Autocomplete
-                                multiple
-                                options={[
-                                  ...new Set([
-                                    'Alert',
-                                    'Oriented x3 (person, place, time)',
-                                    'Well-appearing',
-                                    'Well-nourished',
-                                    'Well-developed',
-                                    'No acute distress',
-                                    'Cooperative',
-                                    'Pleasant affect',
-                                    'Anxious',
-                                    'Appears stated age',
-                                    'Younger than stated age',
-                                    'Older than stated age',
-                                    'Distressed',
-                                    'Lethargic',
-                                    'Confused',
-                                    'Agitated',
-                                    'Combative',
-                                    'Ill-appearing',
-                                    'Toxic-appearing',
-                                    'Pale',
-                                    'Diaphoretic',
-                                    'Cachetic',
-                                    'Obese',
-                                    ...(customFindings.general || [])
-                                  ])
-                                ]}
-                                value={formData.physicalExamination.general 
-                                  ? formData.physicalExamination.general.split(', ').filter(Boolean)
-                                  : []
-                                }
-                                onChange={(event, newValue, reason, details) => {
-                                  // Save custom entry if user typed it
-                                  if (reason === 'createOption' && details?.option) {
-                                    saveCustomFinding('general', details.option);
-                                  }
-                                  
-                                  const updated = {
-                                    ...formData,
-                                    physicalExamination: {
-                                      ...formData.physicalExamination,
-                                      general: newValue.join(', ')
-                                    }
-                                  };
-                                  setFormData(updated);
-                                  if (!isFirstRender.current) autoSaveDraft(updated);
+                              <Box
+                                sx={{
+                                  width: 10,
+                                  height: 10,
+                                  borderRadius: '50%',
+                                  bgcolor: (() => {
+                                    const status = formData.physicalExam.systems[system.key as keyof typeof formData.physicalExam.systems]?.status || 'none';
+                                    if (status === 'normal') return '#22c55e';
+                                    if (status === 'abnormal') return '#ef4444';
+                                    return '#d1d5db';
+                                  })(),
+                                  boxShadow: (() => {
+                                    const status = formData.physicalExam.systems[system.key as keyof typeof formData.physicalExam.systems]?.status || 'none';
+                                    if (status === 'normal') return '0 0 6px rgba(34, 197, 94, 0.4)';
+                                    if (status === 'abnormal') return '0 0 6px rgba(239, 68, 68, 0.4)';
+                                    return 'none';
+                                  })(),
+                                  transition: 'all 0.2s'
                                 }}
-                                disabled={mode === 'view'}
-                                freeSolo
-                                size="medium"
-                                renderTags={(tagValue, getTagProps) =>
-                                  tagValue.map((option, index) => {
-                                    const { key, ...tagProps } = getTagProps({ index });
-                                    const predefinedOptions = [
-                                      'Alert', 'Oriented x3 (person, place, time)', 'Well-appearing', 'Well-nourished',
-                                      'Well-developed', 'No acute distress', 'Cooperative', 'Pleasant affect', 'Anxious',
-                                      'Appears stated age', 'Younger than stated age', 'Older than stated age', 'Distressed',
-                                      'Lethargic', 'Confused', 'Agitated', 'Combative', 'Ill-appearing', 'Toxic-appearing',
-                                      'Pale', 'Diaphoretic', 'Cachetic', 'Obese'
-                                    ];
-                                    const isCustom = !predefinedOptions.includes(option) || customFindings.general?.includes(option);
-                                    return (
-                                      <Chip
-                                        variant="filled"
-                                        label={isCustom ? `✨ ${option}` : option}
-                                        {...tagProps}
-                                        key={key}
-                                        size="small"
-                                        sx={{ 
-                                          fontSize: '0.75rem', 
-                                          height: '26px',
-                                          borderRadius: '9999px',
-                                          bgcolor: isCustom ? 'success.50' : 'primary.50',
-                                          color: isCustom ? 'success.dark' : 'primary.dark',
-                                          fontWeight: isCustom ? 600 : 500,
-                                          '& .MuiChip-deleteIcon': { color: 'inherit', opacity: 0.7 }
-                                        }}
-                                      />
-                                    );
-                                  })
-                                }
-                                renderInput={(params) => (
-                                  <TextField
-                                    {...params}
-                                    placeholder="Select or type findings..."
-                                    size="medium"
-                                    variant="outlined"
-                                    sx={{
-                                      '& .MuiOutlinedInput-root': {
-                                        borderRadius: 2.5,
-                                        fontSize: '0.875rem',
-                                        minHeight: '52px',
-                                        bgcolor: 'background.paper',
-                                        '& fieldset': { borderColor: 'divider' },
-                                        '&:hover fieldset': { borderColor: 'primary.light' },
-                                        '&.Mui-focused fieldset': { borderWidth: '2px' }
-                                      }
-                                    }}
-                                  />
-                                )}
                               />
-                            </Paper>
-                          </Grid>
-
-                          {/* HEENT - Head */}
-                          <Grid size={{ xs: 12, sm: 6 }}>
-                            <Paper 
-                              elevation={0}
-                              sx={{ 
-                                p: 2.5, 
-                                borderRadius: 3,
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                borderLeft: '4px solid',
-                                borderLeftColor: 'secondary.main',
-                                bgcolor: 'grey.50',
-                                transition: 'all 0.2s ease',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                '&:hover': {
-                                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                                  borderColor: 'secondary.light'
-                                }
-                              }}
-                            >
-                              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                <Box sx={{ 
-                                  width: 40, 
-                                  height: 40, 
-                                  borderRadius: '50%', 
-                                  bgcolor: 'secondary.50',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  mr: 1.5,
-                                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                                }}>
-                                  <Typography sx={{ fontSize: '1.25rem' }}>🧠</Typography>
-                                </Box>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                  Head
-                                </Typography>
-                              </Box>
-                              <Autocomplete
-                                multiple
-                                options={[
-                                  ...new Set([
-                                    'Normocephalic',
-                                    'Atraumatic',
-                                    'No visible lesions',
-                                    'Symmetrical',
-                                    'No tenderness',
-                                    'No deformities',
-                                    'Scalp normal',
-                                    'Hair distribution normal',
-                                    'Palpable masses',
-                                    'Cranial asymmetry',
-                                    'Trauma evident',
-                                    'Scalp lesions',
-                                    'Frontal bossing',
-                                    'Macrocephaly',
-                                    'Microcephaly',
-                                    'Fontanelles soft and flat (pediatric)',
-                                    'Head circumference within normal limits',
-                                    'Bruising present',
-                                    'Lacerations present',
-                                    'Hematoma present',
-                                    ...(customFindings.head || [])
-                                  ])
-                                ]}
-                                value={formData.physicalExamination.heent.head 
-                                  ? formData.physicalExamination.heent.head.split(', ').filter(Boolean)
-                                  : []
-                                }
-                                onChange={(event, newValue, reason, details) => {
-                                  // Save custom entry if user typed it
-                                  if (reason === 'createOption' && details?.option) {
-                                    saveCustomFinding('head', details.option);
-                                  }
-                                  
-                                  const updated = {
-                                    ...formData,
-                                    physicalExamination: {
-                                      ...formData.physicalExamination,
-                                      heent: {
-                                        ...formData.physicalExamination.heent,
-                                        head: newValue.join(', ')
-                                      }
-                                    }
-                                  };
-                                  setFormData(updated);
-                                  if (!isFirstRender.current) autoSaveDraft(updated);
-                                }}
-                                disabled={mode === 'view'}
-                                freeSolo
-                                size="medium"
-                                renderTags={(tagValue, getTagProps) =>
-                                  tagValue.map((option, index) => {
-                                    const { key, ...tagProps } = getTagProps({ index });
-                                    const predefinedOptions = [
-                                      'Normocephalic', 'Atraumatic', 'No visible lesions', 'Symmetrical', 'No tenderness',
-                                      'No deformities', 'Scalp normal', 'Hair distribution normal', 'Palpable masses',
-                                      'Cranial asymmetry', 'Trauma evident', 'Scalp lesions', 'Frontal bossing',
-                                      'Macrocephaly', 'Microcephaly', 'Fontanelles soft and flat (pediatric)',
-                                      'Head circumference within normal limits', 'Bruising present', 'Lacerations present',
-                                      'Hematoma present'
-                                    ];
-                                    const isCustom = !predefinedOptions.includes(option) || customFindings.head?.includes(option);
-                                    return (
-                                      <Chip
-                                        variant="filled"
-                                        label={isCustom ? `✨ ${option}` : option}
-                                        {...tagProps}
-                                        key={key}
-                                        size="small"
-                                        sx={{ 
-                                          fontSize: '0.75rem', 
-                                          height: '26px',
-                                          borderRadius: '9999px',
-                                          bgcolor: isCustom ? 'success.50' : 'secondary.50',
-                                          color: isCustom ? 'success.dark' : 'secondary.dark',
-                                          fontWeight: isCustom ? 600 : 500,
-                                          '& .MuiChip-deleteIcon': { color: 'inherit', opacity: 0.7 }
-                                        }}
-                                      />
-                                    );
-                                  })
-                                }
-                                renderInput={(params) => (
-                                  <TextField
-                                    {...params}
-                                    placeholder="Select or type findings..."
-                                    size="medium"
-                                    variant="outlined"
-                                    sx={{
-                                      '& .MuiOutlinedInput-root': {
-                                        borderRadius: 2.5,
-                                        fontSize: '0.875rem',
-                                        minHeight: '52px',
-                                        bgcolor: 'background.paper',
-                                        '& fieldset': { borderColor: 'divider' },
-                                        '&:hover fieldset': { borderColor: 'primary.light' },
-                                        '&.Mui-focused fieldset': { borderWidth: '2px' }
-                                      }
-                                    }}
-                                  />
-                                )}
-                              />
-                            </Paper>
-                          </Grid>
-
-                          {/* HEENT - Eyes */}
-                          <Grid size={{ xs: 12, sm: 6 }}>
-                            <Paper 
-                              elevation={0}
-                              sx={{ 
-                                p: 2.5, 
-                                borderRadius: 3,
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                borderLeft: '4px solid',
-                                borderLeftColor: 'info.main',
-                                bgcolor: 'grey.50',
-                                transition: 'all 0.2s ease',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                '&:hover': {
-                                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                                  borderColor: 'info.light'
-                                }
-                              }}
-                            >
-                              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                <Box sx={{ 
-                                  width: 40, 
-                                  height: 40, 
-                                  borderRadius: '50%', 
-                                  bgcolor: 'info.50',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  mr: 1.5,
-                                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                                }}>
-                                  <Typography sx={{ fontSize: '1.25rem' }}>👁️</Typography>
-                                </Box>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                  Eyes
-                                </Typography>
-                              </Box>
-                              <Autocomplete
-                                multiple
-                                options={[...new Set([...heentFindings.eyes, ...(customFindings.eyes || [])])]}
-                                value={formData.physicalExamination.heent.eyes 
-                                  ? formData.physicalExamination.heent.eyes.split(', ').filter(Boolean)
-                                  : []
-                                }
-                                onChange={(event, newValue, reason, details) => {
-                                  if (reason === 'createOption' && details?.option) {
-                                    saveCustomFinding('eyes', details.option);
-                                  }
-                                  const updated = {
-                                    ...formData,
-                                    physicalExamination: {
-                                      ...formData.physicalExamination,
-                                      heent: {
-                                        ...formData.physicalExamination.heent,
-                                        eyes: newValue.join(', ')
-                                      }
-                                    }
-                                  };
-                                  setFormData(updated);
-                                  if (!isFirstRender.current) autoSaveDraft(updated);
-                                }}
-                                disabled={mode === 'view'}
-                                freeSolo
-                                size="medium"
-                                renderTags={(tagValue, getTagProps) =>
-                                  tagValue.map((option, index) => {
-                                    const { key, ...tagProps } = getTagProps({ index });
-                                    const isCustom = !heentFindings.eyes.includes(option) || customFindings.eyes?.includes(option);
-                                    return (
-                                      <Chip
-                                        variant="filled"
-                                        label={isCustom ? `✨ ${option}` : option}
-                                        {...tagProps}
-                                        key={key}
-                                        size="small"
-                                        sx={{ 
-                                          fontSize: '0.75rem', 
-                                          height: '26px',
-                                          borderRadius: '9999px',
-                                          bgcolor: isCustom ? 'success.50' : 'info.50',
-                                          color: isCustom ? 'success.dark' : 'info.dark',
-                                          fontWeight: isCustom ? 600 : 500,
-                                          '& .MuiChip-deleteIcon': { color: 'inherit', opacity: 0.7 }
-                                        }}
-                                      />
-                                    );
-                                  })
-                                }
-                                renderInput={(params) => (
-                                  <TextField
-                                    {...params}
-                                    placeholder="Select or type findings..."
-                                    size="medium"
-                                    variant="outlined"
-                                    sx={{
-                                      '& .MuiOutlinedInput-root': {
-                                        borderRadius: 2.5,
-                                        fontSize: '0.875rem',
-                                        minHeight: '52px',
-                                        bgcolor: 'background.paper',
-                                        '& fieldset': { borderColor: 'divider' },
-                                        '&:hover fieldset': { borderColor: 'primary.light' },
-                                        '&.Mui-focused fieldset': { borderWidth: '2px' }
-                                      }
-                                    }}
-                                  />
-                                )}
-                              />
-                            </Paper>
-                          </Grid>
-
-                          {/* HEENT - Ears */}
-                          <Grid size={{ xs: 12, sm: 6 }}>
-                            <Paper 
-                              elevation={0}
-                              sx={{ 
-                                p: 2.5, 
-                                borderRadius: 3,
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                borderLeft: '4px solid',
-                                borderLeftColor: 'success.main',
-                                bgcolor: 'grey.50',
-                                transition: 'all 0.2s ease',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                '&:hover': {
-                                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                                  borderColor: 'success.light'
-                                }
-                              }}
-                            >
-                              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                <Box sx={{ 
-                                  width: 40, 
-                                  height: 40, 
-                                  borderRadius: '50%', 
-                                  bgcolor: 'success.50',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  mr: 1.5,
-                                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                                }}>
-                                  <Typography sx={{ fontSize: '1.25rem' }}>👂</Typography>
-                                </Box>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                  Ears
-                                </Typography>
-                              </Box>
-                              <Autocomplete
-                                multiple
-                                options={[...new Set([...heentFindings.ears, ...(customFindings.ears || [])])]}
-                                value={formData.physicalExamination.heent.ears 
-                                  ? formData.physicalExamination.heent.ears.split(', ').filter(Boolean)
-                                  : []
-                                }
-                                onChange={(event, newValue, reason, details) => {
-                                  if (reason === 'createOption' && details?.option) {
-                                    saveCustomFinding('ears', details.option);
-                                  }
-                                  const updated = {
-                                    ...formData,
-                                    physicalExamination: {
-                                      ...formData.physicalExamination,
-                                      heent: {
-                                        ...formData.physicalExamination.heent,
-                                        ears: newValue.join(', ')
-                                      }
-                                    }
-                                  };
-                                  setFormData(updated);
-                                  if (!isFirstRender.current) autoSaveDraft(updated);
-                                }}
-                                disabled={mode === 'view'}
-                                freeSolo
-                                size="medium"
-                                renderTags={(tagValue, getTagProps) =>
-                                  tagValue.map((option, index) => {
-                                    const { key, ...tagProps } = getTagProps({ index });
-                                    const isCustom = !heentFindings.ears.includes(option) || customFindings.ears?.includes(option);
-                                    return (
-                                      <Chip
-                                        variant="filled"
-                                        label={isCustom ? `✨ ${option}` : option}
-                                        {...tagProps}
-                                        key={key}
-                                        size="small"
-                                        sx={{ 
-                                          fontSize: '0.75rem', 
-                                          height: '26px',
-                                          borderRadius: '9999px',
-                                          bgcolor: isCustom ? 'success.50' : 'success.50',
-                                          color: isCustom ? 'success.dark' : 'success.dark',
-                                          fontWeight: isCustom ? 600 : 500,
-                                          '& .MuiChip-deleteIcon': { color: 'inherit', opacity: 0.7 }
-                                        }}
-                                      />
-                                    );
-                                  })
-                                }
-                                renderInput={(params) => (
-                                  <TextField
-                                    {...params}
-                                    placeholder="Select or type findings..."
-                                    size="medium"
-                                    variant="outlined"
-                                    sx={{
-                                      '& .MuiOutlinedInput-root': {
-                                        borderRadius: 2.5,
-                                        fontSize: '0.875rem',
-                                        minHeight: '52px',
-                                        bgcolor: 'background.paper',
-                                        '& fieldset': { borderColor: 'divider' },
-                                        '&:hover fieldset': { borderColor: 'primary.light' },
-                                        '&.Mui-focused fieldset': { borderWidth: '2px' }
-                                      }
-                                    }}
-                                  />
-                                )}
-                              />
-                            </Paper>
-                          </Grid>
-                        </Grid>
-
-                        {/* Row 2: Nose, Throat */}
-                        <Grid container spacing={3} sx={{ mt: 0.5 }}>
-                          {/* HEENT - Nose */}
-                          <Grid size={{ xs: 12, sm: 6 }}>
-                            <Paper 
-                              elevation={0}
-                              sx={{ 
-                                p: 2.5, 
-                                borderRadius: 3,
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                borderLeft: '4px solid',
-                                borderLeftColor: 'warning.main',
-                                bgcolor: 'grey.50',
-                                transition: 'all 0.2s ease',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                '&:hover': {
-                                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                                  borderColor: 'warning.light'
-                                }
-                              }}
-                            >
-                              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                <Box sx={{ 
-                                  width: 40, 
-                                  height: 40, 
-                                  borderRadius: '50%', 
-                                  bgcolor: 'warning.50',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  mr: 1.5,
-                                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                                }}>
-                                  <Typography sx={{ fontSize: '1.25rem' }}>👃</Typography>
-                                </Box>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                  Nose
-                                </Typography>
-                              </Box>
-                              <Autocomplete
-                                multiple
-                                options={[...new Set([...heentFindings.nose, ...(customFindings.nose || [])])]}
-                                value={formData.physicalExamination.heent.nose 
-                                  ? formData.physicalExamination.heent.nose.split(', ').filter(Boolean)
-                                  : []
-                                }
-                                onChange={(event, newValue, reason, details) => {
-                                  if (reason === 'createOption' && details?.option) {
-                                    saveCustomFinding('nose', details.option);
-                                  }
-                                  const updated = {
-                                    ...formData,
-                                    physicalExamination: {
-                                      ...formData.physicalExamination,
-                                      heent: {
-                                        ...formData.physicalExamination.heent,
-                                        nose: newValue.join(', ')
-                                      }
-                                    }
-                                  };
-                                  setFormData(updated);
-                                  if (!isFirstRender.current) autoSaveDraft(updated);
-                                }}
-                                disabled={mode === 'view'}
-                                freeSolo
-                                size="medium"
-                                renderTags={(tagValue, getTagProps) =>
-                                  tagValue.map((option, index) => {
-                                    const { key, ...tagProps } = getTagProps({ index });
-                                    const isCustom = !heentFindings.nose.includes(option) || customFindings.nose?.includes(option);
-                                    return (
-                                      <Chip
-                                        variant="filled"
-                                        label={isCustom ? `✨ ${option}` : option}
-                                        {...tagProps}
-                                        key={key}
-                                        size="small"
-                                        sx={{ 
-                                          fontSize: '0.75rem', 
-                                          height: '26px',
-                                          borderRadius: '9999px',
-                                          bgcolor: isCustom ? 'success.50' : 'warning.50',
-                                          color: isCustom ? 'success.dark' : 'warning.dark',
-                                          fontWeight: isCustom ? 600 : 500,
-                                          '& .MuiChip-deleteIcon': { color: 'inherit', opacity: 0.7 }
-                                        }}
-                                      />
-                                    );
-                                  })
-                                }
-                                renderInput={(params) => (
-                                  <TextField
-                                    {...params}
-                                    placeholder="Select or type findings..."
-                                    size="medium"
-                                    variant="outlined"
-                                    sx={{
-                                      '& .MuiOutlinedInput-root': {
-                                        borderRadius: 2.5,
-                                        fontSize: '0.875rem',
-                                        minHeight: '52px',
-                                        bgcolor: 'background.paper',
-                                        '& fieldset': { borderColor: 'divider' },
-                                        '&:hover fieldset': { borderColor: 'primary.light' },
-                                        '&.Mui-focused fieldset': { borderWidth: '2px' }
-                                      }
-                                    }}
-                                  />
-                                )}
-                              />
-                            </Paper>
-                          </Grid>
-
-                          {/* HEENT - Throat */}
-                          <Grid size={{ xs: 12, sm: 6 }}>
-                            <Paper 
-                              elevation={0}
-                              sx={{ 
-                                p: 2.5, 
-                                borderRadius: 3,
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                borderLeft: '4px solid',
-                                borderLeftColor: 'error.main',
-                                bgcolor: 'grey.50',
-                                transition: 'all 0.2s ease',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                '&:hover': {
-                                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                                  borderColor: 'error.light'
-                                }
-                              }}
-                            >
-                              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                <Box sx={{ 
-                                  width: 40, 
-                                  height: 40, 
-                                  borderRadius: '50%', 
-                                  bgcolor: 'error.50',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  mr: 1.5,
-                                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                                }}>
-                                  <Typography sx={{ fontSize: '1.25rem' }}>🗣️</Typography>
-                                </Box>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                  Throat
-                                </Typography>
-                              </Box>
-                              <Autocomplete
-                                multiple
-                                options={[...new Set([...heentFindings.throat, ...(customFindings.throat || [])])]}
-                                value={formData.physicalExamination.heent.throat 
-                                  ? formData.physicalExamination.heent.throat.split(', ').filter(Boolean)
-                                  : []
-                                }
-                                onChange={(event, newValue, reason, details) => {
-                                  if (reason === 'createOption' && details?.option) {
-                                    saveCustomFinding('throat', details.option);
-                                  }
-                                  const updated = {
-                                    ...formData,
-                                    physicalExamination: {
-                                      ...formData.physicalExamination,
-                                      heent: {
-                                        ...formData.physicalExamination.heent,
-                                        throat: newValue.join(', ')
-                                      }
-                                    }
-                                  };
-                                  setFormData(updated);
-                                  if (!isFirstRender.current) autoSaveDraft(updated);
-                                }}
-                                disabled={mode === 'view'}
-                                freeSolo
-                                size="medium"
-                                renderTags={(tagValue, getTagProps) =>
-                                  tagValue.map((option, index) => {
-                                    const { key, ...tagProps } = getTagProps({ index });
-                                    const isCustom = !heentFindings.throat.includes(option) || customFindings.throat?.includes(option);
-                                    return (
-                                      <Chip
-                                        variant="filled"
-                                        label={isCustom ? `✨ ${option}` : option}
-                                        {...tagProps}
-                                        key={key}
-                                        size="small"
-                                        sx={{ 
-                                          fontSize: '0.75rem', 
-                                          height: '26px',
-                                          borderRadius: '9999px',
-                                          bgcolor: isCustom ? 'success.50' : 'error.50',
-                                          color: isCustom ? 'success.dark' : 'error.dark',
-                                          fontWeight: isCustom ? 600 : 500,
-                                          '& .MuiChip-deleteIcon': { color: 'inherit', opacity: 0.7 }
-                                        }}
-                                      />
-                                    );
-                                  })
-                                }
-                                renderInput={(params) => (
-                                  <TextField
-                                    {...params}
-                                    placeholder="Select or type findings..."
-                                    size="medium"
-                                    variant="outlined"
-                                    sx={{
-                                      '& .MuiOutlinedInput-root': {
-                                        borderRadius: 2.5,
-                                        fontSize: '0.875rem',
-                                        minHeight: '52px',
-                                        bgcolor: 'background.paper',
-                                        '& fieldset': { borderColor: 'divider' },
-                                        '&:hover fieldset': { borderColor: 'primary.light' },
-                                        '&.Mui-focused fieldset': { borderWidth: '2px' }
-                                      }
-                                    }}
-                                  />
-                                )}
-                              />
-                            </Paper>
-                          </Grid>
-
-                          {/* Body Systems: Cardiovascular, Respiratory */}
-                        {[
-                            { 
-                              key: 'cardiovascular', 
-                              label: 'Cardiovascular', 
-                              icon: '❤️',
-                              bgcolor: 'error.50',
-                              chipColor: 'error.main',
-                              options: [
-                                'Regular rate and rhythm',
-                                'S1 S2 present',
-                                'No murmurs',
-                                'No rubs',
-                                'No gallops',
-                                'Capillary refill <2 seconds',
-                                'Peripheral pulses intact 2+ bilaterally',
-                                'No peripheral edema',
-                                'JVP not elevated',
-                                'No carotid bruits',
-                                'PMI at 5th intercostal space',
-                                'Tachycardia',
-                                'Bradycardia',
-                                'Irregular rhythm',
-                                'Pedal edema 1+',
-                                'Pedal edema 2+',
-                                'Systolic murmur',
-                                'Diastolic murmur'
-                              ]
-                            },
-                            { 
-                              key: 'respiratory', 
-                              label: 'Respiratory', 
-                              icon: '🫁',
-                              bgcolor: 'success.50',
-                              chipColor: 'success.main',
-                              options: [
-                                'Clear to auscultation bilaterally',
-                                'Breath sounds equal bilaterally',
-                                'No wheezes',
-                                'No rales/crackles',
-                                'No rhonchi',
-                                'Good air movement',
-                                'Symmetric chest expansion',
-                                'No accessory muscle use',
-                                'No cyanosis',
-                                'Trachea midline',
-                                'Wheezing present',
-                                'Crackles/rales present',
-                                'Ronchi present',
-                                'Diminished breath sounds',
-                                'Respiratory distress',
-                                'Use of accessory muscles'
-                              ]
-                            }
-                        ].map((exam) => (
-                             <Grid size={{ xs: 12, sm: 6 }} key={exam.key}>
-                              <Paper 
-                                elevation={0}
-                                sx={{ 
-                                  p: 2.5, 
-                                  borderRadius: 3,
-                                  border: '1px solid',
-                                  borderColor: 'divider',
-                                  borderLeft: '4px solid',
-                                  borderLeftColor: exam.chipColor,
-                                  bgcolor: 'grey.50',
-                                  transition: 'all 0.2s ease',
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                  '&:hover': {
-                                    boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                                    borderColor: exam.chipColor
-                                  }
-                                }}
-                              >
-                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                  <Box sx={{ 
-                                    width: 40, 
-                                    height: 40, 
-                                    borderRadius: '50%', 
-                                    bgcolor: exam.bgcolor,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    mr: 1.5,
-                                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                                  }}>
-                                    <Typography sx={{ fontSize: '1.25rem' }}>{exam.icon}</Typography>
-                                  </Box>
-                                  <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                    {exam.label}
-                                  </Typography>
-                                </Box>
-                                <Autocomplete
-                                  multiple
-                                  options={exam.options}
-                                  value={formData.physicalExamination[exam.key as keyof PhysicalExaminationData] 
-                                    ? (typeof formData.physicalExamination[exam.key as keyof PhysicalExaminationData] === 'string' 
-                                         ? (formData.physicalExamination[exam.key as keyof PhysicalExaminationData] as string).split(', ').filter(Boolean)
-                                         : [])
-                                    : []
-                                  }
-                                  onChange={(event, newValue) => {
-                                    const updated = {
-                                      ...formData,
-                                      physicalExamination: {
-                                        ...formData.physicalExamination,
-                                        [exam.key]: newValue.join(', ')
-                                      }
-                                    };
-                                    setFormData(updated);
-                                    if (!isFirstRender.current) autoSaveDraft(updated);
-                                  }}
-                                  disabled={mode === 'view'}
-                                  freeSolo
-                                  size="medium"
-                                  renderTags={(tagValue, getTagProps) =>
-                                    tagValue.map((option, index) => {
-                                      const { key, ...tagProps } = getTagProps({ index });
-                                      return (
-                                        <Chip
-                                          variant="filled"
-                                          label={option}
-                                          {...tagProps}
-                                          key={key}
-                                          size="small"
-                                          sx={{ 
-                                            fontSize: '0.75rem', 
-                                            height: '26px',
-                                            borderRadius: '9999px',
-                                            bgcolor: exam.bgcolor,
-                                            color: exam.chipColor,
-                                            fontWeight: 500,
-                                            '& .MuiChip-deleteIcon': { color: 'inherit', opacity: 0.7 }
-                                          }}
-                                        />
-                                      );
-                                    })
-                                  }
-                                  renderInput={(params) => (
-                                    <TextField
-                                      {...params}
-                                      placeholder="Select or type findings..."
-                                      size="medium"
-                                      variant="outlined"
-                                      sx={{
-                                        '& .MuiOutlinedInput-root': {
-                                          borderRadius: 2.5,
-                                          fontSize: '0.875rem',
-                                          minHeight: '52px',
-                                          bgcolor: 'background.paper',
-                                          '& fieldset': { borderColor: 'divider' },
-                                          '&:hover fieldset': { borderColor: 'primary.light' },
-                                          '&.Mui-focused fieldset': { borderWidth: '2px' }
-                                        }
-                                      }}
-                                    />
-                                  )}
-                                />
-                              </Paper>
-                            </Grid>
-                          ))}
-                        </Grid>
-
-                        {/* Row 3: Gastrointestinal, Neurological, Musculoskeletal, Skin */}
-                        <Grid container spacing={3} sx={{ mt: 0.5 }}>
-                          {[
-                            { 
-                              key: 'gastrointestinal', 
-                              label: 'Gastrointestinal', 
-                              icon: '🫃',
-                              bgcolor: 'warning.50',
-                              chipColor: 'warning.main',
-                              options: [
-                                'Soft',
-                                'Non-tender',
-                                'Non-distended',
-                                'Bowel sounds present in all 4 quadrants',
-                                'Bowel sounds normoactive',
-                                'No masses palpable',
-                                'No hepatosplenomegaly',
-                                'No rebound',
-                                'No guarding',
-                                'Tympanic to percussion',
-                                'Bowel sounds hyperactive',
-                                'Bowel sounds hypoactive',
-                                'Distended',
-                                'Rebound tenderness',
-                                'Guarding present',
-                                'Masses palpable',
-                                'Ascites present'
-                              ]
-                            },
-                            { 
-                              key: 'neurological', 
-                              label: 'Neurological', 
-                              icon: '🧠',
-                              bgcolor: 'secondary.50',
-                              chipColor: 'secondary.main',
-                              options: [
-                                'Alert and oriented x3 (person, place, time)',
-                                'Alert and oriented x4',
-                                'Glasgow Coma Scale 15/15',
-                                'Cranial nerves II-XII grossly intact',
-                                'Motor strength 5/5 all extremities',
-                                'Deep tendon reflexes 2+ symmetric',
-                                'Babinski negative bilaterally',
-                                'Sensation intact to light touch',
-                                'Coordination normal',
-                                'Gait steady',
-                                'Gait normal',
-                                'Romberg negative',
-                                'No tremor',
-                                'No ataxia',
-                                'No focal deficits',
-                                'Focal neurological deficits present'
-                              ]
-                            },
-                            { 
-                              key: 'musculoskeletal', 
-                              label: 'Musculoskeletal', 
-                              icon: '💪',
-                              bgcolor: 'info.50',
-                              chipColor: 'info.main',
-                              options: [
-                                'Full range of motion all joints',
-                                'No joint swelling',
-                                'No joint tenderness',
-                                'No joint deformity',
-                                'Muscle strength normal',
-                                'Muscle tone normal',
-                                'No muscle atrophy',
-                                'Spine straight',
-                                'No scoliosis',
-                                'No crepitus',
-                                'Limited range of motion',
-                                'Joint swelling present',
-                                'Joint effusion present',
-                                'Bone tenderness',
-                                'Deformity present'
-                              ]
-                            },
-                            { 
-                              key: 'skin', 
-                              label: 'Skin', 
-                              icon: '🫱',
-                              bgcolor: 'primary.50',
-                              chipColor: 'primary.main',
-                              options: [
-                                'Warm',
-                                'Dry',
-                                'Intact',
-                                'No rashes',
-                                'No lesions',
-                                'Good turgor',
-                                'Normal moisture',
-                                'No jaundice',
-                                'No cyanosis',
-                                'No pallor',
-                                'Pink',
-                                'Well-perfused',
-                                'Rash present',
-                                'Lesions present',
-                                'Bruising',
-                                'Poor turgor',
-                                'Diaphoretic',
-                                'Jaundiced',
-                                'Cyanotic',
-                                'Pale'
-                              ]
-                            }
-                          ].map((exam) => (
-                             <Grid size={{ xs: 12, sm: 6, md: 3 }} key={exam.key}>
-                              <Paper 
-                                elevation={0}
-                                sx={{ 
-                                  p: 2.5, 
-                                  borderRadius: 3,
-                                  border: '1px solid',
-                                  borderColor: 'divider',
-                                  borderLeft: '4px solid',
-                                  borderLeftColor: exam.chipColor,
-                                  bgcolor: 'grey.50',
-                                  transition: 'all 0.2s ease',
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                  '&:hover': {
-                                    boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                                    borderColor: exam.chipColor
-                                  }
-                                }}
-                              >
-                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                  <Box sx={{ 
-                                    width: 40, 
-                                    height: 40, 
-                                    borderRadius: '50%', 
-                                    bgcolor: exam.bgcolor,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    mr: 1.5,
-                                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                                  }}>
-                                    <Typography sx={{ fontSize: '1.25rem' }}>{exam.icon}</Typography>
-                                  </Box>
-                                  <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                    {exam.label}
-                                  </Typography>
-                                </Box>
-                                <Autocomplete
-                                  multiple
-                                  options={exam.options}
-                                  value={formData.physicalExamination[exam.key as keyof PhysicalExaminationData] 
-                                    ? (typeof formData.physicalExamination[exam.key as keyof PhysicalExaminationData] === 'string' 
-                                         ? (formData.physicalExamination[exam.key as keyof PhysicalExaminationData] as string).split(', ').filter(Boolean)
-                                         : [])
-                                    : []
-                                  }
-                                  onChange={(event, newValue) => {
-                                    const updated = {
-                                      ...formData,
-                                      physicalExamination: {
-                                        ...formData.physicalExamination,
-                                        [exam.key]: newValue.join(', ')
-                                      }
-                                    };
-                                    setFormData(updated);
-                                    if (!isFirstRender.current) autoSaveDraft(updated);
-                                  }}
-                                  disabled={mode === 'view'}
-                                  freeSolo
-                                  size="medium"
-                                  renderTags={(tagValue, getTagProps) =>
-                                    tagValue.map((option, index) => {
-                                      const { key, ...tagProps } = getTagProps({ index });
-                                      return (
-                                        <Chip
-                                          variant="filled"
-                                          label={option}
-                                          {...tagProps}
-                                          key={key}
-                                          size="small"
-                                          sx={{ 
-                                            fontSize: '0.75rem', 
-                                            height: '26px',
-                                            borderRadius: '9999px',
-                                            bgcolor: exam.bgcolor,
-                                            color: exam.chipColor,
-                                            fontWeight: 500,
-                                            '& .MuiChip-deleteIcon': { color: 'inherit', opacity: 0.7 }
-                                          }}
-                                        />
-                                      );
-                                    })
-                                  }
-                                  renderInput={(params) => (
-                                    <TextField
-                                      {...params}
-                                      placeholder="Select or type findings..."
-                                      size="medium"
-                                      variant="outlined"
-                                      sx={{
-                                        '& .MuiOutlinedInput-root': {
-                                          borderRadius: 2.5,
-                                          fontSize: '0.875rem',
-                                          minHeight: '52px',
-                                          bgcolor: 'background.paper',
-                                          '& fieldset': { borderColor: 'divider' },
-                                          '&:hover fieldset': { borderColor: 'primary.light' },
-                                          '&.Mui-focused fieldset': { borderWidth: '2px' }
-                                        }
-                                      }}
-                                    />
-                                  )}
-                                />
-                              </Paper>
-                            </Grid>
-                          ))}
-                      {/* Dynamic Specialty Fields */}
-                      <DynamicSpecialtyFields
-                        specialty={formData.specialty || 'general'}
-                        fields={specialtyConfigs[(formData.specialty || 'general') as keyof typeof specialtyConfigs]?.step2_physicalExam || []}
-                        details={formData.details || {}}
-                        onChange={handleDetailsChange}
-                        disabled={mode === 'view'}
-                      />
-                      </Grid>
-                </Stack>
+                            </Box>
+                          </Tooltip>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                </Box>
+                
               </CardContent>
+
+              {/* Bottom Summary Bar */}
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                px: 2.5,
+                py: 1.5,
+                bgcolor: 'grey.50',
+                borderTop: '1px solid',
+                borderColor: 'divider',
+                borderRadius: '0 0 12px 12px',
+                flexWrap: 'wrap',
+                gap: 1
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Systems Examined: <strong>{totalExamined} / 12</strong>
+                  </Typography>
+                  {totalAbnormal > 0 && (
+                    <Box sx={{
+                      bgcolor: '#ef4444',
+                      color: 'white',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      px: 1,
+                      py: 0.2,
+                      borderRadius: '10px',
+                      display: 'inline-flex',
+                      alignItems: 'center'
+                    }}>
+                      {totalAbnormal} Abnormal
+                    </Box>
+                  )}
+                </Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  Click status dots to cycle status: Gray (None) → Green (Normal) → Red (Abnormal)
+                </Typography>
+              </Box>
+
             </GradientCard>
           </Box>
         );
+      }
 
       case 2:
         return (

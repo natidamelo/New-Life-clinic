@@ -288,6 +288,10 @@ const medicalRecordSchema = new mongoose.Schema({
     skin: String,
     summary: String
   },
+  physicalExam: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
   vitalSigns: {
     temperature: String,
     bloodPressure: String,

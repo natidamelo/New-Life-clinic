@@ -61,7 +61,7 @@ const MedicalRecordVersionSchema = new Schema({
   socialHistory: String,
   allergies: String,
   reviewOfSystems: String,
-  physicalExam: String,
+  physicalExam: Schema.Types.Mixed,
   diagnosis: String,
   plan: String,
   attachments: [String],
