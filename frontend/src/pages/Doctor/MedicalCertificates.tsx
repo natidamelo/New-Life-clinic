@@ -41,6 +41,13 @@ const MedicalCertificates: React.FC = () => {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [showPatientSearch, setShowPatientSearch] = useState(false);
   
+  // Upgraded patient search states
+  const [patientSearchLoading, setPatientSearchLoading] = useState(false);
+  const [focusedPatientIndex, setFocusedPatientIndex] = useState(-1);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [recentPatients, setRecentPatients] = useState<Patient[]>([]);
+  const searchContainerRef = React.useRef<HTMLDivElement>(null);
+
   // Edit mode: when set, form submits as PUT instead of POST
   const [editingCertificateId, setEditingCertificateId] = useState<string | null>(null);
   
@@ -357,26 +364,28 @@ const MedicalCertificates: React.FC = () => {
       toast.error('Please enter a search term');
       return;
     }
+    await performSearch(searchTerm);
+  };
 
-    setLoading(true);
+  const performSearch = async (query: string) => {
+    if (!query.trim()) {
+      setPatients([]);
+      return;
+    }
+
+    setPatientSearchLoading(true);
     try {
-      // Check authentication status
       if (!isAuthenticated()) {
-        toast.error('Authentication required. Please log in.');
-        setLoading(false);
+        setPatientSearchLoading(false);
         return;
       }
-
-      // Get authentication headers
       const authHeaders = getAuthHeaders();
       if (!authHeaders.Authorization) {
-        toast.error('No valid authentication token found. Please log in.');
-        setLoading(false);
+        setPatientSearchLoading(false);
         return;
       }
 
-      // Use the correct API endpoint with proper authentication
-      const response = await fetch(`${API_BASE_URL}/api/patients/search?q=${encodeURIComponent(searchTerm)}&limit=10`, {
+      const response = await fetch(`${API_BASE_URL}/api/patients/search?q=${encodeURIComponent(query)}&limit=10`, {
         method: 'GET',
         headers: authHeaders
       });
@@ -384,22 +393,32 @@ const MedicalCertificates: React.FC = () => {
       if (response.ok) {
         const result = await response.json();
         setPatients(result.data || []);
-        console.log(`[MedicalCertificates] Found ${result.data?.length || 0} patients`);
-      } else if (response.status === 401) {
-        console.error('[MedicalCertificates] 401 Unauthorized - authentication failed');
-        toast.error('Session expired. Please log in again.');
-        clearAuthData();
-        window.location.href = '/login';
-      } else {
-        console.error('[MedicalCertificates] API error:', response.status, response.statusText);
-        toast.error('Failed to search patients');
+        setFocusedPatientIndex(-1);
+        setIsDropdownOpen(true);
       }
     } catch (error) {
       console.error('[MedicalCertificates] Error searching patients:', error);
-      handleAuthError(error);
-      toast.error('Network error searching patients');
     } finally {
-      setLoading(false);
+      setPatientSearchLoading(false);
+    }
+  };
+
+  const loadRecentPatients = async () => {
+    if (!isAuthenticated()) return;
+    const authHeaders = getAuthHeaders();
+    if (!authHeaders.Authorization) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/patients/quick-load?limit=5`, {
+        method: 'GET',
+        headers: authHeaders
+      });
+      if (response.ok) {
+        const result = await response.json();
+        setRecentPatients(result.patients || result.data || []);
+      }
+    } catch (err) {
+      console.error('Error loading recent patients:', err);
     }
   };
 
@@ -418,23 +437,76 @@ const MedicalCertificates: React.FC = () => {
       patientPhone: patient.contactNumber || ''
     }));
     setShowPatientSearch(false);
-    setSearchTerm(''); // Clear the search term
-    setPatients([]); // Clear the search results
+    setIsDropdownOpen(false);
+    setSearchTerm('');
+    setPatients([]);
+    setRecentPatients([]);
+    setFocusedPatientIndex(-1);
     toast.success('Patient information loaded');
   };
 
   const clearSearch = () => {
     setShowPatientSearch(false);
+    setIsDropdownOpen(false);
     setSearchTerm('');
     setPatients([]);
+    setRecentPatients([]);
+    setFocusedPatientIndex(-1);
   };
 
-  // Handle keyboard events
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape' && patients.length > 0) {
-      clearSearch();
+    const listToNavigate = searchTerm.trim() ? patients : recentPatients;
+    
+    if (e.key === 'Escape') {
+      setIsDropdownOpen(false);
+      e.preventDefault();
+    } else if (e.key === 'ArrowDown') {
+      if (!isDropdownOpen) {
+        setIsDropdownOpen(true);
+        setFocusedPatientIndex(0);
+      } else {
+        setFocusedPatientIndex(prev => 
+          prev < listToNavigate.length - 1 ? prev + 1 : prev
+        );
+      }
+      e.preventDefault();
+    } else if (e.key === 'ArrowUp') {
+      setFocusedPatientIndex(prev => (prev > 0 ? prev - 1 : 0));
+      e.preventDefault();
+    } else if (e.key === 'Enter') {
+      if (isDropdownOpen && focusedPatientIndex >= 0 && focusedPatientIndex < listToNavigate.length) {
+        selectPatient(listToNavigate[focusedPatientIndex]);
+        e.preventDefault();
+      }
     }
   };
+
+  // Debounce search effect
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setPatients([]);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(() => {
+      performSearch(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
+
+  // Click outside search container effect
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Filter certificates based on search term
   const filteredCertificates = certificates.filter(cert => {
@@ -1367,52 +1439,163 @@ const MedicalCertificates: React.FC = () => {
               <h3 className="text-lg font-medium mb-4">Patient Information</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div ref={searchContainerRef} className="relative">
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     Patient Search
                   </label>
-                  <div className="flex gap-2">
+                  <div className="relative flex items-center">
+                    {/* Search Icon */}
+                    <div className="absolute left-3 text-muted-foreground/50">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+
                     <input
                       type="text"
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setIsDropdownOpen(true);
+                      }}
+                      onFocus={() => {
+                        setIsDropdownOpen(true);
+                        if (!searchTerm.trim()) {
+                          loadRecentPatients();
+                        }
+                      }}
                       onKeyDown={handleKeyDown}
                       placeholder="Search by name, ID, or phone..."
-                      className="flex-1 px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full pl-10 pr-10 py-2.5 border border-border/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-primary-foreground text-foreground placeholder-muted-foreground/60 transition-all shadow-sm"
                     />
-                    <button
-                      type="button"
-                      onClick={searchPatients}
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary"
-                    >
-                      Search
-                    </button>
-                  </div>
-                  
-                  {patients.length > 0 && (
-                    <div className="mt-2 border rounded-md max-h-40 overflow-y-auto relative">
-                      <button
-                        type="button"
-                        onClick={clearSearch}
-                        className="absolute top-2 right-2 text-muted-foreground/50 hover:text-muted-foreground z-10"
-                        title="Close search results"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                      {patients.map((patient) => (
-                        <div
-                          key={patient._id}
-                          onClick={() => selectPatient(patient)}
-                          className="p-2 hover:bg-muted/10 cursor-pointer border-b last:border-b-0"
+
+                    {/* Clear or Spinner Icon */}
+                    <div className="absolute right-3 flex items-center gap-1">
+                      {patientSearchLoading ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+                      ) : searchTerm ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            clearSearch();
+                            setIsDropdownOpen(false);
+                          }}
+                          className="p-1 text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/20 rounded-full transition-colors"
+                          title="Clear search"
                         >
-                          <div className="font-medium">{patient.firstName} {patient.lastName}</div>
-                          <div className="text-sm text-muted-foreground">
-                            ID: {patient.patientId || 'N/A'} | Age: {patient.age} | Gender: {patient.gender} | Phone: {patient.contactNumber}
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {/* Dropdown Results Card */}
+                  {isDropdownOpen && (
+                    <div className="absolute left-0 right-0 mt-2 bg-primary-foreground/95 backdrop-blur-md border border-border/80 rounded-xl shadow-2xl z-[100] max-h-80 overflow-y-auto overflow-x-hidden transition-all duration-200">
+                      {/* Search Results */}
+                      {searchTerm.trim() ? (
+                        patients.length > 0 ? (
+                          <div className="py-1 divide-y divide-border/20">
+                            <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider bg-muted/5">
+                              Search Results
+                            </div>
+                            {patients.map((patient, index) => (
+                              <div
+                                key={patient._id}
+                                onClick={() => selectPatient(patient)}
+                                onMouseEnter={() => setFocusedPatientIndex(index)}
+                                className={`px-4 py-3 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-1 transition-colors ${
+                                  focusedPatientIndex === index 
+                                    ? 'bg-primary/10 text-primary' 
+                                    : 'hover:bg-muted/5'
+                                }`}
+                              >
+                                <div>
+                                  <div className="font-semibold text-foreground">
+                                    {patient.firstName} {patient.lastName}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground/80 mt-0.5 font-mono">
+                                    ID: {patient.patientId || 'N/A'}
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5 mt-1 md:mt-0 text-xs">
+                                  <span className="px-2 py-0.5 bg-muted rounded-full text-muted-foreground font-medium">
+                                    {patient.gender}
+                                  </span>
+                                  <span className="px-2 py-0.5 bg-muted rounded-full text-muted-foreground font-medium">
+                                    {patient.age} yrs
+                                  </span>
+                                  {patient.contactNumber && (
+                                    <span className="px-2 py-0.5 bg-muted rounded-full text-muted-foreground font-medium">
+                                      📞 {patient.contactNumber}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        </div>
-                      ))}
+                        ) : (
+                          !patientSearchLoading && (
+                            <div className="p-6 text-center text-muted-foreground">
+                              <svg className="w-8 h-8 mx-auto text-muted-foreground/30 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <p className="font-medium text-sm">No patients found</p>
+                              <p className="text-xs text-muted-foreground/80 mt-1">Try a different name, ID, or phone number</p>
+                            </div>
+                          )
+                        )
+                      ) : (
+                        /* Recent Patients / Suggestions when empty */
+                        recentPatients.length > 0 ? (
+                          <div className="py-1 divide-y divide-border/20">
+                            <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider bg-muted/5 flex items-center justify-between">
+                              <span>Recent Patients</span>
+                              <span className="text-[10px] text-muted-foreground/50 lowercase normal-case">quick select</span>
+                            </div>
+                            {recentPatients.map((patient, index) => (
+                              <div
+                                key={patient._id}
+                                onClick={() => selectPatient(patient)}
+                                onMouseEnter={() => setFocusedPatientIndex(index)}
+                                className={`px-4 py-3 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-1 transition-colors ${
+                                  focusedPatientIndex === index 
+                                    ? 'bg-primary/10 text-primary' 
+                                    : 'hover:bg-muted/5'
+                                }`}
+                              >
+                                <div>
+                                  <div className="font-semibold text-foreground">
+                                    {patient.firstName} {patient.lastName}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground/80 mt-0.5 font-mono">
+                                    ID: {patient.patientId || 'N/A'}
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5 mt-1 md:mt-0 text-xs">
+                                  <span className="px-2 py-0.5 bg-muted rounded-full text-muted-foreground font-medium">
+                                    {patient.gender}
+                                  </span>
+                                  <span className="px-2 py-0.5 bg-muted rounded-full text-muted-foreground font-medium">
+                                    {patient.age} yrs
+                                  </span>
+                                  {patient.contactNumber && (
+                                    <span className="px-2 py-0.5 bg-muted rounded-full text-muted-foreground font-medium">
+                                      📞 {patient.contactNumber}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-4 text-center text-xs text-muted-foreground">
+                            Type to search for patients in the system.
+                          </div>
+                        )
+                      )}
                     </div>
                   )}
                 </div>
