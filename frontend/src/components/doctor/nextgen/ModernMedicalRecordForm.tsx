@@ -1735,15 +1735,21 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
         if (data.success && data.data) {
           setNurseVitalSigns(data.data);
           
+          // Construct blood pressure string from systolic/diastolic if raw field not present
+          const bpString = data.data.bloodPressure || 
+            (data.data.systolic && data.data.diastolic ? `${data.data.systolic}/${data.data.diastolic}` : '');
+          const hrValue = data.data.heartRate || data.data.pulse || '';
+          const spo2Value = data.data.oxygenSaturation || data.data.spo2 || '';
+
           // Auto-populate the form with nurse vital signs
           setFormData(prev => ({
             ...prev,
             vitalSigns: {
               temperature: data.data.temperature || '',
-              bloodPressure: data.data.bloodPressure || '',
-              heartRate: data.data.heartRate || '',
+              bloodPressure: bpString,
+              heartRate: hrValue,
               respiratoryRate: data.data.respiratoryRate || '',
-              oxygenSaturation: data.data.oxygenSaturation || '',
+              oxygenSaturation: spo2Value,
               height: data.data.height || '',
               weight: data.data.weight || '',
               bmi: data.data.bmi || ''
@@ -1753,10 +1759,10 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
               vitals: {
                 ...prev.physicalExam.vitals,
                 temperature: data.data.temperature || '',
-                bloodPressure: data.data.bloodPressure || '',
-                heartRate: data.data.heartRate || '',
+                bloodPressure: bpString,
+                heartRate: hrValue,
                 respiratoryRate: data.data.respiratoryRate || '',
-                spo2: data.data.oxygenSaturation || '',
+                spo2: spo2Value,
                 height: data.data.height || '',
                 weight: data.data.weight || '',
                 bmi: data.data.bmi || ''
