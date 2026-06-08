@@ -974,6 +974,15 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
     }
   };
 
+  const mapDepartmentToSpecialty = (dept?: string): string => {
+    if (!dept) return 'general';
+    const d = dept.toLowerCase().trim();
+    if (d === 'pediatrics' || d === 'pediatric') return 'pediatrics';
+    if (d === 'cardiology' || d === 'cardio') return 'cardiology';
+    if (d === 'gynecology' || d === 'obstetrics & gynecology' || d === 'ob-gyn' || d === 'gynae' || d === 'gynecological') return 'gynecology';
+    return 'general';
+  };
+
   const [patientData, setPatientData] = useState(() => {
     // Calculate age from date of birth if not provided
     let calculatedAge = propPatientData?.age || 0;
@@ -988,7 +997,8 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
       gender: propPatientData?.gender || '',
       id: propPatientData?.patientId || propPatientData?._id || propPatientData?.id || '',
       phone: propPatientData?.phone || propPatientData?.contactNumber || '',
-      avatar: propPatientData?.avatar || '/assets/images/logo-placeholder.svg'
+      avatar: propPatientData?.avatar || '/assets/images/logo-placeholder.svg',
+      department: propPatientData?.department || ''
     };
     
     console.log('🔍 [ModernMedicalRecordForm] Initial patient data:', initialPatientData);
@@ -1647,8 +1657,20 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
           gender: propPatientData.gender || 'Unknown',
           id: propPatientData.patientId || propPatientData._id || propPatientData.id || 'Unknown',
           phone: propPatientData.phone || propPatientData.contactNumber || 'Unknown',
-          avatar: propPatientData.avatar || '/assets/images/logo-placeholder.svg'
+          avatar: propPatientData.avatar || '/assets/images/logo-placeholder.svg',
+          department: propPatientData.department || ''
         });
+
+        // Also update specialty if in create mode and no recordId/currentRecordId is present
+        if (mode === 'create' && !recordId && !currentRecordId) {
+          const defaultSpecialty = mapDepartmentToSpecialty(propPatientData.department);
+          console.log('🔍 [ModernMedicalRecordForm] Set default specialty from props department:', defaultSpecialty);
+          setFormData(prev => ({
+            ...prev,
+            specialty: defaultSpecialty
+          }));
+        }
+
         setLoading(false);
         return;
       }
@@ -1688,11 +1710,22 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
             gender: patient.gender || 'Unknown',
             id: patient.patientId || patient._id || 'Unknown',
             phone: patient.phone || patient.contactNumber || 'Unknown',
-            avatar: patient.avatar || '/assets/images/logo-placeholder.svg'
+            avatar: patient.avatar || '/assets/images/logo-placeholder.svg',
+            department: patient.department || ''
           };
           
           console.log('🔍 [ModernMedicalRecordForm] Setting patient data:', updatedPatientData);
           setPatientData(updatedPatientData);
+
+          // Also update specialty if in create mode and no recordId/currentRecordId is present
+          if (mode === 'create' && !recordId && !currentRecordId) {
+            const defaultSpecialty = mapDepartmentToSpecialty(patient.department);
+            console.log('🔍 [ModernMedicalRecordForm] Set default specialty from fetched department:', defaultSpecialty);
+            setFormData(prev => ({
+              ...prev,
+              specialty: defaultSpecialty
+            }));
+          }
         } else {
           console.warn('No patient data returned for ID:', patientId);
           console.error('Patient not found');
@@ -3501,6 +3534,18 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
             chiefComplaint: loadedForm.chiefComplaint.description,
             status: record.status
           });
+        } else {
+          // No record found, meaning this is a completely new record.
+          // Set the default specialty based on the patient's department.
+          const dept = patientData?.department || propPatientData?.department;
+          if (dept) {
+            const defaultSpecialty = mapDepartmentToSpecialty(dept);
+            console.log('🔍 [ModernMedicalRecordForm] New record (fallback): defaulting specialty to:', defaultSpecialty, 'based on department:', dept);
+            setFormData(prev => ({
+              ...prev,
+              specialty: defaultSpecialty
+            }));
+          }
         }
       } catch (err) {
         console.error('Error loading medical record:', err);

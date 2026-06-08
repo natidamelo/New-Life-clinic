@@ -4182,6 +4182,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
               recordId={selectedPatientObject._recordId}
               mode={selectedPatientObject._mode || "create"}
               initialRecordData={selectedPatientObject._existingRecordData}
+              patientData={selectedPatientObject}
               onCreatePrescription={() => handleOpenCreatePrescription(selectedPatientObject)}
               onOrderLabTest={() => handleOpenOrderLabTest(selectedPatientObject)}
               onRequestImaging={() => handleOpenRequestImaging(selectedPatientObject)}
