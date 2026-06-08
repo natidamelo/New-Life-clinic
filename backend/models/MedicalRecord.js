@@ -341,6 +341,16 @@ const medicalRecordSchema = new mongoose.Schema({
       default: false
     }
   },
+  specialty: {
+    type: String,
+    default: 'general',
+    index: true,
+    trim: true
+  },
+  details: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  },
   createdAt: {
     type: Date,
     default: Date.now

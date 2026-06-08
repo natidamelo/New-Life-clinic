@@ -4,6 +4,9 @@ import { createPortal } from 'react-dom';
 // import MemorySystemControls from '../MemorySystemControls';
 import { getAuthToken } from '../../../utils/authToken';
 import AIAssistantService from '../../../services/aiAssistantService';
+import { specialtyConfigs, specialtyColors } from '../../../config/specialtyConfigs';
+import { MedicalRecordContext } from '../../../contexts/MedicalRecordContext';
+import { DynamicSpecialtyFields } from '../../medical/DynamicSpecialtyFields';
 import { toast } from 'react-toastify';
 import MedicalRecordErrorBoundary from './MedicalRecordErrorBoundary';
 import {
@@ -849,6 +852,9 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [patientHistory, setPatientHistory] = useState([]);
   const [latestNurseVitals, setLatestNurseVitals] = useState<any | null>(null);
+  const [filterSpecialty, setFilterSpecialty] = useState<string>('All');
+  const [dismissedPediatricSuggestion, setDismissedPediatricSuggestion] = useState(false);
+  const [showPediatricSuggestion, setShowPediatricSuggestion] = useState(false);
   
   // Debug: Monitor dialog state changes
   useEffect(() => {
@@ -1642,6 +1648,8 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
 
   // Form state
   const [formData, setFormData] = useState({
+    specialty: 'general',
+    details: {} as Record<string, any>,
     chiefComplaint: {
       description: '',
       duration: '',
@@ -2243,9 +2251,7 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
 
   // Debounced HPI suggestion update when chief complaint changes
   useEffect(() => {
-    const ccDescription = typeof formData.chiefComplaint === 'string'
-      ? formData.chiefComplaint
-      : (formData.chiefComplaint as any)?.description || '';
+    const ccDescription = formData.chiefComplaint.description || '';
 
     if (hpiDebounceRef.current) clearTimeout(hpiDebounceRef.current);
     hpiDebounceRef.current = setTimeout(() => {
@@ -2256,6 +2262,28 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
       if (hpiDebounceRef.current) clearTimeout(hpiDebounceRef.current);
     };
   }, [formData.chiefComplaint]);
+
+  // Pediatric suggestion banner logic
+  useEffect(() => {
+    if (patientData.age > 0 && patientData.age < 12 && (formData.specialty || 'general') !== 'pediatrics' && !dismissedPediatricSuggestion) {
+      setShowPediatricSuggestion(true);
+    } else {
+      setShowPediatricSuggestion(false);
+    }
+  }, [patientData.age, formData.specialty, dismissedPediatricSuggestion]);
+
+  // Details helper change handler
+  const handleDetailsChange = (name: string, value: any) => {
+    const updated = {
+      ...formData,
+      details: {
+        ...formData.details,
+        [name]: value
+      }
+    };
+    setFormData(updated);
+    if (!isFirstRender.current) autoSaveDraft(updated);
+  };
 
   const steps = [
     {
@@ -2420,6 +2448,8 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
         patient: patientId,
         doctor: userId,
         status: finalize ? 'Finalized' : 'Draft', // Set status based on finalize parameter
+        specialty: formData.specialty || 'general',
+        details: formData.details || {},
         chiefComplaint: {
           description: typeof formData.chiefComplaint === 'string' ? formData.chiefComplaint : formData.chiefComplaint.description || '',
           duration: formData.chiefComplaint.duration || '',
@@ -2830,6 +2860,8 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           
           // Immediately map and set the form data
           const loadedForm = {
+            specialty: record.specialty || 'general',
+            details: record.details || {},
             chiefComplaint: {
               description: record.chiefComplaint?.description || record.chiefComplaint || '',
               duration: record.chiefComplaint?.duration || '',
@@ -3092,6 +3124,8 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
 
           // Map backend data to local formData structure (same as before)
           const loadedForm = {
+            specialty: record.specialty || 'general',
+            details: record.details || {},
             chiefComplaint: {
               description: record.chiefComplaint?.description || '',
               duration: record.chiefComplaint?.duration || '',
@@ -3246,6 +3280,68 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
               sx={{ height: 22, fontSize: '0.78rem' }}
             />
           )}
+          
+          {/* Specialty Selector Pills */}
+          <Box display="flex" gap={1} alignItems="center" mt={1.5} flexWrap="wrap">
+            {['general', 'pediatrics', 'gynecology', 'cardiology'].map((specKey) => {
+              const specColors = specialtyColors[specKey as keyof typeof specialtyColors] || specialtyColors.general;
+              const isActive = (formData.specialty || 'general') === specKey;
+              const label = specKey.charAt(0).toUpperCase() + specKey.slice(1);
+              
+              return (
+                <Chip
+                  key={specKey}
+                  label={label}
+                  onClick={() => {
+                    const oldSpecialty = formData.specialty || 'general';
+                    const updatedDetails = { ...formData.details };
+                    const oldConfig = specialtyConfigs[oldSpecialty as keyof typeof specialtyConfigs];
+                    if (oldConfig) {
+                      Object.values(oldConfig).forEach((fieldsList: any) => {
+                        fieldsList.forEach((field: any) => {
+                          delete updatedDetails[field.name];
+                        });
+                      });
+                    }
+                    const updated = {
+                      ...formData,
+                      specialty: specKey,
+                      details: updatedDetails
+                    };
+                    setFormData(updated);
+                    if (!isFirstRender.current) autoSaveDraft(updated);
+                  }}
+                  sx={{
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '0.78rem',
+                    height: 26,
+                    transition: 'all 0.2s',
+                    ...(isActive
+                      ? {
+                          bgcolor: specColors.bg,
+                          color: specColors.text,
+                          border: `1.5px solid ${specColors.border}`,
+                          '&:hover': { bgcolor: specColors.bg }
+                        }
+                      : {
+                          bgcolor: 'grey.100',
+                          color: 'text.secondary',
+                          border: '1.5px solid transparent',
+                          '&:hover': { bgcolor: 'grey.200' }
+                        })
+                  }}
+                />
+              );
+            })}
+            <Chip
+              label="+ Add More"
+              onClick={() => toast.info('Additional specialties can be configured by system administrators.')}
+              variant="outlined"
+              size="small"
+              sx={{ height: 26, fontSize: '0.78rem', borderStyle: 'dashed', cursor: 'pointer' }}
+            />
+          </Box>
         </Box>
         {/* Quality progress bar */}
         <LinearProgress
@@ -3363,6 +3459,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
       {steps.map((step, index) => {
         const isActive = index === activeStep;
         const isCompleted = index < activeStep;
+        const specColors = specialtyColors[(formData.specialty || 'general') as keyof typeof specialtyColors] || specialtyColors.general;
         return (
           <Box
             key={step.label}
@@ -3374,12 +3471,13 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
               px: 2,
               py: 1.5,
               cursor: 'pointer',
-              bgcolor: isActive ? 'primary.main' : 'transparent',
+              bgcolor: isActive ? specColors.bg : 'transparent',
+              borderLeft: isActive ? `4px solid ${specColors.border}` : '4px solid transparent',
               borderBottom: index < steps.length - 1 ? '1px solid' : 'none',
               borderColor: 'divider',
-              transition: 'background 0.15s',
+              transition: 'all 0.15s',
               '&:hover': {
-                bgcolor: isActive ? 'primary.dark' : 'action.hover',
+                bgcolor: isActive ? specColors.bg : 'action.hover',
               },
             }}
           >
@@ -3392,7 +3490,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
-                bgcolor: isActive ? 'rgba(255,255,255,0.2)' : isCompleted ? 'success.main' : 'grey.200',
+                bgcolor: isActive ? specColors.border : isCompleted ? 'success.main' : 'grey.200',
                 color: isActive || isCompleted ? 'white' : 'text.secondary',
                 fontSize: '0.85rem',
                 fontWeight: 700,
@@ -3405,14 +3503,14 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                 variant="body2"
                 fontWeight={isActive ? 700 : 500}
                 noWrap
-                sx={{ color: isActive ? 'white' : 'text.primary', fontSize: '0.92rem' }}
+                sx={{ color: isActive ? specColors.text : 'text.primary', fontSize: '0.92rem' }}
               >
                 {step.label}
               </Typography>
               <Typography
                 variant="caption"
                 noWrap
-                sx={{ color: isActive ? 'rgba(255,255,255,0.75)' : 'text.secondary', fontSize: '0.78rem' }}
+                sx={{ color: isActive ? specColors.text : 'text.secondary', opacity: isActive ? 0.8 : 1, fontSize: '0.78rem' }}
               >
                 {step.description}
               </Typography>
@@ -3855,6 +3953,14 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                       />
                     </Grid>
                   </Grid>
+                  {/* Dynamic Specialty Fields */}
+                  <DynamicSpecialtyFields
+                    specialty={formData.specialty || 'general'}
+                    fields={specialtyConfigs[(formData.specialty || 'general') as keyof typeof specialtyConfigs]?.step1_patientHistory || []}
+                    details={formData.details || {}}
+                    onChange={handleDetailsChange}
+                    disabled={mode === 'view'}
+                  />
                 </Stack>
               </CardContent>
             </GradientCard>
@@ -5087,6 +5193,14 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                               </Paper>
                             </Grid>
                           ))}
+                      {/* Dynamic Specialty Fields */}
+                      <DynamicSpecialtyFields
+                        specialty={formData.specialty || 'general'}
+                        fields={specialtyConfigs[(formData.specialty || 'general') as keyof typeof specialtyConfigs]?.step2_physicalExam || []}
+                        details={formData.details || {}}
+                        onChange={handleDetailsChange}
+                        disabled={mode === 'view'}
+                      />
                       </Grid>
                 </Stack>
               </CardContent>
@@ -5605,6 +5719,14 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                             variant="outlined"
                             sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                           />
+                        {/* Dynamic Specialty Fields */}
+                        <DynamicSpecialtyFields
+                          specialty={formData.specialty || 'general'}
+                          fields={specialtyConfigs[(formData.specialty || 'general') as keyof typeof specialtyConfigs]?.step3_assessment || []}
+                          details={formData.details || {}}
+                          onChange={handleDetailsChange}
+                          disabled={mode === 'view'}
+                        />
                         </Grid>
                       </Grid>
             </CardContent>
@@ -5961,6 +6083,40 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           `}
         </style>
       )}
+      <MedicalRecordContext.Provider value={{
+        specialty: formData.specialty || 'general',
+        setSpecialty: (newSpecialty: string) => {
+          const oldSpecialty = formData.specialty || 'general';
+          const updatedDetails = { ...formData.details };
+          const oldConfig = specialtyConfigs[oldSpecialty as keyof typeof specialtyConfigs];
+          if (oldConfig) {
+            Object.values(oldConfig).forEach((fieldsList: any) => {
+              fieldsList.forEach((field: any) => {
+                delete updatedDetails[field.name];
+              });
+            });
+          }
+          const updated = {
+            ...formData,
+            specialty: newSpecialty,
+            details: updatedDetails
+          };
+          setFormData(updated);
+          if (!isFirstRender.current) autoSaveDraft(updated);
+        },
+        details: formData.details || {},
+        setDetails: (newDetailsOrFn: any) => {
+          setFormData(prev => {
+            const nextDetails = typeof newDetailsOrFn === 'function' ? newDetailsOrFn(prev.details || {}) : newDetailsOrFn;
+            const updated = {
+              ...prev,
+              details: nextDetails
+            };
+            if (!isFirstRender.current) autoSaveDraft(updated);
+            return updated;
+          });
+        }
+      }}>
       <Box
         className={mode === 'view' ? 'view-mode-form' : ''}
         sx={{
@@ -6176,84 +6332,151 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           </IconButton>
         </Box>
 
+        {/* Specialty Filter Tab Row */}
+        <Box sx={{ px: 2.5, py: 1.25, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', mr: 1, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.75rem' }}>
+            Filter Specialty:
+          </Typography>
+          {['All', 'General', 'Pediatrics', 'Gynecology', 'Cardiology'].map((spec) => {
+            const isActive = filterSpecialty === spec;
+            const specLower = spec.toLowerCase();
+            const colors = specialtyColors[specLower as keyof typeof specialtyColors] || { bg: '#EFF6FF', border: '#3B82F6', text: '#1D4ED8' };
+            
+            return (
+              <Chip
+                key={spec}
+                label={spec}
+                onClick={() => setFilterSpecialty(spec)}
+                sx={{
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  height: 24,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  ...(isActive
+                    ? {
+                        bgcolor: colors.bg,
+                        color: colors.text,
+                        border: `1px solid ${colors.border}`,
+                        '&:hover': { bgcolor: colors.bg }
+                      }
+                    : {
+                        bgcolor: 'grey.100',
+                        color: 'text.secondary',
+                        border: '1px solid transparent',
+                        '&:hover': { bgcolor: 'grey.200' }
+                      })
+                }}
+              />
+            );
+          })}
+        </Box>
+
         {/* Scrollable content — flex:1 with overflow:auto, no height constraints that fight flex */}
         <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflowY: 'auto', padding: '20px', backgroundColor: '#f5f7fa' }}>
-          {patientHistory.length > 0 ? (
-            <>
-              {patientHistory.map((record: any, index: number) => (
-                <Box
-                  key={record._id}
-                  sx={{
-                    borderRadius: 3,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    bgcolor: 'background.paper',
-                    overflow: 'hidden',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-                    transition: 'box-shadow 0.2s',
-                    '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }
-                  }}
-                >
-                  {/* Visit Header Bar */}
-                  <Box sx={{
-                    px: 2.5, py: 1.5,
-                    background: record.status === 'Finalized'
-                      ? 'linear-gradient(90deg, #e8f5e9 0%, #f1f8e9 100%)'
-                      : 'linear-gradient(90deg, #fff8e1 0%, #fffde7 100%)',
-                    borderBottom: '1px solid',
-                    borderColor: 'divider',
-                    display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap'
-                  }}>
-                    <Box sx={{
-                      width: 36, height: 36, borderRadius: 1.5,
-                      bgcolor: record.status === 'Finalized' ? 'success.main' : 'warning.main',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                    }}>
-                      <MedicalIcon sx={{ color: 'white', fontSize: '1.1rem' }} />
-                    </Box>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                        <Typography variant="subtitle1" fontWeight={700} sx={{ color: 'text.primary' }}>
-                          Visit — {new Date(record.visitDate || record.createdAt).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
-                        </Typography>
-                        <Chip
-                          label={record.status}
-                          size="small"
-                          color={record.status === 'Finalized' ? 'success' : 'warning'}
-                          sx={{ fontWeight: 600, fontSize: '0.72rem', height: 22 }}
-                        />
-                        {index === 0 && (
-                          <Chip label="Latest" size="small" color="primary" variant="outlined" sx={{ fontSize: '0.68rem', height: 20 }} />
-                        )}
-                      </Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {new Date(record.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        {(record.doctor?.firstName || record.doctor?.lastName) && ` · Dr. ${record.doctor?.firstName || ''} ${record.doctor?.lastName || ''}`.trim()}
-                      </Typography>
-                    </Box>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<EditIcon sx={{ fontSize: '0.85rem' }} />}
-                      onClick={() => {
-                        // Load this record's chief complaint and HPI into the current form
-                        const cc = record.chiefComplaint?.description || record.chiefComplaint || '';
-                        const hpi = record.historyOfPresentIllness || '';
-                        if (cc || hpi) {
-                          setFormData(prev => ({
-                            ...prev,
-                            chiefComplaint: { ...prev.chiefComplaint, description: cc || prev.chiefComplaint.description },
-                            historyOfPresentIllness: hpi || (prev as any).historyOfPresentIllness
-                          } as any));
-                          toast.success('Loaded into current record', { position: 'top-right', autoClose: 2000 });
-                          setHistoryDialogOpen(false);
-                        }
+          {(() => {
+            const filteredHistory = patientHistory.filter((record: any) => {
+              if (filterSpecialty === 'All') return true;
+              const spec = (record.specialty || 'general').toLowerCase();
+              return spec === filterSpecialty.toLowerCase();
+            });
+
+            return filteredHistory.length > 0 ? (
+              <>
+                {filteredHistory.map((record: any, index: number) => {
+                  const recSpecialty = record.specialty || 'general';
+                  const specColors = specialtyColors[recSpecialty as keyof typeof specialtyColors] || specialtyColors.general;
+                  return (
+                    <Box
+                      key={record._id}
+                      sx={{
+                        borderRadius: 3,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                        overflow: 'hidden',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                        transition: 'box-shadow 0.2s',
+                        '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }
                       }}
-                      sx={{ textTransform: 'none', fontSize: '0.72rem', flexShrink: 0 }}
                     >
-                      Load into Form
-                    </Button>
-                  </Box>
+                      {/* Visit Header Bar */}
+                      <Box sx={{
+                        px: 2.5, py: 1.5,
+                        background: record.status === 'Finalized'
+                          ? 'linear-gradient(90deg, #e8f5e9 0%, #f1f8e9 100%)'
+                          : 'linear-gradient(90deg, #fff8e1 0%, #fffde7 100%)',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                        display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap'
+                      }}>
+                        <Box sx={{
+                          width: 36, height: 36, borderRadius: 1.5,
+                          bgcolor: record.status === 'Finalized' ? 'success.main' : 'warning.main',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                        }}>
+                          <MedicalIcon sx={{ color: 'white', fontSize: '1.1rem' }} />
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                            <Typography variant="subtitle1" fontWeight={700} sx={{ color: 'text.primary' }}>
+                              Visit — {new Date(record.visitDate || record.createdAt).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                            </Typography>
+                            <Chip
+                              label={record.status}
+                              size="small"
+                              color={record.status === 'Finalized' ? 'success' : 'warning'}
+                              sx={{ fontWeight: 600, fontSize: '0.72rem', height: 22 }}
+                            />
+                            {/* Specialty Badge */}
+                            <Chip
+                              label={recSpecialty.charAt(0).toUpperCase() + recSpecialty.slice(1)}
+                              size="small"
+                              sx={{
+                                bgcolor: specColors.bg,
+                                color: specColors.text,
+                                border: `1px solid ${specColors.border}`,
+                                fontWeight: 600,
+                                fontSize: '0.72rem',
+                                height: 22
+                              }}
+                            />
+                            {index === 0 && (
+                              <Chip label="Latest" size="small" color="primary" variant="outlined" sx={{ fontSize: '0.68rem', height: 20 }} />
+                            )}
+                          </Box>
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(record.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            {(record.doctor?.firstName || record.doctor?.lastName) && ` · Dr. ${record.doctor?.firstName || ''} ${record.doctor?.lastName || ''}`.trim()}
+                          </Typography>
+                        </Box>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<EditIcon sx={{ fontSize: '0.85rem' }} />}
+                          onClick={() => {
+                            // Load this record's chief complaint and HPI into the current form
+                            const cc = record.chiefComplaint?.description || record.chiefComplaint || '';
+                            const hpi = record.historyOfPresentIllness || '';
+                            const spec = record.specialty || 'general';
+                            const details = record.details || {};
+                            if (cc || hpi) {
+                              setFormData(prev => ({
+                                ...prev,
+                                specialty: spec,
+                                details: details,
+                                chiefComplaint: { ...prev.chiefComplaint, description: cc || prev.chiefComplaint.description },
+                                historyOfPresentIllness: hpi || (prev as any).historyOfPresentIllness
+                              } as any));
+                              toast.success('Loaded into current record', { position: 'top-right', autoClose: 2000 });
+                              setHistoryDialogOpen(false);
+                            }
+                          }}
+                          sx={{ textTransform: 'none', fontSize: '0.72rem', flexShrink: 0 }}
+                        >
+                          Load into Form
+                        </Button>
+                      </Box>
 
                   {/* Content — single column so everything is always visible */}
                   <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -6652,19 +6875,58 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                           </Typography>
                         </Box>
                       )}
+                      {/* Specialty Details Card */}
+                      {record.details && Object.keys(record.details).length > 0 && (
+                        <Box sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          bgcolor: specColors.bg,
+                          border: `1px solid ${specColors.border}`,
+                          mt: 1.5
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+                            <MedicalIcon sx={{ fontSize: '0.95rem', color: specColors.text }} />
+                            <Typography variant="caption" fontWeight={700} sx={{ color: specColors.text, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.68rem' }}>
+                              {recSpecialty.charAt(0).toUpperCase() + recSpecialty.slice(1)} Details
+                            </Typography>
+                          </Box>
+                          <Grid container spacing={1}>
+                            {Object.entries(record.details).map(([key, value]) => {
+                              let label = key;
+                              const config = specialtyConfigs[recSpecialty as keyof typeof specialtyConfigs];
+                              if (config) {
+                                Object.values(config).forEach((fieldsList: any) => {
+                                  const field = fieldsList.find((f: any) => f.name === key);
+                                  if (field) label = field.label;
+                                });
+                              }
+                              return (
+                                <Grid key={key} size={{ xs: 6, sm: 4 }}>
+                                  <Typography variant="caption" color="text.secondary" display="block">{label}</Typography>
+                                  <Typography variant="body2" fontWeight={600} color="text.primary">
+                                    {Array.isArray(value) ? value.join(', ') : value?.toString() || '—'}
+                                  </Typography>
+                                </Grid>
+                              );
+                            })}
+                          </Grid>
+                        </Box>
+                      )}
                   </Box>
                 </Box>
-              ))}
+                );
+              })}
             </>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 8, gap: 2 }}>
-              <Box sx={{ width: 64, height: 64, borderRadius: '50%', bgcolor: '#e3f2fd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <HistoryIcon sx={{ fontSize: '2rem', color: '#1976d2' }} />
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 8, gap: 2 }}>
+                <Box sx={{ width: 64, height: 64, borderRadius: '50%', bgcolor: '#e3f2fd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <HistoryIcon sx={{ fontSize: '2rem', color: '#1976d2' }} />
+                </Box>
+                <Typography variant="h6" color="text.secondary">No Medical Records Found</Typography>
+                <Typography variant="body2" color="text.disabled">This patient has no previous visit records.</Typography>
               </Box>
-              <Typography variant="h6" color="text.secondary">No Medical Records Found</Typography>
-              <Typography variant="body2" color="text.disabled">This patient has no previous visit records.</Typography>
-            </Box>
-          )}
+            );
+          })()}
         </div>{/* end scrollable content */}
         {/* Footer */}
         <div style={{ padding: '12px 24px', borderTop: '1px solid #e0e0e0', display: 'flex', justifyContent: 'flex-end', backgroundColor: '#fff', flexShrink: 0, borderRadius: '0 0 12px 12px' }}>
@@ -7153,6 +7415,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
         </DialogActions>
       </Dialog>
     </Box>
+    </MedicalRecordContext.Provider>
     </>
   );
 };

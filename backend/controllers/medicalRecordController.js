@@ -166,40 +166,57 @@ const getMedicalRecordById = async (req, res) => {
     const MedicalRecord = require('../models/MedicalRecord');
     const recordId = req.params.id;
     
-    console.log(`[GET BY ID] Fetching medical record: ${recordId}`);
+    console.log(`[GET BY ID/PATIENT] Fetching medical record or patient history for: ${recordId}`);
     
-    // Fetch the record with full population
-    const record = await MedicalRecord.findById(recordId)
-      .populate('patient', 'firstName lastName patientId dateOfBirth gender phone email')
-      .populate('doctor', 'firstName lastName specialization')
-      .populate('nurse', 'firstName lastName')
-      .lean()
-      .maxTimeMS(10000);
-    
-    if (!record) {
-      console.log(`[GET BY ID] No record found for ID: ${recordId}`);
-      return res.status(404).json({
-        success: false,
-        message: 'Medical record not found',
-        recordId: recordId
+    // 1. Try to find a single medical record by ID
+    let record = null;
+    try {
+      record = await MedicalRecord.findById(recordId)
+        .populate('patient', 'firstName lastName patientId dateOfBirth gender phone email')
+        .populate('doctor', 'firstName lastName specialization')
+        .lean()
+        .maxTimeMS(10000);
+    } catch (err) {
+      console.error(`[GET BY ID/PATIENT] ID ${recordId} query failed:`, err);
+    }
+
+    if (record) {
+      console.log(`[GET BY ID/PATIENT] Found single record for ID: ${recordId}`);
+      return res.json({
+        success: true,
+        message: 'Medical record retrieved successfully',
+        data: record
       });
     }
+
+    // 2. If no single record exists, query all records for this patient ID
+    console.log(`[GET BY ID/PATIENT] No single record found. Querying by patientId: ${recordId}`);
+    const patientRecords = await MedicalRecord.find({
+      $or: [
+        { patient: recordId },
+        { patientId: recordId }
+      ],
+      isDeleted: { $ne: true }
+    })
+      .populate('patient', 'firstName lastName dateOfBirth gender patientId')
+      .populate('patientId', 'firstName lastName dateOfBirth gender patientId')
+      .populate('doctor', 'firstName lastName')
+      .populate('doctorId', 'firstName lastName')
+      .populate('createdBy', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    console.log(`[GET BY ID/PATIENT] Found ${patientRecords.length} records for patient: ${recordId}`);
     
-    console.log(`[GET BY ID] Found record:`, {
-      id: record._id,
-      patient: record.patient,
-      status: record.status,
-      hasChiefComplaint: !!record.chiefComplaint,
-      hasPlan: !!record.plan
-    });
-    
-    res.json({
+    // If we found records (or even if we didn't, but the ID was intended as a patient ID), return them
+    return res.json({
       success: true,
-      message: 'Medical record retrieved successfully',
-      data: record
+      data: patientRecords,
+      count: patientRecords.length,
+      message: 'Patient medical records retrieved successfully'
     });
   } catch (error) {
-    console.error('Error fetching medical record by ID:', error);
+    console.error('Error fetching medical record or patient history:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -214,6 +231,21 @@ const createMedicalRecord = async (req, res) => {
     console.log('[CREATE MEDICAL RECORD] Request body:', req.body);
     console.log('[CREATE MEDICAL RECORD] User data:', req.user);
     
+    // Enforce specialty is present
+    if (!req.body.specialty) {
+      return res.status(400).json({
+        success: false,
+        message: 'Specialty is required'
+      });
+    }
+
+    // Map status equivalents (case-insensitive draft -> Draft, final -> Finalized)
+    if (req.body.status) {
+      const statusLower = req.body.status.toLowerCase();
+      if (statusLower === 'draft') req.body.status = 'Draft';
+      else if (statusLower === 'final' || statusLower === 'finalized') req.body.status = 'Finalized';
+    }
+
     const MedicalRecord = require('../models/MedicalRecord');
     
     // Check if the record is being created with Finalized status
@@ -283,6 +315,21 @@ const updateMedicalRecord = async (req, res) => {
     console.log('[UPDATE MEDICAL RECORD] Request body:', req.body);
     console.log('[UPDATE MEDICAL RECORD] User data:', req.user);
     
+    // Enforce specialty is present
+    if (!req.body.specialty) {
+      return res.status(400).json({
+        success: false,
+        message: 'Specialty is required'
+      });
+    }
+
+    // Map status equivalents (case-insensitive draft -> Draft, final -> Finalized)
+    if (req.body.status) {
+      const statusLower = req.body.status.toLowerCase();
+      if (statusLower === 'draft') req.body.status = 'Draft';
+      else if (statusLower === 'final' || statusLower === 'finalized') req.body.status = 'Finalized';
+    }
+
     const MedicalRecord = require('../models/MedicalRecord');
     
     // Get the existing record to check current status

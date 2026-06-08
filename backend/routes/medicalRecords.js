@@ -1183,6 +1183,116 @@ router.delete('/:id', [auth,
 ], medicalRecordController.deleteMedicalRecord);
 
 /**
+ * @route   PATCH /api/medical-records/:id
+ * @desc    Update/save draft of a medical record
+ * @access  Private (Doctors)
+ */
+router.patch('/:id', [auth,
+  checkPermission('managePatients'),
+  validate.id
+], medicalRecordController.updateMedicalRecord);
+
+/**
+ * @route   PUT /api/medical-records/:id/finalize
+ * @desc    Finalize a medical record
+ * @access  Private (Doctors)
+ */
+router.put('/:id/finalize', [auth,
+  checkPermission('managePatients'),
+  validate.id
+], asyncHandler(async (req, res, next) => {
+  try {
+    console.log(`[DEBUG] Finalizing medical record (PUT): ${req.params.id}`);
+    
+    const MedicalRecord = require('../models/MedicalRecord');
+    const record = await MedicalRecord.findById(req.params.id);
+    
+    if (!record) {
+      console.error(`[ERROR] Medical record not found for finalize: ${req.params.id}`);
+      return res.status(404).json({
+        success: false,
+        message: 'Medical record not found'
+      });
+    }
+    
+    console.log(`[DEBUG] Found record to finalize: ${record._id}, current status: ${record.status}`);
+    
+    const result = await record.finalize(req.user._id, req.user.role);
+    
+    if (result) {
+      console.log(`[DEBUG] Successfully finalized record: ${record._id}`);
+      
+      // Clear cache for this patient when finalizing a record
+      if (typeof clearCache === 'function' && record.patient) {
+        clearCache(`/api/medical-records/patient-public/${record.patient}`);
+      }
+      
+      // Populate references for the response
+      const populatedRecord = await MedicalRecord.findById(record._id)
+        .populate('patient', 'firstName lastName status');
+      
+      return res.json({
+        success: true,
+        message: 'Medical record finalized and patient status updated to completed',
+        data: populatedRecord,
+        patientStatusUpdated: true
+      });
+    } else {
+      console.error(`[ERROR] Failed to finalize record: ${record._id}. Already finalized: ${record.status === 'Finalized'}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Record could not be finalized. It may already be finalized or locked.'
+      });
+    }
+  } catch (error) {
+    console.error('[ERROR] Error finalizing record (PUT):', error);
+    next(error);
+  }
+}));
+
+/**
+ * @route   GET /api/medical-records/specialty/:type
+ * @desc    Filter medical records by specialty
+ * @access  Private (Medical Staff)
+ */
+router.get('/specialty/:type', [auth,
+  checkPermission('viewReports')
+], asyncHandler(async (req, res, next) => {
+  const { type } = req.params;
+  const page = parseInt(req.query.page) || 1;
+  const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+  const skip = (page - 1) * limit;
+
+  const query = {
+    specialty: type,
+    isDeleted: { $ne: true }
+  };
+
+  const MedicalRecord = require('../models/MedicalRecord');
+  const records = await MedicalRecord.find(query)
+    .populate('patient', 'firstName lastName dateOfBirth gender patientId')
+    .populate('createdBy', 'firstName lastName')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .lean();
+
+  const total = await MedicalRecord.countDocuments(query);
+
+  res.json({
+    success: true,
+    data: records,
+    count: records.length,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit)
+    }
+  });
+}));
+
+/**
  * @route   POST /api/medical-records/:id/finalize
  * @desc    Finalize a medical record
  * @access  Private (Doctors)
