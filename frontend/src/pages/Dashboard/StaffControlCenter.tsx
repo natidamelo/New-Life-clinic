@@ -814,7 +814,20 @@ const StaffControlCenter: React.FC = () => {
                         <p className="text-sm font-medium truncate">{activity.name}</p>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">{activity.role || 'staff'}</Badge>
-                          <span className="text-xs text-muted-foreground">{activity.action} at {activity.time}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {activity.action} at {(() => {
+                              try {
+                                const d = new Date(activity.time);
+                                return isNaN(d.getTime()) ? activity.time : d.toLocaleTimeString('en-US', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: true
+                                });
+                              } catch (e) {
+                                return activity.time;
+                              }
+                            })()}
+                          </span>
                         </div>
                       </div>
                     </div>

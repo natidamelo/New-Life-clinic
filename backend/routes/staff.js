@@ -103,11 +103,7 @@ router.get('/overview', auth, async (req, res) => {
         id: ts._id.toString(),
         name: `${ts.userId.firstName} ${ts.userId.lastName}`,
         action: isClockOut ? 'Clocked Out' : 'Clocked In',
-        time: new Date(actionTime).toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        }),
+        time: actionTime,
         role: ts.userId.role,
         department: ts.userId.department || 'General'
       };
