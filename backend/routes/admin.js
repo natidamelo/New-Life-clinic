@@ -112,6 +112,7 @@ router.get('/users', auth, async (req, res) => {
 
     res.json({
       success: true,
+      debugDeployTime: "2026-06-10T21:30:00Z",
       users: formattedUsers
     });
   } catch (error) {
