@@ -647,6 +647,13 @@ const StaffManagement: React.FC = () => {
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${roleColors[user.role] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
                           {roleIcons[user.role] || '👤'} {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}
                         </span>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                          user.clinicId 
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800' 
+                            : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                        }`}>
+                          🏢 {user.clinicId || 'Unassigned'}
+                        </span>
                         {user.specialization && (
                           <span className="text-[11px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">{user.specialization}</span>
                         )}

@@ -195,10 +195,7 @@ router.post('/:clinicRef/assign-admin', auth, requireSuperAdmin, async (req, res
     if (userId) {
       user = await User.findById(userId).setOptions({ skipTenantScope: true });
     } else if (identifier) {
-      const value = String(identifier).trim();
-      user = await User.findOne({
-        $or: [{ email: new RegExp(`^${value}$`, 'i') }, { username: new RegExp(`^${value}$`, 'i') }]
-      }).setOptions({ skipTenantScope: true });
+      user = await User.findByEmailOrUsername(identifier, clinic.slug);
     }
 
     if (!user) {

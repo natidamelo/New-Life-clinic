@@ -78,7 +78,7 @@ router.get('/users', auth, async (req, res) => {
     
     // Fetch real users from clinic-cms database
     const users = await User.find({ isActive: true })
-      .select('firstName lastName email username role specialization isActive createdAt updatedAt telegramChatId telegramNotificationsEnabled telegramUsername notificationPreferences')
+      .select('firstName lastName email username role specialization isActive clinicId createdAt updatedAt telegramChatId telegramNotificationsEnabled telegramUsername notificationPreferences')
       .sort({ createdAt: -1 });
 
     // Format users for frontend
@@ -92,6 +92,7 @@ router.get('/users', auth, async (req, res) => {
       specialization: user.specialization || '',
       department: user.specialization || user.role, // Use specialization as department or fallback to role
       isActive: user.isActive,
+      clinicId: user.clinicId || '',
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       lastLogin: user.updatedAt, // Use updatedAt as lastLogin for now
