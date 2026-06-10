@@ -76,10 +76,16 @@ router.get('/users', auth, async (req, res) => {
     // Import User model
     const User = require('../models/User');
     
-    // Fetch real users from clinic-cms database
-    const users = await User.find({ isActive: true })
+    // Fetch real users from clinic-cms database (bypass tenant isolation for super admin)
+    let userQuery = User.find({ isActive: true })
       .select('firstName lastName email username role specialization isActive clinicId createdAt updatedAt telegramChatId telegramNotificationsEnabled telegramUsername notificationPreferences')
       .sort({ createdAt: -1 });
+      
+    if (req.user.role === 'super_admin') {
+      userQuery = userQuery.setOptions({ skipTenantScope: true });
+    }
+    
+    const users = await userQuery;
 
     // Format users for frontend
     const formattedUsers = users.map(user => ({
@@ -343,8 +349,12 @@ router.put('/users/:id', auth, async (req, res) => {
     const User = require('../models/User');
     const bcrypt = require('bcryptjs');
     
-    // Find the user first
-    const user = await User.findById(id);
+    // Find the user first (bypass tenant isolation for super admin)
+    let userQuery = User.findById(id);
+    if (req.user.role === 'super_admin') {
+      userQuery = userQuery.setOptions({ skipTenantScope: true });
+    }
+    const user = await userQuery;
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -434,11 +444,15 @@ router.put('/users/:id', auth, async (req, res) => {
     console.log(`[/api/admin/users/${id}] Updating with fields:`, Object.keys(updateObject));
     
     // Update the user (runValidators off to avoid issues with conditional required fields in $set)
-    const updatedUser = await User.findByIdAndUpdate(
+    let updateQuery = User.findByIdAndUpdate(
       id,
       { $set: updateObject },
       { new: true }
     );
+    if (req.user.role === 'super_admin') {
+      updateQuery = updateQuery.setOptions({ skipTenantScope: true });
+    }
+    const updatedUser = await updateQuery;
     
     console.log(`[/api/admin/users/${id}] User updated successfully`);
     console.log('📋 [Admin] Final notification preferences saved:', updatedUser.notificationPreferences);
@@ -501,8 +515,12 @@ router.delete('/users/:id', auth, async (req, res) => {
     // Import User model
     const User = require('../models/User');
     
-    // Find the user first
-    const user = await User.findById(id);
+    // Find the user first (bypass tenant isolation for super admin)
+    let userQuery = User.findById(id);
+    if (req.user.role === 'super_admin') {
+      userQuery = userQuery.setOptions({ skipTenantScope: true });
+    }
+    const user = await userQuery;
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -519,7 +537,7 @@ router.delete('/users/:id', auth, async (req, res) => {
     }
     
     // Soft delete - mark user as inactive instead of hard delete
-    const deletedUser = await User.findByIdAndUpdate(
+    let updateQuery = User.findByIdAndUpdate(
       id,
       { 
         isActive: false, 
@@ -528,6 +546,10 @@ router.delete('/users/:id', auth, async (req, res) => {
       },
       { new: true }
     );
+    if (req.user.role === 'super_admin') {
+      updateQuery = updateQuery.setOptions({ skipTenantScope: true });
+    }
+    const deletedUser = await updateQuery;
     
     console.log(`[/api/admin/users/${id}] User soft deleted successfully: ${user.firstName} ${user.lastName}`);
     
