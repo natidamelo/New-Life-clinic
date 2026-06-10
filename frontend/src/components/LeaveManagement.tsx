@@ -1080,71 +1080,309 @@ const LeaveManagement: React.FC = () => {
             </div>
           )}
 
-          {selectedTab === 'statistics' && statistics && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Status Statistics */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Status Overview</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {(statistics.statusStats || []).map((stat) => (
-                      <div key={stat._id} className="flex justify-between items-center">
-                        <span className="capitalize">{stat._id}</span>
-                        <div className="text-right">
-                          <div className="font-semibold">{stat.count} requests</div>
-                          <div className="text-sm text-muted-foreground">{stat.totalDays} days</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+          {selectedTab === 'statistics' && statistics && (() => {
+            // Aggregate status counts safely
+            const statusMap = (statistics.statusStats || []).reduce((acc, curr) => {
+              const status = (curr._id || '').toLowerCase();
+              if (status.includes('approve')) {
+                acc.approved.count += curr.count;
+                acc.approved.days += curr.totalDays;
+              } else if (status.includes('pending')) {
+                acc.pending.count += curr.count;
+                acc.pending.days += curr.totalDays;
+              } else if (status.includes('reject')) {
+                acc.rejected.count += curr.count;
+                acc.rejected.days += curr.totalDays;
+              } else if (status.includes('cancel')) {
+                acc.cancelled.count += curr.count;
+                acc.cancelled.days += curr.totalDays;
+              } else {
+                acc.other.count += curr.count;
+                acc.other.days += curr.totalDays;
+              }
+              acc.total.count += curr.count;
+              acc.total.days += curr.totalDays;
+              return acc;
+            }, {
+              approved: { count: 0, days: 0 },
+              pending: { count: 0, days: 0 },
+              rejected: { count: 0, days: 0 },
+              cancelled: { count: 0, days: 0 },
+              other: { count: 0, days: 0 },
+              total: { count: 0, days: 0 }
+            });
 
-              {/* Leave Type Statistics */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Leave Types</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {(statistics.leaveTypeStats || []).map((stat) => (
-                      <div key={stat._id} className="flex justify-between items-center">
-                        <span className="capitalize">{stat._id}</span>
-                        <div className="text-right">
-                          <div className="font-semibold">{stat.count} requests</div>
-                          <div className="text-sm text-muted-foreground">
-                            {stat.approvedDays}/{stat.totalDays} days approved
+            // Calculate percentages for status ratio
+            const totalCount = statusMap.total.count || 1;
+            const approvedPct = Math.round((statusMap.approved.count / totalCount) * 100);
+            const pendingPct = Math.round((statusMap.pending.count / totalCount) * 100);
+            const rejectedPct = Math.round((statusMap.rejected.count / totalCount) * 100);
+            const otherPct = Math.round(((statusMap.cancelled.count + statusMap.other.count) / totalCount) * 100);
+
+            // Normalize department requests to find max
+            const maxDeptRequests = Math.max(...(statistics.departmentStats || []).map(d => d.count), 1);
+            
+            // Map leave types to premium colors and bars
+            const getLeaveTypeStyle = (type: string) => {
+              const t = type.toLowerCase();
+              if (t.includes('annual')) return { bg: 'bg-blue-500/10', text: 'text-blue-500', bar: 'bg-blue-500' };
+              if (t.includes('sick')) return { bg: 'bg-emerald-500/10', text: 'text-emerald-500', bar: 'bg-emerald-500' };
+              if (t.includes('maternity') || t.includes('paternity')) return { bg: 'bg-purple-500/10', text: 'text-purple-500', bar: 'bg-purple-500' };
+              if (t.includes('personal')) return { bg: 'bg-amber-500/10', text: 'text-amber-500', bar: 'bg-amber-500' };
+              if (t.includes('bereavement')) return { bg: 'bg-rose-500/10', text: 'text-rose-500', bar: 'bg-rose-500' };
+              return { bg: 'bg-slate-500/10', text: 'text-slate-500', bar: 'bg-slate-500' };
+            };
+
+            return (
+              <div className="space-y-6">
+                {/* 1. Grid of Premium Stat Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Card 1: Total Requests */}
+                  <Card className="relative overflow-hidden border-0 shadow-md transition-all duration-300 hover:scale-[1.02] bg-gradient-to-br from-blue-500/10 to-indigo-600/5 dark:from-blue-500/5 dark:to-indigo-600/2">
+                    <CardContent className="p-5 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Requests</p>
+                        <p className="text-3xl font-extrabold mt-1 tracking-tight">{statusMap.total.count}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Across all statuses</p>
+                      </div>
+                      <div className="rounded-xl bg-blue-500/10 dark:bg-blue-500/20 p-3 text-blue-600 dark:text-blue-400">
+                        <FileText className="h-6 w-6" />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 2: Approved Requests */}
+                  <Card className="relative overflow-hidden border-0 shadow-md transition-all duration-300 hover:scale-[1.02] bg-gradient-to-br from-emerald-500/10 to-teal-600/5 dark:from-emerald-500/5 dark:to-teal-600/2">
+                    <CardContent className="p-5 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Approved Days</p>
+                        <p className="text-3xl font-extrabold mt-1 tracking-tight text-emerald-600 dark:text-emerald-400">{statusMap.approved.days}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{statusMap.approved.count} requests approved</p>
+                      </div>
+                      <div className="rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 p-3 text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle className="h-6 w-6" />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 3: Pending Requests */}
+                  <Card className="relative overflow-hidden border-0 shadow-md transition-all duration-300 hover:scale-[1.02] bg-gradient-to-br from-amber-500/10 to-yellow-600/5 dark:from-amber-500/5 dark:to-yellow-600/2">
+                    <CardContent className="p-5 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pending Review</p>
+                        <p className="text-3xl font-extrabold mt-1 tracking-tight text-amber-600 dark:text-amber-400">{statusMap.pending.count}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{statusMap.pending.days} days awaiting decision</p>
+                      </div>
+                      <div className="rounded-xl bg-amber-500/10 dark:bg-amber-500/20 p-3 text-amber-600 dark:text-amber-400">
+                        <Clock className="h-6 w-6" />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 4: Rejected Requests */}
+                  <Card className="relative overflow-hidden border-0 shadow-md transition-all duration-300 hover:scale-[1.02] bg-gradient-to-br from-rose-500/10 to-red-600/5 dark:from-rose-500/5 dark:to-red-600/2">
+                    <CardContent className="p-5 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rejected Requests</p>
+                        <p className="text-3xl font-extrabold mt-1 tracking-tight text-rose-600 dark:text-rose-400">{statusMap.rejected.count}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{statusMap.rejected.days} days rejected</p>
+                      </div>
+                      <div className="rounded-xl bg-rose-500/10 dark:bg-rose-500/20 p-3 text-rose-600 dark:text-rose-400">
+                        <XCircle className="h-6 w-6" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* 2. Main Dashboard Content Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Status Breakdown & Ratio (Spans 2 columns on lg) */}
+                  <div className="lg:col-span-2 space-y-6">
+                    {/* Status Ratio Stack Bar */}
+                    <Card className="border border-border/40 shadow-sm">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <BarChart3 className="h-5 w-5 text-primary" />
+                          Request Status Distribution
+                        </CardTitle>
+                        <CardDescription>Visual breakdown of leave request status ratios</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {/* Segmented Progress Bar */}
+                        <div className="h-6 w-full rounded-full bg-muted/40 overflow-hidden flex mb-6">
+                          {statusMap.approved.count > 0 && (
+                            <div 
+                              className="bg-emerald-500 h-full transition-all duration-500 relative group"
+                              style={{ width: `${approvedPct}%` }}
+                              title={`Approved: ${statusMap.approved.count} requests (${approvedPct}%)`}
+                            />
+                          )}
+                          {statusMap.pending.count > 0 && (
+                            <div 
+                              className="bg-amber-500 h-full transition-all duration-500 relative group"
+                              style={{ width: `${pendingPct}%` }}
+                              title={`Pending: ${statusMap.pending.count} requests (${pendingPct}%)`}
+                            />
+                          )}
+                          {statusMap.rejected.count > 0 && (
+                            <div 
+                              className="bg-rose-500 h-full transition-all duration-500 relative group"
+                              style={{ width: `${rejectedPct}%` }}
+                              title={`Rejected: ${statusMap.rejected.count} requests (${rejectedPct}%)`}
+                            />
+                          )}
+                          {(statusMap.cancelled.count > 0 || statusMap.other.count > 0) && (
+                            <div 
+                              className="bg-slate-400 h-full transition-all duration-500 relative group"
+                              style={{ width: `${otherPct}%` }}
+                              title={`Other: ${statusMap.cancelled.count + statusMap.other.count} requests (${otherPct}%)`}
+                            />
+                          )}
+                        </div>
+
+                        {/* Detailed Legend */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                          <div className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-muted/10 transition-colors">
+                            <span className="h-3 w-3 rounded-full bg-emerald-500 mt-1 shrink-0" />
+                            <div>
+                              <p className="text-xs font-semibold">Approved</p>
+                              <p className="text-base font-bold mt-0.5">{statusMap.approved.count}</p>
+                              <p className="text-[10px] text-muted-foreground">{approvedPct}% of total</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-muted/10 transition-colors">
+                            <span className="h-3 w-3 rounded-full bg-amber-500 mt-1 shrink-0" />
+                            <div>
+                              <p className="text-xs font-semibold">Pending</p>
+                              <p className="text-base font-bold mt-0.5">{statusMap.pending.count}</p>
+                              <p className="text-[10px] text-muted-foreground">{pendingPct}% of total</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-muted/10 transition-colors">
+                            <span className="h-3 w-3 rounded-full bg-rose-500 mt-1 shrink-0" />
+                            <div>
+                              <p className="text-xs font-semibold">Rejected</p>
+                              <p className="text-base font-bold mt-0.5">{statusMap.rejected.count}</p>
+                              <p className="text-[10px] text-muted-foreground">{rejectedPct}% of total</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-muted/10 transition-colors">
+                            <span className="h-3 w-3 rounded-full bg-slate-400 mt-1 shrink-0" />
+                            <div>
+                              <p className="text-xs font-semibold">Cancelled/Other</p>
+                              <p className="text-base font-bold mt-0.5">{statusMap.cancelled.count + statusMap.other.count}</p>
+                              <p className="text-[10px] text-muted-foreground">{otherPct}% of total</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      </CardContent>
+                    </Card>
 
-              {/* Department Statistics */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>By Department</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {(statistics.departmentStats || []).map((stat) => (
-                      <div key={stat._id} className="flex justify-between items-center">
-                        <span>{stat._id}</span>
-                        <div className="text-right">
-                          <div className="font-semibold">{stat.count} requests</div>
-                          <div className="text-sm text-muted-foreground">{stat.totalDays} days</div>
+                    {/* Leave Types Detailed Dashboard */}
+                    <Card className="border border-border/40 shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Calendar className="h-5 w-5 text-primary" />
+                          Leave Types Breakdown
+                        </CardTitle>
+                        <CardDescription>Distribution of requests and approval rates by leave type</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {(statistics.leaveTypeStats || []).length > 0 ? (
+                            (statistics.leaveTypeStats || []).map((stat) => {
+                              const style = getLeaveTypeStyle(stat._id);
+                              const approvalRate = stat.totalDays > 0 ? Math.round((stat.approvedDays / stat.totalDays) * 100) : 0;
+                              
+                              return (
+                                <div key={stat._id} className="border border-border/20 rounded-xl p-4 space-y-3 hover:bg-muted/20 transition-all duration-200">
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-2">
+                                      <div className={`p-2 rounded-lg ${style.bg} ${style.text}`}>
+                                        <Calendar className="h-4 w-4" />
+                                      </div>
+                                      <div>
+                                        <span className="capitalize font-semibold text-sm">{stat._id} Leave</span>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                          <Badge variant="outline" className="text-[10px] py-0 px-1">{stat.count} reqs</Badge>
+                                          <span className="text-[10px] text-muted-foreground">· {stat.totalDays} total days</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-xs font-medium text-muted-foreground">Approval Rate</span>
+                                      <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{approvalRate}%</p>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Progress bar representing approved days vs total requested days */}
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between text-[11px] text-muted-foreground">
+                                      <span>Approved: <span className="font-medium text-foreground">{stat.approvedDays}d</span></span>
+                                      <span>Total: {stat.totalDays}d</span>
+                                    </div>
+                                    <div className="h-2 w-full bg-muted/40 rounded-full overflow-hidden">
+                                      <div 
+                                        className={`h-full ${style.bar} rounded-full transition-all duration-500`}
+                                        style={{ width: `${Math.max(approvalRate, stat.approvedDays > 0 ? 5 : 0)}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="col-span-2 text-center py-6 text-muted-foreground text-sm">
+                              No leave type statistics found for this year.
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      </CardContent>
+                    </Card>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+
+                  {/* Department Distribution (Spans 1 column on lg) */}
+                  <Card className="border border-border/40 shadow-sm h-full">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Users className="h-5 w-5 text-primary" />
+                        By Department
+                      </CardTitle>
+                      <CardDescription>Leave requests volume across clinic departments</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                      {(statistics.departmentStats || []).length > 0 ? (
+                        (statistics.departmentStats || []).map((stat) => {
+                          const pct = Math.round((stat.count / maxDeptRequests) * 100);
+                          return (
+                            <div key={stat._id} className="space-y-2 group">
+                              <div className="flex justify-between items-center text-sm">
+                                <span className="font-semibold text-muted-foreground group-hover:text-foreground transition-colors">{stat._id}</span>
+                                <div className="text-right">
+                                  <span className="font-bold">{stat.count} requests</span>
+                                  <span className="text-xs text-muted-foreground ml-2">({stat.totalDays} days)</span>
+                                </div>
+                              </div>
+                              <div className="h-2.5 w-full bg-muted/40 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-gradient-to-r from-primary/80 to-primary rounded-full transition-all duration-500 group-hover:opacity-90"
+                                  style={{ width: `${Math.max(pct, 3)}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground text-sm">
+                          No department leave records found.
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            );
+          })()}
         </>
       )}
 

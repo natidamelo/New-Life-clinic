@@ -4,6 +4,9 @@ import systemSettingsService from '../services/systemSettingsService';
 import apiService from '../services/apiService';
 import QRCodeModal from './QRCodeModal';
 import EnhancedQRCodeModal from './EnhancedQRCodeModal';
+import { useSafeTheme } from '../hooks/useSafeTheme';
+import { Button } from './ui/button';
+import { AlertCircle, Clock, RefreshCw, QrCode, Smartphone } from 'lucide-react';
 
 interface AttendanceOverlayProps {
   children: React.ReactNode;
@@ -11,12 +14,21 @@ interface AttendanceOverlayProps {
 
 const AttendanceOverlay: React.FC<AttendanceOverlayProps> = ({ children }) => {
   const { user } = useAuth();
+  const { isDarkMode } = useSafeTheme();
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showEnhancedQRModal, setShowEnhancedQRModal] = useState(false);
   const [overlayEnabled, setOverlayEnabled] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const clockTimer = setInterval(() => {
+      setTime(new Date());
+    }, 1000);
+    return () => clearInterval(clockTimer);
+  }, []);
   
   // Check individual staff overlay setting
   const checkOverlaySetting = async () => {
@@ -443,16 +455,16 @@ const AttendanceOverlay: React.FC<AttendanceOverlayProps> = ({ children }) => {
             currentStatus={currentStatus}
             onStatusUpdate={setCurrentStatus}
           />
-
         </>
       ) : (
         <>
           {/* The actual content - blurred and non-interactive */}
           <div style={{ 
-            filter: 'blur(3px)', 
+            filter: 'blur(8px)', 
             pointerEvents: 'none',
             userSelect: 'none',
-            opacity: 0.5
+            opacity: 0.4,
+            transition: 'all 0.5s ease'
           }}>
             {children}
           </div>
@@ -464,63 +476,48 @@ const AttendanceOverlay: React.FC<AttendanceOverlayProps> = ({ children }) => {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.75)' : 'rgba(241, 245, 249, 0.75)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 999999
+            zIndex: 999999,
+            transition: 'all 0.5s ease',
+            padding: '16px'
           }}>
-            <div style={{
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              padding: '40px',
-              maxWidth: '500px',
-              width: '90%',
-              textAlign: 'center',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
-            }}>
-              {/* Alert Icon */}
-              <div style={{
-                width: '80px',
-                height: '80px',
-                margin: '0 auto 20px',
-                backgroundColor: '#FEE2E2',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <svg 
-                  width="40" 
-                  height="40" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="#DC2626" 
-                  strokeWidth="2"
-                >
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="8" x2="12" y2="12"></line>
-                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
+            <div 
+              className="w-full max-w-md border border-border/40 shadow-2xl rounded-2xl p-8 transition-all duration-300 transform hover:scale-[1.01]"
+              style={{
+                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                boxShadow: isDarkMode ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' : '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+                color: isDarkMode ? '#f8fafc' : '#0f172a'
+              }}
+            >
+              {/* Alert Indicator */}
+              <div className="flex justify-center mb-6">
+                <div className={`relative flex h-16 w-16 items-center justify-center rounded-full ring-8 ${
+                  currentStatus && currentStatus.isOvertimeTime 
+                    ? 'bg-amber-500/10 ring-amber-500/5 text-amber-500' 
+                    : 'bg-destructive/10 ring-destructive/5 text-destructive'
+                }`}>
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                    currentStatus && currentStatus.isOvertimeTime ? 'bg-amber-400' : 'bg-destructive'
+                  }`} style={{ animationDuration: '2s' }}></span>
+                  <AlertCircle className="h-8 w-8 relative z-10" />
+                </div>
               </div>
               
               {/* Title */}
-              <h1 style={{
-                fontSize: '32px',
-                fontWeight: 'bold',
-                color: '#111827',
-                marginBottom: '16px'
-              }}>
+              <h1 className="text-2xl font-bold text-center tracking-tight mb-2">
                 {currentStatus && currentStatus.isOvertimeTime ? 'Overtime Check-in Available' : 'Check-in Required'}
               </h1>
               
               {/* Message */}
-              <p style={{
-                fontSize: '18px',
-                color: '#4B5563',
-                marginBottom: '32px',
-                lineHeight: '1.5'
-              }}>
+              <p 
+                className="text-sm text-center mb-6 leading-relaxed"
+                style={{ color: isDarkMode ? '#94a3b8' : '#475569' }}
+              >
                 {currentStatus && currentStatus.overlayMessage 
                   ? currentStatus.overlayMessage
                   : currentStatus && currentStatus.isOvertimeTime 
@@ -529,169 +526,84 @@ const AttendanceOverlay: React.FC<AttendanceOverlayProps> = ({ children }) => {
                 }
               </p>
 
-              {/* Overtime Information Box (only show during overtime window) */}
+              {/* Real-time Clock Widget */}
+              <div 
+                className="flex flex-col items-center justify-center rounded-xl p-4 mb-6 border border-border/20 shadow-inner"
+                style={{ backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.4)' : 'rgba(241, 245, 249, 0.6)' }}
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: isDarkMode ? '#64748b' : '#64748b' }}>
+                  Local time (EAT)
+                </span>
+                <div className="text-3xl font-bold font-mono tracking-wider tabular-nums flex items-center gap-1">
+                  {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                </div>
+                <span className="text-xs font-medium mt-1" style={{ color: isDarkMode ? '#64748b' : '#64748b' }}>
+                  {time.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              </div>
+
+              {/* Overtime Information Box */}
               {currentStatus && currentStatus.status === 'clocked_out' && currentStatus.isOvertimeTime && (
-                <div style={{
-                  marginBottom: '24px',
-                  padding: '16px',
-                  backgroundColor: '#FEF3C7',
-                  borderRadius: '8px',
-                  border: '1px solid #F59E0B',
-                  textAlign: 'left'
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginBottom: '8px'
-                  }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <polyline points="12,6 12,12 16,14"></polyline>
-                    </svg>
-                    <span style={{
-                      marginLeft: '8px',
-                      fontWeight: '600',
-                      color: '#92400E'
-                    }}>
-                      Overtime Information
-                    </span>
+                <div 
+                  className="mb-6 p-4 rounded-xl text-left border border-amber-500/20"
+                  style={{ backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.08)' : 'rgba(254, 243, 199, 0.6)' }}
+                >
+                  <div className="flex items-center gap-2 font-semibold text-sm mb-2" style={{ color: isDarkMode ? '#fbbf24' : '#b45309' }}>
+                    <Clock className="h-4 w-4" />
+                    <span>Overtime Shift Details</span>
                   </div>
                   
-                  <div style={{ fontSize: '14px', color: '#92400E', lineHeight: '1.4' }}>
-                    <div><strong>Overtime Hours:</strong> {currentStatus.overtimeStartTime} - {currentStatus.overtimeEndTime}</div>
+                  <div className="text-xs space-y-1 font-medium" style={{ color: isDarkMode ? '#d97706' : '#92400e' }}>
+                    <div>• Window: <span className="font-semibold">{currentStatus.overtimeStartTime} - {currentStatus.overtimeEndTime}</span></div>
                     {currentStatus.wasEarlyCheckOut && (
-                      <div style={{ marginTop: '4px', fontStyle: 'italic' }}>
-                        ⚠️ You checked out early from regular hours. Overtime check-in is available.
+                      <div className="text-destructive font-semibold flex items-center gap-1 mt-1">
+                        <span>⚠️ Early regular checkout detected.</span>
                       </div>
                     )}
-                    {currentStatus.canCheckIn && currentStatus.isOvertimeTime && (
-                      <div style={{ marginTop: '4px', color: '#059669', fontWeight: '500' }}>
-                        ✅ Overtime check-in is currently available
-                      </div>
-                    )}
-                    {!currentStatus.canCheckIn && currentStatus.isOvertimeTime && (
-                      <div style={{ marginTop: '4px', color: '#DC2626', fontWeight: '500' }}>
-                        ❌ Overtime check-in not available (already checked in or completed)
-                      </div>
-                    )}
+                    <div className="text-emerald-600 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-1">
+                      <span>✓ Overtime check-in is open</span>
+                    </div>
                   </div>
                 </div>
               )}
               
-              {/* Check In Button */}
-              <button
-                onClick={handleOpenModal}
-                disabled={currentStatus && currentStatus.status === 'clocked_out' && !currentStatus.canCheckIn}
-                style={{
-                  width: '100%',
-                  padding: '16px 32px',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  color: 'white',
-                  backgroundColor: currentStatus && currentStatus.status === 'clocked_out' && !currentStatus.canCheckIn ? '#9CA3AF' : '#10B981',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: currentStatus && currentStatus.status === 'clocked_out' && !currentStatus.canCheckIn ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '12px',
-                  transition: 'background-color 0.2s',
-                  marginBottom: '16px'
-                }}
-                onMouseEnter={(e) => {
-                  if (currentStatus && currentStatus.status === 'clocked_out' && !currentStatus.canCheckIn) return;
-                  e.currentTarget.style.backgroundColor = '#059669';
-                }}
-                onMouseLeave={(e) => {
-                  if (currentStatus && currentStatus.status === 'clocked_out' && !currentStatus.canCheckIn) return;
-                  e.currentTarget.style.backgroundColor = '#10B981';
-                }}
-              >
-                <svg 
-                  width="24" 
-                  height="24" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2"
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                {/* Check In Button */}
+                <Button
+                  onClick={handleOpenModal}
+                  disabled={currentStatus && currentStatus.status === 'clocked_out' && !currentStatus.canCheckIn}
+                  className={`w-full py-6 font-bold text-base shadow-lg transition-all duration-300 transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 ${
+                    currentStatus && currentStatus.status === 'clocked_out' && !currentStatus.canCheckIn
+                      ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                      : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-emerald-500/20'
+                  }`}
                 >
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                  <rect x="7" y="7" width="3" height="3"></rect>
-                  <rect x="14" y="7" width="3" height="3"></rect>
-                  <rect x="7" y="14" width="3" height="3"></rect>
-                  <rect x="14" y="14" width="3" height="3"></rect>
-                </svg>
-                {currentStatus && currentStatus.status === 'clocked_out' && currentStatus.canCheckIn
-                  ? (currentStatus.isOvertimeTime ? 'CHECK IN FOR OVERTIME' : 'CHECK IN NOW')
-                  : currentStatus && currentStatus.status === 'clocked_out' && !currentStatus.canCheckIn
-                    ? (currentStatus.isOvertimeTime ? 'OVERTIME CHECK-IN NOT AVAILABLE' : 'CHECK-IN NOT AVAILABLE')
-                    : 'CHECK IN NOW'}
-              </button>
+                  <QrCode className="h-5 w-5" />
+                  {currentStatus && currentStatus.status === 'clocked_out' && currentStatus.canCheckIn
+                    ? (currentStatus.isOvertimeTime ? 'Check In for Overtime' : 'Check In Now')
+                    : 'Check In Now'}
+                </Button>
 
-              {/* Enhanced QR Code Button */}
-              <button
-                onClick={handleOpenEnhancedModal}
-                style={{
-                  width: '100%',
-                  padding: '16px 32px',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  color: 'white',
-                  backgroundColor: '#3B82F6',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '12px',
-                  transition: 'background-color 0.2s',
-                  marginBottom: '8px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#2563EB';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#3B82F6';
-                }}
-              >
-                <svg 
-                  width="24" 
-                  height="24" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2"
+                {/* Enhanced QR Code Button */}
+                <Button
+                  onClick={handleOpenEnhancedModal}
+                  className="w-full py-6 font-bold text-base bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/20 transition-all duration-300 transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
                 >
-                  <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                  <path d="M2 17l10 5 10-5"></path>
-                  <path d="M2 12l10 5 10-5"></path>
-                </svg>
-                Enhanced QR System
-              </button>
+                  <Smartphone className="h-5 w-5" />
+                  Enhanced QR System
+                </Button>
 
-              {/* Manual Refresh Button */}
-              <button
-                onClick={handleRefreshStatus}
-                style={{
-                  width: '100%',
-                  padding: '12px 24px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#6B7280',
-                  backgroundColor: '#F3F4F6',
-                  border: '1px solid #D1D5DB',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.2s',
-                  marginBottom: '12px'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E5E7EB'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'}
-              >
-                🔄 I've Already Checked In - Refresh Status
-              </button>
+                {/* Manual Refresh Button */}
+                <Button
+                  variant="ghost"
+                  onClick={handleRefreshStatus}
+                  className="w-full py-4 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  I've Already Checked In — Refresh Status
+                </Button>
+              </div>
             </div>
           </div>
         </>

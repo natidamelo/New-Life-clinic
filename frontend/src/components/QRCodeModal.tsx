@@ -33,7 +33,7 @@ interface QRCodeData {
 }
 
 interface AttendanceStatus {
-  status: 'clocked_in' | 'clocked_out' | 'not_clocked_in' | 'overtime_active' | 'overtime_completed' | 'checked_in' | 'checked_out' | 'present' | 'active' | 'absent' | 'should_be_absent';
+  status: 'clocked_in' | 'clocked_out' | 'not_clocked_in' | 'overtime_active' | 'overtime_completed' | 'checked_in' | 'checked_out' | 'present' | 'active' | 'absent' | 'should_be_absent' | 'clocked_in_overtime';
   canCheckIn?: boolean;
   canCheckOut?: boolean;
   checkInTime?: string;
