@@ -12,15 +12,27 @@ function primaryClinicId() {
  */
 function clinicIdOrLegacyMatch(tenantId) {
   const primary = primaryClinicId();
+  
+  // If the tenant is the primary clinic or 'default', it should match primary + default + legacy/unstamped.
+  if (tenantId === primary || tenantId === 'default') {
+    const slugSet = new Set(
+      [tenantId, primary, 'default'].filter((s) => s != null && String(s).trim() !== '')
+    );
+    const or = [...slugSet].map((id) => ({ clinicId: id }));
+    or.push(
+      { clinicId: { $exists: false } },
+      { clinicId: null },
+      { clinicId: '' }
+    );
+    return { $or: or };
+  }
+  
+  // For other tenants, only match their own clinicId + 'default' (for shared defaults),
+  // but strictly exclude the primary clinic's data and legacy unstamped data.
   const slugSet = new Set(
-    [tenantId, primary, 'default'].filter((s) => s != null && String(s).trim() !== '')
+    [tenantId, 'default'].filter((s) => s != null && String(s).trim() !== '')
   );
   const or = [...slugSet].map((id) => ({ clinicId: id }));
-  or.push(
-    { clinicId: { $exists: false } },
-    { clinicId: null },
-    { clinicId: '' }
-  );
   return { $or: or };
 }
 
