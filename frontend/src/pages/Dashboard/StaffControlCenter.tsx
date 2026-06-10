@@ -15,7 +15,8 @@ import {
   MoreHorizontal,
   Filter,
   Calendar,
-  BarChart3
+  BarChart3,
+  Building2
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -417,7 +418,7 @@ const StaffControlCenter: React.FC = () => {
   const getAttendanceStatus = (staff: any, date: Date) => {
     const dateString = date.toDateString();
     const isToday = dateString === new Date().toDateString();
-    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+    const isWeekend = date.getDay() === 0; // Saturday is working day, so only Sunday is weekend
     
     // Always mark weekends as weekend
     if (isWeekend) {
@@ -536,40 +537,65 @@ const StaffControlCenter: React.FC = () => {
   };
 
   const renderDepartmentCards = () => {
-    return departments.map((dept) => (
-      <Card key={dept.name} className="overflow-hidden">
-        <CardHeader className="bg-muted/10 pb-3">
-          <CardTitle className="text-lg">{dept.name}</CardTitle>
-          <CardDescription>
-            {dept.staffCount} staff member{dept.staffCount !== 1 ? 's' : ''}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <div className="flex justify-between mb-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold">{dept.activeCount}</div>
-              <div className="text-sm text-muted-foreground">Active</div>
+    return departments.map((dept) => {
+      const presenceRatio = dept.staffCount > 0 ? (dept.activeCount / dept.staffCount) * 100 : 0;
+      
+      return (
+        <Card key={dept.name} className="overflow-hidden border border-border/40 hover:border-primary/30 shadow-sm hover:shadow-md transition-all duration-300 group">
+          <CardHeader className="bg-gradient-to-r from-muted/30 to-muted/10 pb-3 border-b border-border/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-semibold group-hover:text-primary transition-colors">{dept.name}</CardTitle>
+                <CardDescription className="text-xs">
+                  {dept.staffCount} staff member{dept.staffCount !== 1 ? 's' : ''}
+                </CardDescription>
+              </div>
+              <div className="rounded-lg bg-primary/10 p-1.5 group-hover:bg-primary/20 transition-all">
+                <Building2 className="h-4 w-4 text-primary" />
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">{dept.patientCount}</div>
-              <div className="text-sm text-muted-foreground">Patients</div>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {/* Presence Progress Bar */}
+            <div className="mb-4 space-y-1">
+              <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                <span>Presence Ratio</span>
+                <span className="font-semibold text-primary">{Math.round(presenceRatio)}%</span>
+              </div>
+              <div className="w-full bg-muted/50 rounded-full h-1.5 overflow-hidden">
+                <div 
+                  className="bg-primary h-full rounded-full transition-all duration-500"
+                  style={{ width: `${presenceRatio}%` }}
+                />
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">{dept.pendingTasks}</div>
-              <div className="text-sm text-muted-foreground">Tasks</div>
+
+            <div className="grid grid-cols-3 gap-2 text-center pt-2">
+              <div className="p-1.5 rounded-lg bg-blue-500/5 hover:bg-blue-500/10 transition-colors">
+                <div className="text-xl font-bold text-blue-600 dark:text-blue-400">{dept.activeCount}</div>
+                <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Active</div>
+              </div>
+              <div className="p-1.5 rounded-lg bg-amber-500/5 hover:bg-amber-500/10 transition-colors">
+                <div className="text-xl font-bold text-amber-600 dark:text-amber-400">{dept.patientCount}</div>
+                <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Patients</div>
+              </div>
+              <div className="p-1.5 rounded-lg bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors">
+                <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{dept.pendingTasks}</div>
+                <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Tasks</div>
+              </div>
             </div>
-          </div>
-        </CardContent>
-        <CardFooter className="bg-muted/10 flex justify-between">
-          <Button variant="outline" size="sm" onClick={() => handleViewDepartment(dept.name)}>
-            View Dashboard
-          </Button>
-          <Button variant="ghost" size="sm" className="text-primary">
-            Live Status
-          </Button>
-        </CardFooter>
-      </Card>
-    ));
+          </CardContent>
+          <CardFooter className="bg-muted/5 flex justify-between border-t border-border/10 py-3">
+            <Button variant="outline" size="sm" onClick={() => handleViewDepartment(dept.name)} className="h-8 text-xs font-medium">
+              View Dashboard
+            </Button>
+            <Button variant="ghost" size="sm" className="h-8 text-xs font-medium text-primary hover:text-primary/80">
+              Live Status
+            </Button>
+          </CardFooter>
+        </Card>
+      );
+    });
   };
 
   const renderStaffList = () => {
@@ -1004,7 +1030,7 @@ const StaffControlCenter: React.FC = () => {
                           return Array.from({ length: daysInMonth }, (_, i) => {
                             const date = new Date(year, month, i + 1);
                             const isToday = date.toDateString() === new Date().toDateString();
-                            const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                            const isWeekend = date.getDay() === 0; // Saturday is working day, so only Sunday is weekend
                             const isPast = date < new Date();
                             
                             return (
@@ -1083,72 +1109,82 @@ const StaffControlCenter: React.FC = () => {
                                 return Array.from({ length: daysInMonth }, (_, i) => {
                                   const date = new Date(year, month, i + 1);
                                   const isToday = date.toDateString() === new Date().toDateString();
-                                  const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                                  const isWeekend = date.getDay() === 0; // Saturday is working day, so only Sunday is weekend
                                   const isPast = date < new Date();
                                   const isFuture = date > new Date();
                                   
                                   // Get real attendance status for this staff member on this date
                                   const attendanceStatus = getAttendanceStatus(staff, date);
+                                  const dateKey = date.toISOString().split('T')[0];
+                                  const dayData = (staff as any).dailyAttendance ? (staff as any).dailyAttendance[dateKey] : null;
+
+                                  let tooltipText = '';
+                                  if (dayData) {
+                                    if (dayData.status === 'present' || dayData.status === 'late' || dayData.status === 'overtime-complete' || dayData.status === 'overtime-checkin') {
+                                      tooltipText = `Status: ${dayData.status.toUpperCase()}\nClock In: ${dayData.clockInTime || 'N/A'}\nClock Out: ${dayData.clockOutTime || 'N/A'}\nWork Hours: ${dayData.workHours ? dayData.workHours.toFixed(1) : '0.0'}h\nOT Hours: ${dayData.overtimeHours ? dayData.overtimeHours.toFixed(1) : '0.0'}h`;
+                                    } else {
+                                      tooltipText = `Status: ${dayData.status.toUpperCase()}`;
+                                    }
+                                  } else if (isWeekend) {
+                                    tooltipText = 'Sunday (Weekend)';
+                                  } else {
+                                    tooltipText = isFuture ? 'Future Date' : 'No Attendance Data';
+                                  }
                                   
                                   return (
-                                    <td key={i} className={`border border-border/30 px-1 py-2 text-center ${
-                                      isToday ? 'bg-primary/10' : 
-                                      isWeekend ? 'bg-muted/10' : ''
-                                    }`}>
-                                      {isFuture ? (
-                                        <div className="text-xs text-muted-foreground/50">-</div>
-                                      ) : isWeekend ? (
-                                        <div className="text-xs text-muted-foreground/50">Weekend</div>
-                                      ) : attendanceStatus === 'weekend' ? (
-                                        <div className="text-xs text-muted-foreground/50">Weekend</div>
-                                      ) : (
-                                        <div className="flex flex-col items-center space-y-1">
-                                          <div className={`w-3 h-3 rounded-full ${
-                                            attendanceStatus === 'present' ? 'bg-primary' :
-                                            attendanceStatus === 'absent' ? 'bg-destructive' :
-                                            attendanceStatus === 'offline' ? 'bg-accent' :
-                                            attendanceStatus === 'late' ? 'bg-accent' :
-                                            attendanceStatus === 'no-data' ? 'bg-muted/40' :
-                                            'bg-muted/40'
-                                          }`}></div>
-                                          <div className={`text-xs ${
-                                            attendanceStatus === 'present' ? 'text-primary' :
-                                            attendanceStatus === 'absent' ? 'text-destructive' :
-                                            attendanceStatus === 'offline' ? 'text-accent-foreground' :
-                                            attendanceStatus === 'late' ? 'text-accent-foreground' :
-                                            attendanceStatus === 'no-data' ? 'text-muted-foreground' :
-                                            attendanceStatus === 'weekend' ? 'text-muted-foreground' :
-                                            'text-muted-foreground'
-                                          }`}>
-                                            {attendanceStatus === 'present' ? 'P' :
-                                             attendanceStatus === 'absent' ? 'A' :
-                                             attendanceStatus === 'offline' ? 'O' :
-                                             attendanceStatus === 'late' ? 'L' :
-                                             attendanceStatus === 'no-data' ? 'N' :
-                                             attendanceStatus === 'weekend' ? 'W' : '-'}
-                                          </div>
-                                        </div>
-                                      )}
+                                    <td 
+                                      key={i} 
+                                      title={tooltipText} 
+                                      className={`border border-border/30 p-2 text-center text-xs transition-colors cursor-help ${
+                                        isToday ? 'ring-2 ring-primary ring-inset' : ''
+                                      } ${
+                                        isFuture ? 'text-muted-foreground/30' :
+                                        isWeekend ? 'bg-slate-100 dark:bg-slate-800 text-muted-foreground/40 font-medium' :
+                                        attendanceStatus === 'present' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold hover:bg-emerald-500/25' :
+                                        attendanceStatus === 'overtime-complete' || attendanceStatus === 'overtime-checkin' ? 'bg-violet-500/15 text-violet-700 dark:text-violet-400 font-bold hover:bg-violet-500/25' :
+                                        attendanceStatus === 'late' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 font-bold hover:bg-amber-500/25' :
+                                        attendanceStatus === 'absent' ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400 font-bold hover:bg-rose-500/25' :
+                                        'bg-slate-200/50 dark:bg-slate-700/50 text-muted-foreground/60 hover:bg-slate-200/70'
+                                      }`}
+                                    >
+                                      {isFuture ? '-' :
+                                       isWeekend ? 'W' :
+                                       attendanceStatus === 'present' ? 'P' :
+                                       attendanceStatus === 'overtime-complete' || attendanceStatus === 'overtime-checkin' ? 'OT' :
+                                       attendanceStatus === 'late' ? 'L' :
+                                       attendanceStatus === 'absent' ? 'A' : 'N'}
                                     </td>
                                   );
                                 });
                               })()}
                               
                               {/* Month Summary */}
-                              <td className="border border-border/30 px-4 py-3 text-center bg-muted/10">
-                                <div className="flex flex-col items-center space-y-1">
-                                  <div className="text-sm font-medium text-muted-foreground">
-                                    {monthAttendance.present}/{monthAttendance.total}
+                              <td className="border border-border/30 px-4 py-3 bg-muted/5 min-w-[120px]">
+                                <div className="space-y-1.5">
+                                  <div className="flex justify-between text-xs font-semibold text-muted-foreground">
+                                    <span>{monthAttendance.present}/{monthAttendance.total} Days</span>
+                                    <span>
+                                      {monthAttendance.total > 0 ?
+                                        `${Math.round((monthAttendance.present / monthAttendance.total) * 100)}%` :
+                                        '0%'
+                                      }
+                                    </span>
                                   </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {monthAttendance.total > 0 ?
-                                      `${Math.round((monthAttendance.present / monthAttendance.total) * 100)}%` :
-                                      'No data'
-                                    }
-                                  </div>
+                                  {monthAttendance.total > 0 && (
+                                    <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                                      <div 
+                                        className={`h-full rounded-full transition-all ${
+                                          (monthAttendance.present / monthAttendance.total) >= 0.85 ? 'bg-emerald-500' :
+                                          (monthAttendance.present / monthAttendance.total) >= 0.70 ? 'bg-amber-500' :
+                                          'bg-rose-500'
+                                        }`}
+                                        style={{ width: `${Math.min(100, (monthAttendance.present / monthAttendance.total) * 100)}%` }}
+                                      />
+                                    </div>
+                                  )}
                                   {monthAttendance.noData > 0 && (
-                                    <div className="text-xs text-muted-foreground/50">
-                                      {monthAttendance.noData} days no data
+                                    <div className="text-[10px] text-muted-foreground/60 text-right">
+                                      {monthAttendance.noData} days unrecorded
                                     </div>
                                   )}
                                 </div>
@@ -1167,6 +1203,61 @@ const StaffControlCenter: React.FC = () => {
                         </tr>
                       )}
                     </tbody>
+                    
+                    {/* Foot Summary Row */}
+                    {!isLoadingMonthlyData && (attendanceData && attendanceData.length > 0) && (
+                      <tfoot className="bg-muted/10 font-semibold border-t-2 border-border/30">
+                        <tr>
+                          <td colSpan={3} className="border border-border/30 px-4 py-3 sticky left-0 z-10 bg-muted/20">
+                            Daily Presence Totals
+                          </td>
+                          {(() => {
+                            const year = currentMonth.getFullYear();
+                            const month = currentMonth.getMonth();
+                            const daysInMonth = new Date(year, month + 1, 0).getDate();
+                            
+                            return Array.from({ length: daysInMonth }, (_, i) => {
+                              const date = new Date(year, month, i + 1);
+                              const isWeekend = date.getDay() === 0; // Saturday is working day, so only Sunday is weekend
+                              const isFuture = date > new Date();
+                              
+                              if (isFuture) {
+                                return <td key={i} className="border border-border/30 px-1 py-3 text-center text-xs text-muted-foreground/40">-</td>;
+                              }
+                              if (isWeekend) {
+                                return <td key={i} className="border border-border/30 px-1 py-3 text-center text-xs text-muted-foreground/40 bg-muted/10">W</td>;
+                              }
+                              
+                              let presentCount = 0;
+                              attendanceData.forEach(staff => {
+                                const status = getAttendanceStatus(staff, date);
+                                if (status === 'present' || status === 'late' || status === 'overtime-complete' || status === 'overtime-checkin') {
+                                  presentCount++;
+                                }
+                              });
+                              
+                              return (
+                                <td key={i} className="border border-border/30 px-1 py-3 text-center text-xs font-bold text-primary">
+                                  {presentCount}
+                                </td>
+                              );
+                            });
+                          })()}
+                          <td className="border border-border/30 px-4 py-3 text-center bg-muted/20">
+                            {(() => {
+                              let totalPresent = 0;
+                              let totalPossible = 0;
+                              attendanceData.forEach(staff => {
+                                const monthAttendance = calculateMonthAttendance(staff);
+                                totalPresent += monthAttendance.present;
+                                totalPossible += monthAttendance.total;
+                              });
+                              return totalPossible > 0 ? `${Math.round((totalPresent / totalPossible) * 100)}%` : '0%';
+                            })()}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
                   </table>
                 </div>
 
