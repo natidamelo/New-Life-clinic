@@ -120,6 +120,7 @@ const StaffControlCenter: React.FC = () => {
   const [lastActivity, setLastActivity] = useState<string>('');
   const [attendanceData, setAttendanceData] = useState<AttendanceData[]>([]);
   const [attendanceSummary, setAttendanceSummary] = useState<AttendanceSummary | null>(null);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
   
   // State for month navigation
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -198,6 +199,7 @@ const StaffControlCenter: React.FC = () => {
         
         // Update state with loaded data
         setDepartments(overview.departmentStats || []);
+        setRecentActivity(overview.recentActivity || []);
         setStaffMembers(Array.isArray(staff) ? staff : []);
         
         // Fetch leave notification count
@@ -587,7 +589,11 @@ const StaffControlCenter: React.FC = () => {
               <AvatarImage src={staff.avatar} alt={staff.name} />
               <AvatarFallback>{staff.name.charAt(0)}</AvatarFallback>
             </Avatar>
-            <span className={`absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-white ${getStatusColor(staff.status)}`}></span>
+            <span className={`absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-white ${getStatusColor(staff.status)}`}>
+              {staff.status === 'online' && (
+                <span className="absolute inset-0 rounded-full animate-ping bg-green-400 opacity-75"></span>
+              )}
+            </span>
           </div>
           <div className="ml-4">
             <div className="font-medium">{staff.name}</div>
@@ -631,18 +637,25 @@ const StaffControlCenter: React.FC = () => {
 
   return (
     <div className="container mx-auto py-6 max-w-7xl">
-      <div className="flex flex-col md:flex-row justify-between items-start mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-muted-foreground">Staff Control Center</h1>
-          <p className="text-muted-foreground mt-1">Monitor and manage staff across departments</p>
-          <EthiopianTimeDisplay className="mt-2" />
+          <div className="flex items-center gap-3 mb-1">
+            <div className="rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 p-2.5">
+              <UserCog className="h-6 w-6 text-primary" />
+            </div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">Staff Control Center</h1>
+          </div>
+          <p className="text-muted-foreground mt-1 ml-14">Monitor and manage staff across departments</p>
+          <div className="ml-14 mt-1">
+            <EthiopianTimeDisplay className="" />
+          </div>
         </div>
         <div className="mt-4 md:mt-0 flex space-x-2">
-          <Button variant="outline" onClick={handleManageStaff}>
+          <Button variant="outline" onClick={handleManageStaff} className="shadow-sm">
             <UserCog className="mr-2 h-4 w-4" />
             Manage Staff
           </Button>
-          <Button>
+          <Button className="shadow-sm bg-gradient-to-r from-primary to-primary/80">
             <Users className="mr-2 h-4 w-4" />
             Assign Tasks
           </Button>
@@ -668,6 +681,62 @@ const StaffControlCenter: React.FC = () => {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
+          {/* Quick Stats Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Staff</p>
+                    <p className="text-2xl font-bold mt-1">{departmentSummary.totalStaff}</p>
+                  </div>
+                  <div className="rounded-xl bg-emerald-500/10 p-2.5">
+                    <Users className="h-5 w-5 text-emerald-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-blue-500/10 to-blue-600/5">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Active Now</p>
+                    <p className="text-2xl font-bold mt-1">{departmentSummary.activeStaff}</p>
+                  </div>
+                  <div className="rounded-xl bg-blue-500/10 p-2.5">
+                    <Activity className="h-5 w-5 text-blue-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-violet-500/10 to-violet-600/5">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Departments</p>
+                    <p className="text-2xl font-bold mt-1">{departmentSummary.totalDepartments}</p>
+                  </div>
+                  <div className="rounded-xl bg-violet-500/10 p-2.5">
+                    <BarChart3 className="h-5 w-5 text-violet-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-amber-500/10 to-amber-600/5">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Patients</p>
+                    <p className="text-2xl font-bold mt-1">{departmentSummary.activeStaff > 0 ? departmentSummary.totalPatients : 0}</p>
+                  </div>
+                  <div className="rounded-xl bg-amber-500/10 p-2.5">
+                    <Stethoscope className="h-5 w-5 text-amber-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {isLoading ? (
               Array(4).fill(0).map((_, index) => (
@@ -687,38 +756,49 @@ const StaffControlCenter: React.FC = () => {
           
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Staff activity across all departments</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Recent Activity</CardTitle>
+                  <CardDescription>Live staff activity across all departments</CardDescription>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                  </span>
+                  <span className="text-xs text-muted-foreground">Live</span>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="rounded-full p-1 bg-primary/20">
-                    <Activity className="h-4 w-4 text-primary" />
+              <div className="space-y-3">
+                {recentActivity.length > 0 ? (
+                  recentActivity.slice(0, 8).map((activity: any, index: number) => (
+                    <div key={activity.id || index} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/30 transition-colors group">
+                      <div className={`rounded-full p-2 ${
+                        activity.action === 'Clocked Out' ? 'bg-orange-500/10' : 'bg-green-500/10'
+                      }`}>
+                        {activity.action === 'Clocked Out' ? (
+                          <Clock className="h-3.5 w-3.5 text-orange-500" />
+                        ) : (
+                          <Activity className="h-3.5 w-3.5 text-green-500" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{activity.name}</p>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">{activity.role || 'staff'}</Badge>
+                          <span className="text-xs text-muted-foreground">{activity.action} at {activity.time}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <Activity className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">No recent activity recorded today</p>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">Dr. Kinfe Michael completed patient examination</p>
-                    <p className="text-xs text-muted-foreground">10 minutes ago</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="rounded-full p-1 bg-primary/20">
-                    <HeartPulse className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Nurse Semhal updated patient vitals</p>
-                    <p className="text-xs text-muted-foreground">25 minutes ago</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="rounded-full p-1 bg-secondary/20">
-                    <TestTube className="h-4 w-4 text-secondary-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Lab Technician completed blood test results</p>
-                    <p className="text-xs text-muted-foreground">1 hour ago</p>
-                  </div>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -796,9 +876,6 @@ const StaffControlCenter: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="attendance" className="space-y-4">
-          <Suspense fallback={<ComponentLoader />}>
-            <MergedAttendanceView />
-          </Suspense>
           
           <Card>
             <CardHeader>

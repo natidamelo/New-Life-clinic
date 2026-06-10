@@ -33,6 +33,7 @@ export interface StaffOverview {
   departmentStats: DepartmentStats[];
   totalStaff: number;
   onlineStaff: number;
+  recentActivity?: any[];
 }
 
 export interface TimesheetStatus {
@@ -153,7 +154,6 @@ class StaffService {
     console.log('🧹 StaffService cache cleared');
   }
 
-  // Get staff overview with department stats - OPTIMIZED
   async getStaffOverview(): Promise<StaffOverview> {
     const cacheKey = this.getCacheKey('/api/staff/overview');
     
@@ -165,6 +165,18 @@ class StaffService {
 
     const response = await api.get('/api/staff/overview');
     const data = response.data?.data || {};
+    
+    // Map departments array to departmentStats format if needed
+    if (data.departments && !data.departmentStats) {
+      data.departmentStats = data.departments.map((dept: any) => ({
+        name: dept.name,
+        staffCount: dept.count || dept.staffCount || 0,
+        activeCount: dept.present || dept.activeCount || 0,
+        busyCount: 0,
+        patientCount: dept.patientCount || 0,
+        pendingTasks: dept.pendingTasks || 0
+      }));
+    }
     
     // Cache with longer TTL for overview data
     this.setCache(cacheKey, data, this.OVERVIEW_TTL);

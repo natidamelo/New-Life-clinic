@@ -34,79 +34,96 @@ router.get('/', auth, async (req, res) => {
 // @access  Private
 router.get('/overview', auth, async (req, res) => {
   try {
-    // Get all active staff members
     const allStaff = await User.find({ 
       role: { $nin: ['admin'] },
       isActive: true 
     }).lean();
 
-    // Get today's attendance data
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const todayAttendance = await StaffAttendance.find({
-      checkInTime: { $gte: today, $lt: tomorrow }
+    const todayTimesheets = await Timesheet.find({ 
+      date: { $gte: today, $lt: tomorrow } 
     }).populate('userId', 'firstName lastName role department');
 
-    // Calculate present/absent counts
-    const presentToday = todayAttendance.length;
-    const absentToday = allStaff.length - presentToday;
+    const Patient = require('../models/Patient');
+    const patientCounts = await Patient.aggregate([
+      { $match: { status: { $in: ['Admitted', 'waiting', 'In Consultation'] } } },
+      { $group: { _id: '$assignedDoctorId', count: { $sum: 1 } } }
+    ]);
+    const nurseCounts = await Patient.aggregate([
+      { $match: { status: { $in: ['Admitted', 'waiting', 'In Consultation'] }, assignedNurseId: { $ne: null } } },
+      { $group: { _id: '$assignedNurseId', count: { $sum: 1 } } }
+    ]);
+    
+    const patientCountMap = {};
+    patientCounts.forEach(p => { if (p._id) patientCountMap[p._id.toString()] = p.count; });
+    nurseCounts.forEach(p => { if (p._id) patientCountMap[p._id.toString()] = (patientCountMap[p._id.toString()] || 0) + p.count; });
 
-    // Group by department
-    const departmentStats = {};
+    const deptMap = {};
     allStaff.forEach(staff => {
       const dept = staff.department || 'General';
-      if (!departmentStats[dept]) {
-        departmentStats[dept] = { total: 0, present: 0 };
+      if (!deptMap[dept]) {
+        deptMap[dept] = { 
+          name: dept, 
+          staffCount: 0, 
+          activeCount: 0, 
+          busyCount: 0, 
+          patientCount: 0, 
+          pendingTasks: 0 
+        };
       }
-      departmentStats[dept].total++;
+      deptMap[dept].staffCount++;
+
+      const hasActiveTimesheet = todayTimesheets.some(ts => 
+        ts.userId && ts.userId._id.toString() === staff._id.toString() && ts.status === 'active'
+      );
+      if (hasActiveTimesheet) {
+        deptMap[dept].activeCount++;
+      }
+
+      const patientsAssigned = patientCountMap[staff._id.toString()] || 0;
+      deptMap[dept].patientCount += patientsAssigned;
     });
 
-    // Count present by department
-    todayAttendance.forEach(attendance => {
-      const dept = attendance.userId.department || 'General';
-      if (departmentStats[dept]) {
-        departmentStats[dept].present++;
-      }
-    });
+    const departmentStats = Object.values(deptMap);
 
-    // Convert to array format
-    const departments = Object.keys(departmentStats).map(name => ({
-      name,
-      count: departmentStats[name].total,
-      present: departmentStats[name].present
-    }));
-
-    // Get recent activity (last 10 check-ins)
-    const recentActivity = await StaffAttendance.find()
-      .populate('userId', 'firstName lastName')
-      .sort({ checkInTime: -1 })
+    const recentTimesheets = await Timesheet.find()
+      .populate('userId', 'firstName lastName role department')
+      .sort({ updatedAt: -1 })
       .limit(10)
-      .select('checkInTime userId');
+      .lean();
 
-    const overviewData = {
-      totalStaff: allStaff.length,
-      presentToday,
-      absentToday,
-      onLeave: 0, // This would need to be calculated from leave data
-      departments,
-      recentActivity: recentActivity.map(activity => ({
-        id: activity._id,
-        name: `${activity.userId.firstName} ${activity.userId.lastName}`,
-        action: 'Clock In',
-        time: activity.checkInTime.toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
+    const recentActivity = recentTimesheets.filter(ts => ts.userId).map(ts => {
+      const isClockOut = ts.status === 'completed';
+      const actionTime = isClockOut ? (ts.clockOut?.time || ts.updatedAt) : (ts.clockIn?.time || ts.createdAt);
+      return {
+        id: ts._id.toString(),
+        name: `${ts.userId.firstName} ${ts.userId.lastName}`,
+        action: isClockOut ? 'Clocked Out' : 'Clocked In',
+        time: new Date(actionTime).toLocaleTimeString('en-US', {
+          hour: '2-digit',
           minute: '2-digit',
-          hour12: true 
-        })
-      }))
-    };
+          hour12: true
+        }),
+        role: ts.userId.role,
+        department: ts.userId.department || 'General'
+      };
+    });
+
+    const presentCount = todayTimesheets.filter(ts => ts.status === 'active' || ts.status === 'completed').length;
 
     res.json({
       success: true,
-      data: overviewData
+      data: {
+        totalStaff: allStaff.length,
+        onlineStaff: presentCount,
+        departmentStats,
+        roleStats: {},
+        recentActivity
+      }
     });
   } catch (error) {
     console.error('Error fetching staff overview:', error);
@@ -165,21 +182,7 @@ router.get('/attendance-data', auth, async (req, res) => {
         // Find overtime timesheet
         const overtimeTimesheet = staffTimesheets.find(ts => ts.isOvertime);
         
-        // Debug logging for Girum specifically
-        if (staff.firstName?.toLowerCase().includes('girum') || staff.lastName?.toLowerCase().includes('girum')) {
-          console.log('🔍 [DEBUG] Girum timesheets found:', staffTimesheets.length);
-          staffTimesheets.forEach((ts, index) => {
-            console.log(`  Timesheet ${index + 1}:`, {
-              id: ts._id,
-              isOvertime: ts.isOvertime,
-              status: ts.status,
-              clockInTime: ts.clockIn?.time,
-              clockOutTime: ts.clockOut?.time
-            });
-          });
-          console.log('  Regular timesheet found:', !!regularTimesheet);
-          console.log('  Overtime timesheet found:', !!overtimeTimesheet);
-        }
+
         
                 // Use regular timesheet for regular clock in/out, overtime timesheet for overtime info
                 const primaryTimesheet = regularTimesheet || overtimeTimesheet;
@@ -670,6 +673,27 @@ router.get('/members', auth, async (req, res) => {
       .sort({ firstName: 1, lastName: 1 })
       .lean();
 
+    // Get today's timesheets for status
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const todayTimesheets = await Timesheet.find({ date: { $gte: today, $lt: tomorrow } }).lean();
+
+    // Get patient counts
+    const Patient = require('../models/Patient');
+    const patientCounts = await Patient.aggregate([
+      { $match: { status: { $in: ['Admitted', 'waiting', 'In Consultation'] } } },
+      { $group: { _id: '$assignedDoctorId', count: { $sum: 1 } } }
+    ]);
+    const nurseCounts = await Patient.aggregate([
+      { $match: { status: { $in: ['Admitted', 'waiting', 'In Consultation'] }, assignedNurseId: { $ne: null } } },
+      { $group: { _id: '$assignedNurseId', count: { $sum: 1 } } }
+    ]);
+    const patientCountMap = {};
+    patientCounts.forEach(p => { if (p._id) patientCountMap[p._id.toString()] = p.count; });
+    nurseCounts.forEach(p => { if (p._id) patientCountMap[p._id.toString()] = (patientCountMap[p._id.toString()] || 0) + p.count; });
+
     // Transform data to match expected format
     const transformedMembers = staffMembers.map(staff => ({
       id: staff._id.toString(),
@@ -677,9 +701,13 @@ router.get('/members', auth, async (req, res) => {
       role: staff.role,
       department: staff.department || 'General',
       specialization: staff.specialization || '',
-      status: 'online', // This would need to be calculated from activity
+      status: todayTimesheets.some(ts => ts.userId.toString() === staff._id.toString() && ts.status === 'active') 
+        ? 'online' 
+        : todayTimesheets.some(ts => ts.userId.toString() === staff._id.toString()) 
+          ? 'away' 
+          : 'offline',
       email: staff.email,
-      assignedPatients: 0, // This would need to be calculated from patient assignments
+      assignedPatients: patientCountMap[staff._id.toString()] || 0,
       lastActive: staff.lastLogin || staff.updatedAt
     }));
 
@@ -767,17 +795,46 @@ router.get('/patient-assignments/available-staff', auth, async (req, res) => {
 
     const staffMembers = await User.find(query).select('-password').lean();
     
+    // Get today's timesheets for status
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const todayTimesheets = await Timesheet.find({ date: { $gte: today, $lt: tomorrow } }).lean();
+
+    // Get patient counts
+    const Patient = require('../models/Patient');
+    const patientCounts = await Patient.aggregate([
+      { $match: { status: { $in: ['Admitted', 'waiting', 'In Consultation'] } } },
+      { $group: { _id: '$assignedDoctorId', count: { $sum: 1 } } }
+    ]);
+    const nurseCounts = await Patient.aggregate([
+      { $match: { status: { $in: ['Admitted', 'waiting', 'In Consultation'] }, assignedNurseId: { $ne: null } } },
+      { $group: { _id: '$assignedNurseId', count: { $sum: 1 } } }
+    ]);
+    const patientCountMap = {};
+    patientCounts.forEach(p => { if (p._id) patientCountMap[p._id.toString()] = p.count; });
+    nurseCounts.forEach(p => { if (p._id) patientCountMap[p._id.toString()] = (patientCountMap[p._id.toString()] || 0) + p.count; });
+
     // Transform to match expected format
-    const availableStaff = staffMembers.map(staff => ({
-      id: staff._id.toString(),
-      name: `${staff.firstName} ${staff.lastName}`,
-      role: staff.role, // Keep lowercase as stored in database
-      department: staff.department || 'General',
-      specialization: staff.specialization || '',
-      email: staff.email,
-      assignedPatients: 0, // This would be calculated from patient assignments
-      available: true // Default to available, would be calculated based on assignedPatients vs maxPatients
-    }));
+    const availableStaff = staffMembers.map(staff => {
+      const assignedPatients = patientCountMap[staff._id.toString()] || 0;
+      return {
+        id: staff._id.toString(),
+        name: `${staff.firstName} ${staff.lastName}`,
+        role: staff.role, // Keep lowercase as stored in database
+        department: staff.department || 'General',
+        specialization: staff.specialization || '',
+        email: staff.email,
+        assignedPatients,
+        available: assignedPatients < 10, // Max 10 patients per staff member
+        status: todayTimesheets.some(ts => ts.userId.toString() === staff._id.toString() && ts.status === 'active') 
+          ? 'online' 
+          : todayTimesheets.some(ts => ts.userId.toString() === staff._id.toString()) 
+            ? 'away' 
+            : 'offline'
+      };
+    });
 
     res.json({
       success: true,
@@ -971,34 +1028,24 @@ router.post('/patient-assignments/assign', auth, async (req, res) => {
 router.post('/patient-assignments/remove', auth, async (req, res) => {
   try {
     const { patientId, assignmentType } = req.body;
-    
-    // Validate input
     if (!patientId || !assignmentType) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields: patientId, assignmentType'
-      });
+      return res.status(400).json({ success: false, message: 'Missing required fields: patientId, assignmentType' });
     }
-    
-    // For now, just return success since patient assignment logic would need to be implemented
-    // In a real implementation, you would remove the assignment from the patient record
-    
-    res.json({
-      success: true,
-      message: 'Patient assignment removed successfully',
-      data: {
-        patientId,
-        assignmentType,
-        removedAt: new Date()
-      }
-    });
+    const Patient = require('../models/Patient');
+    const patient = await Patient.findById(patientId);
+    if (!patient) {
+      return res.status(404).json({ success: false, message: 'Patient not found' });
+    }
+    if (assignmentType === 'doctor') {
+      patient.assignedDoctorId = null;
+    } else if (assignmentType === 'nurse') {
+      patient.assignedNurseId = null;
+    }
+    await patient.save();
+    res.json({ success: true, message: 'Patient assignment removed successfully', data: { patientId, assignmentType, removedAt: new Date() } });
   } catch (error) {
     console.error('Error removing patient assignment:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
@@ -1051,16 +1098,33 @@ router.get('/member/:id', auth, async (req, res) => {
       });
     }
 
+    // Query today's Timesheet for status
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const userTimesheet = await Timesheet.findOne({ userId: staffMember._id, date: { $gte: today, $lt: tomorrow } }).lean();
+
+    // Query Patient collection for assigned patients
+    const Patient = require('../models/Patient');
+    const assignedPatientsCount = await Patient.countDocuments({
+      $or: [
+        { assignedDoctorId: staffMember._id },
+        { assignedNurseId: staffMember._id }
+      ],
+      status: { $in: ['Admitted', 'waiting', 'In Consultation'] }
+    });
+
     const transformedMember = {
       id: staffMember._id.toString(),
       name: `${staffMember.firstName} ${staffMember.lastName}`,
       role: staffMember.role,
       department: staffMember.department || 'General',
       specialization: staffMember.specialization || '',
-      status: 'online',
+      status: userTimesheet ? (userTimesheet.status === 'active' ? 'online' : 'away') : 'offline',
       email: staffMember.email,
       phone: staffMember.phone || '',
-      assignedPatients: 0,
+      assignedPatients: assignedPatientsCount,
       lastActive: staffMember.lastLogin || staffMember.updatedAt,
       joinDate: staffMember.createdAt.toISOString().split('T')[0],
       qualifications: [],
@@ -1378,27 +1442,45 @@ router.put('/:id/attendance-overlay', auth, async (req, res) => {
 // @access  Private
 router.get('/export-timesheets', auth, async (req, res) => {
   try {
-    const { startDate, endDate, format = 'csv' } = req.query;
+    const { startDate, endDate, department, status } = req.query;
+    let query = {};
+    if (startDate && endDate) {
+      query.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    }
+    const timesheets = await Timesheet.find(query)
+      .populate('userId', 'firstName lastName role department email')
+      .sort({ date: -1 });
     
-    // Mock export data
-    const exportData = {
-      filename: `timesheets_${startDate}_${endDate}.${format}`,
-      downloadUrl: '/api/staff/download-timesheets/12345',
-      recordCount: 150,
-      generatedAt: new Date().toISOString()
-    };
-
-    res.json({
-      success: true,
-      data: exportData
+    let filtered = timesheets;
+    if (department && department !== 'all') {
+      filtered = filtered.filter(t => t.userId && t.userId.department === department);
+    }
+    if (status && status !== 'all') {
+      filtered = filtered.filter(t => t.status === status);
+    }
+    
+    // Build CSV
+    const headers = ['Employee','Role','Department','Date','Clock In','Clock Out','Total Hours','Overtime Hours','Status'];
+    const rows = [headers.join(',')];
+    filtered.forEach(ts => {
+      if (!ts.userId) return;
+      const name = `${ts.userId.firstName} ${ts.userId.lastName}`;
+      const date = ts.date ? new Date(ts.date).toISOString().split('T')[0] : '';
+      const clockIn = ts.clockIn?.time ? new Date(ts.clockIn.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+      const clockOut = ts.clockOut?.time ? new Date(ts.clockOut.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+      const totalHours = (ts.totalWorkHours || 0).toFixed(2);
+      const overtimeHours = (ts.overtimeHours || 0).toFixed(2);
+      const vals = [name, ts.userId.role, ts.userId.department || 'General', date, clockIn, clockOut, totalHours, overtimeHours, ts.status || 'pending'];
+      rows.push(vals.map(v => `"${String(v || '').replace(/"/g, '""')}"`).join(','));
     });
+    
+    const csv = rows.join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="timesheets_${startDate || 'all'}_to_${endDate || 'all'}.csv"`);
+    res.send(csv);
   } catch (error) {
     console.error('Error exporting timesheets:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 

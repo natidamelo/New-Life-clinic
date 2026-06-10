@@ -663,13 +663,51 @@ const TimesheetDashboard: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
-                <CardTitle>Weekly Trends</CardTitle>
-                <CardDescription>Work hours distribution over the week</CardDescription>
+                <CardTitle>Weekly Hours Distribution</CardTitle>
+                <CardDescription>Work hours by day of week</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64 flex items-center justify-center text-muted-foreground">
-                  <BarChart3 className="h-12 w-12" />
-                  <span className="ml-2">Chart visualization coming soon</span>
+                <div className="h-64 flex items-end justify-between gap-2 px-4">
+                  {(() => {
+                    // Aggregate hours by day of week from timesheets
+                    const dayHours: Record<string, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+                    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    const dayCounts: Record<string, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+                    
+                    timesheets.forEach(ts => {
+                      if (ts.date) {
+                        try {
+                          const d = parseISO(ts.date);
+                          const dayName = dayNames[d.getDay()];
+                          dayHours[dayName] += ts.totalHours || 0;
+                          dayCounts[dayName]++;
+                        } catch (e) {}
+                      }
+                    });
+                    
+                    const displayDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    const maxHours = Math.max(...displayDays.map(d => dayCounts[d] > 0 ? dayHours[d] / dayCounts[d] : 0), 1);
+                    
+                    return displayDays.map(day => {
+                      const avgHours = dayCounts[day] > 0 ? dayHours[day] / dayCounts[day] : 0;
+                      const heightPercent = (avgHours / maxHours) * 100;
+                      const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-violet-500', 'bg-amber-500', 'bg-rose-500', 'bg-cyan-500'];
+                      const colorIndex = displayDays.indexOf(day);
+                      
+                      return (
+                        <div key={day} className="flex flex-col items-center gap-1.5 flex-1">
+                          <span className="text-xs font-medium text-muted-foreground">{avgHours > 0 ? `${avgHours.toFixed(1)}h` : ''}</span>
+                          <div className="w-full bg-muted/30 rounded-t-lg relative" style={{ height: '180px' }}>
+                            <div
+                              className={`absolute bottom-0 left-0 right-0 ${colors[colorIndex]} rounded-t-lg transition-all duration-700 ease-out opacity-80 hover:opacity-100`}
+                              style={{ height: `${Math.max(heightPercent, 2)}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-medium text-muted-foreground">{day}</span>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </CardContent>
             </Card>
@@ -677,33 +715,49 @@ const TimesheetDashboard: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Top Performers</CardTitle>
-                <CardDescription>Employees with perfect attendance</CardDescription>
+                <CardDescription>Employees with most hours this period</CardDescription>
               </CardHeader>
               <CardContent>
-                                 <div className="space-y-3">
-                   {Array.isArray(timesheets) && timesheets.length > 0 ? (
-                     timesheets.slice(0, 5).map((ts, index) => (
-                       <div key={index} className="flex items-center justify-between">
-                         <div className="flex items-center gap-2">
-                           <div className="text-lg font-bold text-muted-foreground">
-                             #{index + 1}
-                           </div>
-                           <div>
-                             <div className="font-medium">{ts.userName}</div>
-                             <div className="text-xs text-muted-foreground">{ts.userDepartment}</div>
-                           </div>
-                         </div>
-                          <Badge variant="default">
-                           {formatDuration(ts.totalHours)}
-                         </Badge>
-                       </div>
-                     ))
-                   ) : (
-                     <div className="text-center text-muted-foreground py-4">
-                       No timesheet data available
-                     </div>
-                   )}
-                 </div>
+                <div className="space-y-3">
+                  {(() => {
+                    // Aggregate hours per user
+                    const userHours: Record<string, { name: string; dept: string; hours: number; days: number }> = {};
+                    timesheets.forEach(ts => {
+                      if (!userHours[ts.userId]) {
+                        userHours[ts.userId] = { name: ts.userName, dept: ts.userDepartment, hours: 0, days: 0 };
+                      }
+                      userHours[ts.userId].hours += ts.totalHours || 0;
+                      userHours[ts.userId].days++;
+                    });
+                    const sorted = Object.values(userHours).sort((a, b) => b.hours - a.hours).slice(0, 5);
+                    const maxHours = sorted[0]?.hours || 1;
+                    
+                    return sorted.length > 0 ? sorted.map((user, index) => (
+                      <div key={index} className="flex items-center gap-3">
+                        <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
+                          index === 0 ? 'bg-amber-100 text-amber-700' :
+                          index === 1 ? 'bg-gray-100 text-gray-600' :
+                          index === 2 ? 'bg-orange-100 text-orange-700' :
+                          'bg-muted text-muted-foreground'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium truncate">{user.name}</span>
+                            <Badge variant="outline" className="text-xs ml-2">{formatDuration(user.hours)}</Badge>
+                          </div>
+                          <div className="w-full bg-muted/30 rounded-full h-1.5">
+                            <div className="bg-primary rounded-full h-1.5 transition-all duration-500" style={{ width: `${(user.hours / maxHours) * 100}%` }} />
+                          </div>
+                          <span className="text-xs text-muted-foreground">{user.dept} · {user.days} days</span>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="text-center text-muted-foreground py-4">No timesheet data available</div>
+                    );
+                  })()}
+                </div>
               </CardContent>
             </Card>
           </div>

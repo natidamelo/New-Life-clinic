@@ -49,26 +49,26 @@ router.post('/heartbeat', auth, async (req, res) => {
     const { timestamp, lastActivity } = req.body;
     const userId = req.user._id;
     
-    console.log(`💓 Heartbeat received from user ${userId} at ${new Date(timestamp).toISOString()}`);
+    // Update user's active timesheet with last activity time
+    const Timesheet = require('../models/Timesheet');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
     
-    // Here you would typically update the user's last activity in the database
-    // For now, we'll just acknowledge the heartbeat
+    await Timesheet.findOneAndUpdate(
+      { userId, date: { $gte: today, $lt: tomorrow }, status: 'active' },
+      { $set: { lastActivityTime: new Date(timestamp || Date.now()) } }
+    );
     
     res.json({
       success: true,
       message: 'Heartbeat received',
-      data: {
-        timestamp: Date.now(),
-        userId: userId
-      }
+      data: { timestamp: Date.now(), userId }
     });
   } catch (error) {
     console.error('Error processing heartbeat:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
@@ -451,51 +451,74 @@ router.get('/automatic', auth, async (req, res) => {
 // @access  Private
 router.get('/admin-notifications', auth, async (req, res) => {
   try {
-    // Mock admin notifications
-    const notifications = [
-      {
-        id: '1',
+    const User = require('../models/User');
+    const Timesheet = require('../models/Timesheet');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Get today's timesheets
+    const todayTimesheets = await Timesheet.find({ date: { $gte: today, $lt: tomorrow } })
+      .populate('userId', 'firstName lastName role department')
+      .sort({ createdAt: -1 });
+
+    // Get all active staff to find who hasn't clocked in
+    const allStaff = await User.find({ role: { $nin: ['admin'] }, isActive: true }).lean();
+    const clockedInIds = new Set(todayTimesheets.filter(ts => ts.userId).map(ts => ts.userId._id.toString()));
+
+    const notifications = [];
+    let idCounter = 1;
+
+    // Late arrivals (minutesLate > 0)
+    todayTimesheets.filter(ts => ts.userId && ts.clockIn?.minutesLate > 0 && !ts.isOvertime).forEach(ts => {
+      notifications.push({
+        id: String(idCounter++),
         type: 'late_arrival',
-        message: 'Dr. Emily Brown is 15 minutes late',
-        userId: '3',
-        userName: 'Dr. Emily Brown',
-        timestamp: new Date().toISOString(),
-        isRead: false
-      },
-      {
-        id: '2',
-        type: 'overtime_alert',
-        message: 'Nurse Sarah Johnson has been working for 12 hours',
-        userId: '2',
-        userName: 'Nurse Sarah Johnson',
-        timestamp: new Date().toISOString(),
-        isRead: false
-      },
-      {
-        id: '3',
-        type: 'absence_alert',
-        message: 'Dr. Michael Wilson has not clocked in today',
-        userId: '5',
-        userName: 'Dr. Michael Wilson',
-        timestamp: new Date().toISOString(),
+        message: `${ts.userId.firstName} ${ts.userId.lastName} was ${ts.clockIn.minutesLate} minutes late`,
+        userId: ts.userId._id.toString(),
+        userName: `${ts.userId.firstName} ${ts.userId.lastName}`,
+        timestamp: (ts.clockIn.time || ts.createdAt).toISOString(),
         isRead: true
-      }
-    ];
+      });
+    });
+
+    // Absent staff (no timesheet today, current time > 9:30 AM)
+    const now = new Date();
+    const nineThirty = new Date(today);
+    nineThirty.setHours(9, 30, 0, 0);
+    if (now > nineThirty) {
+      allStaff.filter(s => !clockedInIds.has(s._id.toString())).forEach(s => {
+        notifications.push({
+          id: String(idCounter++),
+          type: 'absence_alert',
+          message: `${s.firstName} ${s.lastName} has not clocked in today`,
+          userId: s._id.toString(),
+          userName: `${s.firstName} ${s.lastName}`,
+          timestamp: now.toISOString(),
+          isRead: false
+        });
+      });
+    }
+
+    // Overtime alerts (working > 10 hours)
+    todayTimesheets.filter(ts => ts.userId && (ts.totalWorkHours || 0) > 10 && ts.status === 'active').forEach(ts => {
+      notifications.push({
+        id: String(idCounter++),
+        type: 'overtime_alert',
+        message: `${ts.userId.firstName} ${ts.userId.lastName} has been working for ${Math.round(ts.totalWorkHours)} hours`,
+        userId: ts.userId._id.toString(),
+        userName: `${ts.userId.firstName} ${ts.userId.lastName}`,
+        timestamp: now.toISOString(),
+        isRead: false
+      });
+    });
 
     const totalUnread = notifications.filter(n => !n.isRead).length;
-
-    res.json({
-      success: true,
-      notifications: notifications,
-      totalUnread: totalUnread
-    });
+    res.json({ success: true, notifications, totalUnread });
   } catch (error) {
     console.error('Error fetching admin notifications:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
@@ -505,60 +528,79 @@ router.get('/admin-notifications', auth, async (req, res) => {
 router.get('/analytics', auth, async (req, res) => {
   try {
     const { startDate, endDate, department } = req.query;
+    const Timesheet = require('../models/Timesheet');
+    const User = require('../models/User');
     
-    // Mock analytics data
-    const analytics = {
-      summary: {
-        totalDays: 30,
-        averageAttendance: 85,
-        totalPresent: 510,
-        totalAbsent: 90,
-        totalLate: 45,
-        totalOvertime: 120
-      },
-      dailyStats: [
-        {
-          date: '2025-01-01',
-          present: 18,
-          absent: 5,
-          late: 3,
-          overtime: 4
-        },
-        {
-          date: '2025-01-02',
-          present: 20,
-          absent: 3,
-          late: 2,
-          overtime: 6
-        }
-      ],
-      departmentStats: {
-        'Doctors': {
-          totalPresent: 180,
-          totalAbsent: 20,
-          averageAttendance: 90,
-          totalOvertime: 45
-        },
-        'Nurses': {
-          totalPresent: 240,
-          totalAbsent: 30,
-          averageAttendance: 88,
-          totalOvertime: 60
-        }
-      }
-    };
-
+    let query = {};
+    if (startDate && endDate) {
+      query.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    } else {
+      // Default to last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      query.date = { $gte: thirtyDaysAgo, $lte: new Date() };
+    }
+    
+    const timesheets = await Timesheet.find(query)
+      .populate('userId', 'firstName lastName role department')
+      .lean();
+    
+    const filtered = timesheets.filter(t => t.userId);
+    let deptFiltered = filtered;
+    if (department && department !== 'all') {
+      deptFiltered = deptFiltered.filter(t => t.userId.department === department);
+    }
+    
+    // Get unique working days
+    const uniqueDates = new Set(deptFiltered.map(t => t.date ? new Date(t.date).toISOString().split('T')[0] : '').filter(Boolean));
+    const totalDays = uniqueDates.size || 1;
+    
+    const totalPresent = deptFiltered.filter(t => t.dayAttendanceStatus === 'present' || t.status === 'completed' || t.status === 'active').length;
+    const totalLate = deptFiltered.filter(t => t.clockIn?.minutesLate > 0).length;
+    const totalOvertime = deptFiltered.filter(t => (t.overtimeHours || 0) > 0 || t.isOvertime).length;
+    
+    // Get all staff count for absent calculation
+    let staffQuery = { role: { $nin: ['admin'] }, isActive: true };
+    if (department && department !== 'all') {
+      staffQuery.department = department;
+    }
+    const allStaff = await User.find(staffQuery).countDocuments();
+    const totalAbsent = Math.max(0, (allStaff * totalDays) - totalPresent);
+    const averageAttendance = allStaff > 0 && totalDays > 0 ? Math.round((totalPresent / (allStaff * totalDays)) * 100) : 0;
+    
+    // Daily stats
+    const dailyStatsMap = {};
+    deptFiltered.forEach(t => {
+      if (!t.date) return;
+      const dateKey = new Date(t.date).toISOString().split('T')[0];
+      if (!dateKey) return;
+      if (!dailyStatsMap[dateKey]) dailyStatsMap[dateKey] = { date: dateKey, present: 0, absent: 0, late: 0, overtime: 0 };
+      dailyStatsMap[dateKey].present++;
+      if (t.clockIn?.minutesLate > 0) dailyStatsMap[dateKey].late++;
+      if ((t.overtimeHours || 0) > 0 || t.isOvertime) dailyStatsMap[dateKey].overtime++;
+    });
+    const dailyStats = Object.values(dailyStatsMap).sort((a, b) => a.date.localeCompare(b.date));
+    
+    // Department stats
+    const deptStatsMap = {};
+    filtered.forEach(t => {
+      const dept = t.userId.department || 'General';
+      if (!deptStatsMap[dept]) deptStatsMap[dept] = { totalPresent: 0, totalAbsent: 0, averageAttendance: 0, totalOvertime: 0 };
+      deptStatsMap[dept].totalPresent++;
+      if ((t.overtimeHours || 0) > 0 || t.isOvertime) deptStatsMap[dept].totalOvertime++;
+    });
+    
     res.json({
       success: true,
-      data: analytics
+      data: {
+        summary: { totalDays, averageAttendance, totalPresent, totalAbsent, totalLate, totalOvertime },
+        dailyStats,
+        departmentStats: deptStatsMap
+      }
     });
   } catch (error) {
     console.error('Error fetching attendance analytics:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
@@ -567,70 +609,74 @@ router.get('/analytics', auth, async (req, res) => {
 // @access  Private
 router.get('/monthly', auth, async (req, res) => {
   try {
-    const { year, month, startDate, endDate } = req.query;
+    const { year, month } = req.query;
+    const Timesheet = require('../models/Timesheet');
+    const User = require('../models/User');
     
-    // Mock monthly attendance data
-    const monthlyData = {
-      year: parseInt(year),
-      month: parseInt(month),
-      totalDays: 31,
-      totalStaff: 25,
-      summary: {
-        totalPresent: 620,
-        totalAbsent: 155,
-        totalLate: 78,
-        totalOvertime: 310,
-        averageAttendance: 80
-      },
-      dailyBreakdown: [
-        {
-          date: '2025-01-01',
-          present: 20,
-          absent: 5,
-          late: 3,
-          overtime: 8
-        },
-        {
-          date: '2025-01-02',
-          present: 22,
-          absent: 3,
-          late: 2,
-          overtime: 10
-        }
-      ],
-      staffBreakdown: [
-        {
-          userId: '1',
-          userName: 'Dr. John Smith',
-          presentDays: 28,
-          absentDays: 3,
-          lateDays: 2,
-          overtimeHours: 45,
-          totalHours: 252
-        },
-        {
-          userId: '2',
-          userName: 'Nurse Sarah Johnson',
-          presentDays: 30,
-          absentDays: 1,
-          lateDays: 0,
-          overtimeHours: 60,
-          totalHours: 270
-        }
-      ]
-    };
-
+    const targetYear = year ? parseInt(year) : new Date().getFullYear();
+    const targetMonth = month ? parseInt(month) - 1 : new Date().getMonth();
+    
+    const startDate = new Date(targetYear, targetMonth, 1);
+    const endDate = new Date(targetYear, targetMonth + 1, 1);
+    const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+    
+    const allStaff = await User.find({ role: { $nin: ['admin'] }, isActive: true }).lean();
+    const timesheets = await Timesheet.find({ date: { $gte: startDate, $lt: endDate } })
+      .populate('userId', 'firstName lastName role department')
+      .lean();
+    
+    let totalPresent = 0, totalLate = 0, totalOvertime = 0;
+    const dailyBreakdown = [];
+    const staffMap = {};
+    
+    // Build staff breakdown
+    allStaff.forEach(s => {
+      staffMap[s._id.toString()] = { userId: s._id.toString(), userName: `${s.firstName} ${s.lastName}`, presentDays: 0, absentDays: 0, lateDays: 0, overtimeHours: 0, totalHours: 0 };
+    });
+    
+    timesheets.forEach(ts => {
+      if (!ts.userId) return;
+      const uid = ts.userId._id?.toString();
+      if (uid && staffMap[uid]) {
+        staffMap[uid].presentDays++;
+        staffMap[uid].totalHours += ts.totalWorkHours || 0;
+        staffMap[uid].overtimeHours += ts.overtimeHours || 0;
+        if (ts.clockIn?.minutesLate > 0) staffMap[uid].lateDays++;
+      }
+      totalPresent++;
+      if (ts.clockIn?.minutesLate > 0) totalLate++;
+      if ((ts.overtimeHours || 0) > 0 || ts.isOvertime) totalOvertime++;
+    });
+    
+    // Calculate absent days for each staff
+    Object.values(staffMap).forEach(s => {
+      // Count working days (exclude Sundays)
+      let workingDays = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(targetYear, targetMonth, d);
+        if (date.getDay() !== 0 && date <= new Date()) workingDays++;
+      }
+      s.absentDays = Math.max(0, workingDays - s.presentDays);
+    });
+    
+    const totalAbsent = Object.values(staffMap).reduce((sum, s) => sum + s.absentDays, 0);
+    const averageAttendance = allStaff.length > 0 ? Math.round((totalPresent / (allStaff.length * daysInMonth)) * 100) : 0;
+    
     res.json({
       success: true,
-      data: monthlyData
+      data: {
+        year: targetYear,
+        month: targetMonth + 1,
+        totalDays: daysInMonth,
+        totalStaff: allStaff.length,
+        summary: { totalPresent, totalAbsent, totalLate, totalOvertime, averageAttendance },
+        dailyBreakdown,
+        staffBreakdown: Object.values(staffMap)
+      }
     });
   } catch (error) {
     console.error('Error fetching monthly attendance:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
