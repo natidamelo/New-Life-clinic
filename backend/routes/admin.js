@@ -125,17 +125,16 @@ router.post('/users', auth, async (req, res) => {
   try {
     const userData = req.body;
     
-    // Import User model and bcrypt
+    // Import User model
     const User = require('../models/User');
-    const bcrypt = require('bcryptjs');
     
-    // Check if user already exists
+    // Check if user already exists (database-wide check)
     const existingUser = await User.findOne({
       $or: [
         { email: userData.email },
         { username: userData.username }
       ]
-    });
+    }).setOptions({ skipTenantScope: true });
     
     if (existingUser) {
       return res.status(400).json({
@@ -144,17 +143,13 @@ router.post('/users', auth, async (req, res) => {
       });
     }
     
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(userData.password || 'defaultPassword123', salt);
-    
-    // Create new user
+    // Create new user (password will be automatically hashed by User schema pre-save hook)
     const newUser = new User({
       firstName: userData.firstName,
       lastName: userData.lastName,
       username: userData.username,
       email: userData.email,
-      password: hashedPassword,
+      password: userData.password || 'defaultPassword123',
       role: userData.role,
       specialization: userData.specialization || '',
       isActive: true,
@@ -184,6 +179,23 @@ router.post('/users', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating user:', error);
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: `Validation error: ${Object.values(error.errors || {}).map(e => e.message).join(', ')}`,
+        error: error.message
+      });
+    }
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0] || 'field';
+      return res.status(400).json({
+        success: false,
+        message: `Duplicate value: ${field} already exists`,
+        error: error.message
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Failed to create user',
