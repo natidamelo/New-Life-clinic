@@ -53,7 +53,7 @@ router.get('/', auth, requireSuperAdmin, async (req, res) => {
           }
         }
       }
-    ]);
+    ]).option({ skipTenantScope: true });
 
     const statsMap = new Map(statsByClinic.map((x) => [x._id, x]));
     const clinicList = clinics.map((clinic) => {
