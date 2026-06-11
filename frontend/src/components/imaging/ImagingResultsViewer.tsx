@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Printer, X, Download, Calendar, User, FileText, Activity } from 'lucide-react';
 import { ImagingOrder } from '../../services/imagingService';
 import { formatDate } from '../../utils/formatters';
+import { useClinic } from '../../context/ClinicContext';
 
 interface ImagingResultsViewerProps {
   order: ImagingOrder;
@@ -10,6 +11,7 @@ interface ImagingResultsViewerProps {
 }
 
 const ImagingResultsViewer: React.FC<ImagingResultsViewerProps> = ({ order, onClose, onEdit }) => {
+  const { clinic } = useClinic();
   const [isPrinting, setIsPrinting] = useState(false);
 
   // Function to convert markdown-style formatting to HTML
@@ -356,10 +358,16 @@ const ImagingResultsViewer: React.FC<ImagingResultsViewerProps> = ({ order, onCl
               align-items: center;
               justify-content: center;
               margin-right: 15px;
+              overflow: hidden;
             }
             
-            .clinic-logo::after {
-              content: '⚕';
+            .clinic-logo-img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+            }
+            
+            .clinic-logo-fallback {
               color: white;
               font-size: 20px;
               font-weight: bold;
@@ -692,12 +700,14 @@ const ImagingResultsViewer: React.FC<ImagingResultsViewerProps> = ({ order, onCl
             </div>
             
             <div class="clinic-header">
-              <div class="clinic-logo"></div>
+              <div class="clinic-logo">
+                ${clinic?.logo ? `<img class="clinic-logo-img" src="${clinic.logo}" alt="Logo" />` : `<span class="clinic-logo-fallback">⚕</span>`}
+              </div>
               <div class="clinic-info">
-                <div class="clinic-title">New Life Healthcare Center</div>
+                <div class="clinic-title">${clinic?.fullName || clinic?.name || 'New Life Healthcare Center'}</div>
                 <div class="clinic-subtitle">Department of Medical Imaging</div>
-                <div class="clinic-contact">📍 Lafto, beside Kebron Guest House</div>
-                <div class="clinic-phone">📞 +251925959219</div>
+                <div class="clinic-contact">📍 ${clinic?.address || 'Lafto, beside Kebron Guest House'}</div>
+                <div class="clinic-phone">📞 ${clinic?.contactPhone || '+251925959219'}</div>
               </div>
             </div>
             
@@ -819,15 +829,15 @@ const ImagingResultsViewer: React.FC<ImagingResultsViewerProps> = ({ order, onCl
                 <p>Generated: ${new Date().toLocaleDateString()}</p>
                 <p>Time: ${new Date().toLocaleTimeString()}</p>
                 <p><strong>Report ID: #${order._id?.slice(-8) || 'N/A'}</strong></p>
-                <p>System: New Life CMS v2.0</p>
+                <p>System: ${clinic?.name || 'New Life'} CMS v2.0</p>
             </div>
               
             <div class="footer-section">
                 <h5>Medical Facility</h5>
-                <p><strong>New Life Healthcare Center</strong></p>
+                <p><strong>${clinic?.fullName || clinic?.name || 'New Life Healthcare Center'}</strong></p>
                 <p>Department of Medical Imaging</p>
                 <p>Professional Medical Imaging Services</p>
-                <p>📞 +251925959219</p>
+                <p>📞 ${clinic?.contactPhone || '+251925959219'}</p>
               </div>
               
             <div class="footer-section">
@@ -835,7 +845,7 @@ const ImagingResultsViewer: React.FC<ImagingResultsViewerProps> = ({ order, onCl
                 <p>This is an official medical report</p>
                 <p>Confidential patient information</p>
                 <p>For authorized use only</p>
-                <p>© ${new Date().getFullYear()} New Life Healthcare</p>
+                <p>© ${new Date().getFullYear()} ${clinic?.name || 'New Life Healthcare'}</p>
               </div>
             </div>
             
@@ -856,7 +866,7 @@ const ImagingResultsViewer: React.FC<ImagingResultsViewerProps> = ({ order, onCl
             </div>
             
             <div class="copyright">
-              © ${new Date().getFullYear()} New Life Healthcare Center. All rights reserved. 
+              © ${new Date().getFullYear()} ${clinic?.fullName || clinic?.name || 'New Life Healthcare Center'}. All rights reserved. 
               This document contains confidential medical information.
             </div>
           </div>
@@ -877,13 +887,13 @@ const ImagingResultsViewer: React.FC<ImagingResultsViewerProps> = ({ order, onCl
   };
 
   const handleDownload = () => {
-    // Create a comprehensive professional report
+    const clinicName = (clinic?.fullName || clinic?.name || 'NEW LIFE HEALTHCARE CENTER').toUpperCase();
     const reportContent = `
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                          NEW LIFE HEALTHCARE CENTER                          ║
-║                             IMAGING DEPARTMENT                               ║
-║                        Professional Medical Imaging                          ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+================================================================================
+${clinicName.padStart(40 + Math.floor(clinicName.length / 2))}
+                             IMAGING DEPARTMENT
+                        Professional Medical Imaging
+================================================================================
 
 IMAGING REPORT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -938,10 +948,10 @@ Report Date: ${order.results?.reportDate ? formatDate(order.results?.reportDate)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Report generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
-New Life Healthcare Center - Imaging Department
+${clinic?.fullName || clinic?.name || 'New Life Healthcare Center'} - Imaging Department
 This is an official medical report - Confidential patient information
-© ${new Date().getFullYear()} New Life Healthcare Center. All rights reserved.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+© ${new Date().getFullYear()} ${clinic?.fullName || clinic?.name || 'New Life Healthcare Center'}. All rights reserved.
+================================================================================
     `;
 
     const blob = new Blob([reportContent], { type: 'text/plain' });
@@ -1358,16 +1368,16 @@ This is an official medical report - Confidential patient information
                 </div>
                 <div>
                   <h1 style={{ fontSize: '24pt', fontWeight: 'bold', margin: '0', color: '#000' }}>
-                    New Life Healthcare Center
+                    {clinic?.fullName || clinic?.name || 'New Life Healthcare Center'}
                   </h1>
                   <p style={{ fontSize: '14pt', margin: '0', color: '#666' }}>
                     Comprehensive Imaging Report
                   </p>
                   <p style={{ fontSize: '11pt', margin: '0', color: '#666' }}>
-                    Location: Main Hospital, Imaging Department
+                    Location: {clinic?.address || 'Main Hospital, Imaging Department'}
                   </p>
                   <p style={{ fontSize: '11pt', margin: '0', color: '#666' }}>
-                    Phone: +251123456789
+                    Phone: {clinic?.contactPhone || '+251123456789'}
                   </p>
                 </div>
               </div>
@@ -1496,7 +1506,7 @@ This is an official medical report - Confidential patient information
                     <Activity className="h-6 w-6 text-primary-foreground" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-muted-foreground">New Life Healthcare Center</h1>
+                    <h1 className="text-3xl font-bold text-muted-foreground">{clinic?.fullName || clinic?.name || 'New Life Healthcare Center'}</h1>
                     <p className="text-lg text-muted-foreground font-medium">Imaging Department - Professional Reports</p>
                   </div>
                 </div>
@@ -1733,7 +1743,7 @@ This is an official medical report - Confidential patient information
                   
                   <div className="text-center print-footer-section">
                     <h5 className="font-semibold text-muted-foreground mb-2">Medical Facility</h5>
-                    <p className="text-muted-foreground font-medium">New Life Healthcare Center</p>
+                    <p className="text-muted-foreground font-medium">{clinic?.fullName || clinic?.name || 'New Life Healthcare Center'}</p>
                     <p className="text-muted-foreground">Imaging Department</p>
                     <p className="text-muted-foreground">Professional Medical Imaging Services</p>
                   </div>
@@ -1748,7 +1758,7 @@ This is an official medical report - Confidential patient information
                 
                 <div className="mt-6 pt-4 border-t border-border/30 text-center">
                   <p className="text-xs text-muted-foreground">
-                    © {new Date().getFullYear()} New Life Healthcare Center. All rights reserved. 
+                    © {new Date().getFullYear()} {clinic?.fullName || clinic?.name || 'New Life Healthcare Center'}. All rights reserved. 
                     This document contains confidential medical information.
                   </p>
                 </div>
@@ -1771,7 +1781,7 @@ This is an official medical report - Confidential patient information
                     <strong>Verified by:</strong> {order.results?.radiologist || 'Dr. Radiologist'}
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <strong>New Life Healthcare Center - Imaging Report System</strong><br/>
+                    <strong>{clinic?.fullName || clinic?.name || 'New Life Healthcare Center'} - Imaging Report System</strong><br/>
                     Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
                   </div>
                 </div>

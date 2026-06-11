@@ -14,6 +14,7 @@ import serviceService from '../../services/serviceService';
 import serviceRequestService from '../../services/serviceRequestService';
 import api from '../../services/apiService';
 import type { Service } from '../../types/service';
+import { useClinic } from '../../context/ClinicContext';
 // PrescriptionExtensionModal import removed - simplified prescription system
 
 // Add logo path constants
@@ -1708,6 +1709,7 @@ interface ProfessionalPrescriptionFormProps {
 }
 
 const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> = ({ patient, onClose, onSubmit }) => {
+    const { clinic } = useClinic();
     const { user, getToken } = useAuth(); // Get doctor info from context
     const [medications, setMedications] = useState<MedicationItem[]>([{
         medication: '',
@@ -3517,12 +3519,12 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                      <div class="prescription-container">
                          <div class="prescription-header">
                              <div class="clinic-info">
-                                 <img src="/assets/images/logo.jpg" alt="Clinic Logo" class="clinic-logo" onerror="this.style.display='none'">
+                                 <img src="${clinic?.logo || LOGO_PATH}" alt="Clinic Logo" class="clinic-logo" onerror="this.style.display='none'">
                                  <div style="display: flex; flex-direction: column; justify-content: center;">
-                                     <div class="clinic-name">New Life Medium Clinic PLC</div>
+                                     <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
                                      <div class="clinic-subtitle">Medical Prescription</div>
-                                     <div class="clinic-address">📍 Lafto beside Kebron Guest House</div>
-                                     <div class="clinic-phone">📞 +251925959219</div>
+                                     <div class="clinic-address">📍 ${clinic?.address || 'Lafto beside Kebron Guest House'}</div>
+                                     <div class="clinic-phone">📞 ${clinic?.contactPhone || '+251925959219'}</div>
                                  </div>
                              </div>
                              <div class="prescription-meta">
@@ -3605,7 +3607,7 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                         </div>
 
                          <div class="footer">
-                             <div>New Life Medium Clinic PLC - Medical Prescription System</div>
+                             <div>${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'} - Medical Prescription System</div>
                              <div>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</div>
                              <div>This prescription is valid for 30 days from the date of issue</div>
                          </div>
@@ -3671,7 +3673,7 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                     <div className="mb-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <img
-                                src={LOGO_PATH}
+                                src={clinic?.logo || LOGO_PATH}
                                 alt="Clinic Logo"
                                 className="w-10 h-10 rounded-full object-cover border border-border"
                                 onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -3681,7 +3683,7 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                                 }}
                             />
                             <div>
-                                <h1 className="text-base font-semibold text-foreground leading-tight">New Life Medium Clinic PLC</h1>
+                                <h1 className="text-base font-semibold text-foreground leading-tight">{clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</h1>
                                 <p className="text-xs text-muted-foreground">Create Prescription</p>
                             </div>
                         </div>

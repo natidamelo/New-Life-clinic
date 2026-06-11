@@ -3,6 +3,7 @@ import { formatDate } from '../../utils/formatters';
 import { PatientLabResults, StandardLabResult } from '../../services/labService';
 import { Copy, Printer, Download, Search, RefreshCw, X, FlaskConical, User, Calendar, Hash, ChevronDown, ChevronUp, Activity, TestTube, Microscope, Heart, Shield, Beaker } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useClinic } from '../../context/ClinicContext';
 
 interface ComprehensiveLabReportProps {
   patientResults: PatientLabResults;
@@ -13,6 +14,7 @@ const LOGO_PATH = '/assets/images/logo.jpg';
 const LOGO_FALLBACK = '/assets/images/logo-placeholder.svg';
 
 const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patientResults, onClose }) => {
+  const { clinic } = useClinic();
   const [searchTerm, setSearchTerm] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const [expandedTests, setExpandedTests] = useState<Set<string>>(new Set());
@@ -231,12 +233,12 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
           <div class="watermark">Confidential Medical Record</div>
           <div class="report-header">
             <div class="report-header-left">
-              <img src="${LOGO_PATH}" class="clinic-logo" alt="New Life Medium Clinic Logo" onerror="this.onerror=null; this.src='${LOGO_FALLBACK}';" />
+              <img src="${clinic?.logo || LOGO_PATH}" class="clinic-logo" alt="${clinic?.name || 'New Life Medium Clinic'} Logo" onerror="this.onerror=null; this.src='${LOGO_FALLBACK}';" />
               <div>
-                <div class="report-title">New Life Medium Clinic</div>
+                <div class="report-title">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic'}</div>
                 <div class="clinic-info">Comprehensive Lab Report</div>
-                <div class="clinic-location">Location: Lafto, beside Kebron Guest House</div>
-                <div class="clinic-phone">Phone: +251925959219</div>
+                <div class="clinic-location">Location: ${clinic?.address || 'Lafto, beside Kebron Guest House'}</div>
+                <div class="clinic-phone">Phone: ${clinic?.contactPhone || '+251925959219'}</div>
               </div>
             </div>
             <div style="text-align: right;">
@@ -263,7 +265,7 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
               <div>Verified by: ${patientResults.verifiedBy || patientResults.physician || 'Not specified'}</div>
             </div>
             <div>
-              <div>New Life Medium Clinic - Lab Report System</div>
+              <div>${clinic?.fullName || clinic?.name || 'New Life Medium Clinic'} - Lab Report System</div>
               <div>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</div>
             </div>
           </div>
@@ -1404,12 +1406,12 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
       html += `
         <div style="display: flex; justify-content: space-between; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #444;">
           <div style="display: flex; align-items: center;">
-            <img src="${LOGO_PATH}" style="max-width: 80px; max-height: 80px; margin-right: 15px;" alt="New Life Medium Clinic Logo" onerror="this.onerror=null; this.src='${LOGO_FALLBACK}';" />
+            <img src="${clinic?.logo || LOGO_PATH}" style="max-width: 80px; max-height: 80px; margin-right: 15px;" alt="${clinic?.name || 'New Life Medium Clinic'} Logo" onerror="this.onerror=null; this.src='${LOGO_FALLBACK}';" />
             <div>
-              <div style="font-size: 20px; font-weight: bold; margin-bottom: 3px; color: #222;">New Life Medium Clinic</div>
+              <div style="font-size: 20px; font-weight: bold; margin-bottom: 3px; color: #222;">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic'}</div>
               <div style="font-size: 12px; margin-bottom: 3px;">Comprehensive Lab Report</div>
-              <div style="font-size: 11px; color: #555;">Location: Lafto, beside Kebron Guest House</div>
-              <div style="font-size: 11px; color: #555;">Phone: +251925959219</div>
+              <div style="font-size: 11px; color: #555;">Location: ${clinic?.address || 'Lafto, beside Kebron Guest House'}</div>
+              <div style="font-size: 11px; color: #555;">Phone: ${clinic?.contactPhone || '+251925959219'}</div>
             </div>
           </div>
           <div style="text-align: right;">
@@ -1737,15 +1739,15 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center bg-gray-50 shrink-0">
             <img
-              src={LOGO_PATH}
+              src={clinic?.logo || LOGO_PATH}
               className="w-9 h-9 object-contain"
               alt="Clinic Logo"
               onError={(e) => { const t = e.target as HTMLImageElement; t.onerror = null; t.src = LOGO_FALLBACK; }}
             />
           </div>
           <div>
-            <h1 className="text-base font-bold text-gray-900 leading-tight">New Life Medium Clinic</h1>
-            <p className="text-xs text-gray-500">Comprehensive Lab Report · Lafto, beside Kebron Guest House</p>
+            <h1 className="text-base font-bold text-gray-900 leading-tight">{clinic?.fullName || clinic?.name || 'New Life Medium Clinic'}</h1>
+            <p className="text-xs text-gray-500">Comprehensive Lab Report · {clinic?.address || 'Lafto, beside Kebron Guest House'}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -2101,7 +2103,7 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
       <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 shrink-0">
         <div className="flex justify-between items-center">
           <p className="text-xs text-gray-400">
-            Generated by New Life Medium Clinic Lab System · {new Date().toLocaleDateString()}
+            Generated by {clinic?.name || 'New Life Medium Clinic'} Lab System · {new Date().toLocaleDateString()}
           </p>
           <div className="flex items-center gap-1.5">
             <button

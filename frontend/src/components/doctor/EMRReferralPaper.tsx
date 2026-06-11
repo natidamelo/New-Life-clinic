@@ -21,6 +21,7 @@ import { useAuth } from '../../context/AuthContext';
 import { formatDate, formatTime } from '../../utils/formatters';
 import patientService from '../../services/patientService';
 import referralService from '../../services/referralService';
+import { useClinic } from '../../context/ClinicContext';
 
 interface PatientData {
   _id: string;
@@ -74,6 +75,7 @@ interface ReferralData {
 
 const EMRReferralPaper: React.FC = () => {
   const { user } = useAuth();
+  const { clinic } = useClinic();
   const [referralData, setReferralData] = useState<ReferralData>({
     patientId: '',
     patientName: '',
@@ -108,6 +110,22 @@ const EMRReferralPaper: React.FC = () => {
     followUpInstructions: '',
     additionalNotes: ''
   });
+
+  // Dynamically update referring clinic info when clinic context loads
+  useEffect(() => {
+    if (clinic) {
+      setReferralData(prev => {
+        const isDefault = prev.referringClinic === '' || prev.referringClinic === 'New Life Medium Clinic';
+        return {
+          ...prev,
+          referringClinic: isDefault ? clinic.fullName || clinic.name : prev.referringClinic,
+          referringPhone: isDefault ? clinic.contactPhone || prev.referringPhone : prev.referringPhone,
+          referringEmail: isDefault ? clinic.contactEmail || prev.referringEmail : prev.referringEmail,
+          referringAddress: isDefault ? clinic.address || prev.referringAddress : prev.referringAddress,
+        };
+      });
+    }
+  }, [clinic]);
 
   const [isPrinting, setIsPrinting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1392,7 +1410,7 @@ const EMRReferralPaper: React.FC = () => {
           <div className="flex justify-between items-start mb-2">
             <div className="flex items-start gap-3">
               <img 
-                src="/assets/images/logo.jpg" 
+                src={clinic?.logo || "/assets/images/logo.jpg"} 
                 alt="Clinic Logo" 
                 className="w-16 h-16 object-contain"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}

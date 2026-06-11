@@ -11,6 +11,7 @@ export interface ClinicBranding {
   address: string;
   contactEmail: string;
   contactPhone: string;
+  licenseNumber?: string;
 }
 
 interface ClinicContextType {
@@ -30,7 +31,8 @@ const DEFAULT_BRANDING: ClinicBranding = {
   tagline: 'Your Health, Our Commitment',
   address: 'Addis Ababa, Ethiopia',
   contactEmail: 'info@newlifeclinic.com',
-  contactPhone: '+251911000000'
+  contactPhone: '+251911000000',
+  licenseNumber: '0000/2016'
 };
 
 export const ClinicProvider: React.FC<{ children: ReactNode }> = ({ children }) => {

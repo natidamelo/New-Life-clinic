@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useClinic } from '../../context/ClinicContext';
 import { toast } from 'react-hot-toast';
 import { isAuthenticated, getAuthToken, getAuthHeaders, clearAuthData, handleAuthError } from '../../utils/authUtils';
 import { API_BASE_URL } from '../../config';
@@ -33,6 +34,7 @@ interface Patient {
 
 const MedicalCertificates: React.FC = () => {
   const { user } = useAuth();
+  const { clinic } = useClinic();
   const [activeTab, setActiveTab] = useState<'form' | 'list' | 'stats'>('form');
   const [certificates, setCertificates] = useState<MedicalCertificate[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -279,6 +281,22 @@ const MedicalCertificates: React.FC = () => {
       loadStats();
     }
   }, [activeTab]);
+
+  // Dynamically update clinic details in form state when clinic context loads
+  useEffect(() => {
+    if (clinic) {
+      setFormData(prev => {
+        const isDefault = prev.clinicName === '' || prev.clinicName === 'New Life Medium Clinic PLC';
+        return {
+          ...prev,
+          clinicName: isDefault ? clinic.fullName || clinic.name : prev.clinicName,
+          clinicAddress: isDefault ? clinic.address || prev.clinicAddress : prev.clinicAddress,
+          clinicPhone: isDefault ? clinic.contactPhone || prev.clinicPhone : prev.clinicPhone,
+          clinicLicense: isDefault ? clinic.licenseNumber || prev.clinicLicense : prev.clinicLicense
+        };
+      });
+    }
+  }, [clinic]);
 
   const loadCertificates = async () => {
     setLoading(true);
@@ -616,10 +634,10 @@ const MedicalCertificates: React.FC = () => {
       certificateType: 'Medical Certificate',
       validFrom: new Date().toISOString().split('T')[0],
       validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      clinicName: 'New Life Medium Clinic PLC',
-      clinicAddress: 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia',
-      clinicPhone: '+251925959219',
-      clinicLicense: 'CL-001',
+      clinicName: clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC',
+      clinicAddress: clinic?.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia',
+      clinicPhone: clinic?.contactPhone || '+251925959219',
+      clinicLicense: clinic?.licenseNumber || 'CL-001',
       notes: '',
       digitalSignature: null
     });
@@ -1217,9 +1235,9 @@ const MedicalCertificates: React.FC = () => {
               <div class="certificate-container">
                 <div class="clinic-header">
                   <div class="clinic-header-content">
-                    <img src="/assets/images/logo.jpg" alt="New Life Medium Clinic Logo" class="clinic-logo">
+                    <img src="${clinic?.logo || "/assets/images/logo.jpg"}" alt="Clinic Logo" class="clinic-logo">
                     <div>
-                      <div class="clinic-name">New Life Medium Clinic PLC</div>
+                      <div class="clinic-name">${certificateData.clinic.name || 'New Life Medium Clinic PLC'}</div>
                     </div>
                   </div>
                   <div class="document-title">Medical Certificate</div>

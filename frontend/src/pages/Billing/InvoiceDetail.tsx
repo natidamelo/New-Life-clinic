@@ -11,6 +11,7 @@ import { UpdatedInvoiceInfo as PaymentUpdatedInvoiceInfo } from '../../services/
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import inventoryService from '../../services/inventoryService';
+import { useClinic } from '../../context/ClinicContext';
 
 const getStatusColor = (status: InvoiceStatus | string | undefined) => {
   switch (status) {
@@ -138,6 +139,7 @@ const normalizeInvoiceText = (text: any): string => {
 const InvoiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { clinic } = useClinic();
   const queryClient = useQueryClient();
   const [showPaymentForm, setShowPaymentForm] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'details' | 'analytics'>('details');
@@ -1279,10 +1281,10 @@ const InvoiceDetail: React.FC = () => {
         </style>
         <div className="std-invoice">
           <div className="header">
-            <div className="title">New Life Medium Clinic PLC</div>
-            <div>Contact: +251925959219</div>
-            <div>Sub city: nefas silk Lafto woreda 12 house No:New</div>
-            <div>TIN: 0071128497</div>
+            <div className="title">{clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
+            {clinic?.contactPhone && <div>Contact: {clinic.contactPhone}</div>}
+            {clinic?.address && <div>Address: {clinic.address}</div>}
+            {clinic?.licenseNumber && <div>TIN: {clinic.licenseNumber}</div>}
           </div>
           <hr style={{ margin: '2px 0' }} />
           <table className="meta">

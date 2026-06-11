@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { useClinic } from '../../context/ClinicContext';
 
 interface Medication {
   name: string;
@@ -88,6 +89,7 @@ interface SearchFilters {
 }
 
 const EMRPrescriptionSystem: React.FC = () => {
+  const { clinic } = useClinic();
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
@@ -727,12 +729,12 @@ const EMRPrescriptionSystem: React.FC = () => {
               <div class="prescription-container">
                   <div class="prescription-header">
                       <div class="clinic-info">
-                          <img src="/assets/images/logo.jpg" alt="Clinic Logo" class="clinic-logo" onerror="this.style.display='none'">
+                          <img src="${clinic?.logo || '/assets/images/logo.jpg'}" alt="Clinic Logo" class="clinic-logo" onerror="this.style.display='none'">
                           <div style="display: flex; flex-direction: column; justify-content: center;">
-                              <div class="clinic-name">New Life Medium Clinic PLC</div>
+                              <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
                               <div class="clinic-subtitle">Medical Prescription</div>
-                              <div class="clinic-address">📍 Lafto beside Kebron Guest House</div>
-                              <div class="clinic-phone">📞 +251925959219</div>
+                              <div class="clinic-address">📍 ${clinic?.address || 'Lafto beside Kebron Guest House'}</div>
+                              <div class="clinic-phone">📞 ${clinic?.contactPhone || '+251925959219'}</div>
                           </div>
                       </div>
                       <div class="prescription-meta">
@@ -838,7 +840,7 @@ const EMRPrescriptionSystem: React.FC = () => {
                   </div>
 
                   <div class="footer">
-                      <div>New Life Medium Clinic PLC - Medical Prescription System</div>
+                      <div>${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'} - Medical Prescription System</div>
                       <div>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</div>
                       <div>This prescription is valid for 30 days from the date of issue</div>
                   </div>
