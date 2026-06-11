@@ -28,9 +28,59 @@ const cardTypeController = {
 
       logger.info('Fetching all active card types');
       
-      const cardTypes = await CardType.find({ isActive: true })
+      let cardTypes = await CardType.find({ isActive: true })
         .sort({ name: 1 })
         .lean();
+      
+      // If no card types exist for this tenant, initialize defaults for them
+      if (cardTypes.length === 0) {
+        logger.info('No card types found for this clinic, initializing defaults...');
+        const tenantId = req.tenantId || req.user?.clinicId || 'default';
+        const defaultCardTypes = [
+          {
+            name: 'Basic',
+            value: 'basic',
+            price: 100,
+            validityMonths: 12,
+            description: 'Basic patient membership card.',
+            isActive: true,
+            clinicId: tenantId
+          },
+          {
+            name: 'Premium',
+            value: 'premium',
+            price: 200,
+            validityMonths: 12,
+            description: 'Premium patient membership with additional benefits.',
+            isActive: true,
+            clinicId: tenantId
+          },
+          {
+            name: 'VIP',
+            value: 'vip',
+            price: 400,
+            validityMonths: 12,
+            description: 'VIP patient membership with exclusive benefits.',
+            isActive: true,
+            clinicId: tenantId
+          },
+          {
+            name: 'Family',
+            value: 'family',
+            price: 500,
+            validityMonths: 12,
+            description: 'Family membership for multiple family members.',
+            isActive: true,
+            clinicId: tenantId
+          }
+        ];
+        
+        await CardType.insertMany(defaultCardTypes);
+        
+        cardTypes = await CardType.find({ isActive: true })
+          .sort({ name: 1 })
+          .lean();
+      }
       
       logger.info(`Found ${cardTypes.length} active card types`);
       
@@ -59,6 +109,16 @@ const cardTypeController = {
         logger.warn('Skipping default card types initialization: DB not connected');
         return;
       }
+      
+      // Safely drop old global unique indexes if they exist to prevent index conflicts
+      try {
+        await CardType.collection.dropIndex('name_1');
+        logger.info('Dropped old global unique index name_1');
+      } catch (err) {}
+      try {
+        await CardType.collection.dropIndex('value_1');
+        logger.info('Dropped old global unique index value_1');
+      } catch (err) {}
       
       logger.info('Checking for existing card types...');
       
@@ -170,6 +230,7 @@ const cardTypeController = {
       // Create new card type
       const cardType = new CardType({
         ...cardTypeData,
+        clinicId: req.tenantId || req.user?.clinicId || 'default',
         isActive: true,
         createdBy: req.user._id
       });

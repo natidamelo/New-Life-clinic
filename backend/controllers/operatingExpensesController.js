@@ -8,31 +8,46 @@ const getExpenses = asyncHandler(async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
+    const tenantId = req.tenantId || req.user?.clinicId || 'default';
+    
     // Build query filter to support both Date object and String formats stored in DB
     const filter = {};
+    
+    // Apply manual tenant isolation matching clinicIdOrLegacyMatch
+    const primary = (process.env.PRIMARY_CLINIC_ID || 'default').trim() || 'default';
+    let tenantFilter;
+    if (tenantId === primary || tenantId === 'default') {
+      const slugSet = new Set(
+        [tenantId, primary, 'default'].filter((s) => s != null && String(s).trim() !== '')
+      );
+      const or = [...slugSet].map((id) => ({ clinicId: id }));
+      or.push(
+        { clinicId: { $exists: false } },
+        { clinicId: null },
+        { clinicId: '' }
+      );
+      tenantFilter = { $or: or };
+    } else {
+      const slugSet = new Set(
+        [tenantId, 'default'].filter((s) => s != null && String(s).trim() !== '')
+      );
+      const or = [...slugSet].map((id) => ({ clinicId: id }));
+      tenantFilter = { $or: or };
+    }
+    
     if (startDate && endDate) {
       const startD = new Date(startDate);
       const endD = new Date(endDate);
-      filter.$or = [
-        {
-          expenseDate: {
-            $gte: startD,
-            $lte: endD
-          }
-        },
-        {
-          expenseDate: {
-            $gte: startDate,
-            $lte: endDate
-          }
-        },
-        {
-          expenseDate: {
-            $gte: startD.toISOString(),
-            $lte: endD.toISOString()
-          }
-        }
-      ];
+      const dateFilter = {
+        $or: [
+          { expenseDate: { $gte: startD, $lte: endD } },
+          { expenseDate: { $gte: startDate, $lte: endDate } },
+          { expenseDate: { $gte: startD.toISOString(), $lte: endD.toISOString() } }
+        ]
+      };
+      filter.$and = [tenantFilter, dateFilter];
+    } else {
+      filter.$and = [tenantFilter];
     }
     
     // Get expenses with pagination
@@ -133,6 +148,7 @@ const addExpense = asyncHandler(async (req, res) => {
     
     // Create new expense
     const expense = new OperatingExpense({
+      clinicId: req.tenantId || 'default',
       description,
       category: category || 'other',
       amount: parseFloat(amount),

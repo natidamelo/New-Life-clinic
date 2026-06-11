@@ -205,7 +205,29 @@ router.get('/', auth, async (req, res) => {
     let operatingExpenses = 0;
     if (OperatingExpense) {
       try {
-        const expenseList = await OperatingExpense.collection.find({
+        const tenantId = req.tenantId || req.user?.clinicId || 'default';
+        const primary = (process.env.PRIMARY_CLINIC_ID || 'default').trim() || 'default';
+        let tenantFilter;
+        if (tenantId === primary || tenantId === 'default') {
+          const slugSet = new Set(
+            [tenantId, primary, 'default'].filter((s) => s != null && String(s).trim() !== '')
+          );
+          const or = [...slugSet].map((id) => ({ clinicId: id }));
+          or.push(
+            { clinicId: { $exists: false } },
+            { clinicId: null },
+            { clinicId: '' }
+          );
+          tenantFilter = { $or: or };
+        } else {
+          const slugSet = new Set(
+            [tenantId, 'default'].filter((s) => s != null && String(s).trim() !== '')
+          );
+          const or = [...slugSet].map((id) => ({ clinicId: id }));
+          tenantFilter = { $or: or };
+        }
+
+        const dateAndRecurringFilter = {
           $or: [
             { recurring: true },
             {
@@ -227,6 +249,10 @@ router.get('/', auth, async (req, res) => {
               }
             }
           ]
+        };
+
+        const expenseList = await OperatingExpense.collection.find({
+          $and: [tenantFilter, dateAndRecurringFilter]
         }).toArray();
         operatingExpenses = expenseList.reduce((sum, exp) => sum + exp.amount, 0);
       } catch (err) {

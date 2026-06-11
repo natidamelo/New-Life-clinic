@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const OperatingExpenseSchema = new mongoose.Schema({
+  clinicId: { type: String, required: true, default: 'default' },
   description: { type: String, required: true },
   category: {
     type: String,
@@ -14,6 +15,7 @@ const OperatingExpenseSchema = new mongoose.Schema({
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
+OperatingExpenseSchema.index({ clinicId: 1 });
 OperatingExpenseSchema.index({ expenseDate: -1 });
 OperatingExpenseSchema.index({ recurring: 1, expenseDate: -1 });
 
