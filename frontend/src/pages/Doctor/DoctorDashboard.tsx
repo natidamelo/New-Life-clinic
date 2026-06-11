@@ -33,6 +33,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AUTH_TOKEN_KEY, USER_DATA_KEY } from '../../config';
 import api from '../../services/apiService'; // Add missing api import
+import { useClinic } from '../../context/ClinicContext';
 
 // Import lab components
 import PatientLabResultsList from '../../components/doctor/PatientLabResultsList';
@@ -270,6 +271,7 @@ interface DoctorDashboardProps {
 
 const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patients' }) => {
   const { user, getToken, isAuthenticated } = useAuth();
+  const { clinic } = useClinic();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -4500,11 +4502,11 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                           <body>
                             <div class="prescription-form">
                               <div class="clinic-header">
-                                <img src="/assets/images/logo.jpg" alt="Clinic Logo" class="clinic-logo" onerror="this.style.display='none'">
+                                <img src="${clinic?.logo || '/assets/images/logo.jpg'}" alt="Clinic Logo" class="clinic-logo" onerror="this.style.display='none'">
                                 <div class="clinic-info">
-                                  <div class="clinic-name">New Life Medium Clinic PLC</div>
+                                  <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
                                   <div class="clinic-subtitle">Medical Prescription</div>
-                                  <div class="clinic-address">Lafto beside Kebron Guest House<br>Phone: +251925959219</div>
+                                  <div class="clinic-address">${clinic?.address || 'Lafto beside Kebron Guest House'}<br>Phone: ${clinic?.contactPhone || '+251925959219'}</div>
                                 </div>
                               </div>
                               
@@ -4587,7 +4589,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                               </div>
                               
                               <div class="footer">
-                                <div>New Life Medium Clinic PLC - Medical Prescription System</div>
+                                <div>${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'} - Medical Prescription System</div>
                                 <div>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</div>
                                 <div>This prescription is valid for 30 days from the date of issue</div>
                               </div>
@@ -4762,11 +4764,11 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                 `}</style>
                 <div className="prescription-form">
                   <div className="clinic-header">
-                    <img src="/assets/images/logo.jpg" alt="Clinic Logo" className="clinic-logo" onError={(e) => e.currentTarget.style.display = 'none'} />
+                    <img src={clinic?.logo || "/assets/images/logo.jpg"} alt="Clinic Logo" className="clinic-logo" onError={(e) => e.currentTarget.style.display = 'none'} />
                     <div className="clinic-info">
-                      <div className="clinic-name">New Life Medium Clinic PLC</div>
+                      <div className="clinic-name">{clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
                       <div className="clinic-subtitle">Medical Prescription</div>
-                      <div className="clinic-address">Lafto beside Kebron Guest House<br />Phone: +251925959219</div>
+                      <div className="clinic-address">{clinic?.address || 'Lafto beside Kebron Guest House'}<br />Phone: {clinic?.contactPhone || '+251925959219'}</div>
                     </div>
                   </div>
 
@@ -4959,7 +4961,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                   </div>
 
                   <div className="footer">
-                    <div>New Life Medium Clinic PLC - Medical Prescription System</div>
+                    <div>{clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'} - Medical Prescription System</div>
                     <div>Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}</div>
                     <div>This prescription is valid for 30 days from the date of issue</div>
                   </div>
