@@ -68,7 +68,7 @@ const WARMUP_MAX_SECONDS = 300;
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login, testLogin } = useAuth();
+  const { user, isAuthenticated, login, testLogin, getRoleBasedRoute } = useAuth();
   const { clinic } = useClinic();
   const { isDarkMode, toggleTheme } = useSafeTheme();
   const [isLoading, setIsLoading] = useState(false);
@@ -87,6 +87,18 @@ const Login: React.FC = () => {
     cardRef.current.style.setProperty('--mouse-x', `${x}px`);
     cardRef.current.style.setProperty('--mouse-y', `${y}px`);
   };
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const isAdmin =
+        user.role === 'admin' ||
+        user.role === 'super_admin' ||
+        (user.email && user.email.toLowerCase().includes('admin')) ||
+        (user.username && user.username.toLowerCase().includes('admin'));
+      navigate(isAdmin ? '/app/dashboard' : getRoleBasedRoute(user.role));
+    }
+  }, [isAuthenticated, user, navigate, getRoleBasedRoute]);
 
   // Clean up timers on unmount
   useEffect(() => {
