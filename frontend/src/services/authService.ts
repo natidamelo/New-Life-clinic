@@ -292,7 +292,7 @@ class AuthService {
         });
         
         console.log('📤 [AuthService] Sending POST to /api/auth/login');
-        const response = await api.post('/api/auth/login', loginPayload, { skipAuth: true, timeout: 15000 } as any); // 15s — fail fast to trigger login page auto-retry/warmup banner
+        const response = await api.post('/api/auth/login', loginPayload, { skipAuth: true, timeout: 90000 } as any); // 90s — allow enough time for Render cold start / server spin-up
         
         if (response.data.success && response.data.data) {
           const { user, token, refreshToken, clinic } = response.data.data;
