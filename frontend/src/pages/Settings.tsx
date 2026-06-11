@@ -10,9 +10,11 @@ import AdvancedSettings from '../components/settings/AdvancedSettings';
 import GlobalDashboardSettings from '../components/settings/GlobalDashboardSettings';
 import RoleSettings from '../components/settings/RoleSettings';
 import ThemeSettings from './ThemeSettings';
+import { useClinic } from '../context/ClinicContext';
+import api from '../services/apiService';
 
 // Define types for settings sections
-type SettingsSection = 'overview' | 'appearance' | 'notifications' | 'security' | 'advanced' | 'profile' | 'global-dashboards' | 'role-settings';
+type SettingsSection = 'overview' | 'appearance' | 'notifications' | 'security' | 'advanced' | 'profile' | 'global-dashboards' | 'role-settings' | 'clinic-branding';
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
@@ -152,7 +154,10 @@ const Settings: React.FC = () => {
     { id: 'advanced', label: 'Advanced', icon: '⚙️' },
     { id: 'profile', label: 'Profile', icon: '👤' },
     { id: 'role-settings', label: 'My Dashboard Settings', icon: '🎯' },
-    ...(user?.role === 'admin' ? [{ id: 'global-dashboards', label: 'Global Dashboards', icon: '🌐' }] : [])
+    ...(user?.role === 'admin' ? [
+      { id: 'clinic-branding', label: 'Clinic Profile & Branding', icon: '🏥' },
+      { id: 'global-dashboards', label: 'Global Dashboards', icon: '🌐' }
+    ] : [])
   ];
 
   if (!user) {
@@ -423,6 +428,9 @@ const Settings: React.FC = () => {
         {activeSection === 'global-dashboards' && (
           <GlobalDashboardSettings onClose={() => setActiveSection('overview')} />
         )}
+        {activeSection === 'clinic-branding' && (
+          <ClinicBrandingSettings />
+        )}
           </Card>
         </div>
       </div>
@@ -650,6 +658,173 @@ const Settings: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const ClinicBrandingSettings: React.FC = () => {
+  const { clinic, updateClinicState } = useClinic();
+  const [formData, setFormData] = useState({
+    name: clinic?.name || '',
+    fullName: clinic?.fullName || '',
+    tagline: clinic?.tagline || '',
+    address: clinic?.address || '',
+    contactPhone: clinic?.contactPhone || '',
+    contactEmail: clinic?.contactEmail || '',
+    licenseNumber: clinic?.licenseNumber || '',
+    logo: clinic?.logo || ''
+  });
+  const [saving, setSaving] = useState(false);
+
+  // Sync state if clinic loaded after initial render
+  useEffect(() => {
+    if (clinic) {
+      setFormData({
+        name: clinic.name || '',
+        fullName: clinic.fullName || '',
+        tagline: clinic.tagline || '',
+        address: clinic.address || '',
+        contactPhone: clinic.contactPhone || '',
+        contactEmail: clinic.contactEmail || '',
+        licenseNumber: clinic.licenseNumber || '',
+        logo: clinic.logo || ''
+      });
+    }
+  }, [clinic]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const response = await api.put(`/api/clinics/${clinic?.slug}/profile`, formData);
+      if (response.data?.success) {
+        updateClinicState(response.data.data);
+        toast.success('Clinic branding profile updated successfully!');
+      } else {
+        toast.error(response.data?.message || 'Failed to update branding profile');
+      }
+    } catch (error: any) {
+      console.error('Error updating clinic profile:', error);
+      toast.error(error?.response?.data?.message || error?.message || 'Error updating clinic profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-muted-foreground mb-1">Clinic Profile & Branding</h2>
+        <p className="text-sm text-muted-foreground">Customize your clinic's identity, logo, address, and credentials. These details are used dynamically on prescriptions, lab reports, invoices, and certificates.</p>
+      </div>
+      
+      <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-muted-foreground mb-1">Short Name</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-primary-foreground text-foreground"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-muted-foreground mb-1">Legal / Full Name</label>
+            <input
+              type="text"
+              name="fullName"
+              value={formData.fullName}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-primary-foreground text-foreground"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-muted-foreground mb-1">Tagline / Slogan</label>
+            <input
+              type="text"
+              name="tagline"
+              value={formData.tagline}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-primary-foreground text-foreground"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-muted-foreground mb-1">License Number</label>
+            <input
+              type="text"
+              name="licenseNumber"
+              value={formData.licenseNumber}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-primary-foreground text-foreground"
+              placeholder="e.g. 1234/2016"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-muted-foreground mb-1">Contact Phone</label>
+            <input
+              type="text"
+              name="contactPhone"
+              value={formData.contactPhone}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-primary-foreground text-foreground"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-muted-foreground mb-1">Contact Email</label>
+            <input
+              type="email"
+              name="contactEmail"
+              value={formData.contactEmail}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-primary-foreground text-foreground"
+              required
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-muted-foreground mb-1">Physical Address</label>
+            <input
+              type="text"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-primary-foreground text-foreground"
+              required
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-muted-foreground mb-1">Logo URL or Path</label>
+            <input
+              type="text"
+              name="logo"
+              value={formData.logo}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-primary-foreground text-foreground"
+              placeholder="/assets/images/logo.jpg"
+            />
+            {formData.logo && (
+              <div className="mt-2 p-2 border border-border/30 rounded-lg max-w-xs flex items-center gap-3 bg-muted/20">
+                <span className="text-xs text-muted-foreground font-medium">Logo Preview:</span>
+                <img src={formData.logo} alt="Preview" className="h-10 w-10 object-contain rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="pt-4 flex justify-end">
+          <Button type="submit" disabled={saving}>
+            {saving ? 'Saving Changes...' : 'Save Branding Profile'}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 };
