@@ -153,7 +153,7 @@ const Settings: React.FC = () => {
     { id: 'security', label: 'Security', icon: '🔒' },
     { id: 'advanced', label: 'Advanced', icon: '⚙️' },
     { id: 'profile', label: 'Profile', icon: '👤' },
-    { id: 'role-settings', label: 'My Dashboard Settings', icon: '🎯' },
+    ...(!['admin', 'super_admin'].includes(user?.role || '') ? [{ id: 'role-settings', label: 'My Dashboard Settings', icon: '🎯' }] : []),
     ...(user?.role === 'admin' ? [
       { id: 'clinic-branding', label: 'Clinic Profile & Branding', icon: '🏥' },
       { id: 'global-dashboards', label: 'Global Dashboards', icon: '🌐' }

@@ -25,6 +25,11 @@ const RoleSettings: React.FC<RoleSettingsProps> = ({ onClose }) => {
 
   useEffect(() => {
     const loadRoleSettings = async () => {
+      const validClinicalRoles = ['doctor', 'lab', 'imaging', 'reception', 'nurse', 'mch'];
+      if (!validClinicalRoles.includes(userRole)) {
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         const settings = await getRoleSettings(userRole);

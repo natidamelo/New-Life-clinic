@@ -69,12 +69,16 @@ const GlobalDashboardSettings: React.FC<GlobalDashboardSettingsProps> = ({ onClo
   // Update local state when global settings change
   useEffect(() => {
     if (settings) {
-      setAppearanceSettings(settings.appearance);
-      setNotificationSettings(settings.notifications);
+      if (settings.appearance) {
+        setAppearanceSettings(settings.appearance);
+      }
+      if (settings.notifications) {
+        setNotificationSettings(settings.notifications);
+      }
       setDashboardSettings({
-        refreshInterval: settings.dashboard.refreshInterval,
-        showWelcomeMessage: settings.dashboard.showWelcomeMessage,
-        enableQuickActions: settings.dashboard.enableQuickActions
+        refreshInterval: settings.dashboard?.refreshInterval ?? 30000,
+        showWelcomeMessage: settings.dashboard?.showWelcomeMessage ?? true,
+        enableQuickActions: settings.dashboard?.enableQuickActions ?? true
       });
     }
   }, [settings]);

@@ -271,6 +271,32 @@ export const GlobalSettingsProvider: React.FC<GlobalSettingsProviderProps> = ({ 
   };
 
   const getRoleSettings = async (role: string) => {
+    const validClinicalRoles = ['doctor', 'lab', 'imaging', 'reception', 'nurse', 'mch'];
+    if (!validClinicalRoles.includes(role)) {
+      console.log(`[GlobalSettingsContext] Skipping backend fetch for non-clinical role settings: ${role}`);
+      return {
+        appearance: settings?.appearance || {
+          theme: 'light',
+          primaryColor: '#3B82F6',
+          secondaryColor: '#10B981',
+          fontSize: 'medium',
+          compactMode: false,
+          sidebarCollapsed: false
+        },
+        notifications: settings?.notifications || {
+          enabled: true,
+          soundEnabled: true,
+          desktopNotifications: true,
+          emailNotifications: true,
+          smsNotifications: false
+        },
+        dashboard: settings?.dashboard || {
+          refreshInterval: 30000,
+          showWelcomeMessage: true,
+          enableQuickActions: true
+        }
+      };
+    }
     try {
       setError(null);
       return await GlobalSettingsService.getRoleSettings(role);

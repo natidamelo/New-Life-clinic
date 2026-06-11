@@ -38,6 +38,18 @@ export const useGlobalDashboardSettings = (role: string) => {
 
   useEffect(() => {
     const loadRoleSettings = async () => {
+      const validClinicalRoles = ['doctor', 'lab', 'imaging', 'reception', 'nurse', 'mch'];
+      if (!validClinicalRoles.includes(role)) {
+        setLoading(false);
+        if (globalSettings) {
+          setRoleSettings({
+            appearance: globalSettings.appearance,
+            notifications: globalSettings.notifications,
+            dashboard: globalSettings.dashboard
+          });
+        }
+        return;
+      }
       try {
         setLoading(true);
         setError(null);
