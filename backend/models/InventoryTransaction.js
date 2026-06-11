@@ -3,6 +3,13 @@ const Schema = mongoose.Schema;
 
 // Schema for inventory transactions
 const InventoryTransactionSchema = new Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   // Core transaction details
   transactionType: {
     type: String,
@@ -251,6 +258,11 @@ InventoryTransactionSchema.statics.createPrescriptionTransaction = async functio
 };
 
 // Create compound indexes for common queries
+InventoryTransactionSchema.index({ clinicId: 1, item: 1, createdAt: -1 });
+InventoryTransactionSchema.index({ clinicId: 1, transactionType: 1, createdAt: -1 });
+InventoryTransactionSchema.index({ clinicId: 1, patient: 1, createdAt: -1 });
+InventoryTransactionSchema.index({ clinicId: 1, performedBy: 1, createdAt: -1 });
+InventoryTransactionSchema.index({ clinicId: 1, createdAt: -1 });
 InventoryTransactionSchema.index({ item: 1, createdAt: -1 });
 InventoryTransactionSchema.index({ transactionType: 1, createdAt: -1 });
 InventoryTransactionSchema.index({ patient: 1, createdAt: -1 });

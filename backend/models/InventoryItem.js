@@ -47,10 +47,16 @@ const StockMovementSchema = new Schema({
 
 // Inventory item schema
 const InventoryItemSchema = new Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   itemCode: {
     type: String,
     required: true,
-    unique: true,
   },
   name: {
     type: String,
@@ -246,5 +252,7 @@ InventoryItemSchema.methods.updateStock = async function(quantity, type, userId)
   await this.save();
   return this;
 };
+
+InventoryItemSchema.index({ clinicId: 1, itemCode: 1 }, { unique: true });
 
 module.exports = mongoose.model('InventoryItem', InventoryItemSchema); 

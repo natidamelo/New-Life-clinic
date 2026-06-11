@@ -114,8 +114,8 @@ router.post('/movements', auth, async (req, res) => {
   }
 });
 
-// Public route: Get medications for prescription use (no auth required)
-router.get('/medications-for-prescription', async (req, res) => {
+// Get medications for prescription use
+router.get('/medications-for-prescription', auth, async (req, res) => {
   try {
     const medications = await InventoryItem.find({
       category: 'medication',
