@@ -696,6 +696,27 @@ const ClinicBrandingSettings: React.FC = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file (PNG, JPG, JPEG, SVG)');
+        return;
+      }
+      if (file.size > 1024 * 1024) {
+        toast.error('Logo file size must be less than 1MB');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        setFormData(prev => ({ ...prev, logo: base64 }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -801,21 +822,46 @@ const ClinicBrandingSettings: React.FC = () => {
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-muted-foreground mb-1">Logo URL or Path</label>
-            <input
-              type="text"
-              name="logo"
-              value={formData.logo}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-primary-foreground text-foreground"
-              placeholder="/assets/images/logo.jpg"
-            />
-            {formData.logo && (
-              <div className="mt-2 p-2 border border-border/30 rounded-lg max-w-xs flex items-center gap-3 bg-muted/20">
-                <span className="text-xs text-muted-foreground font-medium">Logo Preview:</span>
-                <img src={formData.logo} alt="Preview" className="h-10 w-10 object-contain rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <label className="block text-sm font-semibold text-muted-foreground mb-1">Clinic Logo</label>
+            <div className="mt-2 flex flex-col sm:flex-row items-center gap-4 p-4 border border-border/40 rounded-lg bg-muted/10">
+              <div className="flex-shrink-0 h-16 w-16 border border-border/60 rounded-lg flex items-center justify-center bg-primary-foreground overflow-hidden relative group">
+                {formData.logo ? (
+                  <>
+                    <img src={formData.logo} alt="Clinic Logo" className="h-full w-full object-contain" />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button 
+                        type="button" 
+                        onClick={() => setFormData(prev => ({ ...prev, logo: '' }))}
+                        className="text-white text-[10px] bg-destructive px-1.5 py-0.5 rounded hover:bg-destructive/90 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <span className="text-xl text-muted-foreground">🏥</span>
+                )}
               </div>
-            )}
+              <div className="flex-1 text-center sm:text-left">
+                <input
+                  type="file"
+                  id="logo-upload"
+                  accept="image/*"
+                  onChange={handleLogoChange}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('logo-upload')?.click()}
+                  className="mb-1"
+                >
+                  Choose Logo Image File
+                </Button>
+                <p className="text-[11px] text-muted-foreground">Supports PNG, JPG, JPEG, or SVG. Maximum size is 1MB.</p>
+              </div>
+            </div>
           </div>
         </div>
         
