@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useClinic } from '../../context/ClinicContext';
 import { useGlobalDashboardSettings, useDashboardRefreshInterval } from '../../hooks/useGlobalDashboardSettings';
 import { toast } from 'react-toastify';
 import { 
@@ -64,6 +65,7 @@ const LabDashboard: React.FC = () => {
     'Saved to Service Results'
   ];
   const { user, logout } = useAuth();
+  const { clinic } = useClinic();
   
   // Role-specific dashboard settings
   const { settings: roleSettings, loading: settingsLoading } = useGlobalDashboardSettings('lab');
@@ -2945,7 +2947,7 @@ const LabDashboard: React.FC = () => {
                             tests: selectedPatient.tests.map(t => ({ testName: t.testName, results: t.results, normalRange: t.normalRange, notes: t.notes, orderedBy: t.orderedBy, requestDate: t.requestDate }))
                           };
                           const pw = window.open('', '_blank');
-                          if (pw) { pw.document.write(generateProfessionalLabReportHTML(enhancedPatient)); pw.document.close(); pw.print(); }
+                          if (pw) { pw.document.write(generateProfessionalLabReportHTML(enhancedPatient, clinic)); pw.document.close(); pw.print(); }
                         } catch { toast.error('Failed to fetch patient details for printing'); }
                       }}
                       className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm font-medium text-foreground bg-background hover:bg-muted transition-colors"

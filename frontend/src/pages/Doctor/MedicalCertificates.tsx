@@ -853,10 +853,10 @@ const MedicalCertificates: React.FC = () => {
           certificateType: 'Medical Certificate',
           validFrom: new Date().toISOString().split('T')[0],
           validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          clinicName: 'New Life Medium Clinic PLC',
-          clinicAddress: 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia',
-          clinicPhone: '+251925959219',
-          clinicLicense: 'CL-001',
+          clinicName: clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC',
+          clinicAddress: clinic?.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia',
+          clinicPhone: clinic?.contactPhone || '+251925959219',
+          clinicLicense: clinic?.licenseNumber || 'CL-001',
           notes: '',
           digitalSignature: null
         });
@@ -1363,7 +1363,7 @@ const MedicalCertificates: React.FC = () => {
               </div>
               
               <div class="footer-info">
-                <p><strong>New Life Medium Clinic PLC - Medical Certificate System</strong></p>
+                <p><strong>${certificateData.clinic.name || 'New Life Medium Clinic PLC'} - Medical Certificate System</strong></p>
                 <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()} | Valid for 30 days from issue date</p>
               </div>
               </div>

@@ -1,5 +1,5 @@
 // Professional Lab Report Template
-export const generateProfessionalLabReportHTML = (selectedPatient: any) => {
+export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?: any) => {
   const getResultFlag = (value: string, normalRange: string) => {
     if (!value || !normalRange || normalRange === 'Not specified' || normalRange.trim() === '') {
       return { class: 'normal', text: '-' };
@@ -309,11 +309,15 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any) => {
           <!-- Header -->
           <div class="header">
             <div class="header-left">
-              <div class="header-logo">N</div>
+              ${clinic?.logo ? `
+                <img src="${clinic.logo}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover;" alt="logo" />
+              ` : `
+                <div class="header-logo">${(clinic?.name || 'New Life')[0].toUpperCase()}</div>
+              `}
               <div>
-                <div class="header-clinic-name">New Life Medium Clinic</div>
+                <div class="header-clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic'}</div>
                 <div class="header-subtitle">Comprehensive Laboratory Report</div>
-                <div class="header-contact">Lafto, beside Kebron Guest House &nbsp;·&nbsp; +251925959219</div>
+                <div class="header-contact">${clinic?.address || 'Lafto, beside Kebron Guest House'} &nbsp;·&nbsp; ${clinic?.phone || clinic?.phoneNumber || '+251925959219'}</div>
               </div>
             </div>
             <div class="header-right">
@@ -528,7 +532,7 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any) => {
           <!-- Footer -->
           <div class="footer">
             <div>
-              <div style="color:#e2e8f0;font-weight:600;">New Life Medium Clinic — Lab Report System</div>
+              <div style="color:#e2e8f0;font-weight:600;">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic'} — Lab Report System</div>
               <div style="margin-top:2px;">Generated on ${reportDate} at ${reportTime}</div>
             </div>
             <div style="display:flex;gap:24px;">

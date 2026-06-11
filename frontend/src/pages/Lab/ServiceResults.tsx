@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useClinic } from '../../context/ClinicContext';
 import labService from '../../services/labService';
 import patientService from '../../services/patientService';
 import Modal from '../../components/Modal';
@@ -47,6 +48,7 @@ interface ServiceResult {
 const ServiceResults: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { clinic } = useClinic();
   const [serviceResults, setServiceResults] = useState<ServiceResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedResult, setSelectedResult] = useState<ServiceResult | null>(null);
@@ -181,7 +183,7 @@ const ServiceResults: React.FC = () => {
         }]
       };
       
-      return generateProfessionalLabReportHTML(selectedPatient);
+      return generateProfessionalLabReportHTML(selectedPatient, clinic);
     } catch (error) {
       console.error('Error fetching patient details for printing:', error);
       // Fallback to basic information if patient fetch fails
@@ -200,7 +202,7 @@ const ServiceResults: React.FC = () => {
           requestDate: result.resultCreatedDate
         }]
       };
-      return generateProfessionalLabReportHTML(selectedPatient);
+      return generateProfessionalLabReportHTML(selectedPatient, clinic);
     }
   };
 

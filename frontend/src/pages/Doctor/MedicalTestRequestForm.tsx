@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { useClinic } from '../../context/ClinicContext';
 import patientService from '../../services/patientService';
 import imagingService from '../../services/imagingService';
 import api from '../../services/api';
@@ -44,6 +45,7 @@ interface TestRequest {
 
 const MedicalTestRequestForm: React.FC = () => {
   const { user } = useAuth();
+  const { clinic } = useClinic();
   const [activeTab, setActiveTab] = useState<TestType>('ultrasound');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1119,14 +1121,14 @@ const MedicalTestRequestForm: React.FC = () => {
           <div class="request-container${activeTab === 'lab' ? ' lab-request-container' : ''}">
             <div class="clinic-header">
               <div class="clinic-header-content">
-                <img src="/assets/images/logo.jpg" alt="New Life Medium Clinic Logo" class="clinic-logo" onerror="this.onerror=null;this.src='/assets/images/logo-placeholder.svg';">
+                <img src="${clinic?.logo || '/assets/images/logo.jpg'}" alt="Clinic Logo" class="clinic-logo" onerror="this.onerror=null;this.src='/assets/images/logo-placeholder.svg';">
                 <div>
-                  <div class="clinic-name">New Life Medium Clinic PLC</div>
+                  <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
                 </div>
               </div>
               <div class="document-title">Request Form</div>
-              <div class="clinic-details">Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia</div>
-              <div class="clinic-details">Phone: +251925959219</div>
+              <div class="clinic-details">${clinic?.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}</div>
+              <div class="clinic-details">Phone: ${clinic?.contactPhone || '+251925959219'}</div>
             </div>
 
             <div class="request-meta">
