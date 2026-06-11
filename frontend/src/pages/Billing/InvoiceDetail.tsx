@@ -602,27 +602,6 @@ const InvoiceDetail: React.FC = () => {
   .std-invoice .section { page-break-inside: avoid; }
   html, body { height: auto !important; overflow: visible !important; }
   @page { margin: 5mm; }
-  .std-invoice .header {
-    background: #f8fafc !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 4px !important;
-    padding: 8px 12px !important;
-  }
-  .std-invoice .clinic-name {
-    color: #0f172a !important;
-  }
-  .std-invoice .clinic-subtitle {
-    color: #475569 !important;
-  }
-  .std-invoice .clinic-contact-right {
-    color: #475569 !important;
-  }
-  .std-invoice .clinic-logo {
-    border: 1px solid #cbd5e1 !important;
-  }
-  .std-invoice .header::after {
-    display: none !important;
-  }
   .invoice-watermark { 
     display: block !important; 
     visibility: visible !important;
@@ -1371,6 +1350,29 @@ const InvoiceDetail: React.FC = () => {
 .std-invoice .totals td { padding: 3px 0; }
 .std-invoice .totals .grand { font-weight: 700; border-top: 1px solid #ccc; padding-top: 4px; }
 .std-invoice .footer { margin-top: 8px; font-size: 11px; text-align: center; color: #444; }
+@media print {
+  .std-invoice .header {
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+    padding: 8px 12px !important;
+  }
+  .std-invoice .clinic-name {
+    color: #0f172a !important;
+  }
+  .std-invoice .clinic-subtitle {
+    color: #475569 !important;
+  }
+  .std-invoice .clinic-contact-right {
+    color: #475569 !important;
+  }
+  .std-invoice .clinic-logo {
+    border: 1px solid #cbd5e1 !important;
+  }
+  .std-invoice .header::after {
+    display: none !important;
+  }
+}
           `}
         </style>
         <div className="std-invoice">
