@@ -41,10 +41,19 @@ class ApiError extends Error {
   }
 }
 
+const setCorsHeaders = (req, res) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+};
+
 /**
  * Handle CORS preflight errors
  */
 const corsErrorHandler = (err, req, res, next) => {
+  setCorsHeaders(req, res);
   if (err.message.includes('CORS')) {
     logger.error('CORS Error:', { error: err.message, origin: req.headers.origin, path: req.path });
     return res.status(403).json({
@@ -68,6 +77,7 @@ const notFound = (req, res, next) => {
  * Global error handler
  */
 const errorHandler = (err, req, res, next) => {
+  setCorsHeaders(req, res);
   // Log error
   logger.error('API Error:', {
     path: req.path,

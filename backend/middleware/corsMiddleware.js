@@ -58,8 +58,7 @@ function isAllowedOrigin(origin) {
   if (/^https?:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/i.test(origin)) return true;
   
   // 3. Allow any vercel.app or onrender.com subdomains
-  if (/\.vercel\.app$/i.test(origin)) return true;
-  if (/\.onrender\.com$/i.test(origin)) return true;
+  if (lowerOrigin.includes('vercel.app') || lowerOrigin.includes('onrender.com')) return true;
   
   // 4. Allow any origin containing clinic, new-life, or newlife (flexible clinic production URLs)
   if (lowerOrigin.includes('clinic') || lowerOrigin.includes('new-life') || lowerOrigin.includes('newlife')) return true;
