@@ -292,7 +292,7 @@ class AuthService {
         });
         
         console.log('📤 [AuthService] Sending POST to /api/auth/login');
-        const response = await api.post('/api/auth/login', loginPayload, { skipAuth: true, timeout: 120000 } as any); // 120s — Render cold start + Atlas reconnect can take 60s+
+        const response = await api.post('/api/auth/login', loginPayload, { skipAuth: true, timeout: 15000 } as any); // 15s — fail fast to trigger login page auto-retry/warmup banner
         
         if (response.data.success && response.data.data) {
           const { user, token, refreshToken, clinic } = response.data.data;
