@@ -23,7 +23,7 @@ const MedicationPricingService = require('../utils/medicationPricingService');
 const telegramService = require('../services/telegramService');
 
 // GET prescriptions by patient ID
-router.get('/patient/:patientId', async (req, res) => {
+router.get('/patient/:patientId', auth, async (req, res) => {
   try {
     const { patientId } = req.params;
     
@@ -298,7 +298,7 @@ router.get('/raw-sample', async (req, res) => {
 });
 
 // GET all prescriptions
-router.get('/', async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
     const andClauses = [];
 
@@ -383,7 +383,7 @@ router.get('/', async (req, res) => {
 
 // GET pending prescriptions for reception - MUST be before /:id route
 // Only returns prescriptions for medications that are available in inventory
-router.get('/pending-for-reception', async (req, res) => {
+router.get('/pending-for-reception', auth, async (req, res) => {
   try {
     console.log('Fetching pending prescriptions for reception (inventory medications only)');
     const pendingPrescriptions = await Prescription.find({
@@ -677,7 +677,7 @@ router.get('/external-for-printing', auth, async (req, res) => {
 });
 
 // GET prescription by ID (temporarily without auth to fix timeout issues)
-router.get('/:id', async (req, res) => {
+router.get('/:id', auth, async (req, res) => {
   try {
     const prescription = await Prescription.findById(req.params.id)
       .maxTimeMS(5000)
