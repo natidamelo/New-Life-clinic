@@ -203,14 +203,20 @@ userSchema.statics.findByEmailOrUsername = async function(identifier, clinicId =
     { username: new RegExp('^' + escaped + '$', 'i') }
   ];
 
-  // 1) Try inside the requested clinic first
+  // 1) Try exact username/email inside the requested clinic first
   const inClinic = await this.findOne({
     clinicId,
     $or: emailOrUsernameFilter
   }).setOptions({ skipTenantScope: true });
   if (inClinic) return inClinic;
 
-  // 2) Display name ("DR Natan" → "Natan") inside the requested clinic
+  // 2) Try exact username/email cross-clinic (across all clinics)
+  const crossClinic = await this.findOne({
+    $or: emailOrUsernameFilter
+  }).setOptions({ skipTenantScope: true });
+  if (crossClinic) return crossClinic;
+
+  // 3) Display name ("DR Natan" → "Natan") inside the requested clinic
   const namePart = trimmed.replace(/^dr\.?\s*/i, '').trim();
   if (namePart) {
     const nameEscaped = namePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -222,15 +228,16 @@ userSchema.statics.findByEmailOrUsername = async function(identifier, clinicId =
       ]
     }).setOptions({ skipTenantScope: true });
     if (byName) return byName;
-  }
 
-  // 3) Fallback: search across ALL clinics so users don't need the exact code.
-  //    The user's own clinicId (stored on the doc) is used for tenant scoping
-  //    after login — so even if found here, they can only access their own clinic.
-  const crossClinic = await this.findOne({
-    $or: emailOrUsernameFilter
-  }).setOptions({ skipTenantScope: true });
-  if (crossClinic) return crossClinic;
+    // 4) Fallback: Display name ("DR Natan" → "Natan") cross-clinic
+    const byNameCross = await this.findOne({
+      $or: [
+        { firstName: new RegExp('^' + nameEscaped + '$', 'i') },
+        { lastName: new RegExp('^' + nameEscaped + '$', 'i') }
+      ]
+    }).setOptions({ skipTenantScope: true });
+    if (byNameCross) return byNameCross;
+  }
 
   return null;
 };
