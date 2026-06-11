@@ -319,7 +319,7 @@ router.get('/automatic', auth, async (req, res) => {
     // Create attendance data for all staff
     const staff = allStaff.map(user => {
       const staffTimesheets = attendanceRecords.filter(record => 
-        record.userId._id.toString() === user._id.toString()
+        record.userId && record.userId._id && record.userId._id.toString() === user._id.toString()
       );
       
       if (staffTimesheets.length > 0) {
@@ -465,13 +465,13 @@ router.get('/admin-notifications', auth, async (req, res) => {
 
     // Get all active staff to find who hasn't clocked in
     const allStaff = await User.find({ role: { $nin: ['admin'] }, isActive: true }).lean();
-    const clockedInIds = new Set(todayTimesheets.filter(ts => ts.userId).map(ts => ts.userId._id.toString()));
+    const clockedInIds = new Set(todayTimesheets.filter(ts => ts.userId && ts.userId._id).map(ts => ts.userId._id.toString()));
 
     const notifications = [];
     let idCounter = 1;
 
     // Late arrivals (minutesLate > 0)
-    todayTimesheets.filter(ts => ts.userId && ts.clockIn?.minutesLate > 0 && !ts.isOvertime).forEach(ts => {
+    todayTimesheets.filter(ts => ts.userId && ts.userId._id && ts.clockIn?.minutesLate > 0 && !ts.isOvertime).forEach(ts => {
       notifications.push({
         id: String(idCounter++),
         type: 'late_arrival',
@@ -502,7 +502,7 @@ router.get('/admin-notifications', auth, async (req, res) => {
     }
 
     // Overtime alerts (working > 10 hours)
-    todayTimesheets.filter(ts => ts.userId && (ts.totalWorkHours || 0) > 10 && ts.status === 'active').forEach(ts => {
+    todayTimesheets.filter(ts => ts.userId && ts.userId._id && (ts.totalWorkHours || 0) > 10 && ts.status === 'active').forEach(ts => {
       notifications.push({
         id: String(idCounter++),
         type: 'overtime_alert',
@@ -548,7 +548,7 @@ router.get('/analytics', auth, async (req, res) => {
     const filtered = timesheets.filter(t => t.userId);
     let deptFiltered = filtered;
     if (department && department !== 'all') {
-      deptFiltered = deptFiltered.filter(t => t.userId.department === department);
+      deptFiltered = deptFiltered.filter(t => t.userId && t.userId.department === department);
     }
     
     // Get unique working days
@@ -584,7 +584,7 @@ router.get('/analytics', auth, async (req, res) => {
     // Department stats
     const deptStatsMap = {};
     filtered.forEach(t => {
-      const dept = t.userId.department || 'General';
+      const dept = (t.userId && t.userId.department) || 'General';
       if (!deptStatsMap[dept]) deptStatsMap[dept] = { totalPresent: 0, totalAbsent: 0, averageAttendance: 0, totalOvertime: 0 };
       deptStatsMap[dept].totalPresent++;
       if ((t.overtimeHours || 0) > 0 || t.isOvertime) deptStatsMap[dept].totalOvertime++;

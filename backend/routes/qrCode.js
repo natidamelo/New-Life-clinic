@@ -194,7 +194,7 @@ router.get('/attendance/all/today', auth, async (req, res) => {
       const userInfo = userMap[userId];
       
       // Find timesheet records for this user on the specified date
-      const userTimesheets = todayTimesheets.filter(ts => ts.userId._id.toString() === userId);
+      const userTimesheets = todayTimesheets.filter(ts => ts.userId && ts.userId._id && ts.userId._id.toString() === userId);
       
       if (userTimesheets.length > 0) {
         // Find regular and overtime timesheets separately

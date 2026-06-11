@@ -78,7 +78,7 @@ router.get('/overview', auth, async (req, res) => {
       deptMap[dept].staffCount++;
 
       const hasActiveTimesheet = todayTimesheets.some(ts => 
-        ts.userId && ts.userId._id.toString() === staff._id.toString() && ts.status === 'active'
+        ts.userId && ts.userId._id && ts.userId._id.toString() === staff._id.toString() && ts.status === 'active'
       );
       if (hasActiveTimesheet) {
         deptMap[dept].activeCount++;
@@ -96,7 +96,7 @@ router.get('/overview', auth, async (req, res) => {
       .limit(10)
       .lean();
 
-    const recentActivity = recentTimesheets.filter(ts => ts.userId).map(ts => {
+    const recentActivity = recentTimesheets.filter(ts => ts.userId && ts.userId._id).map(ts => {
       const isClockOut = ts.status === 'completed';
       const actionTime = isClockOut ? (ts.clockOut?.time || ts.updatedAt) : (ts.clockIn?.time || ts.createdAt);
       return {
@@ -169,7 +169,7 @@ router.get('/attendance-data', auth, async (req, res) => {
     const attendanceData = allStaff.map(staff => {
       // Find all timesheets for this staff member
       const staffTimesheets = attendanceRecords.filter(record => 
-        record.userId._id.toString() === staff._id.toString()
+        record.userId && record.userId._id && record.userId._id.toString() === staff._id.toString()
       );
       
       if (staffTimesheets.length > 0) {
@@ -411,6 +411,7 @@ router.get('/monthly-attendance', auth, async (req, res) => {
     const attendanceByUserAndDate = {};
     
     timesheetRecords.forEach(record => {
+      if (!record.userId || !record.userId._id) return;
       const userId = record.userId._id.toString();
       const dateKey = record.date.toISOString().split('T')[0]; // YYYY-MM-DD format
       
@@ -697,9 +698,9 @@ router.get('/members', auth, async (req, res) => {
       role: staff.role,
       department: staff.department || 'General',
       specialization: staff.specialization || '',
-      status: todayTimesheets.some(ts => ts.userId.toString() === staff._id.toString() && ts.status === 'active') 
+      status: todayTimesheets.some(ts => ts.userId && ts.userId.toString() === staff._id.toString() && ts.status === 'active') 
         ? 'online' 
-        : todayTimesheets.some(ts => ts.userId.toString() === staff._id.toString()) 
+        : todayTimesheets.some(ts => ts.userId && ts.userId.toString() === staff._id.toString()) 
           ? 'away' 
           : 'offline',
       email: staff.email,
@@ -824,9 +825,9 @@ router.get('/patient-assignments/available-staff', auth, async (req, res) => {
         email: staff.email,
         assignedPatients,
         available: assignedPatients < 10, // Max 10 patients per staff member
-        status: todayTimesheets.some(ts => ts.userId.toString() === staff._id.toString() && ts.status === 'active') 
+        status: todayTimesheets.some(ts => ts.userId && ts.userId.toString() === staff._id.toString() && ts.status === 'active') 
           ? 'online' 
-          : todayTimesheets.some(ts => ts.userId.toString() === staff._id.toString()) 
+          : todayTimesheets.some(ts => ts.userId && ts.userId.toString() === staff._id.toString()) 
             ? 'away' 
             : 'offline'
       };
@@ -1229,10 +1230,10 @@ router.get('/timesheets', auth, async (req, res) => {
     // Transform data to match expected format
     const transformedTimesheets = timesheets.map(timesheet => ({
       id: timesheet._id.toString(),
-      userId: timesheet.userId._id.toString(),
-      userName: `${timesheet.userId.firstName} ${timesheet.userId.lastName}`,
-      userRole: timesheet.userId.role,
-      userEmail: timesheet.userId.email,
+      userId: timesheet.userId ? timesheet.userId._id.toString() : 'deleted',
+      userName: timesheet.userId ? `${timesheet.userId.firstName} ${timesheet.userId.lastName}` : 'Deleted User',
+      userRole: timesheet.userId ? timesheet.userId.role : 'unknown',
+      userEmail: timesheet.userId ? timesheet.userId.email : '',
       date: timesheet.date.toISOString().split('T')[0],
       clockIn: timesheet.clockIn ? {
         time: timesheet.clockIn.time.toLocaleTimeString('en-US', {
@@ -1257,7 +1258,7 @@ router.get('/timesheets', auth, async (req, res) => {
       totalWorkHours: timesheet.totalWorkHours || 0,
       totalBreakHours: 0, // This would need to be calculated
       status: timesheet.status || 'pending',
-      department: timesheet.userId.department || 'General',
+      department: (timesheet.userId && timesheet.userId.department) || 'General',
       notes: timesheet.notes || '',
       createdAt: timesheet.createdAt,
       updatedAt: timesheet.updatedAt
@@ -1311,7 +1312,7 @@ router.get('/timesheet-analytics', auth, async (req, res) => {
     let filteredTimesheets = timesheets;
     if (department && department !== 'all') {
       filteredTimesheets = timesheets.filter(timesheet => 
-        timesheet.userId.department === department
+        timesheet.userId && timesheet.userId.department === department
       );
     }
 
@@ -1338,7 +1339,7 @@ router.get('/timesheet-analytics', auth, async (req, res) => {
     // Group by department
     const departmentStats = {};
     filteredTimesheets.forEach(timesheet => {
-      const dept = timesheet.userId.department || 'General';
+      const dept = (timesheet.userId && timesheet.userId.department) || 'General';
       if (!departmentStats[dept]) {
         departmentStats[dept] = {
           totalTimesheets: 0,
