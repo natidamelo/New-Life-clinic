@@ -9,6 +9,7 @@ import { Moon, Sun, Eye, EyeOff, Users, Activity, ShieldCheck, Clock } from 'luc
 import { getClinicTenantId } from '../utils/authToken';
 import api from '../services/apiService';
 import { motion } from 'framer-motion';
+import { useClinic } from '../context/ClinicContext';
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string().required('Username or email is required'),
@@ -67,7 +68,8 @@ const WARMUP_MAX_SECONDS = 300;
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login, getRoleBasedRoute } = useAuth();
+  const { login, testLogin } = useAuth();
+  const { clinic } = useClinic();
   const { isDarkMode, toggleTheme } = useSafeTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -231,13 +233,13 @@ const Login: React.FC = () => {
 
       <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
         <img
-          src="/assets/images/logo.jpg"
+          src={clinic?.logo || "/assets/images/logo.jpg"}
           alt=""
           aria-hidden="true"
           className="hidden lg:block absolute left-[6%] top-1/2 -translate-y-1/2 w-[520px] h-[520px] object-cover rounded-full opacity-[0.07] blur-[1px]"
         />
         <img
-          src="/assets/images/logo.jpg"
+          src={clinic?.logo || "/assets/images/logo.jpg"}
           alt=""
           aria-hidden="true"
           className="absolute -right-20 -bottom-20 w-[280px] h-[280px] object-cover rounded-full opacity-[0.06] blur-[1px]"
@@ -273,7 +275,7 @@ const Login: React.FC = () => {
 
             <motion.div variants={leftItemVariants}>
               <p className={`${isDarkMode ? 'text-slate-300/80' : 'text-slate-500'} text-sm uppercase tracking-[0.2em] mb-4`}>
-                <span className={`font-black ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>New Life Clinic</span> Platform
+                <span className={`font-black ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{clinic?.name || "New Life Clinic"}</span> Platform
               </p>
               <h1 className={`${isDarkMode ? 'text-white' : 'text-slate-900'} font-black leading-[1.02] tracking-tight text-[clamp(2.9rem,4.5vw,4.6rem)]`}>
                 Specialized access for
@@ -282,7 +284,7 @@ const Login: React.FC = () => {
                 </span>
               </h1>
               <p className={`mt-6 ${isDarkMode ? 'text-slate-300/85' : 'text-slate-600'} max-w-[560px] text-[15px] leading-relaxed`}>
-                A fresh login experience for New Life Clinic, designed for speed, clarity, and secure daily operations across your staff.
+                A secure login experience for {clinic?.name || "New Life Clinic"}, designed for speed, clarity, and secure daily operations across your staff.
               </p>
             </motion.div>
 
@@ -349,12 +351,12 @@ const Login: React.FC = () => {
           <div className="lg:hidden flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl overflow-hidden ring-1 ring-white/20 flex-shrink-0"
               style={{ background: isDarkMode ? 'linear-gradient(135deg,#0ea5e9,#6366f1)' : 'linear-gradient(135deg,#0d9488,#0ea5e9)' }}>
-              <img src="/assets/images/logo.jpg" alt="logo" className="h-full w-full object-cover"
+              <img src={clinic?.logo || "/assets/images/logo.jpg"} alt="logo" className="h-full w-full object-cover"
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
             </div>
             <div>
-              <p className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>New Life Clinic</p>
-              <p className={`text-[10px] ${isDarkMode ? 'text-sky-400/60' : 'text-teal-600/70'}`}>Healthcare Management</p>
+              <p className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{clinic?.name || "New Life Clinic"}</p>
+              <p className={`text-[10px] ${isDarkMode ? 'text-sky-400/60' : 'text-teal-600/70'}`}>{clinic?.tagline || "Healthcare Management"}</p>
             </div>
           </div>
 

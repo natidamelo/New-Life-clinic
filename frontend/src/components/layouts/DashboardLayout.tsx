@@ -11,6 +11,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
+import { useClinic } from '../../context/ClinicContext';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
@@ -24,6 +25,7 @@ const DashboardLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { clinic } = useClinic();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -35,8 +37,8 @@ const DashboardLayout: React.FC = () => {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between h-16 px-4 bg-gradient-to-r from-teal-600 to-emerald-600 text-primary-foreground">
         <div className="flex items-center">
-          <img src="/assets/images/logo.jpg" alt="New Life Clinic logo" className="h-8 w-8 rounded-full object-cover mr-3 ring-1 ring-white/40" />
-          <h1 className="text-lg font-semibold">New Life Clinic</h1>
+          <img src={clinic?.logo || "/assets/images/logo.jpg"} alt={`${clinic?.name || "New Life Clinic"} logo`} className="h-8 w-8 rounded-full object-cover mr-3 ring-1 ring-white/40" />
+          <h1 className="text-lg font-semibold">{clinic?.name || "New Life Clinic"}</h1>
         </div>
         <button
           className="md:hidden p-1 rounded text-white/80 hover:text-white"

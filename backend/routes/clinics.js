@@ -475,5 +475,86 @@ router.post('/:clinicRef/migrate-default-data', auth, requireSuperAdmin, async (
   }
 });
 
+// GET /api/clinics/:clinicRef/profile — public, no auth
+router.get('/:clinicRef/profile', async (req, res) => {
+  try {
+    const clinic = await resolveClinic(req.params.clinicRef);
+    if (!clinic || !clinic.isActive) {
+      return res.status(404).json({ success: false, message: 'Clinic not found' });
+    }
+    return res.json({
+      success: true,
+      data: {
+        name: clinic.name,
+        slug: clinic.slug,
+        logo: clinic.logo || null,
+        fullName: clinic.fullName || clinic.name,
+        tagline: clinic.tagline || '',
+        address: clinic.address || '',
+        contactEmail: clinic.contactEmail || '',
+        contactPhone: clinic.contactPhone || ''
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching clinic profile:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch clinic profile', error: error.message });
+  }
+});
+
+// PUT /api/clinics/:clinicRef/profile — auth required (admin or super_admin)
+router.put('/:clinicRef/profile', auth, async (req, res) => {
+  try {
+    // Only admin or super_admin can update clinic profile
+    if (!req.user || !['admin', 'super_admin'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Only admin or super admin can update clinic profile' });
+    }
+
+    const clinic = await resolveClinic(req.params.clinicRef);
+    if (!clinic) {
+      return res.status(404).json({ success: false, message: 'Clinic not found' });
+    }
+
+    // For non-super-admins, verify they belong to this clinic
+    if (req.user.role !== 'super_admin' && req.user.clinicId !== clinic.slug) {
+      return res.status(403).json({ success: false, message: 'You can only update your own clinic profile' });
+    }
+
+    const allowedFields = ['name', 'logo', 'fullName', 'tagline', 'address', 'licenseNumber', 'contactEmail', 'contactPhone'];
+    const updates = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates[field] = typeof req.body[field] === 'string' ? req.body[field].trim() : req.body[field];
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, message: 'No valid fields to update' });
+    }
+
+    Object.assign(clinic, updates);
+    await clinic.save();
+
+    return res.json({
+      success: true,
+      message: 'Clinic profile updated successfully',
+      data: {
+        name: clinic.name,
+        slug: clinic.slug,
+        logo: clinic.logo || null,
+        fullName: clinic.fullName || clinic.name,
+        tagline: clinic.tagline || '',
+        address: clinic.address || '',
+        licenseNumber: clinic.licenseNumber || '',
+        contactEmail: clinic.contactEmail || '',
+        contactPhone: clinic.contactPhone || ''
+      }
+    });
+  } catch (error) {
+    console.error('Error updating clinic profile:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update clinic profile', error: error.message });
+  }
+});
+
 module.exports = router;
+
 

@@ -66,6 +66,28 @@ const authController = {
       
       const { user, token } = await authService.loginUser(identifier, password, clinicId);
       
+      // Look up clinic branding info
+      let clinicInfo = null;
+      try {
+        const Clinic = require('../models/Clinic');
+        const userClinicId = user.clinicId || clinicId;
+        const clinic = await Clinic.findOne({ slug: userClinicId });
+        if (clinic) {
+          clinicInfo = {
+            name: clinic.name,
+            slug: clinic.slug,
+            logo: clinic.logo || null,
+            fullName: clinic.fullName || clinic.name,
+            tagline: clinic.tagline || '',
+            address: clinic.address || '',
+            contactEmail: clinic.contactEmail || '',
+            contactPhone: clinic.contactPhone || ''
+          };
+        }
+      } catch (clinicErr) {
+        logger.warn('Could not fetch clinic info during login', { error: clinicErr.message });
+      }
+
       logger.info('User logged in successfully', {
         userId: user._id,
         username: user.username,
@@ -75,7 +97,7 @@ const authController = {
       res.status(200).json({
         success: true,
         message: 'Login successful',
-        data: { user, token }
+        data: { user, token, clinic: clinicInfo }
       });
     } catch (error) {
       logger.warn('Login failed', { 
@@ -100,6 +122,30 @@ const authController = {
           message: 'User not found'
         });
       }
+
+      // Look up clinic branding info
+      let clinicInfo = null;
+      try {
+        const Clinic = require('../models/Clinic');
+        if (user.clinicId) {
+          const clinic = await Clinic.findOne({ slug: user.clinicId });
+          if (clinic) {
+            clinicInfo = {
+              name: clinic.name,
+              slug: clinic.slug,
+              logo: clinic.logo || null,
+              fullName: clinic.fullName || clinic.name,
+              tagline: clinic.tagline || '',
+              address: clinic.address || '',
+              contactEmail: clinic.contactEmail || '',
+              contactPhone: clinic.contactPhone || ''
+            };
+          }
+        }
+      } catch (clinicErr) {
+        console.warn('Could not fetch clinic info for getMe:', clinicErr.message);
+      }
+
       console.log('getMe: Returning user data:', {
         id: user._id,
         email: user.email,
@@ -109,7 +155,8 @@ const authController = {
       res.status(200).json({
         success: true,
         data: {
-          user
+          user,
+          clinic: clinicInfo
         }
       });
     } catch (error) {

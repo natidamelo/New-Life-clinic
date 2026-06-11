@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useSafeTheme } from '../hooks/useSafeTheme';
 import api from '../services/apiService';
+import { useClinic } from '../context/ClinicContext';
 
 interface Notification {
   id: string;
@@ -24,6 +25,7 @@ interface Notification {
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
+  const { clinic } = useClinic();
   const { isDarkMode, toggleTheme } = useSafeTheme();
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -151,13 +153,13 @@ const Header: React.FC = () => {
           <Link to="/" className="flex items-center flex-shrink-0">
             <div className="flex items-center">
               <img
-                src="/assets/images/logo.jpg"
-                alt="New Life Clinic logo"
+                src={clinic?.logo || "/assets/images/logo.jpg"}
+                alt={`${clinic?.name || "New Life Clinic"} logo`}
                 className="h-8 w-8 rounded-full object-cover mr-2 ring-1 ring-black/10 flex-shrink-0"
               />
               <div className="hidden sm:block">
-                <h1 className="text-lg font-bold text-foreground leading-tight">New Life Clinic</h1>
-                <p className="text-xs text-muted-foreground">Healthcare Center</p>
+                <h1 className="text-lg font-bold text-foreground leading-tight">{clinic?.name || "New Life Clinic"}</h1>
+                <p className="text-xs text-muted-foreground">{clinic?.tagline || "Healthcare Center"}</p>
               </div>
             </div>
           </Link>

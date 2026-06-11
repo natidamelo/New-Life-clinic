@@ -26,6 +26,26 @@ const clinicSchema = new mongoose.Schema(
     contactPhone: {
       type: String,
       trim: true
+    },
+    logo: {
+      type: String,
+      trim: true
+    },
+    fullName: {
+      type: String,
+      trim: true
+    },
+    tagline: {
+      type: String,
+      trim: true
+    },
+    address: {
+      type: String,
+      trim: true
+    },
+    licenseNumber: {
+      type: String,
+      trim: true
     }
   },
   {

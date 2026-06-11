@@ -29,6 +29,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSafeTheme } from '../hooks/useSafeTheme';
 import toast from 'react-hot-toast';
 import attendanceService from '../services/attendanceService';
+import { useClinic } from '../context/ClinicContext';
 import { useAttendanceStatus } from '../hooks/useAttendanceStatus';
 import analyticsService from '../services/analyticsService';
 import ThemeSelector from './ThemeSelector';
@@ -171,6 +172,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user, isLoading: authLoading } = useAuth();
+  const { clinic } = useClinic();
   const { isDarkMode } = useSafeTheme();
   const { attendanceStatus, isLoading: statusLoading } = useAttendanceStatus();
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
@@ -540,18 +542,18 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               <div className="flex items-center gap-3 px-3 py-2">
                 <div className="relative flex-shrink-0">
                   <img
-                    src="/assets/images/logo.jpg"
-                    alt="New Life Clinic logo"
+                    src={clinic?.logo || "/assets/images/logo.jpg"}
+                    alt={`${clinic?.name || "New Life Clinic"} logo`}
                     className="h-9 w-9 rounded-xl object-cover shadow-sm ring-2 ring-sidebar-border"
                   />
                   <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-sidebar" />
                 </div>
                 <div className="flex flex-col overflow-hidden">
                   <span className="truncate font-bold text-sidebar-foreground text-sm leading-tight">
-                    New Life Clinic
+                    {clinic?.name || "New Life Clinic"}
                   </span>
                   <span className="truncate text-xs text-sidebar-foreground/50 font-medium">
-                    Healthcare Center
+                    {clinic?.tagline || "Healthcare Center"}
                   </span>
                 </div>
               </div>

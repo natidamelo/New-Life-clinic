@@ -21,6 +21,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useSafeTheme } from '../hooks/useSafeTheme';
 import { toast } from 'react-hot-toast';
+import { useClinic } from '../context/ClinicContext';
 import QRCodeModal from './QRCodeModal';
 import ThemeSelector from './ThemeSelector';
 import { useAttendanceStatus } from '../hooks/useAttendanceStatus';
@@ -109,6 +110,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const { clinic } = useClinic();
   const { isDarkMode } = useSafeTheme();
   const { attendanceStatus, isLoading: statusLoading } = useAttendanceStatus();
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
@@ -166,13 +168,13 @@ const Sidebar: React.FC<SidebarProps> = () => {
     <div className="w-64 h-screen flex flex-col bg-card border-r border-border">
       <div className="p-6 flex items-center">
         <img
-          src="/assets/images/logo.jpg"
-          alt="New Life Clinic logo"
+          src={clinic?.logo || "/assets/images/logo.jpg"}
+          alt={`${clinic?.name || "New Life Clinic"} logo`}
           className="h-9 w-9 rounded-full object-cover mr-2 ring-1 ring-black/10"
         />
         <div>
-          <h1 className="text-xl font-bold text-foreground">New Life Clinic</h1>
-          <p className="text-xs text-muted-foreground">Healthcare Center</p>
+          <h1 className="text-xl font-bold text-foreground">{clinic?.name || "New Life Clinic"}</h1>
+          <p className="text-xs text-muted-foreground">{clinic?.tagline || "Healthcare Center"}</p>
         </div>
       </div>
 

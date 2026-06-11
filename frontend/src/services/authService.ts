@@ -295,7 +295,7 @@ class AuthService {
         const response = await api.post('/api/auth/login', loginPayload, { skipAuth: true, timeout: 120000 } as any); // 120s — Render cold start + Atlas reconnect can take 60s+
         
         if (response.data.success && response.data.data) {
-          const { user, token, refreshToken } = response.data.data;
+          const { user, token, refreshToken, clinic } = response.data.data;
           const u = user as User & { clinicId?: string };
           if (u.role === 'super_admin') {
             setClinicTenantId(clinicId);
@@ -306,6 +306,10 @@ class AuthService {
           // Store authentication data
           this.setToken(token);
           this.setUser(user);
+          
+          if (clinic) {
+            localStorage.setItem('clinic_branding_data', JSON.stringify(clinic));
+          }
           
           if (refreshToken) {
             localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
@@ -555,16 +559,23 @@ class AuthService {
       const response = await api.get('/api/auth/me');
       
       if (response.data.success && response.data.data) {
-        const user = response.data.data.user || response.data.data;
+        const user = response.data.data.user;
+        const clinic = response.data.data.clinic;
         
         // Ensure user has an id field
-        if (user._id && !user.id) {
+        if (user && user._id && !user.id) {
           user.id = user._id;
         }
         
-        this.setUser(user);
+        if (user) {
+          this.setUser(user);
+        }
+        
+        if (clinic) {
+          localStorage.setItem('clinic_branding_data', JSON.stringify(clinic));
+        }
         console.log('✅ [AuthService] Current user fetched successfully');
-        return user;
+        return user || null;
       } else {
         throw new Error('Failed to fetch current user');
       }
