@@ -1263,9 +1263,82 @@ const InvoiceDetail: React.FC = () => {
   opacity: 1 !important;
 }
 .std-invoice { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 12px; line-height: 1.3; width: 100%; max-width: none; margin: 0; padding: 0; position: relative; }
-.std-invoice .header { text-align: center; margin-bottom: 6px; width: 100%; }
-.std-invoice .title { font-size: 20px; font-weight: 700; margin-bottom: 3px; }
-.std-invoice .header > div { margin-bottom: 2px; font-size: 11px; }
+.std-invoice .header {
+  background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
+  color: white !important;
+  padding: 10px 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 0 !important;
+  position: relative !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+.std-invoice .header::after {
+  content: '' !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 3px !important;
+  background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853) !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+.std-invoice .clinic-logo {
+  width: 40px !important;
+  height: 40px !important;
+  object-fit: contain !important;
+  flex-shrink: 0 !important;
+  border-radius: 8px !important;
+  border: 2px solid rgba(255,255,255,0.3) !important;
+}
+.std-invoice .clinic-info-center {
+  flex: 1 !important;
+  text-align: center !important;
+  padding: 0 15px !important;
+}
+.std-invoice .clinic-name {
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1.5px !important;
+  color: white !important;
+  margin-bottom: 2px !important;
+}
+.std-invoice .clinic-subtitle {
+  font-size: 11px !important;
+  color: rgba(255,255,255,0.75) !important;
+  font-weight: 500 !important;
+}
+.std-invoice .clinic-contact-right {
+  font-size: 9px !important;
+  color: rgba(255,255,255,0.7) !important;
+  text-align: right !important;
+  line-height: 1.6 !important;
+  white-space: nowrap !important;
+}
+.std-invoice .document-type-badge {
+  text-align: center !important;
+  padding: 8px 0 6px !important;
+  margin-bottom: 12px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  box-sizing: border-box !important;
+}
+.std-invoice .document-type-badge span {
+  display: inline-block !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #1a365d !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
+  padding: 4px 18px !important;
+  border: 1.5px solid #1a365d !important;
+  border-radius: 20px !important;
+}
 .std-invoice .meta { width: 100%; margin: 6px 0 8px; font-size: 12px; }
 .std-invoice .meta td { padding: 2px 0; }
 .std-invoice .section-title { font-weight: 600; margin: 6px 0 3px; font-size: 13px; }
@@ -1281,12 +1354,25 @@ const InvoiceDetail: React.FC = () => {
         </style>
         <div className="std-invoice">
           <div className="header">
-            <div className="title">{clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
-            {clinic?.contactPhone && <div>Contact: {clinic.contactPhone}</div>}
-            {clinic?.address && <div>Address: {clinic.address}</div>}
-            {clinic?.licenseNumber && <div>TIN: {clinic.licenseNumber}</div>}
+            <img 
+              src={clinic?.logo || "/assets/images/logo.jpg"} 
+              alt="Logo" 
+              className="clinic-logo" 
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+            <div className="clinic-info-center">
+              <div className="clinic-name">{clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
+              <div className="clinic-subtitle">Healthcare Billing Services</div>
+            </div>
+            <div className="clinic-contact-right">
+              📍 {clinic?.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}<br />
+              📞 {clinic?.contactPhone || '+251925959219'}<br />
+              🪪 License: {clinic?.licenseNumber || 'CL-001'}
+            </div>
           </div>
-          <hr style={{ margin: '2px 0' }} />
+          <div className="document-type-badge">
+            <span>── Billing Invoice ──</span>
+          </div>
           <table className="meta">
             <tbody>
               <tr>

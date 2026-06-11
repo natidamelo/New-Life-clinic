@@ -3167,60 +3167,81 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                         }
                         
                         .prescription-header {
-                            background: #f8f8f8;
-                            color: #333333;
-                            padding: 10px 12px;
-                            position: relative;
-                            overflow: hidden;
-                            border-bottom: 3px solid #333;
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            margin-bottom: 12px;
-                        }
-                        
-                        .prescription-header::before {
-                            display: none;
-                        }
-                        
-                        .clinic-info {
-                            position: relative;
-                            z-index: 2;
+                            background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+                            color: white;
+                            padding: 10px 14px;
                             display: flex;
                             align-items: center;
-                            flex-direction: row;
-                            gap: 14px;
+                            justify-content: space-between;
+                            margin-bottom: 0;
+                            position: relative;
+                        }
+                        
+                        .prescription-header::after {
+                            content: '';
+                            position: absolute;
+                            bottom: 0;
+                            left: 0;
+                            right: 0;
+                            height: 3px;
+                            background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853);
                         }
                         
                         .clinic-logo {
-                            width: 60px;
-                            height: 60px;
-                            border-radius: 4px;
-                            border: 1px solid #ccc;
+                            width: 40px;
+                            height: 40px;
+                            object-fit: contain;
                             flex-shrink: 0;
+                            border-radius: 8px;
+                            border: 2px solid rgba(255,255,255,0.3);
+                        }
+                        
+                        .clinic-info-center {
+                            flex: 1;
+                            text-align: center;
+                            padding: 0 15px;
                         }
                         
                         .clinic-name {
-                            font-size: 18px;
-                            font-weight: bold;
-                            color: #333;
-                            margin-bottom: 5px;
+                            font-size: 15px;
+                            font-weight: 800;
+                            text-transform: uppercase;
+                            letter-spacing: 1.5px;
+                            color: white;
+                            margin-bottom: 2px;
                         }
                         
                         .clinic-subtitle {
-                            font-size: 15px;
-                            color: #666;
-                            margin-bottom: 4px;
-                            font-weight: 600;
+                            font-size: 11px;
+                            color: rgba(255,255,255,0.75);
+                            font-weight: 500;
                         }
                         
-                        .clinic-address, .clinic-phone {
+                        .clinic-contact-right {
+                            font-size: 9px;
+                            color: rgba(255,255,255,0.7);
+                            text-align: right;
+                            line-height: 1.6;
+                            white-space: nowrap;
+                        }
+                        
+                        .document-type-badge {
+                            text-align: center;
+                            padding: 8px 0 6px;
+                            margin-bottom: 12px;
+                            border-bottom: 1px solid #e2e8f0;
+                        }
+                        
+                        .document-type-badge span {
+                            display: inline-block;
                             font-size: 12px;
-                            color: #666;
-                            margin-bottom: 0;
-                            display: flex;
-                            align-items: center;
-                            gap: 2px;
+                            font-weight: 700;
+                            color: #1a365d;
+                            text-transform: uppercase;
+                            letter-spacing: 2px;
+                            padding: 4px 18px;
+                            border: 1.5px solid #1a365d;
+                            border-radius: 20px;
                         }
                         
                         .prescription-meta {
@@ -3429,11 +3450,15 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                              }
                              
                              .prescription-header {
-                                 background: white !important;
-                                 color: black !important;
-                                 border-bottom-color: black !important;
+                                 background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
+                                 color: white !important;
                                  -webkit-print-color-adjust: exact !important;
-                                 color-adjust: exact !important;
+                                 print-color-adjust: exact !important;
+                             }
+                             
+                             .prescription-header::after {
+                                 -webkit-print-color-adjust: exact !important;
+                                 print-color-adjust: exact !important;
                              }
                              
                              .patient-section {
@@ -3518,20 +3543,23 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                  <body>
                      <div class="prescription-container">
                          <div class="prescription-header">
-                             <div class="clinic-info">
-                                 <img src="${clinic?.logo || LOGO_PATH}" alt="Clinic Logo" class="clinic-logo" onerror="this.style.display='none'">
-                                 <div style="display: flex; flex-direction: column; justify-content: center;">
-                                     <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
-                                     <div class="clinic-subtitle">Medical Prescription</div>
-                                     <div class="clinic-address">📍 ${clinic?.address || 'Lafto beside Kebron Guest House'}</div>
-                                     <div class="clinic-phone">📞 ${clinic?.contactPhone || '+251925959219'}</div>
-                                 </div>
+                             <img src="${clinic?.logo || LOGO_PATH}" alt="Logo" class="clinic-logo" onerror="this.style.display='none'">
+                             <div class="clinic-info-center">
+                                 <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
+                                 <div class="clinic-subtitle">Pharmaceutical Services</div>
                              </div>
-                             <div class="prescription-meta">
-                                 <div><strong>Date:</strong> ${currentDate}</div>
-                                 <div><strong>Status:</strong> Active</div>
-                                 <div><strong>ID:</strong> ${Date.now().toString().slice(-6)}</div>
+                             <div class="clinic-contact-right">
+                                 📍 ${clinic?.address || 'Lafto beside Kebron Guest House'}<br>
+                                 📞 ${clinic?.contactPhone || '+251925959219'}
                              </div>
+                         </div>
+                         <div class="document-type-badge">
+                             <span>── Medical Prescription ──</span>
+                         </div>
+                         <div class="prescription-meta" style="display:flex;justify-content:space-between;font-size:9px;color:#333;background:#f5f5f5;padding:4px 6px;border-radius:4px;border:1px solid #ccc;margin-bottom:8px;">
+                             <div><strong>Date:</strong> ${currentDate}</div>
+                             <div><strong>Status:</strong> Active</div>
+                             <div><strong>ID:</strong> ${Date.now().toString().slice(-6)}</div>
                          </div>
 
                          <div class="patient-section">

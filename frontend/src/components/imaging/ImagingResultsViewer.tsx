@@ -1064,24 +1064,78 @@ This is an official medical report - Confidential patient information
           
           /* Print header styling */
           .print-header {
+            background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
+            color: white !important;
+            padding: 10px 14px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            margin-bottom: 0 !important;
+            position: relative !important;
+            width: 100% !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print-header::after {
+            content: '' !important;
+            position: absolute !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            height: 3px !important;
+            background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853) !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .clinic-logo {
+            width: 40px !important;
+            height: 40px !important;
+            object-fit: contain !important;
+            flex-shrink: 0 !important;
+            border-radius: 8px !important;
+            border: 2px solid rgba(255,255,255,0.3) !important;
+          }
+          .clinic-info-center {
+            flex: 1 !important;
             text-align: center !important;
-            border-bottom: 3px solid #000 !important;
-            margin-bottom: 25px !important;
-            padding-bottom: 15px !important;
-            page-break-after: avoid !important;
+            padding: 0 15px !important;
           }
-          
-          .print-header h1 {
-            font-size: 20pt !important;
-            font-weight: bold !important;
-            margin: 0 0 5px 0 !important;
-            color: black !important;
+          .clinic-name {
+            font-size: 15px !important;
+            font-weight: 800 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1.5px !important;
+            color: white !important;
+            margin-bottom: 2px !important;
           }
-          
-          .print-header p {
-            font-size: 14pt !important;
-            margin: 0 !important;
-            color: #333 !important;
+          .clinic-subtitle {
+            font-size: 11px !important;
+            color: rgba(255,255,255,0.75) !important;
+            font-weight: 500 !important;
+          }
+          .clinic-contact-right {
+            font-size: 9px !important;
+            color: rgba(255,255,255,0.7) !important;
+            text-align: right !important;
+            line-height: 1.6 !important;
+            white-space: nowrap !important;
+          }
+          .document-type-badge {
+            text-align: center !important;
+            padding: 8px 0 6px !important;
+            margin-bottom: 12px !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+          }
+          .document-type-badge span {
+            display: inline-block !important;
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            color: #1a365d !important;
+            text-transform: uppercase !important;
+            letter-spacing: 2px !important;
+            padding: 4px 18px !important;
+            border: 1.5px solid #1a365d !important;
+            border-radius: 20px !important;
           }
           
           /* Patient and study info grid */
@@ -1348,56 +1402,37 @@ This is an official medical report - Confidential patient information
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 no-print print:static print:bg-transparent print:p-0">
         <div className="bg-primary-foreground rounded-xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden print-content print:max-w-none print:max-h-none print:overflow-visible print:shadow-none print:rounded-none">
           {/* Professional Print Header (Hidden on screen, visible on print) */}
-          <div style={{ display: 'none' }} className="print-header print:block">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ 
-                  width: '60px', 
-                  height: '60px', 
-                  backgroundColor: '#4F46E5', 
-                  borderRadius: '50%', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  marginRight: '15px',
-                  color: 'white',
-                  fontSize: '24px',
-                  fontWeight: 'bold'
-                }}>
-                  +
-                </div>
-                <div>
-                  <h1 style={{ fontSize: '24pt', fontWeight: 'bold', margin: '0', color: '#000' }}>
-                    {clinic?.fullName || clinic?.name || 'New Life Healthcare Center'}
-                  </h1>
-                  <p style={{ fontSize: '14pt', margin: '0', color: '#666' }}>
-                    Comprehensive Imaging Report
-                  </p>
-                  <p style={{ fontSize: '11pt', margin: '0', color: '#666' }}>
-                    Location: {clinic?.address || 'Main Hospital, Imaging Department'}
-                  </p>
-                  <p style={{ fontSize: '11pt', margin: '0', color: '#666' }}>
-                    Phone: {clinic?.contactPhone || '+251123456789'}
-                  </p>
-                </div>
+          <div style={{ display: 'none' }} className="print:block">
+            <div className="print-header">
+              <img 
+                src={clinic?.logo || "/assets/images/logo.jpg"} 
+                alt="Logo" 
+                className="clinic-logo" 
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+              <div className="clinic-info-center">
+                <div className="clinic-name">{clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
+                <div className="clinic-subtitle">Imaging Department / Services</div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: '12pt', margin: '0', fontWeight: 'bold' }}>
-                  Date: {new Date().toLocaleDateString()}
-                </p>
-                <p style={{ fontSize: '12pt', margin: '0', fontWeight: 'bold' }}>
-                  Report ID: {order._id?.slice(-8).toUpperCase() || 'N/A'}
-                </p>
+              <div className="clinic-contact-right">
+                📍 {clinic?.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}<br />
+                📞 {clinic?.contactPhone || '+251925959219'}<br />
+                🪪 License: {clinic?.licenseNumber || 'CL-001'}
               </div>
             </div>
-            
-            {/* Separator Line */}
-            <div style={{ 
-              width: '100%', 
-              height: '2px', 
-              backgroundColor: '#000', 
-              marginBottom: '20px' 
-            }}></div>
+            <div className="document-type-badge">
+              <span>── Comprehensive Imaging Report ──</span>
+            </div>
+
+          {/* Imaging Report Info Metadata bar below the header */}
+          <div className="flex justify-between items-start mb-6 text-sm border-b border-gray-200 pb-2">
+            <div className="text-left text-gray-700">
+              <p><strong>Report ID:</strong> {order._id?.slice(-8).toUpperCase() || 'N/A'}</p>
+            </div>
+            <div className="text-right text-gray-700">
+              <p><strong>Date:</strong> {new Date(order.orderDateTime || Date.now()).toLocaleDateString()}</p>
+            </div>
+          </div>
             
             {/* Patient Information Header */}
             <div style={{ 

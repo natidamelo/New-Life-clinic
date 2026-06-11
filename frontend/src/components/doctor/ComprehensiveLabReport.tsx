@@ -70,38 +70,80 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
               font-size: 12px;
             }
             .report-header {
+              background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+              color: white;
+              padding: 14px 20px;
               display: flex;
+              align-items: center;
               justify-content: space-between;
-              margin-bottom: 15px;
-              padding-bottom: 8px;
-              border-bottom: 2px solid #444;
+              margin-bottom: 0;
+              position: relative;
+              border-radius: 6px 6px 0 0;
+            }
+            .report-header::after {
+              content: '';
+              position: absolute;
+              bottom: 0;
+              left: 0;
+              right: 0;
+              height: 3px;
+              background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853);
             }
             .report-header-left {
               display: flex;
               align-items: center;
             }
             .report-title {
-              font-size: 20px;
-              font-weight: bold;
-              margin-bottom: 3px;
-              color: #222;
+              font-size: 18px;
+              font-weight: 800;
+              margin-bottom: 2px;
+              color: white;
+              text-transform: uppercase;
+              letter-spacing: 1.5px;
             }
             .clinic-info {
-              font-size: 12px;
-              margin-bottom: 3px;
+              font-size: 11px;
+              margin-bottom: 2px;
+              color: rgba(255,255,255,0.75);
             }
             .clinic-location {
-              font-size: 11px;
-              color: #555;
+              font-size: 10px;
+              color: rgba(255,255,255,0.65);
             }
             .clinic-phone {
-              font-size: 11px;
-              color: #555;
+              font-size: 10px;
+              color: rgba(255,255,255,0.65);
             }
             .clinic-logo {
-              max-width: 80px;
-              max-height: 80px;
+              width: 55px;
+              height: 55px;
+              object-fit: contain;
               margin-right: 15px;
+              border-radius: 8px;
+              border: 2px solid rgba(255,255,255,0.3);
+            }
+            .report-header-right {
+              text-align: right;
+              font-size: 11px;
+              color: rgba(255,255,255,0.7);
+              line-height: 1.6;
+            }
+            .document-type-badge {
+              text-align: center;
+              padding: 8px 0 6px;
+              margin-bottom: 12px;
+              border-bottom: 1px solid #e2e8f0;
+            }
+            .document-type-badge span {
+              display: inline-block;
+              font-size: 12px;
+              font-weight: 700;
+              color: #1a365d;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+              padding: 4px 18px;
+              border: 1.5px solid #1a365d;
+              border-radius: 20px;
             }
             .patient-info {
               display: grid;
@@ -183,10 +225,28 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
               border-top: 1px solid #ddd;
             }
             @media print {
-              *:not(.watermark) {
+              *:not(.watermark):not(.report-header):not(.report-header *):not(.report-header::after):not(.document-type-badge):not(.document-type-badge *) {
                 color: #000000 !important;
                 border-color: #000000 !important;
                 background-color: transparent !important;
+              }
+              .report-header {
+                background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              .report-header, .report-header * {
+                color: white !important;
+                border-color: rgba(255,255,255,0.3) !important;
+              }
+              .report-header::after {
+                background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853) !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              .document-type-badge span {
+                color: #1a365d !important;
+                border-color: #1a365d !important;
               }
               @page { margin: 15mm; size: A4; }
               body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -233,18 +293,21 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
           <div class="watermark">Confidential Medical Record</div>
           <div class="report-header">
             <div class="report-header-left">
-              <img src="${clinic?.logo || LOGO_PATH}" class="clinic-logo" alt="${clinic?.name || 'New Life Medium Clinic'} Logo" onerror="this.onerror=null; this.src='${LOGO_FALLBACK}';" />
+              <img src="${clinic?.logo || LOGO_PATH}" class="clinic-logo" alt="Logo" onerror="this.onerror=null; this.src='${LOGO_FALLBACK}';" />
               <div>
                 <div class="report-title">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic'}</div>
-                <div class="clinic-info">Comprehensive Lab Report</div>
-                <div class="clinic-location">Location: ${clinic?.address || 'Lafto, beside Kebron Guest House'}</div>
-                <div class="clinic-phone">Phone: ${clinic?.contactPhone || '+251925959219'}</div>
+                <div class="clinic-info">Comprehensive Laboratory Analysis</div>
               </div>
             </div>
-            <div style="text-align: right;">
+            <div class="report-header-right">
+              <div>📍 ${clinic?.address || 'Lafto, beside Kebron Guest House'}</div>
+              <div>📞 ${clinic?.contactPhone || '+251925959219'}</div>
               <div>Date: ${new Date().toLocaleDateString()}</div>
-              <div>Report ID: ${(patientResults as any).reportId || Math.random().toString(36).substring(2, 10).toUpperCase()}</div>
+              <div>Report #${(patientResults as any).reportId || Math.random().toString(36).substring(2, 10).toUpperCase()}</div>
             </div>
+          </div>
+          <div class="document-type-badge">
+            <span>── Laboratory Report ──</span>
           </div>
           
           <div class="patient-info">

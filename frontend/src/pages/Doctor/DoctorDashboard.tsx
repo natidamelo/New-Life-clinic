@@ -4364,42 +4364,73 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                                 box-sizing: border-box;
                               }
                               .clinic-header {
-                                margin-bottom: 14px;
-                                border-bottom: 3px solid #333;
-                                padding-bottom: 12px;
+                                background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+                                color: white;
+                                padding: 10px 14px;
                                 display: flex;
                                 align-items: center;
-                                justify-content: center;
-                                gap: 16px;
+                                justify-content: space-between;
+                                margin-bottom: 0;
+                                position: relative;
+                              }
+                              .clinic-header::after {
+                                content: '';
+                                position: absolute;
+                                bottom: 0;
+                                left: 0;
+                                right: 0;
+                                height: 3px;
+                                background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853);
                               }
                               .clinic-logo {
-                                width: 65px;
-                                height: 65px;
-                                border-radius: 4px;
-                                border: 1px solid #ddd;
-                                object-fit: cover;
+                                width: 40px;
+                                height: 40px;
+                                object-fit: contain;
                                 flex-shrink: 0;
+                                border-radius: 8px;
+                                border: 2px solid rgba(255,255,255,0.3);
                               }
-                              .clinic-info {
-                                display: flex;
-                                flex-direction: column;
-                                align-items: center;
+                              .clinic-info-center {
+                                flex: 1;
                                 text-align: center;
+                                padding: 0 15px;
                               }
                               .clinic-name {
-                                font-size: 19px;
-                                font-weight: bold;
-                                color: #333;
-                                margin-bottom: 5px;
+                                font-size: 15px;
+                                font-weight: 800;
+                                text-transform: uppercase;
+                                letter-spacing: 1.5px;
+                                color: white;
+                                margin-bottom: 2px;
                               }
                               .clinic-subtitle {
-                                font-size: 17px;
-                                font-weight: bold;
-                                margin-bottom: 5px;
+                                font-size: 11px;
+                                color: rgba(255,255,255,0.75);
+                                font-weight: 500;
                               }
-                              .clinic-address {
-                                font-size: 13px;
-                                color: #666;
+                              .clinic-contact-right {
+                                font-size: 9px;
+                                color: rgba(255,255,255,0.7);
+                                text-align: right;
+                                line-height: 1.6;
+                                white-space: nowrap;
+                              }
+                              .document-type-badge {
+                                text-align: center;
+                                padding: 8px 0 6px;
+                                margin-bottom: 12px;
+                                border-bottom: 1px solid #e2e8f0;
+                              }
+                              .document-type-badge span {
+                                display: inline-block;
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: #1a365d;
+                                text-transform: uppercase;
+                                letter-spacing: 2px;
+                                padding: 4px 18px;
+                                border: 1.5px solid #1a365d;
+                                border-radius: 20px;
                               }
                               .document-meta {
                                 display: flex;
@@ -4484,9 +4515,18 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                                   height: 100%;
                                   padding: 14px;
                                 }
+                                .clinic-header {
+                                  -webkit-print-color-adjust: exact !important;
+                                  print-color-adjust: exact !important;
+                                  background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
+                                }
+                                .clinic-header::after {
+                                  -webkit-print-color-adjust: exact !important;
+                                  print-color-adjust: exact !important;
+                                }
                                 .clinic-logo {
-                                  width: 60px;
-                                  height: 60px;
+                                  width: 40px;
+                                  height: 40px;
                                 }
                                 .medications-table th,
                                 .medications-table td {
@@ -4502,12 +4542,18 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                           <body>
                             <div class="prescription-form">
                               <div class="clinic-header">
-                                <img src="${clinic?.logo || '/assets/images/logo.jpg'}" alt="Clinic Logo" class="clinic-logo" onerror="this.style.display='none'">
-                                <div class="clinic-info">
+                                <img src="${clinic?.logo || '/assets/images/logo.jpg'}" alt="Logo" class="clinic-logo" onerror="this.style.display='none'">
+                                <div class="clinic-info-center">
                                   <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
-                                  <div class="clinic-subtitle">Medical Prescription</div>
-                                  <div class="clinic-address">${clinic?.address || 'Lafto beside Kebron Guest House'}<br>Phone: ${clinic?.contactPhone || '+251925959219'}</div>
+                                  <div class="clinic-subtitle">Pharmaceutical Services</div>
                                 </div>
+                                <div class="clinic-contact-right">
+                                  📍 ${clinic?.address || 'Lafto beside Kebron Guest House'}<br>
+                                  📞 ${clinic?.contactPhone || '+251925959219'}
+                                </div>
+                              </div>
+                              <div class="document-type-badge">
+                                <span>── Medical Prescription ──</span>
                               </div>
                               
                               <div class="document-meta">
@@ -4657,43 +4703,73 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                     line-height: 1.4;
                   }
                   .clinic-header {
-                    margin-bottom: 20px;
-                    border-bottom: 1px solid #333;
-                    padding-bottom: 15px;
+                    background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+                    color: white;
+                    padding: 10px 14px;
                     display: flex;
                     align-items: center;
-                    justify-content: flex-start;
-                    gap: 15px;
+                    justify-content: space-between;
+                    margin-bottom: 0;
+                    position: relative;
+                  }
+                  .clinic-header::after {
+                    content: '';
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    height: 3px;
+                    background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853);
                   }
                   .clinic-logo {
-                    width: 70px;
-                    height: 70px;
-                    border-radius: 8px;
-                    border: 1px solid #ddd;
-                    object-fit: cover;
+                    width: 40px;
+                    height: 40px;
+                    object-fit: contain;
                     flex-shrink: 0;
+                    border-radius: 8px;
+                    border: 2px solid rgba(255,255,255,0.3);
                   }
-                  .clinic-info {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
+                  .clinic-info-center {
                     flex: 1;
                     text-align: center;
+                    padding: 0 15px;
                   }
                   .clinic-name {
-                    font-size: 20px;
-                    font-weight: bold;
-                    color: #333;
-                    margin-bottom: 5px;
+                    font-size: 15px;
+                    font-weight: 800;
+                    text-transform: uppercase;
+                    letter-spacing: 1.5px;
+                    color: white;
+                    margin-bottom: 2px;
                   }
                   .clinic-subtitle {
-                    font-size: 16px;
-                    font-weight: bold;
-                    margin-bottom: 8px;
+                    font-size: 11px;
+                    color: rgba(255,255,255,0.75);
+                    font-weight: 500;
                   }
-                  .clinic-address {
+                  .clinic-contact-right {
+                    font-size: 9px;
+                    color: rgba(255,255,255,0.7);
+                    text-align: right;
+                    line-height: 1.6;
+                    white-space: nowrap;
+                  }
+                  .document-type-badge {
+                    text-align: center;
+                    padding: 8px 0 6px;
+                    margin-bottom: 12px;
+                    border-bottom: 1px solid #e2e8f0;
+                  }
+                  .document-type-badge span {
+                    display: inline-block;
                     font-size: 12px;
-                    color: #666;
+                    font-weight: 700;
+                    color: #1a365d;
+                    text-transform: uppercase;
+                    letter-spacing: 2px;
+                    padding: 4px 18px;
+                    border: 1.5px solid #1a365d;
+                    border-radius: 20px;
                   }
                   .document-meta {
                     display: flex;
@@ -4764,12 +4840,18 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                 `}</style>
                 <div className="prescription-form">
                   <div className="clinic-header">
-                    <img src={clinic?.logo || "/assets/images/logo.jpg"} alt="Clinic Logo" className="clinic-logo" onError={(e) => e.currentTarget.style.display = 'none'} />
-                    <div className="clinic-info">
+                    <img src={clinic?.logo || "/assets/images/logo.jpg"} alt="Logo" className="clinic-logo" onError={(e) => e.currentTarget.style.display = 'none'} />
+                    <div className="clinic-info-center">
                       <div className="clinic-name">{clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
-                      <div className="clinic-subtitle">Medical Prescription</div>
-                      <div className="clinic-address">{clinic?.address || 'Lafto beside Kebron Guest House'}<br />Phone: {clinic?.contactPhone || '+251925959219'}</div>
+                      <div className="clinic-subtitle">Pharmaceutical Services</div>
                     </div>
+                    <div className="clinic-contact-right">
+                      📍 {clinic?.address || 'Lafto beside Kebron Guest House'}<br />
+                      📞 {clinic?.contactPhone || '+251925959219'}
+                    </div>
+                  </div>
+                  <div className="document-type-badge">
+                    <span>── Medical Prescription ──</span>
                   </div>
 
                   <div className="document-meta">

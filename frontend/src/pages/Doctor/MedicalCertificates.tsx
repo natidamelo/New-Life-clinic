@@ -982,43 +982,74 @@ const MedicalCertificates: React.FC = () => {
                   display: flex;
                   flex-direction: column;
                 }
-                .clinic-header { 
-                  text-align: center;
-                  margin-bottom: 15px; 
-                  border-bottom: 3px solid #2c5aa0; 
-                  padding-bottom: 12px; 
-                }
-                .clinic-header-content {
+                .clinic-header {
+                  background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+                  color: white;
+                  padding: 10px 14px;
                   display: flex;
                   align-items: center;
-                  justify-content: center;
-                  gap: 18px;
-                  margin-bottom: 10px;
+                  justify-content: space-between;
+                  margin-bottom: 0;
+                  position: relative;
+                }
+                .clinic-header::after {
+                  content: '';
+                  position: absolute;
+                  bottom: 0;
+                  left: 0;
+                  right: 0;
+                  height: 3px;
+                  background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853);
                 }
                 .clinic-logo {
-                  width: 70px;
-                  height: 70px;
+                  width: 40px;
+                  height: 40px;
                   object-fit: contain;
                   flex-shrink: 0;
+                  border-radius: 8px;
+                  border: 2px solid rgba(255,255,255,0.3);
                 }
-                .clinic-name { 
-                  font-size: 1.7rem; 
-                  font-weight: 800; 
-                  color: #2c5aa0; 
-                  margin-bottom: 5px; 
-                  text-transform: uppercase;
-                  letter-spacing: 0.6px;
+                .clinic-info-center {
+                  flex: 1;
+                  text-align: center;
+                  padding: 0 15px;
                 }
-                .document-title { 
-                  font-size: 1.5rem; 
-                  color: #333; 
-                  margin-bottom: 8px; 
+                .clinic-name {
+                  font-size: 15px;
                   font-weight: 800;
+                  text-transform: uppercase;
+                  letter-spacing: 1.5px;
+                  color: white;
+                  margin-bottom: 2px;
                 }
-                .clinic-details { 
-                  font-size: 1.05rem; 
-                  color: #666; 
-                  margin-bottom: 4px; 
+                .clinic-subtitle {
+                  font-size: 11px;
+                  color: rgba(255,255,255,0.75);
+                  font-weight: 500;
+                }
+                .clinic-contact-right {
+                  font-size: 9px;
+                  color: rgba(255,255,255,0.7);
+                  text-align: right;
+                  line-height: 1.6;
+                  white-space: nowrap;
+                }
+                .document-type-badge {
+                  text-align: center;
+                  padding: 8px 0 6px;
+                  margin-bottom: 12px;
+                  border-bottom: 1px solid #e2e8f0;
+                }
+                .document-type-badge span {
+                  display: inline-block;
+                  font-size: 12px;
+                  font-weight: 700;
+                  color: #1a365d;
+                  text-transform: uppercase;
+                  letter-spacing: 2px;
+                  padding: 4px 18px;
+                  border: 1.5px solid #1a365d;
+                  border-radius: 20px;
                 }
                 .certificate-meta {
                   display: flex;
@@ -1151,28 +1182,29 @@ const MedicalCertificates: React.FC = () => {
                   }
                   /* Prevent sections from splitting across pages */
                   .clinic-header {
-                    margin-bottom: 12px;
-                    padding-bottom: 10px;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                    background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
+                    color: white !important;
                     page-break-inside: avoid;
                     break-inside: avoid;
                   }
-                  .clinic-header-content {
-                    gap: 15px;
-                    margin-bottom: 8px;
-                  }
-                  .clinic-logo {
-                    width: 65px;
-                    height: 65px;
+                  .clinic-header::after {
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
                   }
                   .clinic-name {
-                    font-size: 1.6rem;
+                    color: white !important;
                   }
-                  .document-title {
-                    font-size: 1.4rem;
-                    margin-bottom: 6px;
+                  .clinic-subtitle {
+                    color: rgba(255,255,255,0.75) !important;
                   }
-                  .clinic-details {
-                    font-size: 1rem;
+                  .clinic-contact-right {
+                    color: rgba(255,255,255,0.7) !important;
+                  }
+                  .document-type-badge span {
+                    color: #1a365d !important;
+                    border-color: #1a365d !important;
                   }
                   .certificate-meta {
                     page-break-inside: avoid;
@@ -1209,10 +1241,9 @@ const MedicalCertificates: React.FC = () => {
                   .footer-info { 
                     display: none !important; 
                   }
-                  .clinic-name, .info-label, .document-title, h3 {
+                  .info-label, h3 {
                     color: black !important;
                   }
-                  .clinic-header { border-bottom-color: black !important; }
                   .certificate-meta { 
                     background: white !important; 
                     border-left-color: black !important; 
@@ -1226,7 +1257,6 @@ const MedicalCertificates: React.FC = () => {
                     color: black !important;
                     border: 1px solid black !important;
                   }
-                  .clinic-details { color: black !important; }
                   .meta-label, .meta-value { color: black !important; }
                 }
               </style>
@@ -1234,15 +1264,19 @@ const MedicalCertificates: React.FC = () => {
             <body>
               <div class="certificate-container">
                 <div class="clinic-header">
-                  <div class="clinic-header-content">
-                    <img src="${clinic?.logo || "/assets/images/logo.jpg"}" alt="Clinic Logo" class="clinic-logo">
-                    <div>
-                      <div class="clinic-name">${certificateData.clinic.name || 'New Life Medium Clinic PLC'}</div>
-                    </div>
+                  <img src="${clinic?.logo || "/assets/images/logo.jpg"}" alt="Logo" class="clinic-logo" onerror="this.style.display='none'">
+                  <div class="clinic-info-center">
+                    <div class="clinic-name">${certificateData.clinic.name || 'New Life Medium Clinic PLC'}</div>
+                    <div class="clinic-subtitle">Healthcare Services</div>
                   </div>
-                  <div class="document-title">Medical Certificate</div>
-                  <div class="clinic-details">${certificateData.clinic.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}</div>
-                  <div class="clinic-details">Phone: ${certificateData.clinic.phone || '+251925959219'} | License: ${certificateData.clinic.license || 'CL-001'}</div>
+                  <div class="clinic-contact-right">
+                    📍 ${certificateData.clinic.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}<br>
+                    📞 ${certificateData.clinic.phone || '+251925959219'}<br>
+                    🪪 License: ${certificateData.clinic.license || 'CL-001'}
+                  </div>
+                </div>
+                <div class="document-type-badge">
+                  <span>── Medical Certificate ──</span>
                 </div>
                 
                 <div class="certificate-meta">

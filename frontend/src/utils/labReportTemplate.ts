@@ -94,28 +94,63 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?:
 
           /* ── Header ── */
           .header {
-            background: #1e293b;
+            background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
             color: white;
-            padding: 14px 16px;
+            padding: 14px 20px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            justify-content: space-between;
+            margin-bottom: 0;
+            position: relative;
           }
-          .header-left { display: flex; align-items: center; gap: 12px; }
+          .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853);
+          }
           .header-logo {
-            width: 40px; height: 40px;
+            width: 55px; height: 55px;
+            object-fit: contain;
+            flex-shrink: 0;
+            border-radius: 8px;
+            border: 2px solid rgba(255,255,255,0.3);
+          }
+          .header-logo-fallback {
+            width: 55px; height: 55px;
             background: rgba(255,255,255,0.15);
             border-radius: 8px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 18px; font-weight: bold; color: white;
-            border: 1px solid rgba(255,255,255,0.2);
+            font-size: 22px; font-weight: bold; color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            flex-shrink: 0;
           }
-          .header-clinic-name { font-size: 16px; font-weight: 700; color: white; }
-          .header-subtitle { font-size: 11px; color: #94a3b8; margin-top: 2px; }
-          .header-contact { font-size: 10px; color: #64748b; margin-top: 3px; }
+          .header-info-center {
+            flex: 1;
+            text-align: center;
+            padding: 0 15px;
+          }
+          .header-clinic-name {
+            font-size: 18px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: white;
+            margin-bottom: 2px;
+          }
+          .header-subtitle { font-size: 11px; color: rgba(255,255,255,0.75); font-weight: 500; }
+          .header-contact-right {
+            font-size: 10px;
+            color: rgba(255,255,255,0.7);
+            text-align: right;
+            line-height: 1.6;
+            white-space: nowrap;
+          }
           .header-right { text-align: right; }
-          .header-date { font-size: 11px; color: #94a3b8; }
+          .header-date { font-size: 11px; color: rgba(255,255,255,0.75); }
           .report-id-badge {
             display: inline-block;
             background: rgba(255,255,255,0.1);
@@ -126,6 +161,23 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?:
             font-size: 11px;
             color: #e2e8f0;
             margin-top: 4px;
+          }
+          .document-type-badge {
+            text-align: center;
+            padding: 8px 0 6px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+          }
+          .document-type-badge span {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 700;
+            color: #1a365d;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 4px 18px;
+            border: 1.5px solid #1a365d;
+            border-radius: 20px;
           }
 
           /* ── Patient Info ── */
@@ -283,9 +335,17 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?:
               border-color: black !important;
               background-color: transparent !important;
             }
-            .header { background: white !important; color: black !important; border: 1px solid black !important; }
-            .header-clinic-name, .header-subtitle, .header-contact, .header-date, .report-id-badge { color: black !important; }
-            .report-id-badge { border: 1px solid black !important; }
+            .header {
+              background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .header::after {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .header-clinic-name, .header-subtitle, .header-contact-right, .header-date, .report-id-badge { color: white !important; }
+            .report-id-badge { border: 1px solid rgba(255,255,255,0.2) !important; }
             .patient-section { background: white !important; border: 1px solid black !important; }
             .patient-card { border: 1px solid black !important; background: white !important; }
             .patient-card-value, .patient-card-label { color: black !important; }
@@ -308,22 +368,24 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?:
         <div class="page">
           <!-- Header -->
           <div class="header">
-            <div class="header-left">
-              ${clinic?.logo ? `
-                <img src="${clinic.logo}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover;" alt="logo" />
-              ` : `
-                <div class="header-logo">${(clinic?.name || 'New Life')[0].toUpperCase()}</div>
-              `}
-              <div>
-                <div class="header-clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic'}</div>
-                <div class="header-subtitle">Comprehensive Laboratory Report</div>
-                <div class="header-contact">${clinic?.address || 'Lafto, beside Kebron Guest House'} &nbsp;·&nbsp; ${clinic?.phone || clinic?.phoneNumber || '+251925959219'}</div>
-              </div>
+            ${clinic?.logo ? `
+              <img src="${clinic.logo}" alt="Logo" class="header-logo" onerror="this.style.display='none'" />
+            ` : `
+              <div class="header-logo-fallback">${(clinic?.name || 'New Life')[0].toUpperCase()}</div>
+            `}
+            <div class="header-info-center">
+              <div class="header-clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic'}</div>
+              <div class="header-subtitle">Comprehensive Lab Analysis</div>
             </div>
-            <div class="header-right">
-              <div class="header-date">${reportDate} at ${reportTime}</div>
-              <div class="report-id-badge"># ${reportId}</div>
+            <div class="header-contact-right">
+              📍 ${clinic?.address || 'Lafto, beside Kebron Guest House'}<br>
+              📞 ${clinic?.phone || clinic?.phoneNumber || '+251925959219'}<br>
+              <span class="header-date">${reportDate} at ${reportTime}</span><br>
+              <span class="report-id-badge"># ${reportId}</span>
             </div>
+          </div>
+          <div class="document-type-badge">
+            <span>── Laboratory Report ──</span>
           </div>
 
           <!-- Patient Info -->

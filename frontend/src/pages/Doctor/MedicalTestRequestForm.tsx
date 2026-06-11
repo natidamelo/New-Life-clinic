@@ -740,45 +740,74 @@ const MedicalTestRequestForm: React.FC = () => {
               display: flex;
               flex-direction: column;
             }
-            .clinic-header { 
-              text-align: center;
-              margin-bottom: 10px; 
-              border-bottom: 2px solid #2c5aa0; 
-              padding-bottom: 8px; 
-            }
-            .clinic-header-content {
+            .clinic-header {
+              background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+              color: white;
+              padding: 14px 20px;
               display: flex;
               align-items: center;
-              justify-content: center;
-              gap: 12px;
-              margin-bottom: 6px;
+              justify-content: space-between;
+              margin-bottom: 0;
+              position: relative;
+            }
+            .clinic-header::after {
+              content: '';
+              position: absolute;
+              bottom: 0;
+              left: 0;
+              right: 0;
+              height: 3px;
+              background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853);
             }
             .clinic-logo {
               width: 55px;
               height: 55px;
               object-fit: contain;
               flex-shrink: 0;
-              border-radius: 3px;
+              border-radius: 8px;
+              border: 2px solid rgba(255,255,255,0.3);
             }
-            .clinic-name { 
-              font-size: 1.5rem; 
-              font-weight: 800; 
-              color: #2c5aa0; 
-              margin-bottom: 4px; 
-              text-transform: uppercase;
-              letter-spacing: 0.3px;
+            .clinic-info-center {
+              flex: 1;
+              text-align: center;
+              padding: 0 15px;
             }
-            .document-title { 
-              font-size: 1.3rem; 
-              color: #333; 
-              margin-bottom: 5px; 
+            .clinic-name {
+              font-size: 18px;
               font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 1.5px;
+              color: white;
+              margin-bottom: 2px;
             }
-            .clinic-details { 
-              font-size: 0.95rem; 
-              color: #666; 
-              margin-bottom: 3px; 
-              line-height: 1.3;
+            .clinic-subtitle {
+              font-size: 11px;
+              color: rgba(255,255,255,0.75);
+              font-weight: 500;
+            }
+            .clinic-contact-right {
+              font-size: 10px;
+              color: rgba(255,255,255,0.7);
+              text-align: right;
+              line-height: 1.6;
+              white-space: nowrap;
+            }
+            .document-type-badge {
+              text-align: center;
+              padding: 8px 0 6px;
+              margin-bottom: 12px;
+              border-bottom: 1px solid #e2e8f0;
+            }
+            .document-type-badge span {
+              display: inline-block;
+              font-size: 12px;
+              font-weight: 700;
+              color: #1a365d;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+              padding: 4px 18px;
+              border: 1.5px solid #1a365d;
+              border-radius: 20px;
             }
             .request-meta {
               display: flex;
@@ -1025,26 +1054,27 @@ const MedicalTestRequestForm: React.FC = () => {
                 overflow: visible;
               }
               .clinic-header {
-                margin-bottom: 9px;
-                padding-bottom: 7px;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
+                color: white !important;
               }
-              .clinic-header-content {
-                gap: 12px;
-                margin-bottom: 5px;
-              }
-              .clinic-logo {
-                width: 52px;
-                height: 52px;
+              .clinic-header::after {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
               }
               .clinic-name {
-                font-size: 1.45rem;
+                color: white !important;
               }
-              .document-title {
-                font-size: 1.25rem;
-                margin-bottom: 4px;
+              .clinic-subtitle {
+                color: rgba(255,255,255,0.75) !important;
               }
-              .clinic-details {
-                font-size: 0.9rem;
+              .clinic-contact-right {
+                color: rgba(255,255,255,0.7) !important;
+              }
+              .document-type-badge span {
+                color: #1a365d !important;
+                border-color: #1a365d !important;
               }
               .request-meta {
                 padding: 7px 10px;
@@ -1120,15 +1150,18 @@ const MedicalTestRequestForm: React.FC = () => {
         <body>
           <div class="request-container${activeTab === 'lab' ? ' lab-request-container' : ''}">
             <div class="clinic-header">
-              <div class="clinic-header-content">
-                <img src="${clinic?.logo || '/assets/images/logo.jpg'}" alt="Clinic Logo" class="clinic-logo" onerror="this.onerror=null;this.src='/assets/images/logo-placeholder.svg';">
-                <div>
-                  <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
-                </div>
+              <img src="${clinic?.logo || '/assets/images/logo.jpg'}" alt="Logo" class="clinic-logo" onerror="this.style.display='none'">
+              <div class="clinic-info-center">
+                <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
+                <div class="clinic-subtitle">Laboratory & Imaging Services</div>
               </div>
-              <div class="document-title">Request Form</div>
-              <div class="clinic-details">${clinic?.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}</div>
-              <div class="clinic-details">Phone: ${clinic?.contactPhone || '+251925959219'}</div>
+              <div class="clinic-contact-right">
+                📍 ${clinic?.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}<br>
+                📞 ${clinic?.contactPhone || '+251925959219'}
+              </div>
+            </div>
+            <div class="document-type-badge">
+              <span>── Request Form ──</span>
             </div>
 
             <div class="request-meta">

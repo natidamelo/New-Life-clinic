@@ -1184,11 +1184,79 @@ const EMRReferralPaper: React.FC = () => {
                print-color-adjust: exact !important;
              }
              
-             .referral-header { 
-               border-bottom: 2px solid #000; 
-               padding-bottom: 6px; 
-               margin-bottom: 8px;
+             .referral-header {
+               background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
+               color: white !important;
+               padding: 10px 14px !important;
+               display: flex !important;
+               align-items: center !important;
+               justify-content: space-between !important;
+               margin-bottom: 0 !important;
+               position: relative !important;
                width: 100%;
+               -webkit-print-color-adjust: exact !important;
+               print-color-adjust: exact !important;
+             }
+             .referral-header::after {
+               content: '' !important;
+               position: absolute !important;
+               bottom: 0 !important;
+               left: 0 !important;
+               right: 0 !important;
+               height: 3px !important;
+               background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853) !important;
+               -webkit-print-color-adjust: exact !important;
+               print-color-adjust: exact !important;
+             }
+             .clinic-logo {
+               width: 40px !important;
+               height: 40px !important;
+               object-fit: contain !important;
+               flex-shrink: 0 !important;
+               border-radius: 8px !important;
+               border: 2px solid rgba(255,255,255,0.3) !important;
+             }
+             .clinic-info-center {
+               flex: 1 !important;
+               text-align: center !important;
+               padding: 0 15px !important;
+             }
+             .clinic-name {
+               font-size: 15px !important;
+               font-weight: 800 !important;
+               text-transform: uppercase !important;
+               letter-spacing: 1.5px !important;
+               color: white !important;
+               margin-bottom: 2px !important;
+             }
+             .clinic-subtitle {
+               font-size: 11px !important;
+               color: rgba(255,255,255,0.75) !important;
+               font-weight: 500 !important;
+             }
+             .clinic-contact-right {
+               font-size: 9px !important;
+               color: rgba(255,255,255,0.7) !important;
+               text-align: right !important;
+               line-height: 1.6 !important;
+               white-space: nowrap !important;
+             }
+             .document-type-badge {
+               text-align: center !important;
+               padding: 8px 0 6px !important;
+               margin-bottom: 12px !important;
+               border-bottom: 1px solid #e2e8f0 !important;
+             }
+             .document-type-badge span {
+               display: inline-block !important;
+               font-size: 12px !important;
+               font-weight: 700 !important;
+               color: #1a365d !important;
+               text-transform: uppercase !important;
+               letter-spacing: 2px !important;
+               padding: 4px 18px !important;
+               border: 1.5px solid #1a365d !important;
+               border-radius: 20px !important;
              }
              
              .referral-section { 
@@ -1407,28 +1475,37 @@ const EMRReferralPaper: React.FC = () => {
 
         {/* Referral Header */}
         <div className="referral-header mb-4">
-          <div className="flex justify-between items-start mb-2">
-            <div className="flex items-start gap-3">
-              <img 
-                src={clinic?.logo || "/assets/images/logo.jpg"} 
-                alt="Clinic Logo" 
-                className="w-16 h-16 object-contain"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-              <div className="text-left">
-                <p className="font-bold text-base">{referralData.referringClinic}</p>
-                <p className="text-xs">{referralData.referringAddress}</p>
-                <p className="text-xs">Tel: {referralData.referringPhone} | Email: {referralData.referringEmail}</p>
-              </div>
-            </div>
-            <div className="text-right text-xs">
-              <p><strong>Date:</strong> {referralData.referralDate}</p>
-              <p><strong>Time:</strong> {referralData.referralTime}</p>
-              <p><strong>Urgency:</strong> <span className="font-bold">{referralData.urgency.toUpperCase()}</span></p>
-            </div>
+          <img 
+            src={clinic?.logo || "/assets/images/logo.jpg"} 
+            alt="Logo" 
+            className="clinic-logo" 
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+          <div className="clinic-info-center">
+            <div className="clinic-name">{clinic?.name || 'New Life Medium Clinic PLC'}</div>
+            <div className="clinic-subtitle">Healthcare Services</div>
           </div>
-          <div className="border-t-2 border-gray-800 pt-3 text-center">
-            <h1 className="text-2xl font-bold">MEDICAL REFERRAL</h1>
+          <div className="clinic-contact-right">
+            📍 {clinic?.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}<br />
+            📞 {clinic?.phone || '+251925959219'}<br />
+            🪪 License: {clinic?.license || 'CL-001'}
+          </div>
+        </div>
+        <div className="document-type-badge">
+          <span>── Medical Referral ──</span>
+        </div>
+
+        {/* Referring & Urgency Metadata */}
+        <div className="flex justify-between items-start mb-4 text-[10px] border-b border-gray-200 pb-2">
+          <div className="text-left text-gray-700">
+            <p><strong>Referring Clinic:</strong> {referralData.referringClinic}</p>
+            <p><strong>Referring Address:</strong> {referralData.referringAddress}</p>
+            <p><strong>Tel:</strong> {referralData.referringPhone} | <strong>Email:</strong> {referralData.referringEmail}</p>
+          </div>
+          <div className="text-right text-gray-700">
+            <p><strong>Date:</strong> {referralData.referralDate}</p>
+            <p><strong>Time:</strong> {referralData.referralTime}</p>
+            <p><strong>Urgency:</strong> <span className="font-bold text-red-600">{referralData.urgency.toUpperCase()}</span></p>
           </div>
         </div>
 

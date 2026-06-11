@@ -354,6 +354,23 @@ const NurseReport: React.FC = () => {
       }
     };
 
+    const printHeaderHTML = `
+      <div class="header">
+        <img src="${clinic?.logo || "/assets/images/logo.jpg"}" alt="Logo" class="clinic-logo" onerror="this.style.display='none'">
+        <div class="clinic-info-center">
+          <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
+          <div class="clinic-subtitle">Region: ${clinic?.address || 'Addis Ababa'}</div>
+        </div>
+        <div class="clinic-contact-right">
+          Reporting: ${getReportingPeriod()}<br>
+          Type: OPD | Gen: ${currentDate}
+        </div>
+      </div>
+      <div class="document-type-badge">
+        <span>── ${reportType === 'monthly' ? 'Monthly' : 'Weekly'} Report ──</span>
+      </div>
+    `;
+
     // Create the HTML content for printing
     const printContent = `
       <!DOCTYPE html>
@@ -367,26 +384,82 @@ const NurseReport: React.FC = () => {
             line-height: 1.6;
           }
           .header {
-            text-align: center;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #333;
-            padding-bottom: 5px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
+            background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
+            color: white !important;
+            padding: 10px 14px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            margin-bottom: 0 !important;
+            position: relative !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
-          .header h1 {
-            margin: 0;
-            color: #333;
-            font-size: 22px;
-            font-weight: bold;
+          .header::after {
+            content: '' !important;
+            position: absolute !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            height: 3px !important;
+            background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853) !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
-          .header p {
-            margin: 0;
-            color: #666;
-            font-size: 14px;
-            line-height: 1.2;
+          .clinic-logo {
+            width: 40px !important;
+            height: 40px !important;
+            object-fit: contain !important;
+            flex-shrink: 0 !important;
+            border-radius: 8px !important;
+            border: 2px solid rgba(255,255,255,0.3) !important;
+          }
+          .clinic-info-center {
+            flex: 1 !important;
+            text-align: center !important;
+            padding: 0 15px !important;
+          }
+          .clinic-name {
+            font-size: 15px !important;
+            font-weight: 800 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1.5px !important;
+            color: white !important;
+            margin: 0 0 2px 0 !important;
+          }
+          .clinic-subtitle {
+            font-size: 11px !important;
+            color: rgba(255,255,255,0.75) !important;
+            font-weight: 500 !important;
+            margin: 0 !important;
+          }
+          .clinic-contact-right {
+            font-size: 9px !important;
+            color: rgba(255,255,255,0.7) !important;
+            text-align: right !important;
+            line-height: 1.6 !important;
+            white-space: nowrap !important;
+            margin: 0 !important;
+          }
+          .document-type-badge {
+            text-align: center !important;
+            padding: 8px 0 6px !important;
+            margin-bottom: 12px !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            box-sizing: border-box !important;
+          }
+          .document-type-badge span {
+            display: inline-block !important;
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            color: #1a365d !important;
+            text-transform: uppercase !important;
+            letter-spacing: 2px !important;
+            padding: 4px 18px !important;
+            border: 1.5px solid #1a365d !important;
+            border-radius: 20px !important;
           }
           .summary-stats {
             display: none;
@@ -447,10 +520,7 @@ const NurseReport: React.FC = () => {
         </style>
       </head>
       <body>
-        <div class="header">
-          <h1>${(clinic?.fullName || clinic?.name || 'NEW LIFE MEDIUM CLINIC').toUpperCase()}</h1>
-          <p>Region: ${clinic?.address || 'Addis Ababa'} | Reporting Month/Year: ${getReportingPeriod()} | Reporting Type: OPD</p>
-          <p>Generated on: ${currentDate}</p>
+        ${printHeaderHTML}
         </div>
 
         <div class="summary-stats">
@@ -510,10 +580,7 @@ const NurseReport: React.FC = () => {
          
          <!-- PAGE 2: Demographics -->
          <div class="page-break">
-           <div class="header">
-             <h1>${(clinic?.fullName || clinic?.name || 'NEW LIFE MEDIUM CLINIC').toUpperCase()}</h1>
-             <p>Region: ${clinic?.address || 'Addis Ababa'} | Reporting Month/Year: ${getReportingPeriod()} | Reporting Type: OPD</p>
-             <p>Generated on: ${currentDate}</p>
+           ${printHeaderHTML}
            </div>
            
            <div class="section-title">Patient Demographics by Age and Gender</div>
@@ -649,10 +716,7 @@ const NurseReport: React.FC = () => {
        
        <!-- PAGE 3: Detailed Age Distribution -->
        <div class="page-break">
-         <div class="header">
-           <h1>${(clinic?.fullName || clinic?.name || 'NEW LIFE MEDIUM CLINIC').toUpperCase()}</h1>
-           <p>Region: ${clinic?.address || 'Addis Ababa'} | Reporting Month/Year: ${getReportingPeriod()} | Reporting Type: OPD</p>
-           <p>Generated on: ${currentDate}</p>
+         ${printHeaderHTML}
          </div>
          
          <div class="section-title">Detailed Age Distribution</div>
