@@ -164,6 +164,13 @@ const PaymentAuthorizationSchema = new Schema({
 
 // Main Nurse Task schema
 const NurseTaskSchema = new Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   patientId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Patient',

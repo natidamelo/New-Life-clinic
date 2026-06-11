@@ -1,5 +1,12 @@
 const mongoose = require('mongoose');
 const LabRequestSchema = new mongoose.Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   patient: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
   medicalRecord: { type: mongoose.Schema.Types.ObjectId, ref: 'MedicalRecord' },
   requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

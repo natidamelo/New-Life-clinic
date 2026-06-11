@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const labOrderSchema = new mongoose.Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   patientId: {
     type: mongoose.Schema.Types.Mixed, // Allow both ObjectId and String
     required: true,

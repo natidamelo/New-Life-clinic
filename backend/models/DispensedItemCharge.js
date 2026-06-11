@@ -2,6 +2,13 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const DispensedItemChargeSchema = new Schema({
+    clinicId: {
+        type: String,
+        required: true,
+        default: 'default',
+        index: true,
+        trim: true
+    },
     patient: {
         type: Schema.Types.ObjectId,
         ref: 'Patient',

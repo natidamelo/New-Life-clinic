@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const medicalCertificateSchema = new mongoose.Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   // Patient Information
   patientId: {
     type: mongoose.Schema.Types.ObjectId,

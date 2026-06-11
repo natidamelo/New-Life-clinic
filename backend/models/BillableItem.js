@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const BillableItemSchema = new mongoose.Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   name: { type: String, required: true },
   unitPrice: { type: Number, required: true },
   type: { type: String, enum: ['service', 'lab', 'medication', 'imaging', 'supply', 'procedure', 'other'], default: 'service' },

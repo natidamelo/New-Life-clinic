@@ -33,6 +33,13 @@ const notesSubSchema = new mongoose.Schema({
 }, { _id: true }); // Give notes subdocuments their own ID
 
 const visitSchema = new mongoose.Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   patientId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Patient',

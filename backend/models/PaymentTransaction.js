@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const paymentTransactionSchema = new mongoose.Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   invoiceId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Invoice',

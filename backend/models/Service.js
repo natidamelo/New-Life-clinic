@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const ServiceSchema = new mongoose.Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   name: {
     type: String,
     required: true,

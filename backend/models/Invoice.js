@@ -49,6 +49,13 @@ const InvoiceItemSchema = new Schema({
 
 // Main invoice schema
 const InvoiceSchema = new Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   // Invoice identification
   invoiceNumber: {
     type: String,

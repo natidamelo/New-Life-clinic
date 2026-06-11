@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema({
+  clinicId: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true,
+    trim: true
+  },
   title: {
     type: String,
     required: true
