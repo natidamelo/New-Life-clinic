@@ -923,7 +923,7 @@ const MedicalCertificates: React.FC = () => {
         
         // Convert signature image to base64 if it exists
         let signatureBase64: string | null = null;
-        if (certificateData.digitalSignature) {
+        if (certificateData.digitalSignature && certificateData.digitalSignature.filename) {
           try {
             const signatureResponse = await fetch(`http://localhost:5002/uploads/signatures/${certificateData.digitalSignature.filename}`);
             if (signatureResponse.ok) {
@@ -1275,7 +1275,7 @@ const MedicalCertificates: React.FC = () => {
                   <div class="clinic-contact-right">
                     📍 ${certificateData.clinic.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}<br>
                     📞 ${certificateData.clinic.phone || '+251925959219'}<br>
-                    🪪 License: ${certificateData.clinic.license || 'CL-001'}
+                    🪪 TIN: ${certificateData.clinic.license || 'CL-001'}
                   </div>
                 </div>
                 <div class="document-type-badge">

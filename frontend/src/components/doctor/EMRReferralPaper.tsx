@@ -1483,7 +1483,7 @@ const EMRReferralPaper: React.FC = () => {
           <div className="clinic-contact-right">
             📍 {clinic?.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}<br />
             📞 {clinic?.phone || '+251925959219'}<br />
-            🪪 License: {clinic?.license || 'CL-001'}
+            🪪 TIN: {clinic?.license || clinic?.licenseNumber || 'CL-001'}
           </div>
         </div>
         <div className="document-type-badge">

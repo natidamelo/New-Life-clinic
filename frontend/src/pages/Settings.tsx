@@ -778,14 +778,14 @@ const ClinicBrandingSettings: React.FC = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-muted-foreground mb-1">License Number</label>
+            <label className="block text-sm font-semibold text-muted-foreground mb-1">TIN</label>
             <input
               type="text"
               name="licenseNumber"
               value={formData.licenseNumber}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-primary-foreground text-foreground"
-              placeholder="e.g. 1234/2016"
+              placeholder="e.g. 0071128497"
             />
           </div>
           <div>

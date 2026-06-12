@@ -1390,7 +1390,7 @@ const InvoiceDetail: React.FC = () => {
             <div className="clinic-contact-right">
               📍 {clinic?.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}<br />
               📞 {clinic?.contactPhone || '+251925959219'}<br />
-              🪪 License: {clinic?.licenseNumber || 'CL-001'}
+              🪪 TIN: {clinic?.licenseNumber || 'CL-001'}
             </div>
           </div>
           <div className="document-type-badge">

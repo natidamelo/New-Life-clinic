@@ -491,6 +491,7 @@ router.get('/:clinicRef/profile', async (req, res) => {
         fullName: clinic.fullName || clinic.name,
         tagline: clinic.tagline || '',
         address: clinic.address || '',
+        licenseNumber: clinic.licenseNumber || '',
         contactEmail: clinic.contactEmail || '',
         contactPhone: clinic.contactPhone || ''
       }
