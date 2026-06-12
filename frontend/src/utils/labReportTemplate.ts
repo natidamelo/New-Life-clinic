@@ -336,16 +336,20 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?:
               background-color: transparent !important;
             }
             .header {
-              background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
+              background: #f8fafc !important;
+              border: 1px solid #cbd5e1 !important;
+              border-radius: 6px !important;
+              color: #0f172a !important;
+              padding: 8px 12px !important;
             }
             .header::after {
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
+              display: none !important;
             }
-            .header-clinic-name, .header-subtitle, .header-contact-right, .header-date, .report-id-badge { color: white !important; }
-            .report-id-badge { border: 1px solid rgba(255,255,255,0.2) !important; }
+            .header-clinic-name { color: #0f172a !important; }
+            .header-subtitle { color: #475569 !important; }
+            .header-contact-right { color: #475569 !important; }
+            .header-logo { border: 1px solid #cbd5e1 !important; }
+            .report-id-badge { border: 1px solid #cbd5e1 !important; color: #475569 !important; }
             .patient-section { background: white !important; border: 1px solid black !important; }
             .patient-card { border: 1px solid black !important; background: white !important; }
             .patient-card-value, .patient-card-label { color: black !important; }

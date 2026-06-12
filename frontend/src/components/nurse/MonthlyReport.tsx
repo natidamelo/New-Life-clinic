@@ -384,9 +384,11 @@ const NurseReport: React.FC = () => {
             line-height: 1.6;
           }
           .header {
-            background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
-            color: white !important;
-            padding: 10px 14px !important;
+            background: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 6px !important;
+            color: #0f172a !important;
+            padding: 8px 12px !important;
             display: flex !important;
             align-items: center !important;
             justify-content: space-between !important;
@@ -398,15 +400,7 @@ const NurseReport: React.FC = () => {
             print-color-adjust: exact !important;
           }
           .header::after {
-            content: '' !important;
-            position: absolute !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            height: 3px !important;
-            background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853) !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+            display: none !important;
           }
           .clinic-logo {
             width: 40px !important;
@@ -414,7 +408,7 @@ const NurseReport: React.FC = () => {
             object-fit: contain !important;
             flex-shrink: 0 !important;
             border-radius: 8px !important;
-            border: 2px solid rgba(255,255,255,0.3) !important;
+            border: 1px solid #cbd5e1 !important;
           }
           .clinic-info-center {
             flex: 1 !important;
@@ -426,18 +420,18 @@ const NurseReport: React.FC = () => {
             font-weight: 800 !important;
             text-transform: uppercase !important;
             letter-spacing: 1.5px !important;
-            color: white !important;
+            color: #0f172a !important;
             margin: 0 0 2px 0 !important;
           }
           .clinic-subtitle {
             font-size: 11px !important;
-            color: rgba(255,255,255,0.75) !important;
+            color: #475569 !important;
             font-weight: 500 !important;
             margin: 0 !important;
           }
           .clinic-contact-right {
             font-size: 9px !important;
-            color: rgba(255,255,255,0.7) !important;
+            color: #475569 !important;
             text-align: right !important;
             line-height: 1.6 !important;
             white-space: nowrap !important;
@@ -1089,11 +1083,11 @@ const NurseReport: React.FC = () => {
                       <TableCell className="text-sm py-1.5 w-14">{diagnosis.percentage.toFixed(1)}%</TableCell>
                       {(user?.role?.toLowerCase() === 'doctor' || user?.role?.toLowerCase() === 'admin') && (
                         <TableCell className="text-sm py-1.5 w-14">
-                          {(diagnosis.recordId || diagnosis.id || (diagnosis as any)._id) && (
+                          {(diagnosis.recordId || (diagnosis as any).id || (diagnosis as any)._id) && (
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => handleDeleteRecord(String(diagnosis.recordId || diagnosis.id || (diagnosis as any)._id))}
+                              onClick={() => handleDeleteRecord(String(diagnosis.recordId || (diagnosis as any).id || (diagnosis as any)._id))}
                               className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7 p-0"
                             >
                               <Trash2 className="h-4 w-4" />

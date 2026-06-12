@@ -1182,25 +1182,28 @@ const MedicalCertificates: React.FC = () => {
                   }
                   /* Prevent sections from splitting across pages */
                   .clinic-header {
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                    background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
-                    color: white !important;
+                    background: #f8fafc !important;
+                    border: 1px solid #cbd5e1 !important;
+                    border-radius: 6px !important;
+                    color: #0f172a !important;
+                    padding: 8px 12px !important;
                     page-break-inside: avoid;
                     break-inside: avoid;
                   }
                   .clinic-header::after {
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
+                    display: none !important;
                   }
                   .clinic-name {
-                    color: white !important;
+                    color: #0f172a !important;
                   }
                   .clinic-subtitle {
-                    color: rgba(255,255,255,0.75) !important;
+                    color: #475569 !important;
                   }
                   .clinic-contact-right {
-                    color: rgba(255,255,255,0.7) !important;
+                    color: #475569 !important;
+                  }
+                  .clinic-logo {
+                    border: 1px solid #cbd5e1 !important;
                   }
                   .document-type-badge span {
                     color: #1a365d !important;

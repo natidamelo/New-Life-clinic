@@ -231,18 +231,28 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
                 background-color: transparent !important;
               }
               .report-header {
-                background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
+                background: #f8fafc !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 6px !important;
+                color: #0f172a !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
               }
               .report-header, .report-header * {
-                color: white !important;
-                border-color: rgba(255,255,255,0.3) !important;
+                color: #0f172a !important;
+                border-color: #cbd5e1 !important;
+              }
+              .report-title {
+                color: #0f172a !important;
+              }
+              .clinic-info, .report-header-right, .report-header-right * {
+                color: #475569 !important;
+              }
+              .clinic-logo {
+                border: 1px solid #cbd5e1 !important;
               }
               .report-header::after {
-                background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853) !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
+                display: none !important;
               }
               .document-type-badge span {
                 color: #1a365d !important;

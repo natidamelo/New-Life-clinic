@@ -4516,17 +4516,28 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                                   padding: 14px;
                                 }
                                 .clinic-header {
-                                  -webkit-print-color-adjust: exact !important;
-                                  print-color-adjust: exact !important;
-                                  background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
+                                  background: #f8fafc !important;
+                                  border: 1px solid #cbd5e1 !important;
+                                  border-radius: 6px !important;
+                                  color: #0f172a !important;
+                                  padding: 8px 12px !important;
                                 }
                                 .clinic-header::after {
-                                  -webkit-print-color-adjust: exact !important;
-                                  print-color-adjust: exact !important;
+                                  display: none !important;
+                                }
+                                .clinic-name {
+                                  color: #0f172a !important;
+                                }
+                                .clinic-subtitle {
+                                  color: #475569 !important;
+                                }
+                                .clinic-contact-right {
+                                  color: #475569 !important;
                                 }
                                 .clinic-logo {
                                   width: 40px;
                                   height: 40px;
+                                  border: 1px solid #cbd5e1 !important;
                                 }
                                 .medications-table th,
                                 .medications-table td {
@@ -4836,6 +4847,30 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                     color: #666;
                     border-top: 1px solid #ccc;
                     padding-top: 10px;
+                  }
+                  @media print {
+                    .clinic-header {
+                      background: #f8fafc !important;
+                      border: 1px solid #cbd5e1 !important;
+                      border-radius: 6px !important;
+                      color: #0f172a !important;
+                      padding: 8px 12px !important;
+                    }
+                    .clinic-header::after {
+                      display: none !important;
+                    }
+                    .clinic-name {
+                      color: #0f172a !important;
+                    }
+                    .clinic-subtitle {
+                      color: #475569 !important;
+                    }
+                    .clinic-contact-right {
+                      color: #475569 !important;
+                    }
+                    .clinic-logo {
+                      border: 1px solid #cbd5e1 !important;
+                    }
                   }
                 `}</style>
                 <div className="prescription-form">

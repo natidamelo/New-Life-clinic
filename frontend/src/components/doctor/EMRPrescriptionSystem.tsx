@@ -695,15 +695,27 @@ const EMRPrescriptionSystem: React.FC = () => {
                       }
                       
                       .prescription-header {
-                          background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
-                          color: white !important;
-                          -webkit-print-color-adjust: exact !important;
-                          print-color-adjust: exact !important;
+                          background: #f8fafc !important;
+                          border: 1px solid #cbd5e1 !important;
+                          border-radius: 6px !important;
+                          color: #0f172a !important;
+                          padding: 8px 12px !important;
                       }
                       
                       .prescription-header::after {
-                          -webkit-print-color-adjust: exact !important;
-                          print-color-adjust: exact !important;
+                          display: none !important;
+                      }
+                      .prescription-header .clinic-name {
+                          color: #0f172a !important;
+                      }
+                      .prescription-header .clinic-subtitle {
+                          color: #475569 !important;
+                      }
+                      .prescription-header .clinic-contact-right {
+                          color: #475569 !important;
+                      }
+                      .prescription-header .clinic-logo {
+                          border: 1px solid #cbd5e1 !important;
                       }
                       
                       .patient-section {

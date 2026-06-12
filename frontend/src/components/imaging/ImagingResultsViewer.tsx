@@ -1064,9 +1064,11 @@ This is an official medical report - Confidential patient information
           
           /* Print header styling */
           .print-header {
-            background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
-            color: white !important;
-            padding: 10px 14px !important;
+            background: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 6px !important;
+            color: #0f172a !important;
+            padding: 8px 12px !important;
             display: flex !important;
             align-items: center !important;
             justify-content: space-between !important;
@@ -1077,15 +1079,7 @@ This is an official medical report - Confidential patient information
             print-color-adjust: exact !important;
           }
           .print-header::after {
-            content: '' !important;
-            position: absolute !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            height: 3px !important;
-            background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853) !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+            display: none !important;
           }
           .clinic-logo {
             width: 40px !important;
@@ -1093,7 +1087,7 @@ This is an official medical report - Confidential patient information
             object-fit: contain !important;
             flex-shrink: 0 !important;
             border-radius: 8px !important;
-            border: 2px solid rgba(255,255,255,0.3) !important;
+            border: 1px solid #cbd5e1 !important;
           }
           .clinic-info-center {
             flex: 1 !important;
@@ -1105,17 +1099,17 @@ This is an official medical report - Confidential patient information
             font-weight: 800 !important;
             text-transform: uppercase !important;
             letter-spacing: 1.5px !important;
-            color: white !important;
+            color: #0f172a !important;
             margin-bottom: 2px !important;
           }
           .clinic-subtitle {
             font-size: 11px !important;
-            color: rgba(255,255,255,0.75) !important;
+            color: #475569 !important;
             font-weight: 500 !important;
           }
           .clinic-contact-right {
             font-size: 9px !important;
-            color: rgba(255,255,255,0.7) !important;
+            color: #475569 !important;
             text-align: right !important;
             line-height: 1.6 !important;
             white-space: nowrap !important;
