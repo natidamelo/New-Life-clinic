@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 // import { useMemorySystem } from '../../../hooks/useMemorySystem';
 // import MemorySystemControls from '../MemorySystemControls';
 import { getAuthToken } from '../../../utils/authToken';
-import AIAssistantService from '../../../services/aiAssistantService';
+import AIAssistantService, { GrammarError } from '../../../services/aiAssistantService';
 import { specialtyConfigs, specialtyColors } from '../../../config/specialtyConfigs';
 import { MedicalRecordContext } from '../../../contexts/MedicalRecordContext';
 import { DynamicSpecialtyFields } from '../../medical/DynamicSpecialtyFields';
@@ -494,6 +494,140 @@ const getPopularDiagnoses = () => {
     'ESV006', 'ESV007', 'ESV008', 'ESV009', 'ESV010'  // Common conditions
   ];
   return enhancedDiagnosisDatabase.filter(dx => popularCodes.includes(dx.nhdd));
+};
+
+// Helper to parse CC description into individual complaints
+const getCCItems = (ccText: string): string[] => {
+  if (!ccText) return [];
+  return ccText
+    .split(/,|\band\b|\bor\b|;/i)
+    .map(item => item.trim())
+    .filter(item => item.length > 2);
+};
+
+// Helper to check if a single complaint item is addressed in the HPI text
+const isCCItemAddressed = (item: string, hpiText: string): boolean => {
+  if (!hpiText) return false;
+  const cleanItem = item.toLowerCase().trim();
+  const cleanHpi = hpiText.toLowerCase();
+  
+  if (cleanHpi.includes(cleanItem)) return true;
+  
+  // Word-level check for multi-word complaints
+  const words = cleanItem.split(/\s+/).filter(w => w.length > 2);
+  if (words.length > 0) {
+    return words.every(word => cleanHpi.includes(word));
+  }
+  return false;
+};
+
+export interface ContradictionConflict {
+  ccItem: string;
+  hpiPhrase: string;
+  message: string;
+}
+
+// Helper to detect common clinical contradictions between CC and HPI
+const detectContradictions = (cc: string, hpi: string): ContradictionConflict[] => {
+  if (!cc || !hpi) return [];
+  const cleanCC = cc.toLowerCase();
+  const cleanHpi = hpi.toLowerCase();
+  const conflicts: ContradictionConflict[] = [];
+
+  const contradictionRules = [
+    {
+      ccKeywords: ['diarrhea', 'loose stool', 'watery stool', 'watery diarrhea'],
+      hpiNegations: ['normal bowel', 'bowel movements are normal', 'no diarrhea', 'denies diarrhea', 'normal in frequency', 'normal consistency'],
+      message: 'CC mentions diarrhea/loose stools, but HPI states bowel movements are normal or denies diarrhea.'
+    },
+    {
+      ccKeywords: ['fever'],
+      hpiNegations: ['no fever', 'afebrile', 'denies fever', 'normal temperature', 'no history of fever'],
+      message: 'CC mentions fever, but HPI states patient is afebrile or denies fever.'
+    },
+    {
+      ccKeywords: ['cough'],
+      hpiNegations: ['no cough', 'denies cough', 'without cough'],
+      message: 'CC mentions a cough, but HPI states patient has no cough.'
+    },
+    {
+      ccKeywords: ['chest pain'],
+      hpiNegations: ['no chest pain', 'denies chest pain', 'chest pain is absent'],
+      message: 'CC mentions chest pain, but HPI states patient denies chest pain.'
+    },
+    {
+      ccKeywords: ['headache'],
+      hpiNegations: ['no headache', 'denies headache', 'headache is absent', 'free from headache'],
+      message: 'CC mentions a headache, but HPI states patient denies headache.'
+    },
+    {
+      ccKeywords: ['back pain'],
+      hpiNegations: ['no back pain', 'denies back pain'],
+      message: 'CC mentions back pain, but HPI states patient denies back pain.'
+    },
+    {
+      ccKeywords: ['shortness of breath', 'dyspnea', 'difficulty breathing'],
+      hpiNegations: ['no shortness of breath', 'denies shortness of breath', 'no dyspnea', 'breathing is normal', 'normal breathing'],
+      message: 'CC mentions shortness of breath/dyspnea, but HPI states breathing is normal.'
+    },
+    {
+      ccKeywords: ['nausea'],
+      hpiNegations: ['no nausea', 'denies nausea'],
+      message: 'CC mentions nausea, but HPI states patient denies nausea.'
+    },
+    {
+      ccKeywords: ['vomit', 'vomiting'],
+      hpiNegations: ['no vomiting', 'denies vomiting', 'no vomit'],
+      message: 'CC mentions vomiting, but HPI states patient denies vomiting.'
+    },
+    {
+      ccKeywords: ['dysuria', 'painful urination'],
+      hpiNegations: ['no dysuria', 'denies dysuria', 'urination is normal', 'normal urination', 'no painful urination'],
+      message: 'CC mentions dysuria/painful urination, but HPI states urination is normal.'
+    }
+  ];
+
+  for (const rule of contradictionRules) {
+    const matchedCC = rule.ccKeywords.find(keyword => cleanCC.includes(keyword));
+    if (matchedCC) {
+      const matchedHpi = rule.hpiNegations.find(negation => cleanHpi.includes(negation));
+      if (matchedHpi) {
+        conflicts.push({
+          ccItem: matchedCC,
+          hpiPhrase: matchedHpi,
+          message: rule.message
+        });
+      }
+    }
+  }
+
+  return conflicts;
+};
+
+// Helper for OLDCARTS elements presence check in the HPI text
+const getOLDCARTSStatus = (hpiText: string) => {
+  const hpi = (hpiText || '').toLowerCase();
+  const markers = {
+    onset: /began|started|onset|sudden|gradual|days ago|weeks ago|since/i,
+    location: /localized|region|quadrant|chest|abdomen|head|neck|back|arm|leg|pain in/i,
+    duration: /for|duration|lasting/i,
+    character: /sharp|dull|burning|pressure|throbbing|aching|cramping/i,
+    associating: /aggravated|worse with|increased by|exacerbated|relieved|better with|decreased by|improves with|associated|nausea|vomiting|fever/i,
+    radiating: /radiat|spread|shoot|to the arm|to the jaw|to the back|to the leg|down the leg/i,
+    timing: /intermittent|constant|episodes|frequency|nocturnal|timing|morning|night/i,
+    severity: /mild|moderate|severe|\/10|severity|scale/i
+  };
+
+  return {
+    onset: markers.onset.test(hpi),
+    location: markers.location.test(hpi),
+    duration: markers.duration.test(hpi),
+    character: markers.character.test(hpi),
+    associating: markers.associating.test(hpi),
+    radiating: markers.radiating.test(hpi),
+    timing: markers.timing.test(hpi),
+    severity: markers.severity.test(hpi)
+  };
 };
 
 export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = ({
@@ -1069,6 +1203,8 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   const [showHpiSuggestions, setShowHpiSuggestions] = useState(false);
   const [hpiAutoFillLoading, setHpiAutoFillLoading] = useState(false);
   const [physicalExamAutoFilled, setPhysicalExamAutoFilled] = useState(false);
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
+  const [hpiGrammarErrors, setHpiGrammarErrors] = useState<GrammarError[]>([]);
   const hpiDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Gemini AI suggested phrases (organized by OLD CARTS category)
   const [geminiPhrases, setGeminiPhrases] = useState<{
@@ -2629,6 +2765,24 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   ];
 
   const handleNext = () => {
+    if (activeStep === 0) {
+      const ccDesc = formData.chiefComplaint.description || '';
+      const hpiText = (formData as any).historyOfPresentIllness || '';
+      const ccItems = getCCItems(ccDesc);
+      const unaddressedCC = ccItems.filter(item => !isCCItemAddressed(item, hpiText));
+      const hasMissingRequired = !formData.chiefComplaint.duration?.trim() || !formData.chiefComplaint.location?.trim();
+
+      if (unaddressedCC.length > 0 || hasMissingRequired) {
+        setShowValidationErrors(true);
+        if (hasMissingRequired) {
+          toast.error('Duration and Location are required fields.', { position: 'top-right' });
+        } else {
+          toast.error('Please address all Chief Complaint items in the HPI before proceeding.', { position: 'top-right' });
+        }
+        return;
+      }
+    }
+
     const nextStep = activeStep + 1;
     setActiveStep(nextStep);
     // Auto-fill physical exam when navigating to step 1 if fields are empty
@@ -2647,6 +2801,24 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   };
 
   const handleStepClick = (step: number) => {
+    if (activeStep === 0 && step > 0) {
+      const ccDesc = formData.chiefComplaint.description || '';
+      const hpiText = (formData as any).historyOfPresentIllness || '';
+      const ccItems = getCCItems(ccDesc);
+      const unaddressedCC = ccItems.filter(item => !isCCItemAddressed(item, hpiText));
+      const hasMissingRequired = !formData.chiefComplaint.duration?.trim() || !formData.chiefComplaint.location?.trim();
+
+      if (unaddressedCC.length > 0 || hasMissingRequired) {
+        setShowValidationErrors(true);
+        if (hasMissingRequired) {
+          toast.error('Duration and Location are required fields.', { position: 'top-right' });
+        } else {
+          toast.error('Please address all Chief Complaint items in the HPI before proceeding.', { position: 'top-right' });
+        }
+        return;
+      }
+    }
+
     setActiveStep(step);
     // Auto-fill physical exam when clicking to step 1 if fields are empty
     if (step === 1 && !physicalExamAutoFilled) {
@@ -2733,6 +2905,29 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
       // Validate that we have minimum required data
       if (!formData.chiefComplaint.description || formData.chiefComplaint.description.trim() === '') {
         throw new Error('Please fill in the "Chief Complaint" field before saving the medical record. This is a required field describing the patient\'s main reason for the visit.');
+      }
+
+      // Validate Duration and Location are required
+      const ccDesc = formData.chiefComplaint.description || '';
+      const hpiText = (formData as any).historyOfPresentIllness || '';
+      const ccItems = getCCItems(ccDesc);
+      const unaddressedCC = ccItems.filter(item => !isCCItemAddressed(item, hpiText));
+      const hasMissingRequired = !formData.chiefComplaint.duration?.trim() || !formData.chiefComplaint.location?.trim();
+      const contradictions = detectContradictions(ccDesc, hpiText);
+
+      if (hasMissingRequired) {
+        setShowValidationErrors(true);
+        throw new Error('Please fill in both the "Duration" and "Location" fields below the HPI text box. These are required.');
+      }
+
+      if (unaddressedCC.length > 0) {
+        setShowValidationErrors(true);
+        throw new Error(`Please address all Chief Complaint items in the HPI text. Unaddressed: ${unaddressedCC.join(', ')}`);
+      }
+
+      if (contradictions.length > 0) {
+        setShowValidationErrors(true);
+        throw new Error(`Clinical contradiction detected in HPI: ${contradictions.map(c => c.message).join(' ')} Please resolve the conflict before saving.`);
       }
 
       // Validate diagnosis when finalizing
@@ -3125,6 +3320,13 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
     const score = calculateQualityScore();
     setQualityScore(score);
   }, [formData]);
+
+  // Real-time spelling and grammar checker for HPI
+  useEffect(() => {
+    const hpiText = (formData as any).historyOfPresentIllness || '';
+    const errors = AIAssistantService.checkSpellingAndGrammar(hpiText);
+    setHpiGrammarErrors(errors);
+  }, [formData.historyOfPresentIllness]);
 
   // Debug: Log formData changes
   useEffect(() => {
@@ -4071,7 +4273,25 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
     console.log('🔍 [STEP] Current active step:', activeStep);
     
     switch (activeStep) {
-      case 0:
+      case 0: {
+        const ccDesc = formData.chiefComplaint.description || '';
+        const hpiText = (formData as any).historyOfPresentIllness || '';
+        const contradictions = detectContradictions(ccDesc, hpiText);
+        const ccItems = getCCItems(ccDesc);
+        const unaddressedCC = ccItems.filter(item => !isCCItemAddressed(item, hpiText));
+        const oldcartsStatus = getOLDCARTSStatus(hpiText);
+        const oldcartsChecklist = [
+          { key: 'onset', label: 'Onset (O)', present: oldcartsStatus.onset },
+          { key: 'location', label: 'Location (L)', present: oldcartsStatus.location },
+          { key: 'duration', label: 'Duration (D)', present: oldcartsStatus.duration },
+          { key: 'character', label: 'Character (C)', present: oldcartsStatus.character },
+          { key: 'associating', label: 'Associating Symptoms (A)', present: oldcartsStatus.associating },
+          { key: 'radiating', label: 'Radiating (R)', present: oldcartsStatus.radiating },
+          { key: 'timing', label: 'Timing (T)', present: oldcartsStatus.timing },
+          { key: 'severity', label: 'Severity (S)', present: oldcartsStatus.severity }
+        ];
+        const oldcartsScore = oldcartsChecklist.filter(item => item.present).length / 8;
+
         return (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {/* Chief Complaint card */}
@@ -4101,240 +4321,365 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                     disabled={mode === 'view'}
                   />
 
-                  {/* HPI */}
-                  <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
-                          History of Present Illness (HPI)
-                        </Typography>
-                        {isHpiAiDrafted && (
-                          <Chip size="small" label="✨ AI-Drafted" sx={{ fontSize: '0.6rem', height: '16px', bgcolor: 'primary.50', color: 'primary.main', border: '1px solid', borderColor: 'primary.200' }} />
-                        )}
-                        {hpiHistoryIndex >= 0 && (
-                          <Box sx={{ display: 'flex', gap: 0.5, ml: 1 }}>
-                            <Tooltip title="Undo">
-                              <span><IconButton size="small" disabled={hpiHistoryIndex <= 0} onClick={handleHpiUndo} sx={{ p: 0.2 }}><ArrowBackIcon sx={{ fontSize: '0.9rem' }}/></IconButton></span>
-                            </Tooltip>
-                            <Tooltip title="Redo">
-                              <span><IconButton size="small" disabled={hpiHistoryIndex >= hpiHistory.length - 1} onClick={handleHpiRedo} sx={{ p: 0.2 }}><ArrowForwardIcon sx={{ fontSize: '0.9rem' }}/></IconButton></span>
-                            </Tooltip>
+                  {/* HPI with OLDCARTS checklist */}
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 12, md: 8.5 }}>
+                      <Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                              History of Present Illness (HPI)
+                            </Typography>
+                            {isHpiAiDrafted && (
+                              <Chip size="small" label="✨ AI-Drafted" sx={{ fontSize: '0.6rem', height: '16px', bgcolor: 'primary.50', color: 'primary.main', border: '1px solid', borderColor: 'primary.200' }} />
+                            )}
+                            {hpiHistoryIndex >= 0 && (
+                              <Box sx={{ display: 'flex', gap: 0.5, ml: 1 }}>
+                                <Tooltip title="Undo">
+                                  <span><IconButton size="small" disabled={hpiHistoryIndex <= 0} onClick={handleHpiUndo} sx={{ p: 0.2 }}><ArrowBackIcon sx={{ fontSize: '0.9rem' }}/></IconButton></span>
+                                </Tooltip>
+                                <Tooltip title="Redo">
+                                  <span><IconButton size="small" disabled={hpiHistoryIndex >= hpiHistory.length - 1} onClick={handleHpiRedo} sx={{ p: 0.2 }}><ArrowForwardIcon sx={{ fontSize: '0.9rem' }}/></IconButton></span>
+                                </Tooltip>
+                              </Box>
+                            )}
                           </Box>
-                        )}
-                      </Box>
-                      {mode !== 'view' && (
-                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                          <Tooltip title={isRecording ? 'Stop Recording' : 'Amharic Voice-to-Text'}>
-                            <IconButton 
-                              onClick={handleVoiceRecording} 
-                              color={isRecording ? 'error' : 'primary'}
-                              sx={{ border: '1px solid', borderColor: isRecording ? 'error.main' : 'divider' }}
-                              size="small"
-                            >
-                              <div className={isRecording ? 'animate-pulse' : ''}>🎤</div>
-                            </IconButton>
-                          </Tooltip>
-                          <FormControlLabel
-                            control={<Switch size="small" checked={useAmharic} onChange={(e) => setUseAmharic(e.target.checked)} />}
-                            label={<Typography variant="caption">{useAmharic ? 'AM' : 'EN'}</Typography>}
-                            sx={{ m: 0 }}
-                          />
-                          <Tooltip title={geminiAvailable ? 'Generate HPI with Gemini AI' : 'Auto-fill HPI based on chief complaint'}>
-                            <Button
-                              size="small"
-                              variant={geminiAvailable ? 'contained' : 'outlined'}
-                              startIcon={hpiAutoFillLoading ? <CircularProgress size={12} color="inherit" /> : <SparkleIcon sx={{ fontSize: '0.9rem' }} />}
-                              onClick={autoFillHPI}
-                              disabled={hpiAutoFillLoading || !formData.chiefComplaint.description}
-                              sx={{
-                                textTransform: 'none',
-                                fontSize: '0.72rem',
-                                py: 0.3,
-                                px: 1,
-                                ...(geminiAvailable
-                                  ? { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff', '&:hover': { background: 'linear-gradient(135deg, #5a6fd6 0%, #663d93 100%)' } }
-                                  : { borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'primary.50' } })
-                              }}
-                            >
-                              {hpiAutoFillLoading ? 'Generating…' : geminiAvailable ? '✨ AI Fill HPI' : 'Auto-fill HPI'}
-                            </Button>
-                          </Tooltip>
-                        </Box>
-                      )}
-                    </Box>
-                    {isRecording && (
-                      <Box sx={{ mb: 1, p: 1.5, bgcolor: 'error.50', border: '1px dashed', borderColor: 'error.main', borderRadius: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <span className="animate-pulse">🔴</span> Ambient Listening...
-                          </Typography>
-                          {/* Role Toggle Buttons */}
-                          <Box sx={{ display: 'flex', gap: 0.5, bgcolor: 'white', borderRadius: 2, p: 0.3, border: '1px solid', borderColor: 'divider' }}>
-                            <Button
-                              size="small"
-                              variant={currentSpeaker === 'Doctor' ? 'contained' : 'text'}
-                              onClick={() => { setCurrentSpeaker('Doctor'); currentSpeakerRef.current = 'Doctor'; }}
-                              sx={{
-                                minWidth: 0, px: 1.5, py: 0.3, fontSize: '0.7rem', fontWeight: 600, borderRadius: 1.5, textTransform: 'none',
-                                ...(currentSpeaker === 'Doctor'
-                                  ? { bgcolor: '#1976d2', color: 'white', '&:hover': { bgcolor: '#1565c0' } }
-                                  : { color: 'text.secondary' })
-                              }}
-                            >
-                              🩺 Doctor
-                            </Button>
-                            <Button
-                              size="small"
-                              variant={currentSpeaker === 'Patient' ? 'contained' : 'text'}
-                              onClick={() => { setCurrentSpeaker('Patient'); currentSpeakerRef.current = 'Patient'; }}
-                              sx={{
-                                minWidth: 0, px: 1.5, py: 0.3, fontSize: '0.7rem', fontWeight: 600, borderRadius: 1.5, textTransform: 'none',
-                                ...(currentSpeaker === 'Patient'
-                                  ? { bgcolor: '#2e7d32', color: 'white', '&:hover': { bgcolor: '#1b5e20' } }
-                                  : { color: 'text.secondary' })
-                              }}
-                            >
-                              👤 Patient
-                            </Button>
-                          </Box>
-                        </Box>
-                        <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary', minHeight: 20 }}>
-                          <strong style={{ color: currentSpeaker === 'Doctor' ? '#1976d2' : '#2e7d32' }}>
-                            {currentSpeaker === 'Doctor' ? '🩺' : '👤'} {currentSpeaker}:
-                          </strong>{' '}
-                          {ambientTranscript ? ambientTranscript.split(' ').slice(-15).join(' ') : 'Awaiting voice input...'}
-                        </Typography>
-                      </Box>
-                    )}
-                    <Box sx={{ position: 'relative' }}>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        multiline
-                        rows={4}
-                        placeholder="Provide a detailed history of the present illness, or click Auto-fill HPI..."
-                        value={(formData as any).historyOfPresentIllness || ''}
-                        onChange={(e) => {
-                          const updated = { ...formData, historyOfPresentIllness: e.target.value };
-                          setFormData(updated);
-                          setIsHpiAiDrafted(false); // Manual edit clears badge
-                          if (!isFirstRender.current) { autoSaveDraft(updated); memorySystem.updateData(); }
-                          // Update suggestions as user types
-                          const ccDesc = formData.chiefComplaint.description || '';
-                          if (ccDesc) {
-                            const suggestions = AIAssistantService.getHPICompletions(e.target.value, ccDesc);
-                            setHpiSuggestions(suggestions);
-                            setShowHpiSuggestions(suggestions.length > 0);
-                          }
-                          debouncedUpdateInsightsFromHPI(e.target.value);
-                        }}
-                        disabled={mode === 'view' || isTranscribing}
-                        sx={{ '& .MuiOutlinedInput-root': { fontSize: '0.875rem' } }}
-                      />
-                      {isTranscribing && (
-                        <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,0.7)', zIndex: 10 }}>
-                          <CircularProgress size={24} sx={{ mr: 1 }} />
-                          <Typography variant="body2" color="primary" fontWeight="bold">Processing Audio...</Typography>
-                        </Box>
-                      )}
-                    </Box>
-                    {/* HPI smart suggestion chips — categorized with form-field fill support */}
-                    {showHpiSuggestions && mode !== 'view' && (
-                      <Box sx={{ mt: 1.5, p: 1.5, border: '1px solid', borderColor: geminiAvailable ? 'primary.light' : 'grey.300', borderRadius: 1.5, bgcolor: geminiAvailable ? 'primary.50' : 'grey.50' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="caption" sx={{ fontWeight: 600, color: geminiAvailable ? 'primary.main' : 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <SparkleIcon sx={{ fontSize: '0.8rem' }} />
-                            {geminiAvailable ? 'AI Suggested phrases — click to fill:' : 'Suggested phrases — click to append:'}
-                          </Typography>
-                          <Chip label="Dismiss" size="small" onClick={() => setShowHpiSuggestions(false)} sx={{ fontSize: '0.65rem', height: '18px', cursor: 'pointer' }} />
-                        </Box>
-
-                        {/* Form-field phrases: Duration, Severity, Progression, Location */}
-                        {(['duration', 'severity', 'progression', 'location'] as const).some(k => (geminiPhrases[k] || []).length > 0) && (
-                          <Box sx={{ mb: 1 }}>
-                            {(['duration', 'severity', 'progression', 'location'] as const).map(field => {
-                              const phrases = geminiPhrases[field] || [];
-                              if (!phrases.length) return null;
-                              const label = field.charAt(0).toUpperCase() + field.slice(1);
-                              return (
-                                <Box key={field} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
-                                  <Typography variant="caption" sx={{ color: 'text.disabled', minWidth: 64, fontStyle: 'italic', fontSize: '0.68rem' }}>{label}</Typography>
-                                  {phrases.slice(0, 4).map((phrase, idx) => (
-                                    <Chip
-                                      key={idx}
-                                      label={phrase}
-                                      size="small"
-                                      variant="filled"
-                                      onClick={() => {
-                                        const updated = { ...formData, chiefComplaint: { ...formData.chiefComplaint, [field]: phrase } };
-                                        setFormData(updated);
-                                        if (!isFirstRender.current) { autoSaveDraft(updated); memorySystem.updateData(); }
-                                      }}
-                                      sx={{ fontSize: '0.68rem', height: '20px', cursor: 'pointer', bgcolor: 'primary.100', color: 'primary.dark', '&:hover': { bgcolor: 'primary.200' } }}
-                                    />
-                                  ))}
-                                </Box>
-                              );
-                            })}
-                          </Box>
-                        )}
-
-                        {/* Inline HPI phrases: character, aggravating, relieving, associated */}
-                        {(['character', 'aggravating', 'relieving', 'associated'] as const).some(k => (geminiPhrases[k] || []).length > 0) && (
-                          <Box>
-                            <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.68rem', fontStyle: 'italic', display: 'block', mb: 0.5 }}>Append to HPI:</Typography>
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                              {(['character', 'aggravating', 'relieving', 'associated'] as const).flatMap(field =>
-                                (geminiPhrases[field] || []).slice(0, 2).map((phrase, idx) => (
-                                  <Chip
-                                    key={`${field}-${idx}`}
-                                    label={phrase.length > 52 ? phrase.slice(0, 52) + '…' : phrase}
-                                    size="small"
-                                    variant="outlined"
-                                    icon={<SparkleIcon sx={{ fontSize: '0.7rem !important' }} />}
-                                    onClick={() => {
-                                      const current = (formData as any).historyOfPresentIllness || '';
-                                      const sep = current && !current.endsWith(' ') && !current.endsWith('\n') ? ' ' : '';
-                                      const updated = { ...formData, historyOfPresentIllness: current + sep + phrase };
-                                      setFormData(updated);
-                                      if (!isFirstRender.current) { autoSaveDraft(updated); memorySystem.updateData(); }
-                                      debouncedUpdateInsightsFromHPI(current + sep + phrase);
-                                    }}
-                                    sx={{ fontSize: '0.68rem', height: '20px', cursor: 'pointer', borderColor: 'primary.light', color: 'primary.main', '&:hover': { bgcolor: 'primary.50' } }}
-                                  />
-                                ))
-                              )}
+                          {mode !== 'view' && (
+                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                              <Tooltip title={isRecording ? 'Stop Recording' : 'Amharic Voice-to-Text'}>
+                                <IconButton 
+                                  onClick={handleVoiceRecording} 
+                                  color={isRecording ? 'error' : 'primary'}
+                                  sx={{ border: '1px solid', borderColor: isRecording ? 'error.main' : 'divider' }}
+                                  size="small"
+                                >
+                                  <div className={isRecording ? 'animate-pulse' : ''}>🎤</div>
+                                </IconButton>
+                              </Tooltip>
+                              <FormControlLabel
+                                control={<Switch size="small" checked={useAmharic} onChange={(e) => setUseAmharic(e.target.checked)} />}
+                                label={<Typography variant="caption">{useAmharic ? 'AM' : 'EN'}</Typography>}
+                                sx={{ m: 0 }}
+                              />
+                              <Tooltip title={geminiAvailable ? 'Generate HPI with Gemini AI' : 'Auto-fill HPI based on chief complaint'}>
+                                <Button
+                                  size="small"
+                                  variant={geminiAvailable ? 'contained' : 'outlined'}
+                                  startIcon={hpiAutoFillLoading ? <CircularProgress size={12} color="inherit" /> : <SparkleIcon sx={{ fontSize: '0.9rem' }} />}
+                                  onClick={autoFillHPI}
+                                  disabled={hpiAutoFillLoading || !formData.chiefComplaint.description}
+                                  sx={{
+                                    textTransform: 'none',
+                                    fontSize: '0.72rem',
+                                    py: 0.3,
+                                    px: 1,
+                                    ...(geminiAvailable
+                                      ? { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff', '&:hover': { background: 'linear-gradient(135deg, #5a6fd6 0%, #663d93 100%)' } }
+                                      : { borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'primary.50' } })
+                                  }}
+                                >
+                                  {hpiAutoFillLoading ? 'Generating…' : geminiAvailable ? '✨ AI Fill HPI' : 'Auto-fill HPI'}
+                                </Button>
+                              </Tooltip>
                             </Box>
+                          )}
+                        </Box>
+                        {isRecording && (
+                          <Box sx={{ mb: 1, p: 1.5, bgcolor: 'error.50', border: '1px dashed', borderColor: 'error.main', borderRadius: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                              <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <span className="animate-pulse">🔴</span> Ambient Listening...
+                              </Typography>
+                              {/* Role Toggle Buttons */}
+                              <Box sx={{ display: 'flex', gap: 0.5, bgcolor: 'white', borderRadius: 2, p: 0.3, border: '1px solid', borderColor: 'divider' }}>
+                                <Button
+                                  size="small"
+                                  variant={currentSpeaker === 'Doctor' ? 'contained' : 'text'}
+                                  onClick={() => { setCurrentSpeaker('Doctor'); currentSpeakerRef.current = 'Doctor'; }}
+                                  sx={{
+                                    minWidth: 0, px: 1.5, py: 0.3, fontSize: '0.7rem', fontWeight: 600, borderRadius: 1.5, textTransform: 'none',
+                                    ...(currentSpeaker === 'Doctor'
+                                      ? { bgcolor: '#1976d2', color: 'white', '&:hover': { bgcolor: '#1565c0' } }
+                                      : { color: 'text.secondary' })
+                                  }}
+                                >
+                                  🩺 Doctor
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant={currentSpeaker === 'Patient' ? 'contained' : 'text'}
+                                  onClick={() => { setCurrentSpeaker('Patient'); currentSpeakerRef.current = 'Patient'; }}
+                                  sx={{
+                                    minWidth: 0, px: 1.5, py: 0.3, fontSize: '0.7rem', fontWeight: 600, borderRadius: 1.5, textTransform: 'none',
+                                    ...(currentSpeaker === 'Patient'
+                                      ? { bgcolor: '#2e7d32', color: 'white', '&:hover': { bgcolor: '#1b5e20' } }
+                                      : { color: 'text.secondary' })
+                                  }}
+                                >
+                                  👤 Patient
+                                </Button>
+                              </Box>
+                            </Box>
+                            <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary', minHeight: 20 }}>
+                              <strong style={{ color: currentSpeaker === 'Doctor' ? '#1976d2' : '#2e7d32' }}>
+                                {currentSpeaker === 'Doctor' ? '🩺' : '👤'} {currentSpeaker}:
+                              </strong>{' '}
+                              {ambientTranscript ? ambientTranscript.split(' ').slice(-15).join(' ') : 'Awaiting voice input...'}
+                            </Typography>
                           </Box>
                         )}
+                        <Box sx={{ position: 'relative' }}>
+                          {/* Contradiction Warning Banner */}
+                          {contradictions.length > 0 && (
+                            <Alert 
+                              severity="warning" 
+                              variant="filled" 
+                              sx={{ 
+                                mb: 1.5, 
+                                bgcolor: '#fffdeb', 
+                                color: '#b78103', 
+                                border: '1px solid #ffe082',
+                                '& .MuiAlert-icon': { color: '#b78103' },
+                                '& .MuiAlert-message': { width: '100%' }
+                              }}
+                            >
+                              <Typography variant="body2" fontWeight={700}>⚠️ Clinical Contradiction Detected</Typography>
+                              {contradictions.map((c, i) => (
+                                <Typography key={i} variant="caption" display="block">• {c.message} (Conflict: "{c.ccItem}" vs "{c.hpiPhrase}")</Typography>
+                              ))}
+                            </Alert>
+                          )}
 
-                        {/* Fallback: simple suggestion chips when no gemini phrases */}
-                        {Object.keys(geminiPhrases).length === 0 && hpiSuggestions.length > 0 && (
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                            {hpiSuggestions.map((suggestion, idx) => (
-                              <Chip
-                                key={idx}
-                                label={suggestion.length > 55 ? suggestion.slice(0, 55) + '…' : suggestion}
+                          <TextField
+                            fullWidth
+                            size="small"
+                            multiline
+                            rows={4}
+                            placeholder="Provide a detailed history of the present illness, or click Auto-fill HPI..."
+                            value={(formData as any).historyOfPresentIllness || ''}
+                            onChange={(e) => {
+                              const updated = { ...formData, historyOfPresentIllness: e.target.value };
+                              setFormData(updated);
+                              setIsHpiAiDrafted(false); // Manual edit clears badge
+                              if (!isFirstRender.current) { autoSaveDraft(updated); memorySystem.updateData(); }
+                              // Update suggestions as user types
+                              const ccDesc = formData.chiefComplaint.description || '';
+                              if (ccDesc) {
+                                const suggestions = AIAssistantService.getHPICompletions(e.target.value, ccDesc);
+                                setHpiSuggestions(suggestions);
+                                setShowHpiSuggestions(suggestions.length > 0);
+                              }
+                              debouncedUpdateInsightsFromHPI(e.target.value);
+                            }}
+                            disabled={mode === 'view' || isTranscribing}
+                            sx={{ '& .MuiOutlinedInput-root': { fontSize: '0.875rem' } }}
+                          />
+                          {isTranscribing && (
+                            <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,0.7)', zIndex: 10 }}>
+                              <CircularProgress size={24} sx={{ mr: 1 }} />
+                              <Typography variant="body2" color="primary" fontWeight="bold">Processing Audio...</Typography>
+                            </Box>
+                          )}
+
+                          {/* Real-time spelling/grammar validation helper */}
+                          {hpiGrammarErrors.length > 0 && (
+                            <Box sx={{ mt: 1, p: 1, border: '1px solid', borderColor: '#ffe082', bgcolor: '#fffdeb', borderRadius: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Typography variant="caption" color="#b78103" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 500 }}>
+                                <WarningIcon sx={{ fontSize: '0.95rem', color: '#b78103', mr: 0.5 }} />
+                                <strong>{hpiGrammarErrors.length} spelling/grammar issue{hpiGrammarErrors.length > 1 ? 's' : ''} found:</strong>{' '}
+                                {hpiGrammarErrors.slice(0, 2).map((err, i) => `"${err.word}" (${err.type === 'duplicate' ? 'duplicate word' : 'spelling'})`).join(', ')}
+                                {hpiGrammarErrors.length > 2 ? ' ...' : ''}
+                              </Typography>
+                              <Button
                                 size="small"
-                                variant="outlined"
-                                icon={<SparkleIcon sx={{ fontSize: '0.75rem !important' }} />}
+                                variant="contained"
                                 onClick={() => {
-                                  const current = (formData as any).historyOfPresentIllness || '';
-                                  const separator = current && !current.endsWith(' ') && !current.endsWith('\n') ? ' ' : '';
-                                  const updated = { ...formData, historyOfPresentIllness: current + separator + suggestion };
+                                  const text = (formData as any).historyOfPresentIllness || '';
+                                  const corrected = AIAssistantService.autoCorrectText(text);
+                                  const updated = { ...formData, historyOfPresentIllness: corrected };
                                   setFormData(updated);
                                   if (!isFirstRender.current) { autoSaveDraft(updated); memorySystem.updateData(); }
-                                  setShowHpiSuggestions(false);
-                                  debouncedUpdateInsightsFromHPI(current + separator + suggestion);
                                 }}
-                                sx={{ fontSize: '0.7rem', height: '22px', cursor: 'pointer', borderColor: 'primary.light', color: 'primary.main', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main' } }}
-                              />
-                            ))}
+                                sx={{ 
+                                  py: 0.2, 
+                                  px: 1, 
+                                  fontSize: '0.68rem', 
+                                  textTransform: 'none',
+                                  bgcolor: '#ffe082',
+                                  color: '#5d4037',
+                                  boxShadow: 'none',
+                                  '&:hover': { bgcolor: '#ffd54f', boxShadow: 'none' }
+                                }}
+                              >
+                                Auto-Fix
+                              </Button>
+                            </Box>
+                          )}
+
+                          {/* Chief Complaint Consistency Warning Box */}
+                          {unaddressedCC.length > 0 && (
+                            <Alert 
+                              severity="error" 
+                              sx={{ 
+                                mt: 1.5, 
+                                border: '1px solid', 
+                                borderColor: 'error.light',
+                                bgcolor: 'error.50',
+                                color: 'error.dark',
+                                '& .MuiAlert-icon': { color: 'error.main' }
+                              }}
+                            >
+                              <Typography variant="caption" sx={{ display: 'block', fontWeight: 700 }}>
+                                ⚠️ Chief Complaint Consistency Warning
+                              </Typography>
+                              <Typography variant="caption">
+                                The Chief Complaint contains multiple items. Please ensure HPI addresses:{' '}
+                                <strong>{unaddressedCC.join(', ')}</strong>
+                              </Typography>
+                            </Alert>
+                          )}
+                        </Box>
+                        {/* HPI smart suggestion chips — categorized with form-field fill support */}
+                        {showHpiSuggestions && mode !== 'view' && (
+                          <Box sx={{ mt: 1.5, p: 1.5, border: '1px solid', borderColor: geminiAvailable ? 'primary.light' : 'grey.300', borderRadius: 1.5, bgcolor: geminiAvailable ? 'primary.50' : 'grey.50' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                              <Typography variant="caption" sx={{ fontWeight: 600, color: geminiAvailable ? 'primary.main' : 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <SparkleIcon sx={{ fontSize: '0.8rem' }} />
+                                {geminiAvailable ? 'AI Suggested phrases — click to fill:' : 'Suggested phrases — click to append:'}
+                              </Typography>
+                              <Chip label="Dismiss" size="small" onClick={() => setShowHpiSuggestions(false)} sx={{ fontSize: '0.65rem', height: '18px', cursor: 'pointer' }} />
+                            </Box>
+
+                            {/* Form-field phrases: Duration, Severity, Progression, Location */}
+                            {(['duration', 'severity', 'progression', 'location'] as const).some(k => (geminiPhrases[k] || []).length > 0) && (
+                              <Box sx={{ mb: 1 }}>
+                                {(['duration', 'severity', 'progression', 'location'] as const).map(field => {
+                                  const phrases = geminiPhrases[field] || [];
+                                  if (!phrases.length) return null;
+                                  const label = field.charAt(0).toUpperCase() + field.slice(1);
+                                  return (
+                                    <Box key={field} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
+                                      <Typography variant="caption" sx={{ color: 'text.disabled', minWidth: 64, fontStyle: 'italic', fontSize: '0.68rem' }}>{label}</Typography>
+                                      {phrases.slice(0, 4).map((phrase, idx) => (
+                                        <Chip
+                                          key={idx}
+                                          label={phrase}
+                                          size="small"
+                                          variant="filled"
+                                          onClick={() => {
+                                            const updated = { ...formData, chiefComplaint: { ...formData.chiefComplaint, [field]: phrase } };
+                                            setFormData(updated);
+                                            if (!isFirstRender.current) { autoSaveDraft(updated); memorySystem.updateData(); }
+                                          }}
+                                          sx={{ fontSize: '0.68rem', height: '20px', cursor: 'pointer', bgcolor: 'primary.100', color: 'primary.dark', '&:hover': { bgcolor: 'primary.200' } }}
+                                        />
+                                      ))}
+                                    </Box>
+                                  );
+                                })}
+                              </Box>
+                            )}
+
+                            {/* Inline HPI phrases: character, aggravating, relieving, associated */}
+                            {(['character', 'aggravating', 'relieving', 'associated'] as const).some(k => (geminiPhrases[k] || []).length > 0) && (
+                              <Box>
+                                <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.68rem', fontStyle: 'italic', display: 'block', mb: 0.5 }}>Append to HPI:</Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                  {(['character', 'aggravating', 'relieving', 'associated'] as const).flatMap(field =>
+                                    (geminiPhrases[field] || []).slice(0, 2).map((phrase, idx) => (
+                                      <Chip
+                                        key={`${field}-${idx}`}
+                                        label={phrase.length > 52 ? phrase.slice(0, 52) + '…' : phrase}
+                                        size="small"
+                                        variant="outlined"
+                                        icon={<SparkleIcon sx={{ fontSize: '0.7rem !important' }} />}
+                                        onClick={() => {
+                                          const current = (formData as any).historyOfPresentIllness || '';
+                                          const sep = current && !current.endsWith(' ') && !current.endsWith('\n') ? ' ' : '';
+                                          const updated = { ...formData, historyOfPresentIllness: current + sep + phrase };
+                                          setFormData(updated);
+                                          if (!isFirstRender.current) { autoSaveDraft(updated); memorySystem.updateData(); }
+                                          debouncedUpdateInsightsFromHPI(current + sep + phrase);
+                                        }}
+                                        sx={{ fontSize: '0.68rem', height: '20px', cursor: 'pointer', borderColor: 'primary.light', color: 'primary.main', '&:hover': { bgcolor: 'primary.50' } }}
+                                      />
+                                    ))
+                                  )}
+                                </Box>
+                              </Box>
+                            )}
+
+                            {/* Fallback: simple suggestion chips when no gemini phrases */}
+                            {Object.keys(geminiPhrases).length === 0 && hpiSuggestions.length > 0 && (
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {hpiSuggestions.map((suggestion, idx) => (
+                                  <Chip
+                                    key={idx}
+                                    label={suggestion.length > 55 ? suggestion.slice(0, 55) + '…' : suggestion}
+                                    size="small"
+                                    variant="outlined"
+                                    icon={<SparkleIcon sx={{ fontSize: '0.75rem !important' }} />}
+                                    onClick={() => {
+                                      const current = (formData as any).historyOfPresentIllness || '';
+                                      const separator = current && !current.endsWith(' ') && !current.endsWith('\n') ? ' ' : '';
+                                      const updated = { ...formData, historyOfPresentIllness: current + separator + suggestion };
+                                      setFormData(updated);
+                                      if (!isFirstRender.current) { autoSaveDraft(updated); memorySystem.updateData(); }
+                                      setShowHpiSuggestions(false);
+                                      debouncedUpdateInsightsFromHPI(current + separator + suggestion);
+                                    }}
+                                    sx={{ fontSize: '0.7rem', height: '22px', cursor: 'pointer', borderColor: 'primary.light', color: 'primary.main', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main' } }}
+                                  />
+                                ))}
+                              </Box>
+                            )}
                           </Box>
                         )}
                       </Box>
-                    )}
-                  </Box>
+                    </Grid>
+
+                    {/* OLDCARTS Checklist Sidebar */}
+                    <Grid size={{ xs: 12, md: 3.5 }}>
+                      <Paper sx={{ p: 2.2, height: '100%', border: '1px solid', borderColor: 'divider', borderRadius: 2.2, bgcolor: 'background.paper', boxShadow: 'none' }}>
+                        <Typography variant="body2" fontWeight={700} color="text.primary" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                          📋 OLDCARTS Validation
+                        </Typography>
+                        
+                        {/* Progress Bar */}
+                        <Box sx={{ mb: 2 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.8 }}>
+                            <Typography variant="caption" color="text.secondary">HPI Completeness</Typography>
+                            <Typography variant="caption" fontWeight="bold" color="primary.main">{Math.round(oldcartsScore * 100)}%</Typography>
+                          </Box>
+                          <LinearProgress variant="determinate" value={oldcartsScore * 100} sx={{ height: 6, borderRadius: 3, bgcolor: 'grey.100' }} />
+                        </Box>
+
+                        <Stack spacing={1}>
+                          {oldcartsChecklist.map(item => (
+                            <Box key={item.key} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0.5 }}>
+                              <Typography variant="caption" color="text.secondary" fontWeight={500}>{item.label}</Typography>
+                              <Chip 
+                                size="small" 
+                                label={item.present ? 'Present' : 'Missing'} 
+                                color={item.present ? 'success' : 'warning'} 
+                                variant={item.present ? 'filled' : 'outlined'}
+                                sx={{ 
+                                  height: 18, 
+                                  fontSize: '0.62rem', 
+                                  fontWeight: 'bold',
+                                  minWidth: 62,
+                                  ...(item.present 
+                                    ? { bgcolor: 'success.50', color: 'success.dark', border: '1px solid', borderColor: 'success.200' }
+                                    : { bgcolor: 'warning.50', color: 'warning.dark', border: '1px solid', borderColor: 'warning.200' }
+                                  )
+                                }}
+                              />
+                            </Box>
+                          ))}
+                        </Stack>
+                      </Paper>
+                    </Grid>
+                  </Grid>
 
                   {/* Clinical Synthesis & Differential Reasoning */}
                   {geminiDiagnoses.length > 0 && (
@@ -4425,6 +4770,9 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                         fullWidth
                         size="small"
                         label="Duration"
+                        required
+                        error={showValidationErrors && !formData.chiefComplaint.duration?.trim()}
+                        helperText={showValidationErrors && !formData.chiefComplaint.duration?.trim() ? 'Duration is required' : ''}
                         placeholder="e.g., 2 days, 1 week"
                         value={formData.chiefComplaint.duration}
                         onChange={(e) => {
@@ -4440,15 +4788,15 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                       <FormControl fullWidth size="small">
                         <InputLabel>Severity</InputLabel>
                         <Select
-                          value={formData.chiefComplaint.severity}
-                          label="Severity"
-                          disabled={mode === 'view'}
-                          onChange={(e) => {
-                            const updated = { ...formData, chiefComplaint: { ...formData.chiefComplaint, severity: e.target.value } };
-                            setFormData(updated);
-                            if (!isFirstRender.current) autoSaveDraft(updated);
-                            debouncedAutoFillHPI();
-                          }}
+                           value={formData.chiefComplaint.severity}
+                           label="Severity"
+                           disabled={mode === 'view'}
+                           onChange={(e) => {
+                             const updated = { ...formData, chiefComplaint: { ...formData.chiefComplaint, severity: e.target.value } };
+                             setFormData(updated);
+                             if (!isFirstRender.current) autoSaveDraft(updated);
+                             debouncedAutoFillHPI();
+                           }}
                         >
                           <MenuItem value="Mild">Mild</MenuItem>
                           <MenuItem value="Moderate">Moderate</MenuItem>
@@ -4460,15 +4808,15 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                       <FormControl fullWidth size="small">
                         <InputLabel>Progression</InputLabel>
                         <Select
-                          value={formData.chiefComplaint.progression}
-                          label="Progression"
-                          disabled={mode === 'view'}
-                          onChange={(e) => {
-                            const updated = { ...formData, chiefComplaint: { ...formData.chiefComplaint, progression: e.target.value } };
-                            setFormData(updated);
-                            if (!isFirstRender.current) autoSaveDraft(updated);
-                            debouncedAutoFillHPI();
-                          }}
+                           value={formData.chiefComplaint.progression}
+                           label="Progression"
+                           disabled={mode === 'view'}
+                           onChange={(e) => {
+                             const updated = { ...formData, chiefComplaint: { ...formData.chiefComplaint, progression: e.target.value } };
+                             setFormData(updated);
+                             if (!isFirstRender.current) autoSaveDraft(updated);
+                             debouncedAutoFillHPI();
+                           }}
                         >
                           <MenuItem value="Improving">Improving</MenuItem>
                           <MenuItem value="Stable">Stable</MenuItem>
@@ -4481,6 +4829,9 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                         fullWidth
                         size="small"
                         label="Location"
+                        required
+                        error={showValidationErrors && !formData.chiefComplaint.location?.trim()}
+                        helperText={showValidationErrors && !formData.chiefComplaint.location?.trim() ? 'Location is required' : ''}
                         placeholder="Where is the pain/discomfort located?"
                         value={formData.chiefComplaint.location}
                         onChange={(e) => {
@@ -4506,6 +4857,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
             </GradientCard>
           </Box>
         );
+      }
 
       case 1: {
         const vitalsConfig = [
@@ -6621,7 +6973,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                             </Box>
                             <Grid container spacing={1.5}>
                               {detailsEntries.map(({ key, label, value }) => (
-                                <Grid item key={key} xs={6} sm={4}>
+                                <Grid key={key} size={{ xs: 6, sm: 4 }}>
                                   <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem' }}>
                                     {label}
                                   </Typography>

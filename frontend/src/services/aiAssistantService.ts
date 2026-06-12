@@ -92,6 +92,15 @@ export interface PatientData {
   associatedSymptoms?: string[];
 }
 
+export interface GrammarError {
+  offset: number;
+  length: number;
+  word: string;
+  type: 'spelling' | 'grammar' | 'duplicate';
+  message: string;
+  suggestion?: string;
+}
+
 export class AIAssistantService {
   /**
    * Generate comprehensive AI suggestions based on patient data
@@ -727,7 +736,10 @@ export class AIAssistantService {
     }
 
     if (resolvedLocation) {
-      sentences.push(`The ${resolvedNoun} is localized to the ${resolvedLocation}.`);
+      const cleanLoc = resolvedLocation.toLowerCase().startsWith('the ')
+        ? resolvedLocation.slice(4)
+        : resolvedLocation;
+      sentences.push(`The ${resolvedNoun} is localized to the ${cleanLoc}.`);
     }
 
     if (durationResolved) {
@@ -1755,15 +1767,26 @@ export class AIAssistantService {
     const catAssoc = (categoryAssoc[category] || []).filter(a => !extractedAssoc.some(e => e.includes(a.split(' ')[0])));
     const associated = [...extractedAssoc, ...catAssoc].slice(0, 3);
 
+    const hpiText = (patientData.historyOfPresentIllness || '').toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").replace(/\s+/g, " ");
+
+    const cleanAndCheckPhrases = (phrases: string[]): string[] => {
+      return phrases
+        .map(p => AIAssistantService.autoCorrectText(p))
+        .filter(p => {
+          const cleanP = p.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").replace(/\s+/g, " ");
+          return cleanP.length > 0 && !hpiText.includes(cleanP);
+        });
+    };
+
     return {
-      duration:    durationOptions,
-      severity:    severityOptions,
-      progression: progressionOptions,
-      location:    locations,
-      character:   characters.length > 0 ? characters : (categoryChars[category] || []).slice(0, 3),
-      aggravating: aggravating.length > 0 ? aggravating : (categoryAgg[category] || []).slice(0, 3),
-      relieving:   relieving.length > 0  ? relieving  : (categoryRel[category] || []).slice(0, 3),
-      associated:  associated.length > 0 ? associated : (categoryAssoc[category] || []).slice(0, 3)
+      duration:    cleanAndCheckPhrases(durationOptions),
+      severity:    cleanAndCheckPhrases(severityOptions),
+      progression: cleanAndCheckPhrases(progressionOptions),
+      location:    cleanAndCheckPhrases(locations),
+      character:   cleanAndCheckPhrases(characters.length > 0 ? characters : (categoryChars[category] || []).slice(0, 3)),
+      aggravating: cleanAndCheckPhrases(aggravating.length > 0 ? aggravating : (categoryAgg[category] || []).slice(0, 3)),
+      relieving:   cleanAndCheckPhrases(relieving.length > 0  ? relieving  : (categoryRel[category] || []).slice(0, 3)),
+      associated:  cleanAndCheckPhrases(associated.length > 0 ? associated : (categoryAssoc[category] || []).slice(0, 3))
     };
   }
 
@@ -2109,79 +2132,50 @@ export class AIAssistantService {
    * Get HPI sentence completions that are tailored to the specific chief complaint
    * text, including descriptors like "swollen", "burning", "fullness", etc.
    */
-  static getHPICompletions(partialText: string, chiefComplaint: string): string[] {
+  static getHPICompletions(hpiText: string, chiefComplaint: string): string[] {
+    if (!chiefComplaint) return [];
     const complaint = chiefComplaint.toLowerCase();
-    const text      = partialText.toLowerCase();
     const completions: string[] = [];
 
-    // --- Generic OLD CARTS completions based on what the user has typed ---
-    const genericByTyped: Record<string, string[]> = {
-      onset: [
-        'The symptoms began suddenly.',
-        'The symptoms began gradually over several days.',
-        'The patient reports an insidious onset with gradual worsening.'
-      ],
-      aggravat: [
-        'The symptoms are aggravated by physical activity.',
-        'The pain is worsened by movement and deep palpation.'
-      ],
-      reliev: [
-        'The patient reports partial relief with rest.',
-        'The patient reports partial relief with over-the-counter analgesics.'
-      ],
-      sever: [
-        'The patient rates the severity as moderate (5–6/10).',
-        'The patient rates the pain as 7 out of 10.'
-      ],
-      denies: [
-        'The patient denies fever, chills, or night sweats.',
-        'The patient denies nausea, vomiting, or diarrhea.',
-        'The patient denies chest pain or shortness of breath.'
-      ]
-    };
-    for (const [key, phrases] of Object.entries(genericByTyped)) {
-      if (text.includes(key)) completions.push(...phrases);
-    }
-
-    // --- Descriptor-based phrases derived from the chief complaint itself ---
+    // 1. Character phrases from extracted descriptors
     const desc = AIAssistantService.extractComplaintDescriptors(complaint);
     const noun = desc.symptomNoun !== 'discomfort' ? desc.symptomNoun : 'symptom';
 
-    // Character phrases from extracted descriptors
     if (desc.characterWords.length > 0) {
       completions.push(
         `The ${noun} is described as ${desc.characterWords.slice(0, 2).join(' and ')} in nature.`
       );
     }
 
-    // Location-specific completion
+    // 2. Location-specific completions (preventing duplicate "the")
     if (desc.locationHint) {
-      completions.push(`The ${noun} is localized to the ${desc.locationHint}.`);
+      const cleanLoc = desc.locationHint.toLowerCase().startsWith('the ')
+        ? desc.locationHint.slice(4)
+        : desc.locationHint;
+      completions.push(`The ${noun} is localized to the ${cleanLoc}.`);
     }
 
-    // Aggravating from extracted
+    // 3. Aggravating/Relieving/Associated from CC
     if (desc.aggravatingHints.length > 0) {
       completions.push(
         `The ${noun} is aggravated by ${AIAssistantService.joinList(desc.aggravatingHints)}.`
       );
     }
-
-    // Relieving from extracted
     if (desc.relievingHints.length > 0) {
       completions.push(
         `The patient reports partial relief with ${AIAssistantService.joinList(desc.relievingHints)}.`
       );
     }
-
-    // Associated from extracted
     if (desc.associatedHints.length > 0) {
       completions.push(`Associated with ${AIAssistantService.joinList(desc.associatedHints)}.`);
     }
 
-    // Pertinent negatives
-    completions.push(desc.negatives);
+    // 4. Pertinent negatives
+    if (desc.negatives) {
+      completions.push(desc.negatives);
+    }
 
-    // --- Category-level extra completions ---
+    // 5. Category-level extra completions
     const category = AIAssistantService.classifyComplaint(complaint);
     const extras: Record<string, string[]> = {
       abdominal: [
@@ -2227,17 +2221,162 @@ export class AIAssistantService {
     };
     if (extras[category]) completions.push(...extras[category]);
 
-    if (completions.length === 0) {
-      completions.push(
-        'The symptoms began gradually.',
-        'The patient rates the severity as moderate.',
-        'The patient reports partial relief with rest.',
-        'The patient denies fever, chills, or night sweats.',
-        'Review of systems is otherwise negative.'
-      );
+    // 6. Generic clinical completions
+    completions.push(
+      'The symptoms began suddenly.',
+      'The symptoms began gradually over several days.',
+      'The patient reports an insidious onset with gradual worsening.',
+      `The ${noun} is aggravated by physical activity.`,
+      `The pain is worsened by movement and deep palpation.`,
+      'The patient reports partial relief with rest.',
+      'The patient reports partial relief with over-the-counter analgesics.',
+      'The patient rates the severity as moderate.',
+      'The patient denies fever, chills, or night sweats.',
+      'The patient denies nausea, vomiting, or diarrhea.',
+      'The patient denies chest pain or shortness of breath.',
+      'Review of systems is otherwise negative.'
+    );
+
+    // 7. Clean, Spell Check, and Filter Duplicates
+    const cleanHPI = (hpiText || '').toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").replace(/\s+/g, " ");
+    
+    const checkedCompletions = completions.map(phrase => {
+      return AIAssistantService.autoCorrectText(phrase);
+    });
+
+    const filtered = checkedCompletions.filter(phrase => {
+      const cleanPhrase = phrase.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").replace(/\s+/g, " ");
+      if (cleanHPI.includes(cleanPhrase)) return false;
+      if (hpiText && hpiText.toLowerCase().includes(phrase.toLowerCase())) return false;
+      return true;
+    });
+
+    return [...new Set(filtered)].slice(0, 8);
+  }
+
+  /**
+   * Run a basic spell and grammar check on a text string.
+   * Detects duplicate consecutive words and common clinical/general spelling mistakes.
+   */
+  static checkSpellingAndGrammar(text: string): GrammarError[] {
+    if (!text) return [];
+    const errors: GrammarError[] = [];
+
+    // 1. Detect duplicate consecutive words (case-insensitive, ignores punctuation)
+    const duplicateRegex = /\b([a-zA-Z]+)\s+\1\b/gi;
+    let match;
+    while ((match = duplicateRegex.exec(text)) !== null) {
+      const fullMatch = match[0];
+      const word = match[1];
+      errors.push({
+        offset: match.index,
+        length: fullMatch.length,
+        word: fullMatch,
+        type: 'duplicate',
+        message: `Duplicate word: "${word}"`,
+        suggestion: word
+      });
     }
 
-    return [...new Set(completions)].slice(0, 8);
+    // 2. Common clinical and general spelling errors dictionary
+    const spellingDict: Record<string, string> = {
+      'teh': 'the',
+      'recieve': 'receive',
+      'recieved': 'received',
+      'aggrevated': 'aggravated',
+      'aggrevates': 'aggravates',
+      'allevated': 'alleviated',
+      'allevates': 'alleviated',
+      'symtoms': 'symptoms',
+      'symptomns': 'symptoms',
+      'consistancy': 'consistency',
+      'diarhea': 'diarrhea',
+      'diarhoea': 'diarrhea',
+      'epigastirc': 'epigastric',
+      'abdomnal': 'abdominal',
+      'abdmonal': 'abdominal',
+      'sevear': 'severe',
+      'duraton': 'duration',
+      'locaton': 'location',
+      'chracter': 'character',
+      'associatng': 'associating',
+      'radiatng': 'radiating',
+      'timng': 'timing',
+      'severty': 'severity'
+    };
+
+    const wordRegex = /\b[a-zA-Z]+\b/g;
+    while ((match = wordRegex.exec(text)) !== null) {
+      const word = match[0];
+      const lowerWord = word.toLowerCase();
+      if (spellingDict[lowerWord]) {
+        let sug = spellingDict[lowerWord];
+        if (word[0] === word[0].toUpperCase()) {
+          sug = sug[0].toUpperCase() + sug.slice(1);
+        }
+        errors.push({
+          offset: match.index,
+          length: word.length,
+          word: word,
+          type: 'spelling',
+          message: `Spelling typo: "${word}"`,
+          suggestion: sug
+        });
+      }
+    }
+
+    // 3. Basic grammar checker (a vs an)
+    const aAnRegex = /\b(a|an)\s+([a-zA-Z]+)\b/gi;
+    while ((match = aAnRegex.exec(text)) !== null) {
+      const article = match[1].toLowerCase();
+      const nextWord = match[2];
+      const nextWordLower = nextWord.toLowerCase();
+      const startsWithVowelSound = /^[aeiou]/i.test(nextWordLower) && !/^univ/i.test(nextWordLower);
+      
+      if (article === 'a' && startsWithVowelSound) {
+        errors.push({
+          offset: match.index,
+          length: match[0].length,
+          word: match[0],
+          type: 'grammar',
+          message: `Use "an" before vowel sounds: "${match[0]}"`,
+          suggestion: `an ${nextWord}`
+        });
+      } else if (article === 'an' && !startsWithVowelSound) {
+        errors.push({
+          offset: match.index,
+          length: match[0].length,
+          word: match[0],
+          type: 'grammar',
+          message: `Use "a" before consonant sounds: "${match[0]}"`,
+          suggestion: `a ${nextWord}`
+        });
+      }
+    }
+
+    return errors.sort((a, b) => a.offset - b.offset);
+  }
+
+  /**
+   * Auto-correct spelling and grammar mistakes in a given text.
+   */
+  static autoCorrectText(text: string): string {
+    if (!text) return '';
+    const errors = AIAssistantService.checkSpellingAndGrammar(text);
+    if (errors.length === 0) return text;
+
+    let correctedText = text;
+    // Process from end to start to avoid shifting indices of subsequent errors
+    for (let i = errors.length - 1; i >= 0; i--) {
+      const err = errors[i];
+      if (err.suggestion) {
+        correctedText =
+          correctedText.substring(0, err.offset) +
+          err.suggestion +
+          correctedText.substring(err.offset + err.length);
+      }
+    }
+    return correctedText;
   }
 }
 
