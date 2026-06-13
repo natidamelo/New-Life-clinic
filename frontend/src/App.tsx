@@ -7,7 +7,7 @@ import attendanceService from './services/attendanceService';
 import AttendanceOverlay from './components/AttendanceOverlay';
 import PrimaryColorInitializer from './components/PrimaryColorInitializer';
 import userService from './services/userService';
-import { sanitizePhotoUrl } from './utils/veltUtils';
+import { buildVeltUser, buildVeltContacts } from './utils/veltUtils';
 import {
   VeltNotificationsTool,
   useIdentify,
@@ -43,37 +43,15 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      const userId = user.id || user._id;
-      const name = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'User';
-      const email = user.email;
-      const rawPhotoUrl = user.profileImage || user.photo || null;
-      const photoUrl = sanitizePhotoUrl(rawPhotoUrl);
-      const organizationId = user.clinicId || 'new-life-clinic';
+      const veltIdentity = buildVeltUser(user);
+      setVeltUser(veltIdentity);
+      console.log('✅ [Velt] User queued for instant identification:', veltIdentity.name, 'org:', veltIdentity.organizationId);
 
-      // Set initial user instantly
-      setVeltUser({
-        userId,
-        name,
-        email,
-        photoUrl,
-        organizationId,
-      });
-      console.log('✅ [Velt] User queued for instant identification:', name);
-
-      // Load contacts asynchronously in the background
       userService.getAllUsers().then((allClinicUsers) => {
         if (allClinicUsers && allClinicUsers.length > 0) {
-          const formatted = allClinicUsers.map(u => {
-            const rawPhoto = u.profileImage || u.photo || null;
-            return {
-              userId: u.id || u._id,
-              name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
-              email: u.email,
-              photoUrl: sanitizePhotoUrl(rawPhoto),
-            };
-          });
+          const formatted = buildVeltContacts(allClinicUsers);
           setContacts(formatted);
-          console.log('✅ [Velt] Contacts loaded in App.tsx background:', allClinicUsers.length);
+          console.log('✅ [Velt] Contacts loaded in App.tsx background:', formatted.length);
         }
       }).catch(err => {
         console.error('❌ [Velt] Failed to load contacts:', err);

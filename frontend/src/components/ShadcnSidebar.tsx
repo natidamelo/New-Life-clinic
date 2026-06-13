@@ -36,7 +36,7 @@ import ThemeSelector from './ThemeSelector';
 import QRCodeModal from './QRCodeModal';
 import AttendanceOverlay from './AttendanceOverlay';
 import userService from '../services/userService';
-import { sanitizePhotoUrl } from '../utils/veltUtils';
+import { buildVeltUser, buildVeltContacts } from '../utils/veltUtils';
 import {
   VeltNotificationsTool,
   VeltSidebarButton,
@@ -198,37 +198,16 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
 
   useEffect(() => {
     if (user) {
-      const userId = user.id || user._id;
-      const name = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'User';
-      const email = user.email;
-      const rawPhotoUrl = user.profileImage || user.photo || null;
-      const photoUrl = sanitizePhotoUrl(rawPhotoUrl);
-      const organizationId = user.clinicId || 'new-life-clinic';
-
-      // 1. Identify locally logged-in user instantly (without large contacts payload)
-      setVeltUser({
-        userId,
-        name,
-        email,
-        photoUrl,
-        organizationId,
-      });
-      console.log('✅ [Velt] User queued for instant identification in ShadcnSidebar:', name);
+      const veltIdentity = buildVeltUser(user);
+      setVeltUser(veltIdentity);
+      console.log('✅ [Velt] User queued for instant identification in ShadcnSidebar:', veltIdentity.name, 'org:', veltIdentity.organizationId);
 
       // 2. Load contacts database in background
       userService.getAllUsers().then((allClinicUsers) => {
         if (allClinicUsers && allClinicUsers.length > 0) {
-          const formatted = allClinicUsers.map(u => {
-            const rawPhoto = u.profileImage || u.photo || null;
-            return {
-              userId: u.id || u._id,
-              name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
-              email: u.email,
-              photoUrl: sanitizePhotoUrl(rawPhoto),
-            };
-          });
+          const formatted = buildVeltContacts(allClinicUsers);
           setContacts(formatted);
-          console.log('✅ [Velt] Contacts loaded in ShadcnSidebar background:', allClinicUsers.length);
+          console.log('✅ [Velt] Contacts loaded in ShadcnSidebar background:', formatted.length);
         }
       }).catch(error => {
         console.error('❌ [Velt] Failed to load contacts in background in ShadcnSidebar:', error);

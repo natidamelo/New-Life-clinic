@@ -19,6 +19,7 @@ import {
   VeltComments,
   VeltCursor,
   VeltHuddle,
+  VeltNotificationsPanel,
 } from '@veltdev/react';
 // Debug utilities loaded on-demand only in development (not bundled in production)
 if (import.meta.env.DEV) {
@@ -110,6 +111,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <VeltComments />
     <VeltCursor />
     <VeltHuddle />
+    <VeltNotificationsPanel />
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
