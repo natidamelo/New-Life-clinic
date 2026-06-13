@@ -413,8 +413,21 @@ input:focus, textarea:focus, select:focus {
   to { transform: scale(0.95); opacity: 0; }
 }
 
-/* Velt notification popover: ensure it layers above sticky header content */
-velt-notifications-tool {
+/* Velt panels: layer above sticky header, anchor below top bar */
+velt-notifications-tool,
+velt-notifications-panel,
+velt-comments-sidebar {
   position: relative;
   z-index: 50;
+}
+
+/* Popover panels should not span the full viewport width */
+velt-notifications-panel[panel-open-mode='popover'],
+velt-notifications-panel:not([panel-open-mode='sidebar']) {
+  max-width: min(24rem, calc(100vw - 2rem));
+}
+
+/* Comments sidebar floats inset from the right edge, below the app header */
+velt-comments-sidebar {
+  --velt-comments-sidebar-top-offset: 3.5rem;
 }

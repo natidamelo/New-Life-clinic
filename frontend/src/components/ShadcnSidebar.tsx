@@ -724,10 +724,9 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               <SidebarMenu>
                 {/* Collaboration Sidebar Toggle */}
                 <SidebarMenuItem>
-                  <div className="flex items-center justify-between px-3 py-1.5 border border-sidebar-border/60 bg-sidebar/5 rounded-lg scale-95 mb-1.5">
+                  <div className="flex items-center justify-between px-3 py-1.5 border border-sidebar-border/60 bg-sidebar/5 rounded-lg mb-1.5">
                     <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">Comments</span>
                     <VeltSidebarButton />
-                    <VeltCommentsSidebar />
                   </div>
                 </SidebarMenuItem>
 
@@ -885,6 +884,9 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
           isOpen={isQRModalOpen}
           onClose={() => setIsQRModalOpen(false)}
         />
+
+        {/* Mount at layout root — must not sit inside transformed/overflow containers */}
+        <VeltCommentsSidebar pageMode floatingMode />
 
       </SidebarProvider>
     </AttendanceOverlay>
