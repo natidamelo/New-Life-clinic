@@ -235,6 +235,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState(-1);
   const isNavigatingRef = useRef(false);
   const [isNavigatingViaButtons, setIsNavigatingViaButtons] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const lastRouteStartTimeRef = useRef<number | null>(null);
   const lastRoutePathRef = useRef<string | null>(null);
 
@@ -877,6 +878,11 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               {children}
             </div>
           </SidebarInset>
+
+          {/* Sibling placeholder to prevent Velt sidebar from covering the dashboard */}
+          {isSidebarOpen && (
+            <div className="w-[360px] flex-shrink-0 hidden lg:block border-l border-border bg-card no-print transition-all duration-300 ease-in-out animate-in slide-in-from-right duration-200" />
+          )}
         </div>
 
         {/* QR Code Modal */}
@@ -885,7 +891,10 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
           onClose={() => setIsQRModalOpen(false)}
         />
 
-        <VeltCommentsSidebar />
+        <VeltCommentsSidebar 
+          onSidebarOpen={() => setIsSidebarOpen(true)}
+          onSidebarClose={() => setIsSidebarOpen(false)}
+        />
 
 
 
