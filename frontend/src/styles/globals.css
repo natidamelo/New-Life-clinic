@@ -432,7 +432,21 @@ velt-notifications-panel:not([panel-open-mode='sidebar']) {
 
 /* Comments sidebar floats inset from the right edge, below the app header */
 velt-comments-sidebar {
+  position: fixed !important;
+  right: 0 !important;
+  z-index: 50 !important;
   --velt-comments-sidebar-top-offset: 3.5rem;
   width: 360px !important;
   max-width: 100vw;
+}
+
+/* Prevent Velt comments sidebar from shifting the main page layout */
+body, 
+html,
+[data-slot="sidebar-wrapper"],
+main[data-slot="sidebar-inset"] {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+  width: 100% !important;
+  max-width: 100vw !important;
 }
