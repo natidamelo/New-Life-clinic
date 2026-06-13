@@ -42,6 +42,7 @@ import {
   VeltSidebarButton,
   VeltCommentsSidebar,
   useIdentify,
+  useSetDocumentId,
 } from '@veltdev/react';
 import {
   Sidebar,
@@ -184,6 +185,10 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   const { logout, user, isLoading: authLoading } = useAuth();
   const [veltUser, setVeltUser] = useState<any>(null);
   useIdentify(veltUser);
+
+  // Set default document ID reactively based on current page URL path, providing an automatic fallback
+  const currentDocId = `clinic-${location.pathname.replace(/\//g, '-').replace(/^-+|-+$/g, '') || 'root'}`;
+  useSetDocumentId(currentDocId);
 
   useEffect(() => {
     if (user) {
