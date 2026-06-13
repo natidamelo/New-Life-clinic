@@ -182,10 +182,11 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user, isLoading: authLoading } = useAuth();
-  const { identify } = useIdentify();
+  const identifyResult = useIdentify();
+  const identify = identifyResult?.identify;
 
   useEffect(() => {
-    if (user) {
+    if (user && identify) {
       const initVelt = async () => {
         try {
           const allClinicUsers = await userService.getAllUsers();

@@ -16,11 +16,12 @@ import './styles/ui-upgrades.css';
 
 const App: React.FC = () => {
   const { user } = useAuth();
-  const { identify } = useIdentify();
+  const identifyResult = useIdentify();
+  const identify = identifyResult?.identify;
   const location = useLocation();
 
   useEffect(() => {
-    if (user) {
+    if (user && identify) {
       const initVelt = async () => {
         try {
           const allClinicUsers = await userService.getAllUsers();
