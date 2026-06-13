@@ -726,7 +726,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
                 <SidebarMenuItem>
                   <div className="flex items-center justify-between px-3 py-1.5 border border-sidebar-border/60 bg-sidebar/5 rounded-lg mb-1.5">
                     <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">Comments</span>
-                    <VeltSidebarButton />
+                    <VeltSidebarButton onClick={() => setIsSidebarOpen(prev => !prev)} />
                   </div>
                 </SidebarMenuItem>
 
@@ -877,11 +877,6 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               {children}
             </div>
           </SidebarInset>
-
-          {/* Sibling placeholder to prevent Velt sidebar from covering the dashboard */}
-          {isSidebarOpen && (
-            <div className="w-[360px] flex-shrink-0 hidden lg:block border-l border-border bg-card no-print transition-all duration-300 ease-in-out" />
-          )}
         </div>
 
         {/* QR Code Modal */}
@@ -892,6 +887,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
 
         {/* Mount at layout root — must not sit inside transformed/overflow containers */}
         <VeltCommentsSidebar 
+          forceClose={!isSidebarOpen}
           onSidebarOpen={() => setIsSidebarOpen(true)}
           onSidebarClose={() => setIsSidebarOpen(false)}
         />
