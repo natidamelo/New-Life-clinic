@@ -414,10 +414,13 @@ input:focus, textarea:focus, select:focus {
 }
 
 /* Velt panels: layer above sticky header, anchor below top bar */
-velt-notifications-tool,
+velt-notifications-tool {
+  position: relative;
+  z-index: 50;
+}
+
 velt-notifications-panel,
 velt-comments-sidebar {
-  position: relative;
   z-index: 50;
 }
 
@@ -430,4 +433,6 @@ velt-notifications-panel:not([panel-open-mode='sidebar']) {
 /* Comments sidebar floats inset from the right edge, below the app header */
 velt-comments-sidebar {
   --velt-comments-sidebar-top-offset: 3.5rem;
+  width: 360px !important;
+  max-width: 100vw;
 }
