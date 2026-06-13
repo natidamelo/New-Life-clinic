@@ -727,7 +727,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
                 <SidebarMenuItem>
                   <div className="flex items-center justify-between px-3 py-1.5 border border-sidebar-border/60 bg-sidebar/5 rounded-lg mb-1.5">
                     <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">Comments</span>
-                    <VeltSidebarButton />
+                    <VeltSidebarButton onClick={() => setIsSidebarOpen(prev => !prev)} />
                   </div>
                 </SidebarMenuItem>
 
