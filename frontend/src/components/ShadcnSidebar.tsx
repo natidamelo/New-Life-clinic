@@ -887,7 +887,11 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
         />
 
         {/* Mount at layout root — must not sit inside transformed/overflow containers */}
-        <VeltCommentsSidebar pageMode floatingMode open={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        {isSidebarOpen && (
+        <div className="fixed inset-y-0 right-0 w-80 z-50">
+          <VeltCommentsSidebar pageMode onClose={() => setIsSidebarOpen(false)} />
+        </div>
+      )}
 
       </SidebarProvider>
     </AttendanceOverlay>
