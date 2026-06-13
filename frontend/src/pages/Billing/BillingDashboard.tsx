@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useSetDocumentId } from '@veltdev/react';
+import VeltToolbar from '../../components/VeltToolbar';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -148,6 +150,9 @@ const getPathFromTab = (tab: string): string => {
 const BillingDashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Set the document ID for Velt collaboration
+  useSetDocumentId('billing-dashboard');
   const today = new Date();
 
   const [activeTab, setActiveTab] = useState<string>(() => getTabFromPath(location.pathname));
@@ -263,6 +268,7 @@ const BillingDashboard: React.FC = () => {
               })}
             </div>
           </div>
+          <VeltToolbar />
         </div>
       </div>
 

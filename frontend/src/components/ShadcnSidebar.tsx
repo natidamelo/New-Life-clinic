@@ -68,6 +68,7 @@ const adminMenuItems = [
   { path: '/app/theme-settings', icon: CogIcon, label: 'Appearance' },
   { path: '/app/billing', icon: DashboardIcon, label: 'Billing Dashboard' },
   { path: '/app/billing/expense-manager', icon: DashboardIcon, label: 'Add Expense' },
+  { path: '/app/billing/financial-advisor', icon: DashboardIcon, label: 'Financial Advisor' },
 ];
 
 const systemControlsMenuItems = [
@@ -112,6 +113,7 @@ const financeMenuItems = [
   { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
   { path: '/app/billing/invoices', icon: CurrencyDollarIcon, label: 'Invoices' },
   { path: '/app/billing/patient-cards', icon: CurrencyDollarIcon, label: 'Patient Cards' },
+  { path: '/app/billing/financial-advisor', icon: CurrencyDollarIcon, label: 'Financial Advisor' },
   { path: '/app/reports/workload', icon: DocumentTextIcon, label: 'Workload Analytics' },
   { path: '/app/profile', icon: UserCircleIcon, label: 'Profile' },
   { path: '/app/theme-settings', icon: CogIcon, label: 'Appearance' },

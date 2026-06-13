@@ -14,6 +14,12 @@ import ErrorBoundary from './components/common/ErrorBoundary'
 import router from './router'
 import './index.css'
 import './styles/globals.css'
+import {
+  VeltProvider,
+  VeltComments,
+  VeltCursor,
+  VeltHuddle,
+} from '@veltdev/react';
 // Debug utilities loaded on-demand only in development (not bundled in production)
 if (import.meta.env.DEV) {
   import('./utils/serviceExposure');
@@ -38,6 +44,10 @@ declare global {
 window.queryClient = queryClient;
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
+  <VeltProvider apiKey={import.meta.env.VITE_VELT_API_KEY}>
+    <VeltComments />
+    <VeltCursor />
+    <VeltHuddle />
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
@@ -58,5 +68,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
+  </VeltProvider>
 )
  

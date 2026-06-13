@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
+  VeltSidebarButton,
+  VeltCommentsSidebar,
+} from '@veltdev/react';
+import {
   HomeIcon as AdminHomeIcon,
   CogIcon,
   UserCircleIcon,
@@ -29,6 +33,7 @@ import { useAttendanceStatus } from '../hooks/useAttendanceStatus';
 // Define menu items for different roles
 const adminMenuItems = [
   { path: '/app/dashboard', icon: AdminHomeIcon, label: 'Admin Dashboard' },
+  { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
   { path: '/app/staff-management', icon: UserPlusIcon, label: 'Staff Management' },
   { path: '/app/pharmacy', icon: BeakerIcon, label: 'Stock Management' },
   { path: '/app/services', icon: CogIcon, label: 'Service Management' },
@@ -38,10 +43,12 @@ const adminMenuItems = [
   { path: '/app/theme-settings', icon: CogIcon, label: 'Appearance' },
   { path: '/app/billing', icon: DashboardIcon, label: 'Billing Dashboard' },
   { path: '/app/billing/expense-manager', icon: DashboardIcon, label: 'Add Expense' }, // Updated route
+  { path: '/app/billing/financial-advisor', icon: DashboardIcon, label: 'Financial Advisor' },
 ];
 
 const doctorMenuItems = [
   { path: '/app/doctor', icon: DashboardIcon, label: 'Doctor Dashboard' },
+  { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
   { path: '/app/doctor/patients', icon: PatientsIcon, label: 'My Patients' },
   { path: '/app/doctor/consultations', icon: DocumentTextIcon, label: 'Consultations' },
   { path: '/app/doctor/appointments', icon: AppointmentsIcon, label: 'Appointments' },
@@ -51,9 +58,9 @@ const doctorMenuItems = [
   { path: '/app/profile', icon: UserCircleIcon, label: 'Profile' },
 ];
 
-// Define menu items for Reception
 const receptionMenuItems = [
   { path: '/app/reception', icon: DashboardIcon, label: 'Reception Dashboard' },
+  { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
   { path: '/app/reception/register', icon: UserPlusIcon, label: 'Register Patient' },
   { path: '/app/patients', icon: PatientsIcon, label: 'Patients' },
   { path: '/app/reception/service-request', icon: CogIcon, label: 'Request Service' },
@@ -62,17 +69,18 @@ const receptionMenuItems = [
   { path: '/app/theme-settings', icon: CogIcon, label: 'Appearance' },
 ];
 
-// Define menu items for Finance
 const financeMenuItems = [
   { path: '/app/billing', icon: DashboardIcon, label: 'Billing Dashboard' },
+  { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
   { path: '/app/billing/invoices', icon: CurrencyDollarIcon, label: 'Invoices' },
   { path: '/app/billing/patient-cards', icon: CurrencyDollarIcon, label: 'Patient Cards' },
+  { path: '/app/billing/financial-advisor', icon: CurrencyDollarIcon, label: 'Financial Advisor' },
   { path: '/app/theme-settings', icon: CogIcon, label: 'Appearance' },
 ];
 
-// Define menu items for Nurse
 const nurseMenuItems = [
   { path: '/app/ward', icon: DashboardIcon, label: 'Nurse Dashboard' },
+  { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
   { path: '/app/ward/vitals', icon: BeakerIcon, label: 'Record Vitals' },
   { path: '/app/ward/medications-backup', icon: ClipboardDocumentCheckIcon, label: 'Administer Meds' },
   { path: '/app/ward/injection', icon: BeakerIcon, label: 'Injection' },
@@ -248,6 +256,13 @@ const Sidebar: React.FC<SidebarProps> = () => {
             )}
           </div>
         </button>
+      </div>
+
+      {/* Collaboration Sidebar Toggle */}
+      <div className="px-4 py-3 border-t border-border flex items-center justify-between">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Comments</span>
+        <VeltSidebarButton />
+        <VeltCommentsSidebar />
       </div>
 
       {/* Theme Toggle */}

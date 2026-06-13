@@ -1,15 +1,62 @@
 import React, { useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
 import attendanceService from './services/attendanceService';
 import AttendanceOverlay from './components/AttendanceOverlay';
 import PrimaryColorInitializer from './components/PrimaryColorInitializer';
+import userService from './services/userService';
+import {
+  VeltNotificationsTool,
+  VeltNotificationsPanel,
+  useIdentify,
+} from '@veltdev/react';
 import './styles/ui-upgrades.css';
 
 const App: React.FC = () => {
   const { user } = useAuth();
+  const { identify } = useIdentify();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (user) {
+      const initVelt = async () => {
+        try {
+          const allClinicUsers = await userService.getAllUsers();
+          const userId = user.id || user._id;
+          const name = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'User';
+          
+          identify({
+            userId,
+            name,
+            email: user.email,
+            photoUrl: user.profileImage || user.photo || null,
+            contacts: allClinicUsers.map(u => ({
+              userId: u.id || u._id,
+              name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
+              email: u.email,
+              photoUrl: u.profileImage || u.photo || null,
+            }))
+          });
+          console.log('✅ [Velt] User identified:', name);
+        } catch (error) {
+          console.error('❌ [Velt] Failed to identify user:', error);
+        }
+      };
+      initVelt();
+    }
+  }, [user, identify]);
+
+  const formatHeaderTitle = (pathname: string) => {
+    const parts = pathname.split('/').filter(Boolean);
+    if (parts.length === 0) return 'Dashboard';
+    const lastPart = parts[parts.length - 1];
+    if (lastPart.match(/^[0-9a-fA-F]{24}$/)) {
+      return parts[parts.length - 2] ? `${parts[parts.length - 2]} Detail` : 'Detail';
+    }
+    return lastPart.replace(/-/g, ' ');
+  };
 
   useEffect(() => {
     if (user) {
@@ -46,8 +93,24 @@ const App: React.FC = () => {
       <PrimaryColorInitializer />
       <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto bg-background">
-          <div className="p-4 sm:p-6 md:p-8">
+        <main className="flex-1 flex flex-col overflow-hidden bg-background">
+          {/* Sticky Top Header with Notifications */}
+          {user && (
+            <header className="border-b border-border bg-card/65 backdrop-blur-md px-6 py-3.5 flex items-center justify-between z-40">
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold text-foreground capitalize tracking-wide">
+                  {formatHeaderTitle(location.pathname)}
+                </span>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 bg-muted/40 hover:bg-muted/70 transition-colors rounded-xl px-3 py-1.5 border border-border/40">
+                  <VeltNotificationsTool />
+                  <VeltNotificationsPanel />
+                </div>
+              </div>
+            </header>
+          )}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
             <Outlet />
           </div>
         </main>

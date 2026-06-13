@@ -108,7 +108,9 @@ const MedicalCertificates = lazy(() => import('./pages/Doctor/MedicalCertificate
 const EMRReferralPaper = lazy(() => import('./components/doctor/EMRReferralPaper'));
 const MedicalTestRequestForm = lazy(() => import('./pages/Doctor/MedicalTestRequestForm'));
 const BusinessIntelligence = lazy(() => import('./pages/Admin/BusinessIntelligence'));
-const PackagesDashboard = lazy(() => import('./pages/Packages/PackagesDashboard'));
+const HealthPackages = lazy(() => import('./pages/Packages/HealthPackages'));
+const PatientRecord = lazy(() => import('./pages/Doctor/PatientRecord'));
+const FinancialAdvisor = lazy(() => import('./pages/Finance/FinancialAdvisor'));
 const CCTVDashboard = lazy(() => import('./pages/CCTV/CCTVDashboard'));
 
 
@@ -166,7 +168,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'packages',
-        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance']}><LazyWrapper><PackagesDashboard /></LazyWrapper></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance']}><LazyWrapper><HealthPackages /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'patients',
@@ -227,6 +229,10 @@ const router = createBrowserRouter([
       {
         path: 'billing/patient-demographics',
         element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><BillingDashboard /></LazyWrapper></ProtectedRoute>
+      },
+      {
+        path: 'billing/financial-advisor',
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><FinancialAdvisor /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'nurse',
@@ -323,6 +329,10 @@ const router = createBrowserRouter([
       {
         path: 'doctor/medical-test-requests',
         element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><LazyWrapper><MedicalTestRequestForm /></LazyWrapper></ProtectedRoute>
+      },
+      {
+        path: 'doctor/medical-records/:patientId',
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor']}><LazyWrapper><PatientRecord /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'depo-injections',
