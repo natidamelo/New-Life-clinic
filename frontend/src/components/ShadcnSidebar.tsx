@@ -39,6 +39,8 @@ import userService from '../services/userService';
 import { buildVeltUser, buildVeltContacts } from '../utils/veltUtils';
 import {
   VeltNotificationsTool,
+  VeltSidebarButton,
+  VeltCommentsSidebar,
   useIdentify,
   useSetDocumentId,
   useContactUtils,
@@ -233,6 +235,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState(-1);
   const isNavigatingRef = useRef(false);
   const [isNavigatingViaButtons, setIsNavigatingViaButtons] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const lastRouteStartTimeRef = useRef<number | null>(null);
   const lastRoutePathRef = useRef<string | null>(null);
 
@@ -722,6 +725,14 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               <SidebarMenu>
 
 
+                {/* Collaboration Sidebar Toggle */}
+                <SidebarMenuItem>
+                  <div className="flex items-center justify-between px-3 py-1.5 border border-sidebar-border/60 bg-sidebar/5 rounded-lg mb-1.5">
+                    <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">Comments</span>
+                    <VeltSidebarButton onClick={() => setIsSidebarOpen(prev => !prev)} />
+                  </div>
+                </SidebarMenuItem>
+
                 {/* Check-in/Check-out Button */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
@@ -876,6 +887,10 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
           isOpen={isQRModalOpen}
           onClose={() => setIsQRModalOpen(false)}
         />
+
+        {isSidebarOpen && (
+          <VeltCommentsSidebar onSidebarClose={() => setIsSidebarOpen(false)} />
+        )}
 
 
 
