@@ -807,6 +807,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
 
           {/* Main Content Area */}
           <SidebarInset>
+            <VeltNotificationsPanel />
             {/* Header with Sidebar Toggle */}
             <header className="flex h-12 sm:h-14 shrink-0 items-center gap-1 sm:gap-2 border-b border-border bg-card/95 backdrop-blur-sm px-2 sm:px-4 no-print sticky top-0 z-10">
               <SidebarTrigger className="-ml-1 h-8 w-8 rounded-md hover:bg-accent transition-colors" />

@@ -177,6 +177,7 @@ const App: React.FC = () => {
           }}
           containerClassName="dark:bg-muted dark:text-primary-foreground"
         />
+        <VeltNotificationsPanel />
       </div>
       {/* <SimpleDebugOverlay /> */}
     </AttendanceOverlay>
