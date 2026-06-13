@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSetDocumentId } from '@veltdev/react';
+import { useSetVeltDocId } from '../../context/VeltContext';
 import AIAdvisorPanel from '../../components/Billing/AIAdvisorPanel';
 import VeltToolbar from '../../components/VeltToolbar';
 import api from '../../services/apiService';
@@ -9,7 +9,7 @@ const FinancialAdvisor: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
 
   // Set Velt document ID
-  useSetDocumentId('financial-advisor');
+  useSetVeltDocId('financial-advisor');
 
   useEffect(() => {
     const fetchRevenue = async () => {

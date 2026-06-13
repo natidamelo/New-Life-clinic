@@ -34,6 +34,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AUTH_TOKEN_KEY, USER_DATA_KEY } from '../../config';
 import api from '../../services/apiService'; // Add missing api import
 import { useClinic } from '../../context/ClinicContext';
+import { useSetVeltDocId } from '../../context/VeltContext';
 
 // Import lab components
 import PatientLabResultsList from '../../components/doctor/PatientLabResultsList';
@@ -553,6 +554,16 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
   const [selectedMedications, setSelectedMedications] = useState<Set<string>>(new Set());
   // Patient type for printing
   const [patientType, setPatientType] = useState<'inpatient' | 'outpatient' | null>(null);
+
+  // Dynamically scope Velt comments to the selected patient's medications to share with nurses
+  const veltModalPatientId = selectedPatientPrescriptions?.[0]?.patientId?._id || 
+                             selectedPatientPrescriptions?.[0]?.patientId || 
+                             selectedPatientPrescriptions?.[0]?.patient?._id || 
+                             selectedPatientPrescriptions?.[0]?.patient?.id;
+  const veltDocId = selectedPatientPrescriptions && veltModalPatientId 
+    ? `patient-meds-${veltModalPatientId}` 
+    : 'clinic-app-doctor';
+  useSetVeltDocId(veltDocId);
 
   // Handle medication selection for printing
   const toggleMedicationSelection = (medicationKey: string) => {

@@ -34,6 +34,8 @@ const queryClient = new QueryClient({
   },
 })
 
+import { VeltDocIdProvider } from './context/VeltContext';
+
 // Make query client available globally for cache invalidation
 declare global {
   interface Window {
@@ -53,20 +55,22 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <ClinicProvider>
-            <SettingsProvider>
-              <GlobalSettingsProvider>
-                <CustomThemeProvider>
-                  <CardTypeProvider>
-                    <ToastProvider>
-                      <RouterProvider router={router} />
-                      <Toaster />
-                    </ToastProvider>
-                  </CardTypeProvider>
-                </CustomThemeProvider>
-              </GlobalSettingsProvider>
-            </SettingsProvider>
-          </ClinicProvider>
+          <VeltDocIdProvider>
+            <ClinicProvider>
+              <SettingsProvider>
+                <GlobalSettingsProvider>
+                  <CustomThemeProvider>
+                    <CardTypeProvider>
+                      <ToastProvider>
+                        <RouterProvider router={router} />
+                        <Toaster />
+                      </ToastProvider>
+                    </CardTypeProvider>
+                  </CustomThemeProvider>
+                </GlobalSettingsProvider>
+              </SettingsProvider>
+            </ClinicProvider>
+          </VeltDocIdProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

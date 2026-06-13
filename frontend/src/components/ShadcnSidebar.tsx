@@ -175,6 +175,8 @@ const mchMenuItems = [
   { path: '/app/leave-request', icon: Calendar, label: 'Request Leave' },
 ];
 
+import { useVeltDocIdOverride } from '../context/VeltContext';
+
 interface ShadcnSidebarProps {
   children: React.ReactNode;
 }
@@ -186,9 +188,11 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   const [veltUser, setVeltUser] = useState<any>(null);
   useIdentify(veltUser);
 
+  const { docIdOverride } = useVeltDocIdOverride();
+
   // Set default document ID reactively based on current page URL path, providing an automatic fallback
   const currentDocId = `clinic-${location.pathname.replace(/\//g, '-').replace(/^-+|-+$/g, '') || 'root'}`;
-  useSetDocumentId(currentDocId);
+  useSetDocumentId(docIdOverride || currentDocId);
 
   useEffect(() => {
     if (user) {
