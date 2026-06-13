@@ -46,7 +46,8 @@ const App: React.FC = () => {
       const userId = user.id || user._id;
       const name = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'User';
       const email = user.email;
-      const photoUrl = user.profileImage || user.photo || null;
+      const rawPhotoUrl = user.profileImage || user.photo || null;
+      const photoUrl = (rawPhotoUrl && rawPhotoUrl.startsWith('data:')) ? null : rawPhotoUrl;
       const organizationId = user.clinicId || 'new-life-clinic';
 
       // Set initial user instantly
@@ -62,12 +63,15 @@ const App: React.FC = () => {
       // Load contacts asynchronously in the background
       userService.getAllUsers().then((allClinicUsers) => {
         if (allClinicUsers && allClinicUsers.length > 0) {
-          const formatted = allClinicUsers.map(u => ({
-            userId: u.id || u._id,
-            name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
-            email: u.email,
-            photoUrl: u.profileImage || u.photo || null,
-          }));
+          const formatted = allClinicUsers.map(u => {
+            const rawPhoto = u.profileImage || u.photo || null;
+            return {
+              userId: u.id || u._id,
+              name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
+              email: u.email,
+              photoUrl: (rawPhoto && rawPhoto.startsWith('data:')) ? null : rawPhoto,
+            };
+          });
           setContacts(formatted);
           console.log('✅ [Velt] Contacts loaded in App.tsx background:', allClinicUsers.length);
         }
