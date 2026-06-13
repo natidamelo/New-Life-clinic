@@ -19,9 +19,10 @@ import './styles/ui-upgrades.css';
 const App: React.FC = () => {
   const { user } = useAuth();
   const [veltUser, setVeltUser] = React.useState<any>(null);
+  const [contacts, setContacts] = React.useState<any[]>([]);
   const location = useLocation();
   const { client } = useVeltClient();
-  const { updateContactList } = useContactUtils();
+  const contactUtils = useContactUtils();
 
   useEffect(() => {
     if (client) {
@@ -61,22 +62,31 @@ const App: React.FC = () => {
       // Load contacts asynchronously in the background
       userService.getAllUsers().then((allClinicUsers) => {
         if (allClinicUsers && allClinicUsers.length > 0) {
-          const contacts = allClinicUsers.map(u => ({
+          const formatted = allClinicUsers.map(u => ({
             userId: u.id || u._id,
             name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
             email: u.email,
             photoUrl: u.profileImage || u.photo || null,
           }));
-          updateContactList(contacts);
-          console.log('✅ [Velt] Contacts loaded, updating Velt identifier:', allClinicUsers.length);
+          setContacts(formatted);
+          console.log('✅ [Velt] Contacts loaded in App.tsx background:', allClinicUsers.length);
         }
       }).catch(err => {
         console.error('❌ [Velt] Failed to load contacts:', err);
       });
     } else {
       setVeltUser(null);
+      setContacts([]);
     }
-  }, [user, updateContactList]);
+  }, [user]);
+
+  // Sync contacts reactively when contacts or contactUtils load
+  useEffect(() => {
+    if (contactUtils && contacts.length > 0) {
+      contactUtils.updateContactList(contacts);
+      console.log('✅ [Velt] Contacts successfully synced with Velt (App.tsx):', contacts.length);
+    }
+  }, [contacts, contactUtils]);
 
   const formatHeaderTitle = (pathname: string) => {
     const parts = pathname.split('/').filter(Boolean);

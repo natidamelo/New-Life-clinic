@@ -187,8 +187,9 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   const navigate = useNavigate();
   const { logout, user, isLoading: authLoading } = useAuth();
   const [veltUser, setVeltUser] = useState<any>(null);
+  const [contacts, setContacts] = useState<any[]>([]);
   useIdentify(veltUser);
-  const { updateContactList } = useContactUtils();
+  const contactUtils = useContactUtils();
 
   const { docIdOverride } = useVeltDocIdOverride();
 
@@ -214,25 +215,34 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
       });
       console.log('✅ [Velt] User queued for instant identification in ShadcnSidebar:', name);
 
-      // 2. Load contacts database in background and call updateContactList
+      // 2. Load contacts database in background
       userService.getAllUsers().then((allClinicUsers) => {
         if (allClinicUsers && allClinicUsers.length > 0) {
-          const contacts = allClinicUsers.map(u => ({
+          const formatted = allClinicUsers.map(u => ({
             userId: u.id || u._id,
             name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
             email: u.email,
             photoUrl: u.profileImage || u.photo || null,
           }));
-          updateContactList(contacts);
-          console.log('✅ [Velt] Contacts loaded, updating Velt identifier in ShadcnSidebar:', allClinicUsers.length);
+          setContacts(formatted);
+          console.log('✅ [Velt] Contacts loaded in ShadcnSidebar background:', allClinicUsers.length);
         }
       }).catch(error => {
         console.error('❌ [Velt] Failed to load contacts in background in ShadcnSidebar:', error);
       });
     } else {
       setVeltUser(null);
+      setContacts([]);
     }
-  }, [user, updateContactList]);
+  }, [user]);
+
+  // 3. Reactively update contacts once Velt client (contactUtils) is initialized
+  useEffect(() => {
+    if (contactUtils && contacts.length > 0) {
+      contactUtils.updateContactList(contacts);
+      console.log('✅ [Velt] Contacts successfully synced with Velt in ShadcnSidebar:', contacts.length);
+    }
+  }, [contacts, contactUtils]);
   const { clinic } = useClinic();
   const { isDarkMode } = useSafeTheme();
   const { attendanceStatus, isLoading: statusLoading } = useAttendanceStatus();
