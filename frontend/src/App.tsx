@@ -44,6 +44,7 @@ const App: React.FC = () => {
       const name = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'User';
       const email = user.email;
       const photoUrl = user.profileImage || user.photo || null;
+      const organizationId = user.clinicId || 'new-life-clinic';
 
       // Set initial user instantly
       setVeltUser({
@@ -51,6 +52,7 @@ const App: React.FC = () => {
         name,
         email,
         photoUrl,
+        organizationId,
         contacts: []
       });
       console.log('✅ [Velt] User queued for instant identification:', name);
@@ -63,6 +65,7 @@ const App: React.FC = () => {
             name,
             email,
             photoUrl,
+            organizationId,
             contacts: allClinicUsers.map(u => ({
               userId: u.id || u._id,
               name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',

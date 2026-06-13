@@ -196,6 +196,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
       const name = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'User';
       const email = user.email;
       const photoUrl = user.profileImage || user.photo || null;
+      const organizationId = user.clinicId || 'new-life-clinic';
 
       // 1. Identify locally logged-in user instantly
       setVeltUser({
@@ -203,6 +204,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
         name,
         email,
         photoUrl,
+        organizationId,
         contacts: []
       });
       console.log('✅ [Velt] User queued for instant identification in ShadcnSidebar:', name);
@@ -215,6 +217,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
             name,
             email,
             photoUrl,
+            organizationId,
             contacts: allClinicUsers.map(u => ({
               userId: u.id || u._id,
               name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
