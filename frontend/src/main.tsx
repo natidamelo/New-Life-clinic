@@ -44,11 +44,12 @@ declare global {
 }
 
 window.queryClient = queryClient;
-console.log('🔍 [Velt Info] VITE_VELT_API_KEY presence:', !!import.meta.env.VITE_VELT_API_KEY);
-console.log('🔍 [Velt Info] VITE_VELT_API_KEY length:', import.meta.env.VITE_VELT_API_KEY?.length || 0);
+const veltApiKey = import.meta.env.VITE_VELT_API_KEY?.trim();
+console.log('🔍 [Velt Info] VITE_VELT_API_KEY presence:', !!veltApiKey);
+console.log('🔍 [Velt Info] VITE_VELT_API_KEY length:', veltApiKey?.length || 0);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <VeltProvider apiKey={import.meta.env.VITE_VELT_API_KEY}>
+  <VeltProvider apiKey={veltApiKey}>
     <VeltComments />
     <VeltCursor />
     <VeltHuddle />

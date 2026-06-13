@@ -43,6 +43,7 @@ import {
   VeltCommentsSidebar,
   useIdentify,
   useSetDocumentId,
+  useContactUtils,
 } from '@veltdev/react';
 import {
   Sidebar,
@@ -187,6 +188,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   const { logout, user, isLoading: authLoading } = useAuth();
   const [veltUser, setVeltUser] = useState<any>(null);
   useIdentify(veltUser);
+  const { updateContactList } = useContactUtils();
 
   const { docIdOverride } = useVeltDocIdOverride();
 
@@ -202,33 +204,26 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
       const photoUrl = user.profileImage || user.photo || null;
       const organizationId = user.clinicId || 'new-life-clinic';
 
-      // 1. Identify locally logged-in user instantly
+      // 1. Identify locally logged-in user instantly (without large contacts payload)
       setVeltUser({
         userId,
         name,
         email,
         photoUrl,
         organizationId,
-        contacts: []
       });
       console.log('✅ [Velt] User queued for instant identification in ShadcnSidebar:', name);
 
-      // 2. Load contacts database in background
+      // 2. Load contacts database in background and call updateContactList
       userService.getAllUsers().then((allClinicUsers) => {
         if (allClinicUsers && allClinicUsers.length > 0) {
-          setVeltUser({
-            userId,
-            name,
-            email,
-            photoUrl,
-            organizationId,
-            contacts: allClinicUsers.map(u => ({
-              userId: u.id || u._id,
-              name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
-              email: u.email,
-              photoUrl: u.profileImage || u.photo || null,
-            }))
-          });
+          const contacts = allClinicUsers.map(u => ({
+            userId: u.id || u._id,
+            name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
+            email: u.email,
+            photoUrl: u.profileImage || u.photo || null,
+          }));
+          updateContactList(contacts);
           console.log('✅ [Velt] Contacts loaded, updating Velt identifier in ShadcnSidebar:', allClinicUsers.length);
         }
       }).catch(error => {
@@ -237,7 +232,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
     } else {
       setVeltUser(null);
     }
-  }, [user]);
+  }, [user, updateContactList]);
   const { clinic } = useClinic();
   const { isDarkMode } = useSafeTheme();
   const { attendanceStatus, isLoading: statusLoading } = useAttendanceStatus();

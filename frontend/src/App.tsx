@@ -12,6 +12,7 @@ import {
   VeltNotificationsPanel,
   useIdentify,
   useVeltClient,
+  useContactUtils,
 } from '@veltdev/react';
 import './styles/ui-upgrades.css';
 
@@ -20,6 +21,7 @@ const App: React.FC = () => {
   const [veltUser, setVeltUser] = React.useState<any>(null);
   const location = useLocation();
   const { client } = useVeltClient();
+  const { updateContactList } = useContactUtils();
 
   useEffect(() => {
     if (client) {
@@ -53,26 +55,19 @@ const App: React.FC = () => {
         email,
         photoUrl,
         organizationId,
-        contacts: []
       });
       console.log('✅ [Velt] User queued for instant identification:', name);
 
       // Load contacts asynchronously in the background
       userService.getAllUsers().then((allClinicUsers) => {
         if (allClinicUsers && allClinicUsers.length > 0) {
-          setVeltUser({
-            userId,
-            name,
-            email,
-            photoUrl,
-            organizationId,
-            contacts: allClinicUsers.map(u => ({
-              userId: u.id || u._id,
-              name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
-              email: u.email,
-              photoUrl: u.profileImage || u.photo || null,
-            }))
-          });
+          const contacts = allClinicUsers.map(u => ({
+            userId: u.id || u._id,
+            name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
+            email: u.email,
+            photoUrl: u.profileImage || u.photo || null,
+          }));
+          updateContactList(contacts);
           console.log('✅ [Velt] Contacts loaded, updating Velt identifier:', allClinicUsers.length);
         }
       }).catch(err => {
@@ -81,7 +76,7 @@ const App: React.FC = () => {
     } else {
       setVeltUser(null);
     }
-  }, [user]);
+  }, [user, updateContactList]);
 
   const formatHeaderTitle = (pathname: string) => {
     const parts = pathname.split('/').filter(Boolean);
