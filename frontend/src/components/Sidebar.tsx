@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import {
-  VeltSidebarButton,
-  VeltCommentsSidebar,
-} from '@veltdev/react';
+
 import {
   HomeIcon as AdminHomeIcon,
   CogIcon,
@@ -258,12 +255,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
         </button>
       </div>
 
-      {/* Collaboration Sidebar Toggle */}
-      <div className="px-4 py-3 border-t border-border flex items-center justify-between">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Comments</span>
-        <VeltSidebarButton />
-        <VeltCommentsSidebar />
-      </div>
+
 
       {/* Theme Toggle */}
       <div className="px-4 py-3 border-t border-border">

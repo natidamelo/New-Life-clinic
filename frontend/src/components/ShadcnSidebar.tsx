@@ -39,8 +39,6 @@ import userService from '../services/userService';
 import { buildVeltUser, buildVeltContacts } from '../utils/veltUtils';
 import {
   VeltNotificationsTool,
-  VeltSidebarButton,
-  VeltCommentsSidebar,
   useIdentify,
   useSetDocumentId,
   useContactUtils,
@@ -722,12 +720,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
             {/* Footer with User Info & Logout */}
             <SidebarFooter className="border-t border-sidebar-border pt-2">
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <div className="flex items-center justify-between px-3 py-1.5 border border-sidebar-border/60 bg-sidebar/5 rounded-lg mb-1.5">
-                    <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">Comments</span>
-                    <VeltSidebarButton />
-                  </div>
-                </SidebarMenuItem>
+
 
                 {/* Check-in/Check-out Button */}
                 <SidebarMenuItem>
@@ -884,8 +877,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
           onClose={() => setIsQRModalOpen(false)}
         />
 
-        {/* Mount at layout root — must not sit inside transformed/overflow containers */}
-        <VeltCommentsSidebar />
+
 
       </SidebarProvider>
     </AttendanceOverlay>
