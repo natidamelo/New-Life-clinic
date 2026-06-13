@@ -11,6 +11,7 @@ import {
   VeltNotificationsTool,
   VeltNotificationsPanel,
   useIdentify,
+  useVeltClient,
 } from '@veltdev/react';
 import './styles/ui-upgrades.css';
 
@@ -18,6 +19,20 @@ const App: React.FC = () => {
   const { user } = useAuth();
   const [veltUser, setVeltUser] = React.useState<any>(null);
   const location = useLocation();
+  const { client } = useVeltClient();
+
+  useEffect(() => {
+    if (client) {
+      const errorSub = client.on('error', (err: any) => {
+        console.error('❌ [Velt Client Error Event]:', err);
+      });
+      return () => {
+        if (typeof errorSub?.off === 'function') {
+          errorSub.off();
+        }
+      };
+    }
+  }, [client]);
 
   // Call the hook at the top level with our state variable.
   // It handles identification reactively as state updates.
