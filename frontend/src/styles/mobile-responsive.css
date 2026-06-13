@@ -46,9 +46,8 @@ html, body {
     overflow-y: auto;
   }
 
-  /* Notification dropdown fix */
-  [class*="notification"] > div,
-  [class*="dropdown"] {
+  /* App notification dropdown fix (avoid broad selectors that break Velt panels) */
+  [data-notification-dropdown] > div {
     max-width: calc(100vw - 2rem) !important;
     width: calc(100vw - 2rem) !important;
     left: 1rem !important;

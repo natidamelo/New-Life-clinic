@@ -822,7 +822,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
           {/* Main Content Area */}
           <SidebarInset>
             {/* Header with Sidebar Toggle */}
-            <header className="flex h-12 sm:h-14 shrink-0 items-center gap-1 sm:gap-2 border-b border-border bg-card/95 backdrop-blur-sm px-2 sm:px-4 no-print sticky top-0 z-10">
+            <header className="flex h-12 sm:h-14 shrink-0 items-center gap-1 sm:gap-2 border-b border-border bg-card/95 backdrop-blur-sm px-2 sm:px-4 no-print sticky top-0 z-40 overflow-visible">
               <SidebarTrigger className="-ml-1 h-8 w-8 rounded-md hover:bg-accent transition-colors" />
 
               {/* Divider */}
@@ -866,11 +866,10 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               <div className="flex-1" />
 
               {/* Right side: theme + user pill */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 overflow-visible">
                 <ThemeSelector />
-                <div className="flex items-center bg-muted/40 hover:bg-muted/70 transition-colors rounded-xl px-2.5 py-1 border border-border/40 scale-90 relative">
-                  <VeltNotificationsTool />
-                  <VeltNotificationsPanel />
+                <div className="relative flex items-center bg-muted/40 hover:bg-muted/70 transition-colors rounded-xl px-2.5 py-1 border border-border/40">
+                  <VeltNotificationsTool panelOpenMode="popover" />
                 </div>
                 {/* User pill */}
                 <div className="hidden sm:flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-muted/60 border border-border hover:bg-muted transition-colors cursor-default">
@@ -909,6 +908,8 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
           isOpen={isQRModalOpen}
           onClose={() => setIsQRModalOpen(false)}
         />
+
+        <VeltNotificationsPanel panelOpenMode="popover" />
 
       </SidebarProvider>
     </AttendanceOverlay>

@@ -412,3 +412,9 @@ input:focus, textarea:focus, select:focus {
   from { transform: scale(1); opacity: 1; }
   to { transform: scale(0.95); opacity: 0; }
 }
+
+/* Velt notification popover: ensure it layers above sticky header content */
+velt-notifications-tool {
+  position: relative;
+  z-index: 50;
+}
