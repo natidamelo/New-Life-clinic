@@ -39,7 +39,6 @@ import userService from '../services/userService';
 import { sanitizePhotoUrl } from '../utils/veltUtils';
 import {
   VeltNotificationsTool,
-  VeltNotificationsPanel,
   VeltSidebarButton,
   VeltCommentsSidebar,
   useIdentify,
@@ -908,8 +907,6 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
           isOpen={isQRModalOpen}
           onClose={() => setIsQRModalOpen(false)}
         />
-
-        <VeltNotificationsPanel panelOpenMode="popover" />
 
       </SidebarProvider>
     </AttendanceOverlay>

@@ -10,7 +10,6 @@ import userService from './services/userService';
 import { sanitizePhotoUrl } from './utils/veltUtils';
 import {
   VeltNotificationsTool,
-  VeltNotificationsPanel,
   useIdentify,
   useVeltClient,
   useContactUtils,
@@ -148,8 +147,8 @@ const App: React.FC = () => {
                 </span>
               </div>
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3 bg-muted/40 hover:bg-muted/70 transition-colors rounded-xl px-3 py-1.5 border border-border/40 relative">
-                  <VeltNotificationsTool />
+                <div className="relative flex items-center gap-3 bg-muted/40 hover:bg-muted/70 transition-colors rounded-xl px-3 py-1.5 border border-border/40">
+                  <VeltNotificationsTool panelOpenMode="popover" />
                 </div>
               </div>
             </header>
@@ -158,7 +157,6 @@ const App: React.FC = () => {
             <Outlet />
           </div>
         </main>
-        <VeltNotificationsPanel />
         <Toaster 
           position="top-right" 
           toastOptions={{
