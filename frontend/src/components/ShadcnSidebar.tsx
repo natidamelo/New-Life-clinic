@@ -35,6 +35,14 @@ import analyticsService from '../services/analyticsService';
 import ThemeSelector from './ThemeSelector';
 import QRCodeModal from './QRCodeModal';
 import AttendanceOverlay from './AttendanceOverlay';
+import userService from '../services/userService';
+import {
+  VeltNotificationsTool,
+  VeltNotificationsPanel,
+  VeltSidebarButton,
+  VeltCommentsSidebar,
+  useIdentify,
+} from '@veltdev/react';
 import {
   Sidebar,
   SidebarContent,
@@ -174,6 +182,36 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user, isLoading: authLoading } = useAuth();
+  const { identify } = useIdentify();
+
+  useEffect(() => {
+    if (user) {
+      const initVelt = async () => {
+        try {
+          const allClinicUsers = await userService.getAllUsers();
+          const userId = user.id || user._id;
+          const name = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'User';
+          
+          identify({
+            userId,
+            name,
+            email: user.email,
+            photoUrl: user.profileImage || user.photo || null,
+            contacts: allClinicUsers.map(u => ({
+              userId: u.id || u._id,
+              name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
+              email: u.email,
+              photoUrl: u.profileImage || u.photo || null,
+            }))
+          });
+          console.log('✅ [Velt] User identified in ShadcnSidebar:', name);
+        } catch (error) {
+          console.error('❌ [Velt] Failed to identify user in ShadcnSidebar:', error);
+        }
+      };
+      initVelt();
+    }
+  }, [user, identify]);
   const { clinic } = useClinic();
   const { isDarkMode } = useSafeTheme();
   const { attendanceStatus, isLoading: statusLoading } = useAttendanceStatus();
@@ -671,6 +709,15 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
             {/* Footer with User Info & Logout */}
             <SidebarFooter className="border-t border-sidebar-border pt-2">
               <SidebarMenu>
+                {/* Collaboration Sidebar Toggle */}
+                <SidebarMenuItem>
+                  <div className="flex items-center justify-between px-3 py-1.5 border border-sidebar-border/60 bg-sidebar/5 rounded-lg scale-95 mb-1.5">
+                    <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">Comments</span>
+                    <VeltSidebarButton />
+                    <VeltCommentsSidebar />
+                  </div>
+                </SidebarMenuItem>
+
                 {/* Check-in/Check-out Button */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
@@ -785,6 +832,10 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               {/* Right side: theme + user pill */}
               <div className="flex items-center gap-2">
                 <ThemeSelector />
+                <div className="flex items-center bg-muted/40 hover:bg-muted/70 transition-colors rounded-xl px-2.5 py-1 border border-border/40 scale-90">
+                  <VeltNotificationsTool />
+                  <VeltNotificationsPanel />
+                </div>
                 {/* User pill */}
                 <div className="hidden sm:flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-muted/60 border border-border hover:bg-muted transition-colors cursor-default">
                   {user?.photo ? (
