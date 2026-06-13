@@ -182,56 +182,50 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user, isLoading: authLoading } = useAuth();
-  const identifyResult = useIdentify();
-  const identify = identifyResult?.identify;
+  const [veltUser, setVeltUser] = useState<any>(null);
+  useIdentify(veltUser);
 
   useEffect(() => {
-    if (user && identify) {
-      const initVelt = async () => {
-        const userId = user.id || user._id;
-        const name = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'User';
-        const email = user.email;
-        const photoUrl = user.profileImage || user.photo || null;
+    if (user) {
+      const userId = user.id || user._id;
+      const name = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'User';
+      const email = user.email;
+      const photoUrl = user.profileImage || user.photo || null;
 
-        // 1. Identify locally logged-in user instantly
-        try {
-          identify({
+      // 1. Identify locally logged-in user instantly
+      setVeltUser({
+        userId,
+        name,
+        email,
+        photoUrl,
+        contacts: []
+      });
+      console.log('✅ [Velt] User queued for instant identification in ShadcnSidebar:', name);
+
+      // 2. Load contacts database in background
+      userService.getAllUsers().then((allClinicUsers) => {
+        if (allClinicUsers && allClinicUsers.length > 0) {
+          setVeltUser({
             userId,
             name,
             email,
             photoUrl,
-            contacts: []
+            contacts: allClinicUsers.map(u => ({
+              userId: u.id || u._id,
+              name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
+              email: u.email,
+              photoUrl: u.profileImage || u.photo || null,
+            }))
           });
-          console.log('✅ [Velt] Identified user instantly in ShadcnSidebar:', name);
-        } catch (err) {
-          console.error('❌ [Velt] Instant identify failed in ShadcnSidebar:', err);
+          console.log('✅ [Velt] Contacts loaded, updating Velt identifier in ShadcnSidebar:', allClinicUsers.length);
         }
-
-        // 2. Load contacts database in background
-        try {
-          const allClinicUsers = await userService.getAllUsers();
-          if (allClinicUsers && allClinicUsers.length > 0) {
-            identify({
-              userId,
-              name,
-              email,
-              photoUrl,
-              contacts: allClinicUsers.map(u => ({
-                userId: u.id || u._id,
-                name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
-                email: u.email,
-                photoUrl: u.profileImage || u.photo || null,
-              }))
-            });
-            console.log('✅ [Velt] Contacts loaded and identified in ShadcnSidebar:', allClinicUsers.length);
-          }
-        } catch (error) {
-          console.error('❌ [Velt] Failed to load contacts in background in ShadcnSidebar:', error);
-        }
-      };
-      initVelt();
+      }).catch(error => {
+        console.error('❌ [Velt] Failed to load contacts in background in ShadcnSidebar:', error);
+      });
+    } else {
+      setVeltUser(null);
     }
-  }, [user, identify]);
+  }, [user]);
   const { clinic } = useClinic();
   const { isDarkMode } = useSafeTheme();
   const { attendanceStatus, isLoading: statusLoading } = useAttendanceStatus();
