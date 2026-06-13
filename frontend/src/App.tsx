@@ -148,8 +148,9 @@ const App: React.FC = () => {
                 </span>
               </div>
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3 bg-muted/40 hover:bg-muted/70 transition-colors rounded-xl px-3 py-1.5 border border-border/40">
+                <div className="flex items-center gap-3 bg-muted/40 hover:bg-muted/70 transition-colors rounded-xl px-3 py-1.5 border border-border/40 relative">
                   <VeltNotificationsTool />
+                  <VeltNotificationsPanel />
                 </div>
               </div>
             </header>

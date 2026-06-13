@@ -35,7 +35,6 @@ import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table';
 import { Alert, AlertTitle, AlertDescription } from '../../components/ui/alert';
-import { ToastProvider, ToastViewport } from '../../components/ui/toast';
 import { useToast } from '../../components/ui/use-toast';
 import { useAuth } from '../../context/AuthContext';
 import patientService, { Patient } from '../../services/patientService';
@@ -1574,8 +1573,7 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
   };
 
   return (
-    <ToastProvider>
-      <div className="container mx-auto p-3 sm:p-4 max-w-7xl">
+    <div className="container mx-auto p-3 sm:p-4 max-w-7xl">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold">Nurse Dashboard</h1>
@@ -2379,10 +2377,8 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
         </Dialog>
         */}
 
-      <ToastViewport />
       </div>
-    </ToastProvider>
   );
 };
 
-export default NurseDashboard; 
+export default NurseDashboard;

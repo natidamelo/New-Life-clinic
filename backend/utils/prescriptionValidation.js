@@ -118,8 +118,17 @@ async function ensureNurseTaskCreation(prescription, assignedNurseId = null) {
         updated = true;
       }
       
-      if (!existingTask.assignedNurse && assignedNurseId) {
+      if ((!existingTask.assignedTo || !existingTask.assignedNurse) && assignedNurseId) {
+        existingTask.assignedTo = assignedNurseId;
         existingTask.assignedNurse = assignedNurseId;
+        try {
+          const nurseDoc = await User.findById(assignedNurseId);
+          if (nurseDoc) {
+            existingTask.assignedToName = `${nurseDoc.firstName || ''} ${nurseDoc.lastName || ''}`.trim();
+          }
+        } catch (err) {
+          console.warn('Failed to fetch nurse name during update:', err.message);
+        }
         updated = true;
       }
       
@@ -220,12 +229,26 @@ async function ensureNurseTaskCreation(prescription, assignedNurseId = null) {
       };
     }
 
+    let assignedToName = undefined;
+    if (nurseId) {
+      try {
+        const nurseDoc = await User.findById(nurseId);
+        if (nurseDoc) {
+          assignedToName = `${nurseDoc.firstName || ''} ${nurseDoc.lastName || ''}`.trim();
+        }
+      } catch (err) {
+        console.warn('Failed to fetch nurse name:', err.message);
+      }
+    }
+
     const newNurseTask = new NurseTask({
       patientId: prescription.patient,
       patientName: prescription.patientName || 'Unknown Patient',
       taskType: 'MEDICATION',
       status: 'PENDING',
       priority: 'MEDIUM',
+      assignedTo: nurseId,
+      assignedToName: assignedToName,
       assignedNurse: nurseId,
       assignedBy: doctorId,
       dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow

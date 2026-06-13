@@ -868,8 +868,9 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               {/* Right side: theme + user pill */}
               <div className="flex items-center gap-2">
                 <ThemeSelector />
-                <div className="flex items-center bg-muted/40 hover:bg-muted/70 transition-colors rounded-xl px-2.5 py-1 border border-border/40 scale-90">
+                <div className="flex items-center bg-muted/40 hover:bg-muted/70 transition-colors rounded-xl px-2.5 py-1 border border-border/40 scale-90 relative">
                   <VeltNotificationsTool />
+                  <VeltNotificationsPanel />
                 </div>
                 {/* User pill */}
                 <div className="hidden sm:flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-muted/60 border border-border hover:bg-muted transition-colors cursor-default">
