@@ -36,6 +36,7 @@ import ThemeSelector from './ThemeSelector';
 import QRCodeModal from './QRCodeModal';
 import AttendanceOverlay from './AttendanceOverlay';
 import userService from '../services/userService';
+import { sanitizePhotoUrl } from '../utils/veltUtils';
 import {
   VeltNotificationsTool,
   VeltNotificationsPanel,
@@ -203,7 +204,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
       const name = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'User';
       const email = user.email;
       const rawPhotoUrl = user.profileImage || user.photo || null;
-      const photoUrl = (rawPhotoUrl && rawPhotoUrl.startsWith('data:')) ? null : rawPhotoUrl;
+      const photoUrl = sanitizePhotoUrl(rawPhotoUrl);
       const organizationId = user.clinicId || 'new-life-clinic';
 
       // 1. Identify locally logged-in user instantly (without large contacts payload)
@@ -225,7 +226,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               userId: u.id || u._id,
               name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
               email: u.email,
-              photoUrl: (rawPhoto && rawPhoto.startsWith('data:')) ? null : rawPhoto,
+              photoUrl: sanitizePhotoUrl(rawPhoto),
             };
           });
           setContacts(formatted);

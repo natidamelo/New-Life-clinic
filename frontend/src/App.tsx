@@ -7,6 +7,7 @@ import attendanceService from './services/attendanceService';
 import AttendanceOverlay from './components/AttendanceOverlay';
 import PrimaryColorInitializer from './components/PrimaryColorInitializer';
 import userService from './services/userService';
+import { sanitizePhotoUrl } from './utils/veltUtils';
 import {
   VeltNotificationsTool,
   VeltNotificationsPanel,
@@ -47,7 +48,7 @@ const App: React.FC = () => {
       const name = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'User';
       const email = user.email;
       const rawPhotoUrl = user.profileImage || user.photo || null;
-      const photoUrl = (rawPhotoUrl && rawPhotoUrl.startsWith('data:')) ? null : rawPhotoUrl;
+      const photoUrl = sanitizePhotoUrl(rawPhotoUrl);
       const organizationId = user.clinicId || 'new-life-clinic';
 
       // Set initial user instantly
@@ -69,7 +70,7 @@ const App: React.FC = () => {
               userId: u.id || u._id,
               name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
               email: u.email,
-              photoUrl: (rawPhoto && rawPhoto.startsWith('data:')) ? null : rawPhoto,
+              photoUrl: sanitizePhotoUrl(rawPhoto),
             };
           });
           setContacts(formatted);

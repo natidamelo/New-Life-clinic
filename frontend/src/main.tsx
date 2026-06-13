@@ -44,6 +44,63 @@ declare global {
 }
 
 window.queryClient = queryClient;
+
+// Clear old Velt/Firebase IndexedDB cache databases to resolve any stuck 413 sync queues
+if (typeof window !== 'undefined') {
+  const CLEANUP_KEY = 'velt_indexeddb_cleanup_v5';
+  if (!localStorage.getItem(CLEANUP_KEY)) {
+    console.log('🧹 [Velt Cleanup] Running thorough cleanup of IndexedDB, LocalStorage, and SessionStorage...');
+    
+    // Clear LocalStorage and SessionStorage keys containing 'velt'
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && key.toLowerCase().includes('velt')) {
+          console.log(`🧹 [Velt Cleanup] Removing localStorage key: ${key}`);
+          localStorage.removeItem(key);
+        }
+      }
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (key && key.toLowerCase().includes('velt')) {
+          console.log(`🧹 [Velt Cleanup] Removing sessionStorage key: ${key}`);
+          sessionStorage.removeItem(key);
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ [Velt Cleanup] Failed to clear storage keys:', err);
+    }
+
+    // Clear common IndexedDB databases
+    const commonDbs = ['velt-db', 'velt', 'localforage', 'firestore', 'firebase'];
+    commonDbs.forEach(name => {
+      try {
+        console.log(`🧹 [Velt Cleanup] Deleting common IndexedDB database: ${name}`);
+        window.indexedDB.deleteDatabase(name);
+      } catch (err) {
+        console.warn(`⚠️ [Velt Cleanup] Failed to delete database ${name}:`, err);
+      }
+    });
+
+    if (window.indexedDB && typeof window.indexedDB.databases === 'function') {
+      window.indexedDB.databases().then((dbs) => {
+        dbs.forEach((db) => {
+          if (db.name && (db.name.toLowerCase().includes('velt') || db.name.toLowerCase().includes('firebase'))) {
+            console.log(`🧹 [Velt Cleanup] Deleting detected IndexedDB database: ${db.name}`);
+            window.indexedDB.deleteDatabase(db.name);
+          }
+        });
+        localStorage.setItem(CLEANUP_KEY, 'true');
+      }).catch(err => {
+        console.warn('⚠️ [Velt Cleanup] Failed to list IndexedDB databases:', err);
+        localStorage.setItem(CLEANUP_KEY, 'true');
+      });
+    } else {
+      localStorage.setItem(CLEANUP_KEY, 'true');
+    }
+  }
+}
+
 const veltApiKey = import.meta.env.VITE_VELT_API_KEY?.trim();
 console.log('🔍 [Velt Info] VITE_VELT_API_KEY presence:', !!veltApiKey);
 console.log('🔍 [Velt Info] VITE_VELT_API_KEY length:', veltApiKey?.length || 0);
