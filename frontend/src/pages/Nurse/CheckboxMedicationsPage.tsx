@@ -8,7 +8,7 @@ import { RefreshCw, Search, Filter, Pill, AlertCircle, Grid3X3, Zap, Printer } f
 import SimplifiedMedicationAdmin from '../../components/nurse/SimplifiedMedicationAdmin';
 import prescriptionService, { Prescription } from '../../services/prescriptionService';
 import { formatPatientGroupOrderSummary } from '../../utils/nurseTaskOrderDate';
-import { useSetVeltDocId } from '../../context/VeltContext';
+import { useSetVeltDocId, STAFF_COLLABORATION_DOC_ID, getPatientMedsDocId } from '../../context/VeltContext';
 
 interface NurseTask {
   _id?: string;
@@ -61,8 +61,8 @@ const CheckboxMedicationsPage: React.FC = () => {
 
   // Dynamically scope Velt comments to the selected patient's medications to share with doctors
   const veltDocId = selectedPatientFilter 
-    ? `patient-meds-${selectedPatientFilter}` 
-    : 'clinic-app-ward-medications-backup';
+    ? getPatientMedsDocId(selectedPatientFilter)
+    : STAFF_COLLABORATION_DOC_ID;
   useSetVeltDocId(veltDocId);
 
   const handleRestoreTasks = async (patientId: string) => {

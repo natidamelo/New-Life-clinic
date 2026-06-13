@@ -176,7 +176,7 @@ const mchMenuItems = [
   { path: '/app/leave-request', icon: Calendar, label: 'Request Leave' },
 ];
 
-import { useVeltDocIdOverride } from '../context/VeltContext';
+import { useVeltDocIdOverride, STAFF_COLLABORATION_DOC_ID } from '../context/VeltContext';
 
 interface ShadcnSidebarProps {
   children: React.ReactNode;
@@ -193,9 +193,8 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
 
   const { docIdOverride } = useVeltDocIdOverride();
 
-  // Set default document ID reactively based on current page URL path, providing an automatic fallback
-  const currentDocId = `clinic-${location.pathname.replace(/\//g, '-').replace(/^-+|-+$/g, '') || 'root'}`;
-  useSetDocumentId(docIdOverride || currentDocId);
+  // All staff share one comment thread in the sidebar (not per-page), so @mentions work across roles.
+  useSetDocumentId(docIdOverride || STAFF_COLLABORATION_DOC_ID);
 
   useEffect(() => {
     if (user) {

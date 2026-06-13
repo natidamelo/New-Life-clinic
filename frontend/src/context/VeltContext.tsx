@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+/** Shared document ID so all staff see the same sidebar comment thread across dashboards. */
+export const STAFF_COLLABORATION_DOC_ID = 'clinic-staff-collaboration';
+
+export const getPatientMedsDocId = (patientId: string) => `patient-meds-${patientId}`;
+
 interface VeltDocIdContextType {
   docIdOverride: string | null;
   setDocIdOverride: (id: string | null) => void;
