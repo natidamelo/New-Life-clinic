@@ -18,6 +18,33 @@ interface CustomSidebarCommentsProps {
   children?: React.ReactNode;
 }
 
+const playNotificationSound = () => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    
+    const audioCtx = new AudioContextClass();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+    oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+    
+    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+    
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + 0.3);
+  } catch (e) {
+    console.log("Audio not supported");
+  }
+};
+
 const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children }) => {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
@@ -28,15 +55,36 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
   const [mentionSearch, setMentionSearch] = useState<{ active: boolean; term: string; index: number }>({ active: false, term: '', index: 0 });
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
+  const isFirstLoad = React.useRef(true);
+  const lastCommentCount = React.useRef(0);
+  const userIdRef = React.useRef(user?.id || (user as any)?._id);
+
+  useEffect(() => {
+    userIdRef.current = user?.id || (user as any)?._id;
+  }, [user]);
+
   // Fetch comments and users from API
   const fetchComments = async () => {
     try {
       const data = await commentService.getComments();
+      
+      if (!isFirstLoad.current && data.length > lastCommentCount.current) {
+        const newComments = data.slice(lastCommentCount.current);
+        const currentUserId = userIdRef.current;
+        const hasNewFromOthers = newComments.some(c => c.userId !== currentUserId);
+        
+        if (hasNewFromOthers) {
+          playNotificationSound();
+        }
+      }
+      
+      lastCommentCount.current = data.length;
       setComments(data);
     } catch (error) {
       console.error('Failed to fetch comments', error);
     } finally {
       setIsLoaded(true);
+      isFirstLoad.current = false;
     }
   };
 
@@ -49,21 +97,15 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
     }
   };
 
-  // Initial fetch and polling when open
+  // Continuous polling
   useEffect(() => {
     fetchComments();
     fetchUsers();
 
-    let intervalId: NodeJS.Timeout;
-    if (isOpen) {
-      // Poll every 10 seconds while the sheet is open
-      intervalId = setInterval(fetchComments, 10000);
-    }
+    const intervalId = setInterval(fetchComments, 10000);
 
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [isOpen]);
+    return () => clearInterval(intervalId);
+  }, []);
 
   const handleAddComment = async () => {
     if (!newComment.trim() || !user) return;
