@@ -1037,6 +1037,7 @@ const createApp = () => {
   
   // Notifications routes
   app.use('/api/notifications', require('./routes/notifications'));
+  app.use('/api/comments', require('./routes/commentRoutes'));
   
   // Inventory routes
   app.use('/api/inventory', require('./routes/inventory'));

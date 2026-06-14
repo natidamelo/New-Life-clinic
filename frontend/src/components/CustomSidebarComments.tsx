@@ -11,16 +11,9 @@ import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { ScrollArea } from './ui/scroll-area';
 import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
-
-interface Comment {
-  id: string;
-  userId: string;
-  userName: string;
-  userInitials: string;
-  text: string;
-  timestamp: string;
-}
-
+import { commentService, Comment } from '../services/commentService';
+import userService from '../services/userService';
+import { User } from '../types/user';
 interface CustomSidebarCommentsProps {
   children?: React.ReactNode;
 }
@@ -28,52 +21,86 @@ interface CustomSidebarCommentsProps {
 const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children }) => {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load comments from local storage on mount
-  useEffect(() => {
-    const savedComments = localStorage.getItem('clinic_team_comments');
-    if (savedComments) {
-      try {
-        setComments(JSON.parse(savedComments));
-      } catch (e) {
-        console.error('Failed to parse saved comments', e);
-      }
+  // Fetch comments and users from API
+  const fetchComments = async () => {
+    try {
+      const data = await commentService.getComments();
+      setComments(data);
+    } catch (error) {
+      console.error('Failed to fetch comments', error);
+    } finally {
+      setIsLoaded(true);
     }
-    setIsLoaded(true);
-  }, []);
+  };
 
-  // Save comments to local storage whenever they change
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('clinic_team_comments', JSON.stringify(comments));
+  const fetchUsers = async () => {
+    try {
+      const users = await userService.getAllUsers();
+      setAllUsers(users || []);
+    } catch (error) {
+      console.error('Failed to fetch users', error);
     }
-  }, [comments, isLoaded]);
+  };
 
-  const handleAddComment = () => {
+  // Initial fetch and polling when open
+  useEffect(() => {
+    fetchComments();
+    fetchUsers();
+
+    let intervalId: NodeJS.Timeout;
+    if (isOpen) {
+      // Poll every 10 seconds while the sheet is open
+      intervalId = setInterval(fetchComments, 10000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isOpen]);
+
+  const handleAddComment = async () => {
     if (!newComment.trim() || !user) return;
 
-    const initials = user.firstName 
-      ? user.firstName[0].toUpperCase() 
-      : (user.name ? user.name[0].toUpperCase() : 'U');
-      
-    const userName = user.firstName 
-      ? `${user.firstName} ${user.lastName || ''}`.trim() 
-      : user.name || 'Unknown User';
+    const currentText = newComment.trim();
+    setNewComment(''); // Optimistically clear input
 
-    const comment: Comment = {
-      id: Date.now().toString(),
-      userId: user.id || 'anonymous',
-      userName,
-      userInitials: initials,
-      text: newComment.trim(),
-      timestamp: new Date().toISOString(),
-    };
+    // Extract @mentions
+    const mentionMatches = currentText.match(/@(\w+)/g);
+    const mentionedUserIds: string[] = [];
 
-    setComments(prev => [...prev, comment]);
-    setNewComment('');
+    if (mentionMatches && allUsers.length > 0) {
+      mentionMatches.forEach(match => {
+        const username = match.substring(1).toLowerCase();
+        // Try to find a user where first name or last name matches
+        const matchedUser = allUsers.find(u => 
+          (u.firstName && u.firstName.toLowerCase().includes(username)) || 
+          (u.lastName && u.lastName.toLowerCase().includes(username)) ||
+          (u.name && u.name.toLowerCase().includes(username))
+        );
+        if (matchedUser && matchedUser.id) {
+          mentionedUserIds.push(matchedUser.id);
+        } else if (matchedUser && (matchedUser as any)._id) {
+          mentionedUserIds.push((matchedUser as any)._id);
+        }
+      });
+    }
+
+    try {
+      const savedComment = await commentService.createComment({ 
+        text: currentText,
+        mentionedUserIds
+      });
+      setComments(prev => [...prev, savedComment]);
+    } catch (error) {
+      console.error('Failed to add comment', error);
+      // Restore text if failed
+      setNewComment(currentText);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -126,9 +153,9 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
           ) : (
             <div className="flex flex-col gap-4">
               {comments.map((comment) => {
-                const isMe = user && (comment.userId === user.id);
+                const isMe = user && (comment.userId === user.id || comment.userId === user._id);
                 return (
-                  <div key={comment.id} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <div key={comment._id} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                     <div className="flex-shrink-0 mt-1">
                       <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-semibold text-primary">
                         {comment.userInitials}
@@ -140,7 +167,7 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
                           {isMe ? 'You' : comment.userName}
                         </span>
                         <span className="text-[10px] text-muted-foreground">
-                          {formatTime(comment.timestamp)}
+                          {formatTime(comment.createdAt)}
                         </span>
                       </div>
                       <div className={`px-3 py-2 rounded-2xl text-sm shadow-sm whitespace-pre-wrap break-words ${
