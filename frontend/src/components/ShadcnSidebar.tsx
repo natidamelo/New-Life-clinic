@@ -39,12 +39,11 @@ import userService from '../services/userService';
 import { buildVeltUser, buildVeltContacts } from '../utils/veltUtils';
 import {
   VeltNotificationsTool,
-  VeltSidebarButton,
-  VeltCommentsSidebar,
   useIdentify,
   useSetDocumentId,
   useContactUtils,
 } from '@veltdev/react';
+import CustomSidebarComments from './CustomSidebarComments';
 import {
   Sidebar,
   SidebarContent,
@@ -235,24 +234,6 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState(-1);
   const isNavigatingRef = useRef(false);
   const [isNavigatingViaButtons, setIsNavigatingViaButtons] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-
-  // Intercept close button clicks to programmatically close the comments sidebar
-  useEffect(() => {
-    const handleGlobalClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (target && typeof target.closest === 'function') {
-        if (target.closest('[data-testid="velt-comment-sidebar-close-button"]')) {
-          setIsSidebarOpen(false);
-        }
-      }
-    };
-    document.addEventListener('click', handleGlobalClick, true);
-    return () => {
-      document.removeEventListener('click', handleGlobalClick, true);
-    };
-  }, []);
   const lastRouteStartTimeRef = useRef<number | null>(null);
   const lastRoutePathRef = useRef<string | null>(null);
 
@@ -742,10 +723,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               <SidebarMenu>
                 {/* Collaboration Sidebar Toggle */}
                 <SidebarMenuItem>
-                  <div className="flex items-center justify-between px-3 py-1.5 border border-sidebar-border/60 bg-sidebar/5 rounded-lg mb-1.5">
-                    <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">Comments</span>
-                    <VeltSidebarButton />
-                  </div>
+                  <CustomSidebarComments />
                 </SidebarMenuItem>
 
                 {/* Check-in/Check-out Button */}
@@ -903,15 +881,6 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
           onClose={() => setIsQRModalOpen(false)}
         />
 
-        <VeltCommentsSidebar 
-          shadowDom={false}
-          floatingMode={true}
-          visible={isSidebarOpen}
-          // @ts-ignore
-          className={!isSidebarOpen ? 'opacity-0 invisible pointer-events-none' : 'opacity-100 visible'}
-          onSidebarOpen={() => setIsSidebarOpen(true)}
-          onSidebarClose={() => setIsSidebarOpen(false)}
-        />
 
 
 
