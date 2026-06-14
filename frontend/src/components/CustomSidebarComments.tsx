@@ -35,11 +35,11 @@ const playNotificationSound = () => {
     oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1); // A5
     
     gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+    gainNode.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
     
     oscillator.start(audioCtx.currentTime);
-    oscillator.stop(audioCtx.currentTime + 0.3);
+    oscillator.stop(audioCtx.currentTime + 0.5);
   } catch (e) {
     console.log("Audio not supported");
   }
@@ -52,16 +52,25 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
   const [newComment, setNewComment] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [mentionSearch, setMentionSearch] = useState<{ active: boolean; term: string; index: number }>({ active: false, term: '', index: 0 });
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   const isFirstLoad = React.useRef(true);
   const lastCommentCount = React.useRef(0);
   const userIdRef = React.useRef(user?.id || (user as any)?._id);
+  const isOpenRef = React.useRef(isOpen);
 
   useEffect(() => {
     userIdRef.current = user?.id || (user as any)?._id;
   }, [user]);
+
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+    if (isOpen) {
+      setUnreadCount(0); // clear unread count when opened
+    }
+  }, [isOpen]);
 
   // Fetch comments and users from API
   const fetchComments = async () => {
@@ -71,10 +80,13 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
       if (!isFirstLoad.current && data.length > lastCommentCount.current) {
         const newComments = data.slice(lastCommentCount.current);
         const currentUserId = userIdRef.current;
-        const hasNewFromOthers = newComments.some(c => c.userId !== currentUserId);
+        const newFromOthers = newComments.filter(c => c.userId !== currentUserId);
         
-        if (hasNewFromOthers) {
+        if (newFromOthers.length > 0) {
           playNotificationSound();
+          if (!isOpenRef.current) {
+            setUnreadCount(prev => prev + newFromOthers.length);
+          }
         }
       }
       
@@ -208,11 +220,15 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
             <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">Comments</span>
             <div className="relative">
               <ChatBubbleLeftRightIcon className="w-5 h-5 text-muted-foreground" />
-              {comments.length > 0 && (
+              {unreadCount > 0 ? (
+                <span className="absolute -top-2 -right-4 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-background whitespace-nowrap z-10 animate-bounce">
+                  {unreadCount} {unreadCount === 1 ? 'message' : 'messages'}
+                </span>
+              ) : comments.length > 0 ? (
                 <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] font-bold h-3.5 min-w-[14px] flex items-center justify-center rounded-full px-1 border border-background">
                   {comments.length > 99 ? '99+' : comments.length}
                 </span>
-              )}
+              ) : null}
             </div>
           </div>
         )}
