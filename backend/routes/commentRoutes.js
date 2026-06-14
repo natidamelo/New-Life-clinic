@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const commentController = require('../controllers/commentController');
-const { protect } = require('../middleware/authMiddleware'); // Verify this path
+const { auth } = require('../middleware/auth');
 
 router.route('/')
-  .get(protect, commentController.getComments)
-  .post(protect, commentController.createComment);
+  .get(auth, commentController.getComments)
+  .post(auth, commentController.createComment);
 
 module.exports = router;
