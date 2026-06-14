@@ -236,6 +236,22 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   const isNavigatingRef = useRef(false);
   const [isNavigatingViaButtons, setIsNavigatingViaButtons] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Intercept close button clicks to programmatically close the comments sidebar
+  useEffect(() => {
+    const handleGlobalClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (target && typeof target.closest === 'function') {
+        if (target.closest('[data-testid="velt-comment-sidebar-close-button"]')) {
+          setIsSidebarOpen(false);
+        }
+      }
+    };
+    document.addEventListener('click', handleGlobalClick, true);
+    return () => {
+      document.removeEventListener('click', handleGlobalClick, true);
+    };
+  }, []);
   const lastRouteStartTimeRef = useRef<number | null>(null);
   const lastRoutePathRef = useRef<string | null>(null);
 
