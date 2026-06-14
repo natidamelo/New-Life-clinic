@@ -889,6 +889,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
         <VeltCommentsSidebar 
           shadowDom={false}
           floatingMode={true}
+          forceClose={!isSidebarOpen}
           // @ts-ignore
           className={!isSidebarOpen ? 'pointer-events-none' : ''}
           onSidebarOpen={() => setIsSidebarOpen(true)}
