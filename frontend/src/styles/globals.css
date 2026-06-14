@@ -452,8 +452,25 @@ main[data-slot="sidebar-inset"] {
 }
 
 /* Custom Close (X) Button for Velt Comments Sidebar */
+[data-testid="velt-comment-sidebar-close-button"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  cursor: pointer !important;
+  position: relative !important;
+  z-index: 10 !important;
+}
+
 [data-testid="velt-comment-sidebar-close-button"] * {
-  display: none !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
 }
 
 [data-testid="velt-comment-sidebar-close-button"]::after {
@@ -462,13 +479,7 @@ main[data-slot="sidebar-inset"] {
   font-weight: 600 !important;
   color: hsl(var(--muted-foreground)) !important;
   transition: color 150ms ease !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 24px !important;
-  height: 24px !important;
   line-height: 1 !important;
-  cursor: pointer !important;
 }
 
 [data-testid="velt-comment-sidebar-close-button"]:hover::after {
