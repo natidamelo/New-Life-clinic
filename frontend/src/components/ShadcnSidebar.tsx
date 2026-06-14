@@ -237,6 +237,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   const [isNavigatingViaButtons, setIsNavigatingViaButtons] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+
   // Intercept close button clicks to programmatically close the comments sidebar
   useEffect(() => {
     const handleGlobalClick = (event: MouseEvent) => {
@@ -905,9 +906,8 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
         <VeltCommentsSidebar 
           shadowDom={false}
           floatingMode={true}
-          forceClose={!isSidebarOpen}
           // @ts-ignore
-          className={!isSidebarOpen ? 'pointer-events-none' : ''}
+          className={!isSidebarOpen ? 'opacity-0 invisible pointer-events-none' : 'opacity-100 visible'}
           onSidebarOpen={() => setIsSidebarOpen(true)}
           onSidebarClose={() => setIsSidebarOpen(false)}
         />

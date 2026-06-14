@@ -470,7 +470,7 @@ main[data-slot="sidebar-inset"] {
   position: absolute !important;
   width: 100% !important;
   height: 100% !important;
-  cursor: pointer !important;
+  pointer-events: none !important;
 }
 
 [data-testid="velt-comment-sidebar-close-button"]::after {
