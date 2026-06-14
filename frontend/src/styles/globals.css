@@ -450,3 +450,27 @@ main[data-slot="sidebar-inset"] {
   width: 100% !important;
   max-width: 100vw !important;
 }
+
+/* Custom Close (X) Button for Velt Comments Sidebar */
+[data-testid="velt-comment-sidebar-close-button"] * {
+  display: none !important;
+}
+
+[data-testid="velt-comment-sidebar-close-button"]::after {
+  content: "✕" !important;
+  font-size: 1.2rem !important;
+  font-weight: 600 !important;
+  color: hsl(var(--muted-foreground)) !important;
+  transition: color 150ms ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 24px !important;
+  height: 24px !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+}
+
+[data-testid="velt-comment-sidebar-close-button"]:hover::after {
+  color: hsl(var(--foreground)) !important;
+}
