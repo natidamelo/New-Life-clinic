@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useSetVeltDocId } from '../../context/VeltContext';
 import AIAdvisorPanel from '../../components/Billing/AIAdvisorPanel';
-import VeltToolbar from '../../components/VeltToolbar';
 import api from '../../services/apiService';
 
 const FinancialAdvisor: React.FC = () => {
   const [revenue, setRevenue] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
-
-  // Set Velt document ID
-  useSetVeltDocId('financial-advisor');
 
   useEffect(() => {
     const fetchRevenue = async () => {
@@ -35,13 +30,12 @@ const FinancialAdvisor: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-2 sm:p-4">
-      <div className="flex justify-between items-center bg-card/60 border border-border/85 rounded-2xl p-6 shadow-sm">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">AI Financial Advisor</h1>
-          <p className="text-sm text-muted-foreground">Collaboration space for clinic financial planning and loan analysis</p>
+        <div className="flex justify-between items-center bg-card p-6 rounded-xl border shadow-sm">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">AI Financial Advisor</h1>
+            <p className="text-sm text-muted-foreground">Collaboration space for clinic financial planning and loan analysis</p>
+          </div>
         </div>
-        <VeltToolbar />
-      </div>
 
       {loading ? (
         <div className="flex justify-center items-center h-64">

@@ -36,13 +36,6 @@ import ThemeSelector from './ThemeSelector';
 import QRCodeModal from './QRCodeModal';
 import AttendanceOverlay from './AttendanceOverlay';
 import userService from '../services/userService';
-import { buildVeltUser, buildVeltContacts } from '../utils/veltUtils';
-import {
-  VeltNotificationsTool,
-  useIdentify,
-  useSetDocumentId,
-  useContactUtils,
-} from '@veltdev/react';
 import CustomSidebarComments from './CustomSidebarComments';
 import {
   Sidebar,
@@ -175,8 +168,6 @@ const mchMenuItems = [
   { path: '/app/leave-request', icon: Calendar, label: 'Request Leave' },
 ];
 
-import { useVeltDocIdOverride, STAFF_COLLABORATION_DOC_ID } from '../context/VeltContext';
-
 interface ShadcnSidebarProps {
   children: React.ReactNode;
 }
@@ -185,45 +176,7 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user, isLoading: authLoading } = useAuth();
-  const [veltUser, setVeltUser] = useState<any>(null);
-  const [contacts, setContacts] = useState<any[]>([]);
-  useIdentify(veltUser);
-  const contactUtils = useContactUtils();
 
-  const { docIdOverride } = useVeltDocIdOverride();
-
-  // All staff share one comment thread in the sidebar (not per-page), so @mentions work across roles.
-  useSetDocumentId(docIdOverride || STAFF_COLLABORATION_DOC_ID);
-
-  useEffect(() => {
-    if (user) {
-      const veltIdentity = buildVeltUser(user);
-      setVeltUser(veltIdentity);
-      console.log('✅ [Velt] User queued for instant identification in ShadcnSidebar:', veltIdentity.name, 'org:', veltIdentity.organizationId);
-
-      // 2. Load contacts database in background
-      userService.getAllUsers().then((allClinicUsers) => {
-        if (allClinicUsers && allClinicUsers.length > 0) {
-          const formatted = buildVeltContacts(allClinicUsers);
-          setContacts(formatted);
-          console.log('✅ [Velt] Contacts loaded in ShadcnSidebar background:', formatted.length);
-        }
-      }).catch(error => {
-        console.error('❌ [Velt] Failed to load contacts in background in ShadcnSidebar:', error);
-      });
-    } else {
-      setVeltUser(null);
-      setContacts([]);
-    }
-  }, [user]);
-
-  // 3. Reactively update contacts once Velt client (contactUtils) is initialized
-  useEffect(() => {
-    if (contactUtils && contacts.length > 0) {
-      contactUtils.updateContactList(contacts);
-      console.log('✅ [Velt] Contacts successfully synced with Velt in ShadcnSidebar:', contacts.length);
-    }
-  }, [contacts, contactUtils]);
   const { clinic } = useClinic();
   const { isDarkMode } = useSafeTheme();
   const { attendanceStatus, isLoading: statusLoading } = useAttendanceStatus();
@@ -840,9 +793,6 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
               {/* Right side: theme + user pill */}
               <div className="flex items-center gap-2 overflow-visible">
                 <ThemeSelector />
-                <div className="relative flex items-center bg-muted/40 hover:bg-muted/70 transition-colors rounded-xl px-2.5 py-1 border border-border/40">
-                  <VeltNotificationsTool panelOpenMode="popover" />
-                </div>
                 {/* User pill */}
                 <div className="hidden sm:flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-muted/60 border border-border hover:bg-muted transition-colors cursor-default">
                   {user?.photo ? (

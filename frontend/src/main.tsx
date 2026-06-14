@@ -14,12 +14,7 @@ import ErrorBoundary from './components/common/ErrorBoundary'
 import router from './router'
 import './index.css'
 import './styles/globals.css'
-import {
-  VeltProvider,
-  VeltComments,
-  VeltCursor,
-  VeltHuddle,
-} from '@veltdev/react';
+
 // Debug utilities loaded on-demand only in development (not bundled in production)
 if (import.meta.env.DEV) {
   import('./utils/serviceExposure');
@@ -34,7 +29,7 @@ const queryClient = new QueryClient({
   },
 })
 
-import { VeltDocIdProvider } from './context/VeltContext';
+
 
 // Make query client available globally for cache invalidation
 declare global {
@@ -101,20 +96,12 @@ if (typeof window !== 'undefined') {
   }
 }
 
-const veltApiKey = import.meta.env.VITE_VELT_API_KEY?.trim();
-console.log('🔍 [Velt Info] VITE_VELT_API_KEY presence:', !!veltApiKey);
-console.log('🔍 [Velt Info] VITE_VELT_API_KEY length:', veltApiKey?.length || 0);
-
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <VeltProvider apiKey={veltApiKey}>
-    <VeltComments />
-    <VeltCursor />
-    <VeltHuddle />
+  <React.StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <VeltDocIdProvider>
-            <ClinicProvider>
+          <ClinicProvider>
               <SettingsProvider>
                 <GlobalSettingsProvider>
                   <CustomThemeProvider>
@@ -127,11 +114,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                   </CustomThemeProvider>
                 </GlobalSettingsProvider>
               </SettingsProvider>
-            </ClinicProvider>
-          </VeltDocIdProvider>
+          </ClinicProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
-  </VeltProvider>
+  </React.StrictMode>
 )
- 

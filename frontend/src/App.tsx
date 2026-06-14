@@ -7,68 +7,11 @@ import attendanceService from './services/attendanceService';
 import AttendanceOverlay from './components/AttendanceOverlay';
 import PrimaryColorInitializer from './components/PrimaryColorInitializer';
 import userService from './services/userService';
-import { buildVeltUser, buildVeltContacts } from './utils/veltUtils';
-import {
-  VeltNotificationsTool,
-  useIdentify,
-  useVeltClient,
-  useContactUtils,
-} from '@veltdev/react';
 import './styles/ui-upgrades.css';
 
 const App: React.FC = () => {
   const { user } = useAuth();
-  const [veltUser, setVeltUser] = React.useState<any>(null);
-  const [contacts, setContacts] = React.useState<any[]>([]);
   const location = useLocation();
-  const { client } = useVeltClient();
-  const contactUtils = useContactUtils();
-
-  useEffect(() => {
-    if (client) {
-      const errorSub = client.on('error', (err: any) => {
-        console.error('❌ [Velt Client Error Event]:', err);
-      });
-      return () => {
-        if (typeof errorSub?.off === 'function') {
-          errorSub.off();
-        }
-      };
-    }
-  }, [client]);
-
-  // Call the hook at the top level with our state variable.
-  // It handles identification reactively as state updates.
-  useIdentify(veltUser);
-
-  useEffect(() => {
-    if (user) {
-      const veltIdentity = buildVeltUser(user);
-      setVeltUser(veltIdentity);
-      console.log('✅ [Velt] User queued for instant identification:', veltIdentity.name, 'org:', veltIdentity.organizationId);
-
-      userService.getAllUsers().then((allClinicUsers) => {
-        if (allClinicUsers && allClinicUsers.length > 0) {
-          const formatted = buildVeltContacts(allClinicUsers);
-          setContacts(formatted);
-          console.log('✅ [Velt] Contacts loaded in App.tsx background:', formatted.length);
-        }
-      }).catch(err => {
-        console.error('❌ [Velt] Failed to load contacts:', err);
-      });
-    } else {
-      setVeltUser(null);
-      setContacts([]);
-    }
-  }, [user]);
-
-  // Sync contacts reactively when contacts or contactUtils load
-  useEffect(() => {
-    if (contactUtils && contacts.length > 0) {
-      contactUtils.updateContactList(contacts);
-      console.log('✅ [Velt] Contacts successfully synced with Velt (App.tsx):', contacts.length);
-    }
-  }, [contacts, contactUtils]);
 
   const formatHeaderTitle = (pathname: string) => {
     const parts = pathname.split('/').filter(Boolean);
@@ -123,11 +66,6 @@ const App: React.FC = () => {
                 <span className="text-lg font-bold text-foreground capitalize tracking-wide">
                   {formatHeaderTitle(location.pathname)}
                 </span>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="relative flex items-center gap-3 bg-muted/40 hover:bg-muted/70 transition-colors rounded-xl px-3 py-1.5 border border-border/40">
-                  <VeltNotificationsTool panelOpenMode="popover" />
-                </div>
               </div>
             </header>
           )}
