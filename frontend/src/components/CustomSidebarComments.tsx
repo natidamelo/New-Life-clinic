@@ -25,6 +25,8 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
   const [newComment, setNewComment] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState<{ active: boolean; term: string; index: number }>({ active: false, term: '', index: 0 });
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Fetch comments and users from API
   const fetchComments = async () => {
@@ -110,6 +112,45 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
     }
   };
 
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setNewComment(val);
+
+    const cursorPosition = e.target.selectionStart;
+    const textBeforeCursor = val.slice(0, cursorPosition);
+    
+    const match = textBeforeCursor.match(/@(\w*)$/);
+    if (match) {
+      setMentionSearch({
+        active: true,
+        term: match[1].toLowerCase(),
+        index: match.index !== undefined ? match.index : 0
+      });
+    } else {
+      setMentionSearch(prev => prev.active ? { ...prev, active: false } : prev);
+    }
+  };
+
+  const insertMention = (user: User) => {
+    const mentionName = (user.firstName || user.name || 'user').replace(/\s+/g, '');
+    const beforeMention = newComment.slice(0, mentionSearch.index);
+    const afterMention = newComment.slice(mentionSearch.index + mentionSearch.term.length + 1);
+    
+    setNewComment(`${beforeMention}@${mentionName} ${afterMention}`);
+    setMentionSearch({ active: false, term: '', index: 0 });
+    
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    }, 10);
+  };
+
+  const filteredUsers = mentionSearch.active ? allUsers.filter(u => {
+    const name = ((u.firstName || '') + ' ' + (u.lastName || '') + ' ' + (u.name || '')).toLowerCase();
+    return name.includes(mentionSearch.term);
+  }).slice(0, 5) : [];
+
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + 
@@ -186,10 +227,32 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
         </ScrollArea>
         
         <div className="p-4 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          
+          {/* Mention Autocomplete Dropdown */}
+          {mentionSearch.active && filteredUsers.length > 0 && (
+            <div className="absolute bottom-full left-4 right-4 mb-2 bg-popover border border-border rounded-lg shadow-lg overflow-hidden z-50 max-h-48 overflow-y-auto">
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/30 border-b border-border">Select a user to mention:</div>
+              {filteredUsers.map(u => (
+                <div 
+                  key={u.id || (u as any)._id}
+                  className="px-3 py-2 text-sm hover:bg-muted cursor-pointer flex items-center gap-2 transition-colors"
+                  onClick={() => insertMention(u)}
+                >
+                  <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                    {(u.firstName?.[0] || u.name?.[0] || 'U').toUpperCase()}
+                  </div>
+                  <span className="font-medium">{u.firstName} {u.lastName}</span>
+                  {u.role && <span className="text-xs text-muted-foreground ml-auto capitalize bg-muted px-1.5 py-0.5 rounded">{u.role}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="relative flex items-end gap-2">
             <Textarea
+              ref={textareaRef}
               value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
+              onChange={handleTextChange}
               onKeyDown={handleKeyDown}
               placeholder="Type a message..."
               className="min-h-[40px] max-h-[120px] resize-none pr-12 rounded-xl border-border/60 bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary/50"
