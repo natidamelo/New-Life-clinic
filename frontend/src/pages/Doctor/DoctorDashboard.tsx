@@ -41,7 +41,7 @@ import ImagingResultsList from '../../components/doctor/ImagingResultsList';
 import { PatientLabResults } from '../../services/labService';
 
 // Import utility functions
-import { formatDate, formatTime, formatDateTime } from '../../utils/formatters';
+import { formatDate, formatTime, formatDateTime, formatDisplayAge } from '../../utils/formatters';
 import { clearLocalStorageCache, forcePageRefresh } from '../../utils/clearCache';
 
 // Import components
@@ -4577,7 +4577,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                                 <div class="section-title">Patient Information</div>
                                 <div class="patient-info">
                                   <div class="patient-field"><strong>FULL NAME:</strong> ${patientName}</div>
-                                  <div class="patient-field"><strong>AGE:</strong> ${(prescription.patient as any)?.age || (prescription.patientId as any)?.age || prescription.patientDetails?.age || 'Not specified'} years</div>
+                                  <div class="patient-field"><strong>AGE:</strong> ${((prescription.patient as any)?.age || (prescription.patientId as any)?.age || prescription.patientDetails?.age) !== undefined && ((prescription.patient as any)?.age || (prescription.patientId as any)?.age || prescription.patientDetails?.age) !== null ? formatDisplayAge(((prescription.patient as any)?.age || (prescription.patientId as any)?.age || prescription.patientDetails?.age)) : 'Not specified'}</div>
                                   <div class="patient-field"><strong>GENDER:</strong> ${(prescription.patient as any)?.gender || (prescription.patientId as any)?.gender || prescription.patientDetails?.gender || 'Not specified'}</div>
                                   <div class="patient-field"><strong>ADDRESS:</strong> ${(prescription.patient as any)?.address || (prescription.patientId as any)?.address || prescription.patientDetails?.address || 'Not specified'}</div>
                                   <div class="patient-field"><strong>PATIENT ID:</strong> ${(prescription.patient as any)?.patientId || (prescription.patientId as any)?.patientId || prescription.patientDetails?.patientId || 'Not specified'}</div>
@@ -4934,7 +4934,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                             const age = (prescription.patient as any)?.age ||
                               (prescription.patientId as any)?.age ||
                               prescription.patientDetails?.age;
-                            return age ? `${age} years` : 'Not specified';
+                            return age !== undefined && age !== null ? formatDisplayAge(age) : 'Not specified';
                           })()
                         }
                       </div>
