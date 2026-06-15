@@ -135,7 +135,7 @@ interface NewPatientFormValues {
 }
 
 // Lightweight edit form state for patient registration updates
-type EditFormState = Partial<Patient> & { id?: string };
+type EditFormState = Partial<Patient> & { id?: string; ageDisplay?: string | number; ageUnit?: string };
 
 interface Doctor {
   id: string;
@@ -177,6 +177,29 @@ const getWaitingTimeColor = (lastVisit?: string): string => {
   if (mins >= 60) return 'text-orange-500 font-medium';
   if (mins >= 30) return 'text-yellow-600';
   return 'text-green-600';
+};
+
+const formatDisplayAge = (age: any): string => {
+  const numAge = Number(age);
+  if (!Number.isFinite(numAge) || numAge < 0) return '-';
+  if (numAge === 0) return '0';
+  
+  if (numAge < 2) {
+    const months = numAge * 12;
+    if (Math.abs(Math.round(months) - months) < 0.1) {
+      return `${Math.round(months)} mo`;
+    }
+    const days = numAge * 365;
+    if (Math.abs(Math.round(days) - days) < 0.1) {
+      return `${Math.round(days)} d`;
+    }
+  }
+  
+  if (Math.abs(Math.round(numAge) - numAge) < 0.05) {
+    return `${Math.round(numAge)} y`;
+  }
+  
+  return `${Number(numAge.toFixed(1))} y`;
 };
 
 /** Prefer lastUpdated (when they joined/refreshed in queue) so renewed-today patients show short wait. */
@@ -888,7 +911,27 @@ const ReceptionDashboard: React.FC = () => {
   // Editing handlers
   const handleEditPatientOpen = (patient: QueuePatient) => {
     const derivedId = (patient as any).id || (patient as any)._id || (patient as any).patientId;
-    setEditForm({ ...patient, id: derivedId });
+    
+    let displayAge = patient.age;
+    let unit = 'years';
+    
+    if (patient.age !== undefined && patient.age !== null) {
+      if (patient.age > 0 && patient.age < 2) {
+        const months = patient.age * 12;
+        if (Math.abs(Math.round(months) - months) < 0.1) {
+          displayAge = Math.round(months);
+          unit = 'months';
+        } else {
+          const days = patient.age * 365;
+          if (Math.abs(Math.round(days) - days) < 0.1) {
+            displayAge = Math.round(days);
+            unit = 'days';
+          }
+        }
+      }
+    }
+    
+    setEditForm({ ...patient, id: derivedId, ageDisplay: displayAge, ageUnit: unit });
     setIsEditModalOpen(true);
   };
 
@@ -905,7 +948,19 @@ const ReceptionDashboard: React.FC = () => {
     }
     setIsSavingEdit(true);
     try {
-      const { id: _omit, _id: _omit2, patientId: _pid, ...payload } = editForm as any;
+      const { id: _omit, _id: _omit2, patientId: _pid, ageDisplay, ageUnit, ...payload } = editForm as any;
+      
+      if (ageDisplay !== undefined && ageDisplay !== '') {
+        const numericAge = Number(ageDisplay);
+        if (ageUnit === 'months') {
+          payload.age = Number((numericAge / 12).toFixed(2));
+        } else if (ageUnit === 'days') {
+          payload.age = Number((numericAge / 365).toFixed(2));
+        } else {
+          payload.age = numericAge;
+        }
+      }
+
       await patientService.updatePatient(String(id), payload);
       toast.success('Patient updated successfully');
       setIsEditModalOpen(false);
@@ -2764,7 +2819,7 @@ const ReceptionDashboard: React.FC = () => {
                           </td>
                           {/* Age / Gender */}
                           <td className="py-3 px-3 text-sm">
-                            <span>{patient?.age || '-'}</span>
+                            <span>{formatDisplayAge(patient?.age)}</span>
                             {patient?.gender && (
                               <span className={`ml-1 px-1.5 py-0.5 rounded text-xs font-medium ${(patient.gender || '').toLowerCase() === 'male' ? 'bg-blue-100 text-blue-700' :
                                   (patient.gender || '').toLowerCase() === 'female' ? 'bg-pink-100 text-pink-700' :
@@ -3092,13 +3147,24 @@ const ReceptionDashboard: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">Age</label>
-                  <input
-                    type="number"
-                    min={0}
-                    className="block w-full rounded-lg border border-border/40 shadow-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 px-3 py-2"
-                    value={(editForm as any).age || ''}
-                    onChange={(e) => handleEditFormChange('age' as any, Number(e.target.value))}
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      className="block w-full rounded-lg border border-border/40 shadow-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 px-3 py-2"
+                      value={(editForm as any).ageDisplay || ''}
+                      onChange={(e) => handleEditFormChange('ageDisplay' as any, e.target.value)}
+                    />
+                    <select
+                      className="block w-2/3 rounded-lg border border-border/40 shadow-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 px-3 py-2"
+                      value={(editForm as any).ageUnit || 'years'}
+                      onChange={(e) => handleEditFormChange('ageUnit' as any, e.target.value)}
+                    >
+                      <option value="years">Years</option>
+                      <option value="months">Months</option>
+                      <option value="days">Days</option>
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">Gender</label>
