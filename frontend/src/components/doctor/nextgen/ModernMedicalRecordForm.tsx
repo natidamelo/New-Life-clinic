@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 // import { useMemorySystem } from '../../../hooks/useMemorySystem';
 // import MemorySystemControls from '../MemorySystemControls';
 import { getAuthToken } from '../../../utils/authToken';
+import { formatDisplayAge } from '../../../utils/formatters';
 import AIAssistantService, { GrammarError } from '../../../services/aiAssistantService';
 import { specialtyConfigs, specialtyColors } from '../../../config/specialtyConfigs';
 import { MedicalRecordContext } from '../../../contexts/MedicalRecordContext';
@@ -3810,7 +3811,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           </Typography>
           <Box display="flex" gap={1} mt={0.5} flexWrap="wrap" alignItems="center">
             <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-              {patientData.gender ? patientData.gender.charAt(0).toUpperCase() + patientData.gender.slice(1) : 'Unknown'} · {patientData.age || '—'} yrs
+              {patientData.gender ? patientData.gender.charAt(0).toUpperCase() + patientData.gender.slice(1) : 'Unknown'} · {patientData.age !== undefined && patientData.age !== null ? formatDisplayAge(patientData.age) : '—'}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>ID: {patientData.id}</Typography>
             {patientData.phone && <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>{patientData.phone}</Typography>}

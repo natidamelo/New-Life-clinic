@@ -10,6 +10,7 @@ import {
   Biotech as BiotechIcon,
   CameraAlt as CameraIcon
 } from '@mui/icons-material';
+import { formatDisplayAge } from '../../utils/formatters';
 
 // Types
 interface Patient {
@@ -129,7 +130,7 @@ const PatientList: React.FC<PatientListProps> = ({
                       {patient.firstName} {patient.lastName}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
-                      {patient.gender}, {calculateAge(patient.dateOfBirth)} yrs
+                      {patient.gender}, {formatDisplayAge(calculateAge(patient.dateOfBirth))}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                       <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>

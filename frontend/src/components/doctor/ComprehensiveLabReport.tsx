@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { formatDate } from '../../utils/formatters';
+import { formatDate, formatDisplayAge } from '../../utils/formatters';
 import { PatientLabResults, StandardLabResult } from '../../services/labService';
 import { Copy, Printer, Download, Search, RefreshCw, X, FlaskConical, User, Calendar, Hash, ChevronDown, ChevronUp, Activity, TestTube, Microscope, Heart, Shield, Beaker } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -323,7 +323,7 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
           <div class="patient-info">
             <div class="info-item"><span class="info-label">Patient Name:</span> ${patientResults.patientName || '<span class="missing-data">Not recorded</span>'}</div>
             <div class="info-item"><span class="info-label">Patient ID:</span> ${patientResults.patientId || '<span class="missing-data">Not recorded</span>'}</div>
-            <div class="info-item"><span class="info-label">Age & Gender:</span> ${patientResults.age ? `${patientResults.age} yrs` : 'Unknown'}, ${patientResults.gender || 'Unknown'}</div>
+            <div class="info-item"><span class="info-label">Age & Gender:</span> ${patientResults.age !== undefined && patientResults.age !== null ? formatDisplayAge(patientResults.age) : 'Unknown'}, ${patientResults.gender || 'Unknown'}</div>
             <div class="info-item"><span class="info-label">Physician:</span> ${patientResults.physician || 'Dr. Assigned'}</div>
             <div class="info-item" style="border: 1px solid #cce5ff; background: #e6f2ff; padding: 2px 4px; border-radius: 3px;"><span class="info-label" style="color: #004085;">Report Date:</span> <span style="font-weight:bold; color:#004085;">${new Date().toLocaleDateString()}</span></div>
           </div>
@@ -1496,7 +1496,7 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; padding: 10px; background-color: #f9f9f9; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 11px; margin-bottom: 15px;">
           <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Patient Name:</span> ${patientResults.patientName || '<span style="color: #888; font-style: italic;">Not recorded</span>'}</div>
           <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Patient ID:</span> ${patientResults.patientId || '<span style="color: #888; font-style: italic;">Not recorded</span>'}</div>
-          <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Age & Gender:</span> ${patientResults.age ? `${patientResults.age} yrs` : 'Unknown'}, ${patientResults.gender || 'Unknown'}</div>
+          <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Age & Gender:</span> ${patientResults.age !== undefined && patientResults.age !== null ? formatDisplayAge(patientResults.age) : 'Unknown'}, ${patientResults.gender || 'Unknown'}</div>
           <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Physician:</span> ${patientResults.physician || 'Dr. Assigned'}</div>
           <div style="margin-bottom: 4px; border: 1px solid #cce5ff; background: #e6f2ff; padding: 2px 4px; border-radius: 3px;"><span style="font-weight: bold; display: inline-block; min-width: 90px; color: #004085;">Report Date:</span> <span style="font-weight:bold; color:#004085;">${new Date().toLocaleDateString()}</span></div>
         </div>
@@ -1843,7 +1843,7 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
           {[
             { label: 'Patient Name', value: patientResults.patientName, icon: <User size={14} /> },
             { label: 'Patient ID', value: patientResults.patientId, mono: true, icon: <Hash size={14} /> },
-            { label: 'Age & Gender', value: `${patientResults.age ? `${patientResults.age} yrs` : 'Unknown'}, ${patientResults.gender || 'Unknown'}`, capitalize: true, icon: <User size={14} /> },
+            { label: 'Age & Gender', value: `${patientResults.age !== undefined && patientResults.age !== null ? formatDisplayAge(patientResults.age) : 'Unknown'}, ${patientResults.gender || 'Unknown'}`, capitalize: true, icon: <User size={14} /> },
             { label: 'Physician', value: patientResults.physician || 'Dr. Assigned', icon: <User size={14} /> },
             { label: 'Report Date', value: formatDate(new Date()), prominent: true, icon: <Calendar size={14} /> },
           ].map(({ label, value, mono, capitalize, icon, prominent }) => (

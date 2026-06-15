@@ -169,6 +169,29 @@ export const formatFileSize = (bytes: number): string => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
+export const formatDisplayAge = (age: any): string => {
+  const numAge = Number(age);
+  if (!Number.isFinite(numAge) || numAge < 0) return '-';
+  if (numAge === 0) return '0';
+  
+  if (numAge < 2) {
+    const months = numAge * 12;
+    if (Math.abs(Math.round(months) - months) < 0.1) {
+      return `${Math.round(months)} mo`;
+    }
+    const days = numAge * 365;
+    if (Math.abs(Math.round(days) - days) < 0.1) {
+      return `${Math.round(days)} d`;
+    }
+  }
+  
+  if (Math.abs(Math.round(numAge) - numAge) < 0.05) {
+    return `${Math.round(numAge)} y`;
+  }
+  
+  return `${Number(numAge.toFixed(1))} y`;
+};
+
 // You can add other formatting functions here (like getStatusColor if needed) 
 
 export default {
@@ -176,5 +199,6 @@ export default {
   formatCurrency,
   formatDate,
   formatTime,
-  formatDateTime
+  formatDateTime,
+  formatDisplayAge
 }; 
