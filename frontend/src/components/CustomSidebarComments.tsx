@@ -201,9 +201,9 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
   };
 
   const filteredUsers = mentionSearch.active ? allUsers.filter(u => {
-    const name = ((u.firstName || '') + ' ' + (u.lastName || '') + ' ' + (u.name || '')).toLowerCase();
-    return name.includes(mentionSearch.term);
-  }).slice(0, 5) : [];
+    const searchString = ((u.firstName || '') + ' ' + (u.lastName || '') + ' ' + (u.name || '') + ' ' + (u.role || '')).toLowerCase();
+    return searchString.includes(mentionSearch.term);
+  }).slice(0, 15) : [];
 
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
