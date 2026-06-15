@@ -884,11 +884,19 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
   useEffect(() => {
     const completedCount = myAppointments.filter(a => ['Completed', 'completed'].includes(a.status)).length;
     
-    // Filter out viewed lab orders from the count
-    const unviewedLabResults = labResults.filter(o => !viewedLabOrders.includes(o._id || o.id));
-    
-    const pendingLabsCount = unviewedLabResults.filter(o => ['Ordered', 'Processing', 'Collected', 'Pending Payment'].includes(o.status)).length;
-    const completedLabsCount = unviewedLabResults.filter(o => o.status === 'Results Available').length;
+    // Filter out groups where all tests have been viewed
+    const unviewedGrouped = groupedLabResults.filter(group => {
+      const allViewed = group.tests.every(t => viewedLabOrders.includes(t._id || t.id));
+      return !allViewed;
+    });
+
+    const pendingLabsCount = unviewedGrouped.filter(group => 
+      ['Ordered', 'Processing', 'Collected', 'Pending Payment', 'Scheduled'].includes(group.status)
+    ).length;
+
+    const completedLabsCount = unviewedGrouped.filter(group => 
+      ['Results Available', 'Sent to Doctor', 'Completed', 'completed'].includes(group.status)
+    ).length;
 
     setDashboardStats({
       patientsToday: patientsWithVitals.length,
@@ -896,7 +904,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       completedAppointments: completedCount,
       labResults: completedLabsCount
     });
-  }, [patientsWithVitals, myAppointments, labResults, viewedLabOrders]);
+  }, [patientsWithVitals, myAppointments, groupedLabResults, viewedLabOrders]);
 
   // Fetch doctor's own appointments
   const fetchMyAppointments = useCallback(async () => {
