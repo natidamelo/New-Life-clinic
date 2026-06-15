@@ -33,12 +33,16 @@ interface PatientLabResultsListProps {
   groupedResults: PatientLabResults[];
   isLoading: boolean;
   onRefresh: () => void;
+  viewedLabOrders?: string[];
+  onViewReport?: (reportIds: string[]) => void;
 }
 
 const PatientLabResultsList: React.FC<PatientLabResultsListProps> = ({
   groupedResults,
   isLoading,
-  onRefresh
+  onRefresh,
+  viewedLabOrders = [],
+  onViewReport
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<PatientLabResults | null>(null);
@@ -128,7 +132,14 @@ const PatientLabResultsList: React.FC<PatientLabResultsListProps> = ({
                         <User size={20} className="text-muted-foreground" />
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-foreground">{patient?.patientName || 'Unknown Patient'}</div>
+                        <div className="text-sm font-medium text-foreground">
+                          {patient?.patientName || 'Unknown Patient'}
+                          {patient.tests.some(t => t.status === 'Results Available' && !viewedLabOrders.includes(t._id || t.id)) && (
+                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 animate-pulse">
+                              New
+                            </span>
+                          )}
+                        </div>
                         <div className="text-sm text-muted-foreground">ID: {patient?.patientId || 'Unknown ID'}</div>
                       </div>
                     </div>
@@ -150,7 +161,13 @@ const PatientLabResultsList: React.FC<PatientLabResultsListProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setSelectedPatient(patient)}
+                      onClick={() => {
+                        setSelectedPatient(patient);
+                        if (onViewReport) {
+                          const ids = patient.tests.map(t => t._id || t.id).filter(Boolean);
+                          onViewReport(ids);
+                        }
+                      }}
                       className="flex items-center gap-1"
                     >
                       <FileText size={16} />

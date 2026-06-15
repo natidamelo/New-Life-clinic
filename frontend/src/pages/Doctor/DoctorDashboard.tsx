@@ -367,6 +367,19 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
   const [isLoadingMedicalRecord, setIsLoadingMedicalRecord] = useState(false);
   const [showMedicalRecordsModal, setShowMedicalRecordsModal] = useState(false);
   const [viewedPatients, setViewedPatients] = useState<Set<string>>(new Set());
+  const [viewedLabOrders, setViewedLabOrders] = useState<string[]>([]);
+
+  // Load viewed lab orders from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('viewedLabOrders');
+      if (stored) {
+        setViewedLabOrders(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error('Error loading viewedLabOrders:', e);
+    }
+  }, []);
 
   // Add loading states
   const [isLoadingPrescription, setIsLoadingPrescription] = useState(false);
@@ -851,18 +864,6 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       // Remove debug fallback - only show patients that meet the criteria
       let finalPatientList = filteredPatients;
 
-      // Update dashboard stats based on fetched data
-      const completedCount = doctorAppointments.filter(a => ['Completed', 'completed'].includes(a.status)).length;
-      const pendingLabsCount = doctorLabResults.filter(o => ['Ordered', 'Processing', 'Collected', 'Pending Payment'].includes(o.status)).length;
-      const completedLabsCount = doctorLabResults.filter(o => o.status === 'Results Available').length;
-
-      setDashboardStats({
-        patientsToday: patientsWithVitalsData.length,
-        pendingReports: pendingLabsCount,
-        completedAppointments: completedCount,
-        labResults: completedLabsCount
-      });
-
       const uniqueAssignedPatientsData = removeDuplicatePatients(finalPatientList);
       console.log(`[DoctorDashboard] After removing duplicates: ${uniqueAssignedPatientsData.length} patients`);
 
@@ -878,6 +879,24 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       fetchInProgressRef.current = false; // Reset fetch in progress flag
     }
   }, [user, toast, searchTerm]);
+
+  // Automatically update dashboard stats whenever relevant lists or viewedLabOrders change
+  useEffect(() => {
+    const completedCount = myAppointments.filter(a => ['Completed', 'completed'].includes(a.status)).length;
+    
+    // Filter out viewed lab orders from the count
+    const unviewedLabResults = labResults.filter(o => !viewedLabOrders.includes(o._id || o.id));
+    
+    const pendingLabsCount = unviewedLabResults.filter(o => ['Ordered', 'Processing', 'Collected', 'Pending Payment'].includes(o.status)).length;
+    const completedLabsCount = unviewedLabResults.filter(o => o.status === 'Results Available').length;
+
+    setDashboardStats({
+      patientsToday: patientsWithVitals.length,
+      pendingReports: pendingLabsCount,
+      completedAppointments: completedCount,
+      labResults: completedLabsCount
+    });
+  }, [patientsWithVitals, myAppointments, labResults, viewedLabOrders]);
 
   // Fetch doctor's own appointments
   const fetchMyAppointments = useCallback(async () => {
@@ -3520,6 +3539,14 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
               groupedResults={groupedLabResults}
               isLoading={labResultsLoading}
               onRefresh={fetchAllDoctorLabResults}
+              viewedLabOrders={viewedLabOrders}
+              onViewReport={(reportIds) => {
+                setViewedLabOrders(prev => {
+                  const newViewed = [...new Set([...prev, ...reportIds])];
+                  localStorage.setItem('viewedLabOrders', JSON.stringify(newViewed));
+                  return newViewed;
+                });
+              }}
             />
           </TabsContent>
 
