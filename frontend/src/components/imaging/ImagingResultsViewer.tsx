@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Printer, X, Download, Calendar, User, FileText, Activity } from 'lucide-react';
 import { ImagingOrder } from '../../services/imagingService';
-import { formatDate } from '../../utils/formatters';
+import { formatDate, formatDisplayAge } from '../../utils/formatters';
 import { useClinic } from '../../context/ClinicContext';
 
 interface ImagingResultsViewerProps {
@@ -734,7 +734,7 @@ const ImagingResultsViewer: React.FC<ImagingResultsViewerProps> = ({ order, onCl
                 </div>
                 <div class="patient-info-item">
                   <span class="patient-info-label">Age:</span>
-                  <span class="patient-info-value">${(order.patient as any)?.age || 'N/A'} years</span>
+                  <span class="patient-info-value">${(order.patient as any)?.age !== undefined && (order.patient as any)?.age !== null ? formatDisplayAge((order.patient as any).age) : 'N/A'}</span>
                 </div>
               </div>
               <div class="patient-info-section">

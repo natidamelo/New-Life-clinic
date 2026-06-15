@@ -16,6 +16,7 @@ import api from '../../services/apiService';
 import type { Service } from '../../types/service';
 import { useClinic } from '../../context/ClinicContext';
 // PrescriptionExtensionModal import removed - simplified prescription system
+import { formatDisplayAge } from '../../utils/formatters';
 
 // Add logo path constants
 const LOGO_PATH = '/assets/images/logo.jpg';
@@ -3585,7 +3586,7 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                                  </div>
                                  <div class="info-item">
                                      <span class="info-label">Age:</span>
-                                     <span class="info-value">${patient.age || 'Not specified'} years</span>
+                                     <span class="info-value">${patient.age !== undefined && patient.age !== null ? formatDisplayAge(patient.age) : 'Not specified'}</span>
                                  </div>
                                  <div class="info-item">
                                      <span class="info-label">Gender:</span>
@@ -3768,7 +3769,7 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                             </div>
                             <div>
                                 <p className="text-muted-foreground mb-0.5">Age</p>
-                                <p className="font-medium text-foreground">{patient.age} years</p>
+                                <p className="font-medium text-foreground">{patient.age !== undefined && patient.age !== null ? formatDisplayAge(patient.age) : 'Not specified'}</p>
                             </div>
                             <div>
                                 <p className="text-muted-foreground mb-0.5">Gender</p>

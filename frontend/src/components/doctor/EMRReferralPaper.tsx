@@ -18,7 +18,7 @@ import {
   Loader
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { formatDate, formatTime } from '../../utils/formatters';
+import { formatDate, formatTime, formatDisplayAge } from '../../utils/formatters';
 import patientService from '../../services/patientService';
 import referralService from '../../services/referralService';
 import { useClinic } from '../../context/ClinicContext';
@@ -1514,7 +1514,7 @@ const EMRReferralPaper: React.FC = () => {
             </div>
             <div>
               <p className="referral-label">Age:</p>
-              <p className="referral-content">{referralData.age > 0 ? `${referralData.age} years` : '_________________'}</p>
+              <p className="referral-content">{referralData.age !== undefined && referralData.age !== null ? formatDisplayAge(referralData.age) : '_________________'}</p>
             </div>
             <div>
               <p className="referral-label">Gender:</p>

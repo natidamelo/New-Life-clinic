@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getAuthToken } from '../../../utils/authToken';
+import { formatDisplayAge } from '../../../utils/formatters';
+import { MedicalRecordContext } from '../../../contexts/MedicalRecordContext';
 import {
   Box,
   Paper,
@@ -2607,7 +2609,7 @@ const EnhancedMedicalRecordForm: React.FC<EnhancedMedicalRecordFormProps> = ({
                               {patientData?.firstName || ''} {patientData?.lastName || ''}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              {patientData?.gender || 'N/A'} • {patientData?.age || 'N/A'} years old
+                              {patientData?.gender || 'N/A'} • {patientData?.age !== undefined && patientData?.age !== null ? formatDisplayAge(patientData.age) : 'N/A'}
                             </Typography>
                           </Box>
                         </Box>
@@ -4043,7 +4045,7 @@ const EnhancedMedicalRecordForm: React.FC<EnhancedMedicalRecordFormProps> = ({
                         const calculatedAge = calculateAge(patientData.dateOfBirth);
                         const displayAge = patientData.age || calculatedAge;
                         return displayAge !== null && displayAge !== undefined ? 
-                          `${displayAge} years old` : 
+                          `${formatDisplayAge(displayAge)}` : 
                           patientData.dateOfBirth ? 
                             `DOB: ${new Date(patientData.dateOfBirth).toLocaleDateString()}` : 
                             'Age: Unknown';

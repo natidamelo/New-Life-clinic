@@ -20,6 +20,7 @@ import {
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import { useClinic } from '../../context/ClinicContext';
+import { formatDisplayAge } from '../../utils/formatters';
 
 interface Medication {
   name: string;
@@ -304,7 +305,7 @@ const EMRPrescriptionSystem: React.FC = () => {
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
         age--;
       }
-      return `${age} years`;
+      return formatDisplayAge(age);
     };
 
     return `
