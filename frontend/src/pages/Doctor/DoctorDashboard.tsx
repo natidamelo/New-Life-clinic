@@ -670,20 +670,65 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       const requestLimit = isSearching ? 500 : 100;
       console.log('[DoctorDashboard] Making API call to /api/doctor/patients/active', { isSearching, limit: requestLimit });
       let response;
+      let appointmentsResponse;
+      let labResultsData;
+      let doctorAppointments: any[] = [];
+      let doctorLabResults: any[] = [];
+      
       try {
         let apiUrl = `/api/doctor/patients/active?limit=${requestLimit}&page=1`;
         if (isSearching) {
           apiUrl += `&search=${encodeURIComponent(searchToUse.trim())}`;
         }
-        response = await api.get(apiUrl);
-        console.log('[DoctorDashboard] API response received:', response);
-      } catch (error) {
-        console.error('[DoctorDashboard] API call failed:', error);
-        toast.error('Failed to fetch patients: ' + (error.response?.data?.message || error.message));
+        
+        console.log('[DoctorDashboard] Fetching active patients, appointments, and lab results in parallel...');
+        const [patientsRes, apptsRes, labsRes] = await Promise.all([
+          api.get(apiUrl),
+          api.get('/api/appointments', { params: { doctorId: currentDoctorId, limit: 200 } }),
+          labService.getDoctorLabResults(currentDoctorId.toString())
+        ]);
+        
+        response = patientsRes;
+        appointmentsResponse = apptsRes;
+        labResultsData = labsRes;
+        
+        console.log('[DoctorDashboard] API parallel responses received');
+      } catch (error: any) {
+        console.error('[DoctorDashboard] Parallel API call failed:', error);
+        toast.error('Failed to fetch dashboard data: ' + (error.response?.data?.message || error.message));
         setIsLoading(false);
         setIsLoadingPatients(false);
         fetchInProgressRef.current = false;
         return;
+      }
+
+      // Process appointments
+      if (appointmentsResponse) {
+        let apptsData: any[] = [];
+        const responseData = appointmentsResponse.data;
+        if (Array.isArray(responseData)) apptsData = responseData;
+        else if (Array.isArray(responseData?.data)) apptsData = responseData.data;
+        else if (Array.isArray(responseData?.appointments)) apptsData = responseData.appointments;
+        
+        doctorAppointments = apptsData.filter((a: any) => {
+          const docId = typeof a.doctorId === 'object' ? (a.doctorId?._id || a.doctorId?.id) : a.doctorId;
+          return docId?.toString() === currentDoctorId?.toString();
+        });
+        
+        setMyAppointments(doctorAppointments);
+      }
+
+      // Process lab results
+      if (labResultsData) {
+        doctorLabResults = labResultsData || [];
+        setLabResults(doctorLabResults);
+        
+        // Group client-side
+        const grouped = await labService.getDoctorLabResultsGroupedByPatient(
+          currentDoctorId.toString(),
+          doctorLabResults
+        );
+        setGroupedLabResults(grouped);
       }
 
       if (!response || !response.data || !response.data.data) {
@@ -806,12 +851,16 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       // Remove debug fallback - only show patients that meet the criteria
       let finalPatientList = filteredPatients;
 
-      // Update dashboard stats based on filtered patients
+      // Update dashboard stats based on fetched data
+      const completedCount = doctorAppointments.filter(a => ['Completed', 'completed'].includes(a.status)).length;
+      const pendingLabsCount = doctorLabResults.filter(o => ['Ordered', 'Processing', 'Collected', 'Pending Payment'].includes(o.status)).length;
+      const completedLabsCount = doctorLabResults.filter(o => o.status === 'Results Available').length;
+
       setDashboardStats({
-        patientsToday: finalPatientList.length,
-        pendingReports: finalPatientList.filter(p => p.labResults?.some(lr => lr.status === 'pending')).length,
-        completedAppointments: 0,
-        labResults: finalPatientList.filter(p => p.labResults && p.labResults.length > 0).length
+        patientsToday: patientsWithVitalsData.length,
+        pendingReports: pendingLabsCount,
+        completedAppointments: completedCount,
+        labResults: completedLabsCount
       });
 
       const uniqueAssignedPatientsData = removeDuplicatePatients(finalPatientList);

@@ -33,9 +33,9 @@ async function prewarmDashboardCache() {
     ] = await Promise.all([
       Patient.countDocuments(),
       User.countDocuments({ role: { $ne: 'patient' } }),
-      NurseTask.countDocuments({ status: 'pending' }),
-      LabOrder.countDocuments({ status: 'pending' }),
-      LabOrder.countDocuments({ status: 'completed' }),
+      NurseTask.countDocuments({ status: 'PENDING' }),
+      LabOrder.countDocuments({ status: { $in: ['Ordered', 'Processing', 'Collected', 'Pending Payment'] } }),
+      LabOrder.countDocuments({ status: 'Results Available' }),
       Notification.countDocuments({ status: 'active', read: false }),
       Appointment.countDocuments(),
       MedicalInvoice.aggregate([

@@ -330,10 +330,10 @@ router.get('/universal-stats', auth, cacheMiddleware(STATS_CACHE_DURATION), asyn
       User.countDocuments({ role: { $ne: 'patient' } }),
       
       // Pending tasks
-      NurseTask.countDocuments({ status: 'pending' }),
+      NurseTask.countDocuments({ status: 'PENDING' }),
       
       // Pending lab tests
-      LabOrder.countDocuments({ status: 'pending' }),
+      LabOrder.countDocuments({ status: { $in: ['Ordered', 'Processing', 'Collected', 'Pending Payment'] } }),
       
       // Total revenue (all time)
       MedicalInvoice.aggregate([
@@ -364,7 +364,7 @@ router.get('/universal-stats', auth, cacheMiddleware(STATS_CACHE_DURATION), asyn
       ]),
       
       // Completed lab tests
-      LabOrder.countDocuments({ status: 'completed' })
+      LabOrder.countDocuments({ status: 'Results Available' })
     ]);
 
     res.json({
@@ -428,10 +428,10 @@ router.get('/admin/dashboard/stats', auth, cacheMiddleware(STATS_CACHE_DURATION)
       User.countDocuments({ role: { $ne: 'patient' } }),
       
       // Pending tasks
-      NurseTask.countDocuments({ status: 'pending' }),
+      NurseTask.countDocuments({ status: 'PENDING' }),
       
       // Pending lab tests
-      LabOrder.countDocuments({ status: 'pending' }),
+      LabOrder.countDocuments({ status: { $in: ['Ordered', 'Processing', 'Collected', 'Pending Payment'] } }),
       
       // Total revenue (all time)
       MedicalInvoice.aggregate([
@@ -462,7 +462,7 @@ router.get('/admin/dashboard/stats', auth, cacheMiddleware(STATS_CACHE_DURATION)
       ]),
       
       // Completed lab tests
-      LabOrder.countDocuments({ status: 'completed' })
+      LabOrder.countDocuments({ status: 'Results Available' })
     ]);
 
     const totalRevenue = revenueStats[0]?.total || 0;
@@ -507,9 +507,9 @@ router.get('/dashboard/universal-stats', auth, cacheMiddleware(STATS_CACHE_DURAT
     const baseStats = await Promise.all([
       Patient.countDocuments(),
       User.countDocuments({ role: { $ne: 'patient' } }),
-      NurseTask.countDocuments({ status: 'pending' }),
-      LabOrder.countDocuments({ status: 'pending' }),
-      LabOrder.countDocuments({ status: 'completed' }),
+      NurseTask.countDocuments({ status: 'PENDING' }),
+      LabOrder.countDocuments({ status: { $in: ['Ordered', 'Processing', 'Collected', 'Pending Payment'] } }),
+      LabOrder.countDocuments({ status: 'Results Available' }),
       Notification.countDocuments({ status: 'active', read: false }),
       Appointment.countDocuments()
     ]);
