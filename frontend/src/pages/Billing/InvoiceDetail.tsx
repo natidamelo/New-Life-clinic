@@ -1385,12 +1385,12 @@ const InvoiceDetail: React.FC = () => {
             />
             <div className="clinic-info-center">
               <div className="clinic-name">{clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
-              <div className="clinic-subtitle">Healthcare Billing Services</div>
+              <div className="clinic-subtitle"><strong>Healthcare Billing Services</strong></div>
             </div>
             <div className="clinic-contact-right">
-              📍 {clinic?.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}<br />
-              📞 {clinic?.contactPhone || '+251925959219'}<br />
-              🪪 TIN: {clinic?.licenseNumber || 'CL-001'}
+              <strong>📍 {clinic?.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}</strong><br />
+              <strong>📞 {clinic?.contactPhone || '+251925959219'}</strong><br />
+              <strong>🪪 TIN: {clinic?.licenseNumber || 'CL-001'}</strong>
             </div>
           </div>
           <div className="document-type-badge">
