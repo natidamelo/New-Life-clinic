@@ -4556,11 +4556,11 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                                 <img src="${clinic?.logo || '/assets/images/logo.jpg'}" alt="Logo" class="clinic-logo" onerror="this.style.display='none'">
                                 <div class="clinic-info-center">
                                   <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
-                                  <div class="clinic-subtitle">Pharmaceutical Services</div>
+                                  <div class="clinic-subtitle"><strong>Pharmaceutical Services</strong></div>
                                 </div>
                                 <div class="clinic-contact-right">
-                                  📍 ${clinic?.address || 'Lafto beside Kebron Guest House'}<br>
-                                  📞 ${clinic?.contactPhone || '+251925959219'}
+                                  <strong>📍 ${clinic?.address || 'Lafto beside Kebron Guest House'}</strong><br>
+                                  <strong>📞 ${clinic?.contactPhone || '+251925959219'}</strong>
                                 </div>
                               </div>
                               <div class="document-type-badge">
@@ -4878,11 +4878,11 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                     <img src={clinic?.logo || "/assets/images/logo.jpg"} alt="Logo" className="clinic-logo" onError={(e) => e.currentTarget.style.display = 'none'} />
                     <div className="clinic-info-center">
                       <div className="clinic-name">{clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
-                      <div className="clinic-subtitle">Pharmaceutical Services</div>
+                      <div className="clinic-subtitle"><strong>Pharmaceutical Services</strong></div>
                     </div>
                     <div className="clinic-contact-right">
-                      📍 {clinic?.address || 'Lafto beside Kebron Guest House'}<br />
-                      📞 {clinic?.contactPhone || '+251925959219'}
+                      <strong>📍 {clinic?.address || 'Lafto beside Kebron Guest House'}</strong><br />
+                      <strong>📞 {clinic?.contactPhone || '+251925959219'}</strong>
                     </div>
                   </div>
                   <div className="document-type-badge">

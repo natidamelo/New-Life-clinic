@@ -3558,11 +3558,11 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                              <img src="${clinic?.logo || LOGO_PATH}" alt="Logo" class="clinic-logo" onerror="this.style.display='none'">
                              <div class="clinic-info-center">
                                  <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
-                                 <div class="clinic-subtitle">Pharmaceutical Services</div>
+                                 <div class="clinic-subtitle"><strong>Pharmaceutical Services</strong></div>
                              </div>
                              <div class="clinic-contact-right">
-                                 📍 ${clinic?.address || 'Lafto beside Kebron Guest House'}<br>
-                                 📞 ${clinic?.contactPhone || '+251925959219'}
+                                 <strong>📍 ${clinic?.address || 'Lafto beside Kebron Guest House'}</strong><br>
+                                 <strong>📞 ${clinic?.contactPhone || '+251925959219'}</strong>
                              </div>
                          </div>
                          <div class="document-type-badge">
