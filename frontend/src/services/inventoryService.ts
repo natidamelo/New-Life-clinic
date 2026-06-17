@@ -496,6 +496,20 @@ const inventoryService = {
       throw new Error('Failed to fetch stock adjustments.');
     }
   },
+
+  // Get inventory loss report (financial losses from stock adjustments)
+  getInventoryLossReport: async (params?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<any> => {
+    try {
+      const response = await api.get('/api/inventory/loss-report', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching inventory loss report:', error);
+      throw new Error('Failed to fetch inventory loss report.');
+    }
+  },
 };
 
 export default inventoryService;

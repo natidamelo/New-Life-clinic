@@ -243,6 +243,12 @@ const StockManagement: React.FC = () => {
   const [adjustmentNotes, setAdjustmentNotes] = useState('');
   const [adjustments, setAdjustments] = useState<StockAdjustment[]>([]);
   const [adjustmentsLoading, setAdjustmentsLoading] = useState(false);
+  const [lossReport, setLossReport] = useState<{
+    totalLoss: number;
+    totalItems: number;
+    byType: Record<string, { count: number; amount: number }>;
+    topItems: Array<{ name: string; count: number; amount: number }>;
+  } | null>(null);
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async (silent = false) => {
@@ -289,10 +295,15 @@ const StockManagement: React.FC = () => {
   const fetchAdjustments = useCallback(async () => {
     setAdjustmentsLoading(true);
     try {
-      const res = await inventoryService.getStockAdjustments({ limit: 50 });
-      setAdjustments(res?.adjustments || (Array.isArray(res) ? res : []));
+      const [adjRes, lossRes] = await Promise.all([
+        inventoryService.getStockAdjustments({ limit: 50 }),
+        inventoryService.getInventoryLossReport(),
+      ]);
+      setAdjustments(adjRes?.adjustments || (Array.isArray(adjRes) ? adjRes : []));
+      setLossReport(lossRes || null);
     } catch {
       setAdjustments([]);
+      setLossReport(null);
     } finally {
       setAdjustmentsLoading(false);
     }
@@ -901,7 +912,48 @@ const StockManagement: React.FC = () => {
 
         {/* ── ADJUSTMENTS TAB ────────────────────────────────────────────── */}
         {activeTab === 'adjustments' && (
-          <div className="overflow-x-auto">
+          <div>
+            {/* Loss Summary Cards */}
+            {!adjustmentsLoading && lossReport && lossReport.totalLoss > 0 && (
+              <div className="p-4 border-b border-gray-100">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-red-500">Total Financial Loss</p>
+                    <p className="text-xl font-bold text-red-700 mt-0.5">${lossReport.totalLoss.toFixed(2)}</p>
+                    <p className="text-xs text-red-400 mt-0.5">{lossReport.totalItems} incident{lossReport.totalItems !== 1 ? 's' : ''}</p>
+                  </div>
+                  {Object.entries(lossReport.byType).slice(0, 3).map(([type, data]) => {
+                    const matchedReason = ADJUSTMENT_REASONS.find(r => r.value === type);
+                    return (
+                      <div key={type} className="p-3 bg-white border border-gray-200 rounded-xl">
+                        <div className="flex items-center gap-1.5">
+                          <span className={matchedReason?.color || 'text-gray-500'}>{matchedReason?.icon || <Sliders className="h-3.5 w-3.5" />}</span>
+                          <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500">{matchedReason?.label || type}</p>
+                        </div>
+                        <p className="text-lg font-bold text-gray-800 mt-0.5">${data.amount.toFixed(2)}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{data.count} item{data.count !== 1 ? 's' : ''}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                {lossReport.topItems.length > 0 && (
+                  <div className="p-3 bg-amber-50/50 border border-amber-200 rounded-xl">
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-amber-600 mb-2">Top Items by Loss Value</p>
+                    <div className="flex flex-wrap gap-2">
+                      {lossReport.topItems.slice(0, 5).map((item, i) => (
+                        <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-amber-200 rounded-lg text-xs">
+                          <span className="font-semibold text-gray-800">{item.name}</span>
+                          <span className="text-red-600 font-bold">${item.amount.toFixed(2)}</span>
+                          <span className="text-gray-400">({item.count}x)</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="overflow-x-auto">
             {adjustmentsLoading ? (
               <div className="p-12 text-center">
                 <RefreshCw className="h-12 w-12 text-gray-300 mx-auto mb-3 animate-spin" />
@@ -953,6 +1005,7 @@ const StockManagement: React.FC = () => {
                 </tbody>
               </table>
             )}
+            </div>
           </div>
         )}
       </Card>

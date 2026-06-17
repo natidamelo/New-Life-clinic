@@ -3,6 +3,7 @@ const router = express.Router();
 const { auth, checkRole } = require('../middleware/auth');
 const InventoryItem = require('../models/InventoryItem');
 const InventoryTransaction = require('../models/InventoryTransaction');
+const OperatingExpense = require('../models/OperatingExpense');
 const { body, query, validationResult } = require('express-validator');
 const mongoose = require('mongoose');
 const inventoryService = require('../services/inventoryService');
@@ -179,10 +180,32 @@ router.post('/adjustments', auth, async (req, res) => {
     });
     await transaction.save();
 
+    // Auto-create an OperatingExpense for financial loss tracking (only on decrease)
+    let expenseRecord = null;
+    if (direction === 'decrease') {
+      const lossAmount = quantity * (item.costPrice || 0);
+      if (lossAmount > 0) {
+        expenseRecord = new OperatingExpense({
+          clinicId: 'default',
+          description: `[${adjustmentType.toUpperCase()}] ${quantity}x ${item.name} — ${reason}`,
+          category: 'inventory-loss',
+          amount: lossAmount,
+          expenseDate: new Date(),
+          recurring: false,
+          createdBy: req.user.id || req.user._id,
+          inventoryItem: item._id,
+          adjustmentType,
+          inventoryTransaction: transaction._id,
+        });
+        await expenseRecord.save();
+      }
+    }
+
     res.status(201).json({
       message: 'Stock adjustment recorded successfully',
       item,
       transaction,
+      expense: expenseRecord,
     });
   } catch (error) {
     console.error('Error recording stock adjustment:', error);
@@ -243,6 +266,63 @@ router.get('/adjustments', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching adjustment history:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Inventory Loss Report - GET
+router.get('/loss-report', auth, async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    const filter = { category: 'inventory-loss' };
+    if (startDate || endDate) {
+      filter.expenseDate = {};
+      if (startDate) filter.expenseDate.$gte = new Date(startDate);
+      if (endDate) filter.expenseDate.$lte = new Date(endDate);
+    }
+
+    // Get all loss records
+    const losses = await OperatingExpense.find(filter)
+      .sort({ expenseDate: -1 })
+      .populate('inventoryItem', 'name itemCode category costPrice')
+      .populate('createdBy', 'firstName lastName');
+
+    // Calculate totals
+    const totalLoss = losses.reduce((sum, l) => sum + l.amount, 0);
+    const totalItems = losses.length;
+
+    // Breakdown by adjustment type
+    const byType = {};
+    losses.forEach(l => {
+      const type = l.adjustmentType || 'other';
+      if (!byType[type]) byType[type] = { count: 0, amount: 0 };
+      byType[type].count++;
+      byType[type].amount += l.amount;
+    });
+
+    // Breakdown by item (top 10)
+    const byItem = {};
+    losses.forEach(l => {
+      const itemName = l.inventoryItem?.name || 'Unknown';
+      const itemId = l.inventoryItem?._id?.toString() || 'unknown';
+      if (!byItem[itemId]) byItem[itemId] = { name: itemName, count: 0, amount: 0 };
+      byItem[itemId].count++;
+      byItem[itemId].amount += l.amount;
+    });
+    const topItems = Object.values(byItem)
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 10);
+
+    res.json({
+      totalLoss,
+      totalItems,
+      byType,
+      topItems,
+      losses,
+    });
+  } catch (error) {
+    console.error('Error fetching loss report:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
