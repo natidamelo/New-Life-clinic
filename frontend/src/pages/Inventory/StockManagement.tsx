@@ -614,7 +614,7 @@ const StockManagement: React.FC = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[1300px] text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
                       {['Item', 'Category', 'Quantity', 'Cost Price', 'Sell Price', 'Total Cost', 'Total Value', 'Service', 'Status', 'Expiry', 'Actions'].map(h => (
@@ -759,7 +759,7 @@ const StockManagement: React.FC = () => {
                 <p className="text-gray-500 font-medium">No movement history</p>
               </div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[850px] text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
                     {['Date', 'Item', 'Type', 'Quantity', 'Reason', 'User'].map(h => (
@@ -798,7 +798,7 @@ const StockManagement: React.FC = () => {
                 <p className="text-gray-500 font-medium">All items are sufficiently stocked</p>
               </div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[950px] text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
                     {['Item', 'Category', 'Current Stock', 'Reorder Level', 'Deficit', 'Status', 'Action'].map(h => (
@@ -854,7 +854,7 @@ const StockManagement: React.FC = () => {
                 <p className="text-gray-400 text-sm mt-1">Add expiry dates to inventory items to track them here</p>
               </div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[850px] text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
                     {['Item', 'Category', 'Expiry Date', 'Status', 'Qty', 'Action'].map(h => (
@@ -914,7 +914,7 @@ const StockManagement: React.FC = () => {
                 <p className="text-gray-400 text-sm mt-1">Adjustments for broken, expired, or damaged items will appear here</p>
               </div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[1200px] text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
                     {['Date', 'Item', 'Adjustment Type', 'Quantity', 'Previous Qty', 'New Qty', 'Reason', 'Notes', 'Performed By'].map(h => (
