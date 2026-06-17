@@ -114,6 +114,139 @@ router.post('/movements', auth, async (req, res) => {
   }
 });
 
+// Stock Adjustment - POST
+router.post('/adjustments', auth, async (req, res) => {
+  try {
+    const { itemId, adjustmentType, quantity, direction = 'decrease', reason, notes } = req.body;
+
+    // Validate required fields
+    if (!itemId || !adjustmentType || !quantity || !reason) {
+      return res.status(400).json({ message: 'Missing required fields: itemId, adjustmentType, quantity, and reason are required' });
+    }
+
+    // Validate adjustmentType
+    const validAdjustmentTypes = ['damaged', 'expired', 'broken', 'lost', 'correction', 'return', 'count-discrepancy', 'other'];
+    if (!validAdjustmentTypes.includes(adjustmentType)) {
+      return res.status(400).json({ message: `Invalid adjustmentType. Must be one of: ${validAdjustmentTypes.join(', ')}` });
+    }
+
+    // Validate quantity
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      return res.status(400).json({ message: 'Quantity must be a positive integer' });
+    }
+
+    // Find the inventory item
+    const item = await InventoryItem.findById(itemId);
+    if (!item) {
+      return res.status(404).json({ message: 'Inventory item not found' });
+    }
+
+    // Calculate quantities
+    const previousQuantity = item.quantity;
+    const transactionQuantity = direction === 'decrease' ? -quantity : quantity;
+    const newQuantity = previousQuantity + transactionQuantity;
+
+    // Check sufficient stock for decrease
+    if (direction === 'decrease' && previousQuantity < quantity) {
+      return res.status(400).json({ message: `Insufficient stock. Current quantity: ${previousQuantity}, requested decrease: ${quantity}` });
+    }
+
+    // Update item quantity
+    item.quantity = newQuantity;
+    item.updatedBy = req.user.id || req.user._id;
+    await item.save();
+
+    // Map adjustmentType to valid transactionType enum
+    const transactionTypeMap = {
+      'damaged': 'damaged',
+      'expired': 'expired',
+      'return': 'return',
+    };
+    const transactionType = transactionTypeMap[adjustmentType] || 'adjustment';
+
+    // Create inventory transaction
+    const transaction = new InventoryTransaction({
+      item: item._id,
+      transactionType,
+      quantity: transactionQuantity,
+      previousQuantity,
+      newQuantity,
+      reason: `[${adjustmentType.toUpperCase()}] ${reason}`,
+      notes: notes || '',
+      performedBy: req.user.id || req.user._id,
+      status: 'completed',
+      _skipInventoryUpdate: true,
+    });
+    await transaction.save();
+
+    res.status(201).json({
+      message: 'Stock adjustment recorded successfully',
+      item,
+      transaction,
+    });
+  } catch (error) {
+    console.error('Error recording stock adjustment:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Stock Adjustment History - GET
+router.get('/adjustments', auth, async (req, res) => {
+  try {
+    const { itemId, adjustmentType, startDate, endDate, page = 1, limit = 20 } = req.query;
+
+    const filter = {
+      transactionType: { $in: ['adjustment', 'damaged', 'expired', 'return'] },
+    };
+
+    if (itemId) {
+      filter.item = itemId;
+    }
+
+    if (adjustmentType) {
+      const transactionTypeMap = {
+        'damaged': 'damaged',
+        'expired': 'expired',
+        'return': 'return',
+      };
+      filter.transactionType = transactionTypeMap[adjustmentType] || 'adjustment';
+    }
+
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = new Date(startDate);
+      if (endDate) filter.createdAt.$lte = new Date(endDate);
+    }
+
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
+    const skip = (pageNum - 1) * limitNum;
+
+    const [adjustments, total] = await Promise.all([
+      InventoryTransaction.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .populate('item', 'name itemCode')
+        .populate('performedBy', 'firstName lastName'),
+      InventoryTransaction.countDocuments(filter),
+    ]);
+
+    res.json({
+      adjustments,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching adjustment history:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Get medications for prescription use
 router.get('/medications-for-prescription', auth, async (req, res) => {
   try {

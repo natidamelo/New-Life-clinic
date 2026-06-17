@@ -39,6 +39,10 @@ import {
   ShoppingBag,
   Layers,
   BarChart2,
+  Sliders,
+  Minus,
+  FileText,
+  ShieldAlert,
 } from 'lucide-react';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
@@ -72,7 +76,33 @@ interface StockMovement {
 }
 
 type CategoryKey = 'all' | 'laboratory' | 'medication' | 'service' | 'imaging' | 'other';
-type TabKey = 'overview' | 'movements' | 'reorder' | 'expiry';
+type TabKey = 'overview' | 'movements' | 'reorder' | 'expiry' | 'adjustments';
+
+type AdjustmentType = 'damaged' | 'expired' | 'broken' | 'lost' | 'correction' | 'return' | 'count-discrepancy' | 'other';
+
+interface StockAdjustment {
+  _id: string;
+  item: { _id: string; name: string; itemCode?: string };
+  transactionType: string;
+  quantity: number;
+  previousQuantity: number;
+  newQuantity: number;
+  reason: string;
+  notes?: string;
+  performedBy: { firstName: string; lastName: string };
+  createdAt: string;
+}
+
+const ADJUSTMENT_REASONS: { value: AdjustmentType; label: string; icon: React.ReactNode; color: string; description: string }[] = [
+  { value: 'broken',            label: 'Broken',             icon: <ShieldAlert className="h-4 w-4" />, color: 'text-red-600',     description: 'Item was physically broken or shattered' },
+  { value: 'damaged',           label: 'Damaged',            icon: <AlertTriangle className="h-4 w-4" />, color: 'text-orange-600',  description: 'Item is damaged and unusable' },
+  { value: 'expired',           label: 'Expired',            icon: <CalendarClock className="h-4 w-4" />, color: 'text-amber-600',   description: 'Item has passed its expiry date' },
+  { value: 'lost',              label: 'Lost / Missing',     icon: <Search className="h-4 w-4" />,        color: 'text-violet-600',  description: 'Item is missing from inventory' },
+  { value: 'count-discrepancy', label: 'Count Discrepancy',  icon: <BarChart2 className="h-4 w-4" />,     color: 'text-blue-600',    description: 'Physical count doesn\'t match system' },
+  { value: 'correction',        label: 'Manual Correction',  icon: <Edit2 className="h-4 w-4" />,         color: 'text-teal-600',    description: 'Correcting a data entry error' },
+  { value: 'return',            label: 'Return to Supplier', icon: <ArrowUpCircle className="h-4 w-4" />, color: 'text-indigo-600',  description: 'Returned to vendor/supplier' },
+  { value: 'other',             label: 'Other',              icon: <FileText className="h-4 w-4" />,      color: 'text-gray-600',    description: 'Other reason not listed above' },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatDate = (d?: string) => {
@@ -204,6 +234,16 @@ const StockManagement: React.FC = () => {
   const [patientSearch, setPatientSearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Adjustment state
+  const [adjustmentDialogOpen, setAdjustmentDialogOpen] = useState(false);
+  const [adjustmentType, setAdjustmentType] = useState<AdjustmentType>('broken');
+  const [adjustmentQuantity, setAdjustmentQuantity] = useState(0);
+  const [adjustmentDirection, setAdjustmentDirection] = useState<'decrease' | 'increase'>('decrease');
+  const [adjustmentReason, setAdjustmentReason] = useState('');
+  const [adjustmentNotes, setAdjustmentNotes] = useState('');
+  const [adjustments, setAdjustments] = useState<StockAdjustment[]>([]);
+  const [adjustmentsLoading, setAdjustmentsLoading] = useState(false);
+
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -244,6 +284,25 @@ const StockManagement: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { if (!movementDialogOpen) { setSelectedPatientId(null); setIsDispenseToPatient(false); setPatientSearch(''); } }, [movementDialogOpen]);
+
+  // Fetch adjustments when adjustments tab is active
+  const fetchAdjustments = useCallback(async () => {
+    setAdjustmentsLoading(true);
+    try {
+      const res = await inventoryService.getStockAdjustments({ limit: 50 });
+      setAdjustments(res.data || res || []);
+    } catch {
+      setAdjustments([]);
+    } finally {
+      setAdjustmentsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'adjustments') {
+      fetchAdjustments();
+    }
+  }, [activeTab, fetchAdjustments]);
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const categoryCounts = useMemo(() => {
@@ -334,12 +393,47 @@ const StockManagement: React.FC = () => {
     setMovementDialogOpen(true);
   };
 
+  const openAdjustment = (item: StockItem) => {
+    setSelectedItem(item);
+    setAdjustmentType('broken');
+    setAdjustmentQuantity(0);
+    setAdjustmentDirection('decrease');
+    setAdjustmentReason('');
+    setAdjustmentNotes('');
+    setAdjustmentDialogOpen(true);
+  };
+
+  const handleStockAdjustment = async () => {
+    if (!selectedItem || adjustmentQuantity <= 0) { toast.error('Invalid item or quantity.'); return; }
+    if (!adjustmentReason.trim()) { toast.error('Please provide a reason.'); return; }
+    setSubmitting(true);
+    try {
+      await inventoryService.recordStockAdjustment({
+        itemId: selectedItem._id,
+        adjustmentType,
+        quantity: adjustmentQuantity,
+        direction: adjustmentDirection,
+        reason: adjustmentReason,
+        notes: adjustmentNotes || undefined,
+      });
+      toast.success(`Stock adjusted successfully — ${adjustmentDirection === 'decrease' ? 'removed' : 'added'} ${adjustmentQuantity} units.`);
+      setAdjustmentDialogOpen(false);
+      fetchData(true);
+      if (activeTab === 'adjustments') fetchAdjustments();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to record adjustment.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // ── Tab config ────────────────────────────────────────────────────────────
   const TABS: { key: TabKey; label: string; icon: React.ReactNode; badge?: number }[] = [
-    { key: 'overview',   label: 'Stock Overview',      icon: <Package className="h-4 w-4" /> },
-    { key: 'movements',  label: 'Movement History',    icon: <History className="h-4 w-4" />,    badge: movements.length },
-    { key: 'reorder',    label: 'Reorder Suggestions', icon: <AlertTriangle className="h-4 w-4" />, badge: reorderItems.length },
-    { key: 'expiry',     label: 'Expiry Tracking',     icon: <CalendarClock className="h-4 w-4" />, badge: expiringItems.length },
+    { key: 'overview',     label: 'Stock Overview',      icon: <Package className="h-4 w-4" /> },
+    { key: 'movements',    label: 'Movement History',    icon: <History className="h-4 w-4" />,      badge: movements.length },
+    { key: 'adjustments',  label: 'Stock Adjustments',   icon: <Sliders className="h-4 w-4" /> },
+    { key: 'reorder',      label: 'Reorder Suggestions', icon: <AlertTriangle className="h-4 w-4" />, badge: reorderItems.length },
+    { key: 'expiry',       label: 'Expiry Tracking',     icon: <CalendarClock className="h-4 w-4" />, badge: expiringItems.length },
   ];
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -601,6 +695,13 @@ const StockManagement: React.FC = () => {
                                   <ArrowDownCircle className="h-4 w-4" />
                                 </button>
                                 <button
+                                  title="Adjust Stock"
+                                  onClick={() => openAdjustment(item)}
+                                  className="p-1.5 rounded-lg hover:bg-indigo-50 text-indigo-600 transition-colors"
+                                >
+                                  <Sliders className="h-4 w-4" />
+                                </button>
+                                <button
                                   title="QR Code"
                                   onClick={() => { setSelectedItem(item); setQrDialogOpen(true); }}
                                   className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
@@ -797,6 +898,63 @@ const StockManagement: React.FC = () => {
             )}
           </div>
         )}
+
+        {/* ── ADJUSTMENTS TAB ────────────────────────────────────────────── */}
+        {activeTab === 'adjustments' && (
+          <div className="overflow-x-auto">
+            {adjustmentsLoading ? (
+              <div className="p-12 text-center">
+                <RefreshCw className="h-12 w-12 text-gray-300 mx-auto mb-3 animate-spin" />
+                <p className="text-gray-500 font-medium">Loading adjustments...</p>
+              </div>
+            ) : adjustments.length === 0 ? (
+              <div className="p-12 text-center">
+                <Sliders className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 font-medium">No stock adjustments recorded</p>
+                <p className="text-gray-400 text-sm mt-1">Adjustments for broken, expired, or damaged items will appear here</p>
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    {['Date', 'Item', 'Adjustment Type', 'Quantity', 'Previous Qty', 'New Qty', 'Reason', 'Notes', 'Performed By'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {adjustments.map(adj => {
+                    const matchedReason = ADJUSTMENT_REASONS.find(r => r.value === adj.transactionType);
+                    return (
+                      <tr key={adj._id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(adj.createdAt)}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{adj.item?.name || 'Unknown Item'}</td>
+                        <td className="px-4 py-3">
+                          <Badge className="bg-slate-50 text-slate-700 border-slate-200">
+                            {matchedReason?.icon || <Sliders className="h-3 w-3" />}
+                            {matchedReason?.label || adj.transactionType}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`font-semibold ${adj.quantity < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                            {adj.quantity > 0 ? `+${adj.quantity}` : adj.quantity}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-500">{adj.previousQuantity}</td>
+                        <td className="px-4 py-3 font-semibold text-gray-800">{adj.newQuantity}</td>
+                        <td className="px-4 py-3 text-gray-600 max-w-[200px] truncate">{adj.reason}</td>
+                        <td className="px-4 py-3 text-gray-500 max-w-[200px] truncate">{adj.notes || '-'}</td>
+                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                          {adj.performedBy ? `${adj.performedBy.firstName} ${adj.performedBy.lastName}` : 'System'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* ── Stock Movement Modal ─────────────────────────────────────────── */}
@@ -929,6 +1087,130 @@ const StockManagement: React.FC = () => {
               )}
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* ── Stock Adjustment Modal ───────────────────────────────────────── */}
+      <Modal
+        open={adjustmentDialogOpen}
+        onClose={() => setAdjustmentDialogOpen(false)}
+        title={`Stock Adjustment — ${selectedItem?.name}`}
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setAdjustmentDialogOpen(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              onClick={handleStockAdjustment}
+              disabled={adjustmentQuantity <= 0 || !adjustmentReason.trim() || submitting}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              {submitting ? <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Sliders className="h-3.5 w-3.5 mr-1.5" />}
+              Apply Adjustment
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {/* Selected Item Indicator */}
+          {selectedItem && (
+            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+              <div className="p-2 bg-indigo-100 rounded-lg"><Package className="h-4 w-4 text-indigo-600" /></div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{selectedItem.name}</p>
+                <p className="text-xs text-gray-500">Current stock: <b>{selectedItem.quantity}</b> units</p>
+              </div>
+            </div>
+          )}
+
+          {/* Direction toggle */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Adjustment Direction</label>
+            <div className="flex rounded-xl overflow-hidden border border-gray-200">
+              <button
+                type="button"
+                onClick={() => setAdjustmentDirection('decrease')}
+                className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                  adjustmentDirection === 'decrease' ? 'bg-red-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                <Minus className="h-4 w-4" />
+                Decrease Stock
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdjustmentDirection('increase')}
+                className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                  adjustmentDirection === 'increase' ? 'bg-emerald-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                <Plus className="h-4 w-4" />
+                Increase Stock
+              </button>
+            </div>
+          </div>
+
+          {/* Adjustment Type / Reason Category */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Adjustment Reason Type</label>
+            <div className="grid grid-cols-2 gap-2">
+              {ADJUSTMENT_REASONS.map(r => (
+                <button
+                  key={r.value}
+                  type="button"
+                  onClick={() => setAdjustmentType(r.value)}
+                  className={`flex items-start gap-2 p-2 border rounded-xl text-left transition-all hover:bg-gray-50 ${
+                    adjustmentType === r.value ? 'border-indigo-600 bg-indigo-50/30 ring-1 ring-indigo-500' : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  <span className={`mt-0.5 ${r.color}`}>{r.icon}</span>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-900">{r.label}</p>
+                    <p className="text-[10px] text-gray-400 leading-tight">{r.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Quantity */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Quantity to Adjust</label>
+            <input
+              type="number"
+              min={1}
+              value={adjustmentQuantity || ''}
+              onChange={e => setAdjustmentQuantity(Number(e.target.value))}
+              placeholder="Enter quantity"
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+            />
+            {adjustmentDirection === 'decrease' && selectedItem && selectedItem.quantity < adjustmentQuantity && (
+              <p className="text-xs text-red-500 mt-1">Warning: Adjustment quantity exceeds current stock!</p>
+            )}
+          </div>
+
+          {/* Reason (free-form) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Explanation / Description (Required)</label>
+            <input
+              type="text"
+              value={adjustmentReason}
+              onChange={e => setAdjustmentReason(e.target.value)}
+              placeholder="E.g., Batch broke during unloading, expired items found on shelf"
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+            />
+          </div>
+
+          {/* Notes (optional) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Additional Notes (Optional)</label>
+            <textarea
+              value={adjustmentNotes}
+              onChange={e => setAdjustmentNotes(e.target.value)}
+              placeholder="Any extra context or record details..."
+              rows={2}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 resize-none"
+            />
+          </div>
         </div>
       </Modal>
 

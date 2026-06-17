@@ -459,7 +459,43 @@ const inventoryService = {
       console.error('Error dispensing medication:', error);
       return false;
     }
-  }
+  },
+
+  // Record a stock adjustment (damaged, expired, lost, etc.)
+  recordStockAdjustment: async (adjustmentData: {
+    itemId: string;
+    adjustmentType: 'damaged' | 'expired' | 'broken' | 'lost' | 'correction' | 'return' | 'count-discrepancy' | 'other';
+    quantity: number;
+    direction: 'decrease' | 'increase';
+    reason: string;
+    notes?: string;
+  }): Promise<any> => {
+    try {
+      const response = await api.post('/api/inventory/adjustments', adjustmentData);
+      return response.data;
+    } catch (error) {
+      console.error('Error recording stock adjustment:', error);
+      throw new Error('Failed to record stock adjustment.');
+    }
+  },
+
+  // Get stock adjustments with optional filters
+  getStockAdjustments: async (params?: {
+    itemId?: string;
+    adjustmentType?: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<any> => {
+    try {
+      const response = await api.get('/api/inventory/adjustments', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching stock adjustments:', error);
+      throw new Error('Failed to fetch stock adjustments.');
+    }
+  },
 };
 
 export default inventoryService;
