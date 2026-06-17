@@ -290,7 +290,7 @@ const StockManagement: React.FC = () => {
     setAdjustmentsLoading(true);
     try {
       const res = await inventoryService.getStockAdjustments({ limit: 50 });
-      setAdjustments(res.data || res || []);
+      setAdjustments(res?.adjustments || (Array.isArray(res) ? res : []));
     } catch {
       setAdjustments([]);
     } finally {
