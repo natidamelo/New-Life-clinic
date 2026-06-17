@@ -69,7 +69,7 @@ const adminMenuItems = [
   { path: '/app/settings', icon: CogIcon, label: 'Settings' },
   { path: '/app/theme-settings', icon: CogIcon, label: 'Appearance' },
   { path: '/app/billing', icon: DashboardIcon, label: 'Billing Dashboard' },
-  { path: '/app/billing/expense-manager', icon: DashboardIcon, label: 'Add Expense' },
+  { path: '/app/billing/expense-manager', icon: DashboardIcon, label: 'Operating Expenses' },
   { path: '/app/billing/financial-advisor', icon: DashboardIcon, label: 'Financial Advisor' },
 ];
 

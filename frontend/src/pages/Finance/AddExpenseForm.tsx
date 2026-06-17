@@ -63,6 +63,7 @@ const AddExpenseForm: React.FC = () => {
             <option value="overtime">Over-time</option>
             <option value="utilities">Utilities</option>
             <option value="maintenance">Maintenance</option>
+            <option value="inventory-loss">Inventory Loss</option>
             <option value="other">Other</option>
           </select>
         </div>

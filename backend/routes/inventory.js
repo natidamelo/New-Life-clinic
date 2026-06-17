@@ -186,7 +186,7 @@ router.post('/adjustments', auth, async (req, res) => {
       const lossAmount = quantity * (item.costPrice || 0);
       if (lossAmount > 0) {
         expenseRecord = new OperatingExpense({
-          clinicId: 'default',
+          clinicId: req.tenantId || req.user?.clinicId || item.clinicId || 'default',
           description: `[${adjustmentType.toUpperCase()}] ${quantity}x ${item.name} — ${reason}`,
           category: 'inventory-loss',
           amount: lossAmount,

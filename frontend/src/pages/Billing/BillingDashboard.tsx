@@ -25,6 +25,7 @@ import {
 // Sub-page components for unified tab view
 import PatientCardSettings from '../Settings/PatientCardSettings';
 import StandardFinancialReport from '../Finance/Reports/StandardFinancialReport';
+import ExpenseManager from '../Finance/ExpenseManager';
 import ItemRevenueReport from './ItemRevenueReport';
 import BillingReports from './BillingReports';
 import DetailedBillingReport from './DetailedBillingReport';
@@ -115,6 +116,7 @@ const TABS = [
   { key: 'overview',     label: 'Overview',             icon: <Activity className="h-4 w-4" /> },
   { key: 'cards',        label: 'Patient Cards',        icon: <CreditCard className="h-4 w-4" /> },
   { key: 'financials',   label: 'Financials',           icon: <PieChart className="h-4 w-4" /> },
+  { key: 'expenses',     label: 'Operating Expenses',   icon: <DollarSign className="h-4 w-4" /> },
   { key: 'medication',   label: 'Medication & Lab',     icon: <Pill className="h-4 w-4" /> },
   { key: 'reports',      label: 'Basic Reports',        icon: <BarChart3 className="h-4 w-4" /> },
   { key: 'detailed',     label: 'Detailed Reports',     icon: <Search className="h-4 w-4" /> },
@@ -125,6 +127,7 @@ const getTabFromPath = (pathname: string): string => {
   const path = pathname.toLowerCase();
   if (path.includes('patient-cards') || path.includes('patient-card-settings')) return 'cards';
   if (path.includes('financial-report')) return 'financials';
+  if (path.includes('expense-manager')) return 'expenses';
   if (path.includes('item-revenue-report')) return 'medication';
   if (path.includes('reports/detailed')) return 'detailed';
   if (path.includes('reports')) return 'reports';
@@ -136,6 +139,7 @@ const getPathFromTab = (tab: string): string => {
   switch (tab) {
     case 'cards':        return '/app/billing/patient-cards';
     case 'financials':   return '/app/billing/financial-report';
+    case 'expenses':     return '/app/billing/expense-manager';
     case 'medication':   return '/app/billing/item-revenue-report';
     case 'reports':      return '/app/billing/reports';
     case 'detailed':     return '/app/billing/reports/detailed';
@@ -553,6 +557,7 @@ const BillingDashboard: React.FC = () => {
 
         {activeTab === 'cards' && <PatientCardSettings />}
         {activeTab === 'financials' && <StandardFinancialReport />}
+        {activeTab === 'expenses' && <ExpenseManager />}
         {activeTab === 'medication' && <ItemRevenueReport />}
         {activeTab === 'reports' && <BillingReports />}
         {activeTab === 'detailed' && <DetailedBillingReport />}
