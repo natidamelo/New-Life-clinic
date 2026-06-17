@@ -618,7 +618,7 @@ const StockManagement: React.FC = () => {
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
                       {['Item', 'Category', 'Quantity', 'Cost Price', 'Sell Price', 'Total Cost', 'Total Value', 'Service', 'Status', 'Expiry', 'Actions'].map(h => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        <th key={h} className={`px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap ${h === 'Actions' ? 'w-[220px] min-w-[220px]' : ''}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -678,8 +678,8 @@ const StockManagement: React.FC = () => {
                             </td>
                             <td className="px-4 py-3"><StatusBadge status={status} /></td>
                             <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(item.expiryDate)}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-0.5 opacity-70 group-hover:opacity-100 transition-opacity">
+                             <td className="px-4 py-3 w-[220px] min-w-[220px] whitespace-nowrap">
+                               <div className="flex items-center gap-0.5 opacity-70 group-hover:opacity-100 transition-opacity">
                                 <button
                                   title="Stock In"
                                   onClick={() => openMovement(item, 'in')}
