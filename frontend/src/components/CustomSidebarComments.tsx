@@ -217,7 +217,7 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
       <SheetTrigger asChild>
         {children ? children : (
           <div className="flex items-center justify-between px-3 py-1.5 border border-sidebar-border/60 bg-sidebar/5 rounded-lg mb-1.5 cursor-pointer hover:bg-sidebar/10 transition-colors">
-            <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">Comments</span>
+            <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">Messages</span>
             <div className="relative">
               <ChatBubbleLeftRightIcon className="w-5 h-5 text-muted-foreground" />
               {unreadCount > 0 ? (
@@ -238,7 +238,7 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
         <SheetHeader className="p-4 border-b border-border bg-muted/20">
           <SheetTitle className="text-lg font-semibold flex items-center gap-2">
             <ChatBubbleLeftRightIcon className="w-5 h-5 text-primary" />
-            Team Comments
+            Team Messages
           </SheetTitle>
         </SheetHeader>
         
@@ -246,7 +246,7 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
           {comments.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-8 text-muted-foreground mt-20">
               <ChatBubbleLeftRightIcon className="w-12 h-12 mb-3 opacity-20" />
-              <p className="text-sm">No comments yet.</p>
+              <p className="text-sm">No messages yet.</p>
               <p className="text-xs mt-1">Be the first to start the conversation!</p>
             </div>
           ) : (
