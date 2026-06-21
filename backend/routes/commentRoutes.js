@@ -7,4 +7,7 @@ router.route('/')
   .get(auth, commentController.getComments)
   .post(auth, commentController.createComment);
 
+router.route('/:id')
+  .delete(auth, commentController.deleteComment);
+
 module.exports = router;

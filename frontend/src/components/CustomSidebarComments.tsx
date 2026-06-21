@@ -10,10 +10,11 @@ import {
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { ScrollArea } from './ui/scroll-area';
-import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
+import { ChatBubbleLeftRightIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { commentService, Comment } from '../services/commentService';
 import userService from '../services/userService';
 import { User } from '../types/user';
+import { toast } from 'react-hot-toast';
 interface CustomSidebarCommentsProps {
   children?: React.ReactNode;
 }
@@ -47,6 +48,10 @@ const playNotificationSound = () => {
 
 const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children }) => {
   const { user } = useAuth();
+  const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
+  const hasDeletePermission = user && user.permissions && user.permissions.deleteMessages === true;
+  const canDelete = isAdmin || hasDeletePermission;
+
   const [comments, setComments] = useState<Comment[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -54,6 +59,7 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
   const [isLoaded, setIsLoaded] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [recipientId, setRecipientId] = useState<string>('all');
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   const isFirstLoad = React.useRef(true);
@@ -154,6 +160,21 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
     setNewComment(e.target.value);
   };
 
+  const handleDeleteConfirm = async (deleteType: 'both' | 'me') => {
+    if (!deleteTargetId) return;
+    
+    try {
+      await commentService.deleteComment(deleteTargetId, deleteType);
+      setComments(prev => prev.filter(c => c._id !== deleteTargetId));
+      toast.success(deleteType === 'both' ? 'Message deleted for everyone' : 'Message deleted for you');
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+      toast.error('Failed to delete message');
+    } finally {
+      setDeleteTargetId(null);
+    }
+  };
+
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + 
@@ -242,12 +263,32 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
                           {formatTime(comment.createdAt)}
                         </span>
                       </div>
-                      <div className={`px-3 py-2 rounded-2xl text-sm shadow-sm whitespace-pre-wrap break-words ${
-                        isMe 
-                          ? 'bg-primary text-primary-foreground rounded-tr-sm' 
-                          : 'bg-muted/60 border border-border/50 text-foreground rounded-tl-sm'
-                      }`}>
-                        {comment.text}
+                      <div className="relative group/msg flex items-center gap-1.5 max-w-full">
+                        {isMe && canDelete && (
+                          <button
+                            onClick={() => setDeleteTargetId(comment._id)}
+                            className="opacity-0 group-hover/msg:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-red-500 rounded-full hover:bg-muted flex-shrink-0"
+                            title="Delete message"
+                          >
+                            <TrashIcon className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <div className={`px-3 py-2 rounded-2xl text-sm shadow-sm whitespace-pre-wrap break-words ${
+                          isMe 
+                            ? 'bg-primary text-primary-foreground rounded-tr-sm' 
+                            : 'bg-muted/60 border border-border/50 text-foreground rounded-tl-sm'
+                        }`}>
+                          {comment.text}
+                        </div>
+                        {!isMe && canDelete && (
+                          <button
+                            onClick={() => setDeleteTargetId(comment._id)}
+                            className="opacity-0 group-hover/msg:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-red-500 rounded-full hover:bg-muted flex-shrink-0"
+                            title="Delete message"
+                          >
+                            <TrashIcon className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -312,6 +353,46 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
           </p>
         </div>
       </SheetContent>
+
+      {deleteTargetId && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-background border border-border rounded-xl shadow-lg p-5 max-w-sm w-full space-y-4">
+            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+              <TrashIcon className="w-4 h-4 text-red-500" />
+              Delete Message?
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Choose how you want to delete this message. This action cannot be undone.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => handleDeleteConfirm('both')}
+                className="w-full"
+              >
+                Delete for Everyone (Both sides)
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDeleteConfirm('me')}
+                className="w-full"
+              >
+                Delete only for Me
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDeleteTargetId(null)}
+                className="w-full text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Sheet>
   );
 };

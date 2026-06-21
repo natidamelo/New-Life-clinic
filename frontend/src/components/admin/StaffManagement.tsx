@@ -27,7 +27,10 @@ const StaffManagement: React.FC = () => {
       role: "",
       firstName: "",
       lastName: "",
-      specialization: ""
+      specialization: "",
+      permissions: {
+        deleteMessages: false
+      }
     }
   });
 
@@ -73,6 +76,7 @@ const StaffManagement: React.FC = () => {
     setValue("firstName", user.firstName || "");
     setValue("lastName", user.lastName || "");
     setValue("specialization", user.specialization || "");
+    setValue("permissions.deleteMessages", user.permissions?.deleteMessages || false);
   };
 
   const handleDelete = async (userId: string) => {
@@ -182,6 +186,20 @@ const StaffManagement: React.FC = () => {
             </Select>
           </div>
 
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 p-2 rounded-lg border border-gray-200 bg-gray-50/50">
+              <input
+                type="checkbox"
+                id="deleteMessages"
+                {...register("permissions.deleteMessages")}
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+              />
+              <label htmlFor="deleteMessages" className="text-sm font-medium text-gray-700 cursor-pointer select-none">
+                Can Delete Messages (Delete Permission)
+              </label>
+            </div>
+          </div>
+
           {showSpecialization && (
             <div>
               <label className="block text-sm font-medium mb-1">Specialization</label>
@@ -235,7 +253,14 @@ const StaffManagement: React.FC = () => {
                           <div className="text-sm text-gray-500">{user.email}</div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{user.role}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
+                        {user.role}
+                        {user.permissions?.deleteMessages && (
+                          <span className="ml-2 px-1.5 py-0.5 text-[9px] bg-red-100 text-red-800 rounded font-semibold whitespace-nowrap">
+                            Can Delete Msg
+                          </span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.specialization || 'N/A'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${(user as any).isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>

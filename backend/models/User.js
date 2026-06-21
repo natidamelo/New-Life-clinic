@@ -56,7 +56,8 @@ const userSchema = new mongoose.Schema({
     manageBilling: { type: Boolean, default: false },
     manageInventory: { type: Boolean, default: false },
     generateReports: { type: Boolean, default: false },
-    viewReports: { type: Boolean, default: false }
+    viewReports: { type: Boolean, default: false },
+    deleteMessages: { type: Boolean, default: false }
   },
   isActive: {
     type: Boolean,
@@ -127,7 +128,8 @@ userSchema.pre('save', async function(next) {
           manageBilling: true,
           manageInventory: true,
           generateReports: true,
-          viewReports: true
+          viewReports: true,
+          deleteMessages: true
         };
         break;
       case 'super_admin':
@@ -138,7 +140,8 @@ userSchema.pre('save', async function(next) {
           manageBilling: true,
           manageInventory: true,
           generateReports: true,
-          viewReports: true
+          viewReports: true,
+          deleteMessages: true
         };
         break;
       case 'doctor':

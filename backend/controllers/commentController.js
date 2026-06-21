@@ -19,6 +19,9 @@ exports.getComments = async (req, res) => {
     const userId = req.user._id || req.user.id;
     const userRole = req.user.role;
 
+    // Filter out messages that the user deleted for themselves
+    query.deletedForUsers = { $ne: userId };
+
     if (userRole !== 'admin' && userRole !== 'superadmin') {
       // Non-admins can only see public comments, comments they sent, or comments where they are mentioned
       query.$or = [
@@ -108,5 +111,60 @@ exports.createComment = async (req, res) => {
   } catch (error) {
     console.error('Error creating comment:', error);
     res.status(500).json({ message: 'Error creating comment', error: error.message });
+  }
+};
+
+/**
+ * Delete a comment (either for everyone or just for the current user)
+ */
+exports.deleteComment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { deleteType = 'both' } = req.query; // 'both' (both sides) or 'me' (only for me)
+    const userId = req.user._id || req.user.id;
+    const userRole = req.user.role;
+
+    // Check permission: Must be admin, super_admin, or have deleteMessages permission
+    const User = require('../models/User');
+    const dbUser = await User.findById(userId);
+    
+    const isAdmin = userRole === 'admin' || userRole === 'super_admin' || (dbUser && (dbUser.role === 'admin' || dbUser.role === 'super_admin'));
+    const hasPermission = dbUser && dbUser.permissions && dbUser.permissions.deleteMessages === true;
+
+    if (!isAdmin && !hasPermission) {
+      return res.status(403).json({ message: 'You do not have permission to delete messages' });
+    }
+
+    const comment = await Comment.findById(id);
+    if (!comment) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    if (deleteType === 'both') {
+      // Hard delete from database
+      await Comment.findByIdAndDelete(id);
+
+      // Emit socket event to notify other clients
+      const io = req.app.get('io');
+      if (io) {
+        if (comment.entityId) {
+          io.to(`${comment.entityType}_${comment.entityId}`).emit('delete_comment', id);
+        } else {
+          io.emit('delete_global_comment', id);
+        }
+      }
+      
+      return res.status(200).json({ success: true, message: 'Message deleted for everyone', id });
+    } else {
+      // Delete only for the current user (soft delete / hide)
+      await Comment.findByIdAndUpdate(id, {
+        $addToSet: { deletedForUsers: userId }
+      });
+      
+      return res.status(200).json({ success: true, message: 'Message deleted for you', id });
+    }
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    res.status(500).json({ message: 'Error deleting comment', error: error.message });
   }
 };

@@ -34,7 +34,11 @@ const commentSchema = new mongoose.Schema({
   isPublic: {
     type: Boolean,
     default: true
-  }
+  },
+  deletedForUsers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }]
 }, {
   timestamps: true
 });

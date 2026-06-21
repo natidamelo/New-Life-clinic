@@ -159,6 +159,7 @@ router.post('/users', auth, async (req, res) => {
       role: userData.role,
       specialization: userData.specialization || '',
       isActive: true,
+      permissions: userData.permissions || {},
       createdAt: new Date(),
       updatedAt: new Date()
     });
@@ -180,7 +181,8 @@ router.post('/users', auth, async (req, res) => {
         specialization: savedUser.specialization,
         isActive: savedUser.isActive,
         createdAt: savedUser.createdAt,
-        updatedAt: savedUser.updatedAt
+        updatedAt: savedUser.updatedAt,
+        permissions: savedUser.permissions || {}
       }
     });
   } catch (error) {
@@ -435,6 +437,10 @@ router.put('/users/:id', auth, async (req, res) => {
       updateObject.notificationPreferences = normalizedPrefs;
     }
     
+    if (updateData.permissions !== undefined) {
+      updateObject.permissions = updateData.permissions;
+    }
+    
     // If password is provided, hash it
     if (updateData.password && updateData.password.trim() !== '') {
       const salt = await bcrypt.genSalt(10);
@@ -471,6 +477,7 @@ router.put('/users/:id', auth, async (req, res) => {
         isActive: updatedUser.isActive,
         createdAt: updatedUser.createdAt,
         updatedAt: updatedUser.updatedAt,
+        permissions: updatedUser.permissions || {},
         // Include Telegram fields in response
         telegramChatId: updatedUser.telegramChatId,
         telegramNotificationsEnabled: updatedUser.telegramNotificationsEnabled,

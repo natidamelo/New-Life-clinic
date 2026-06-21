@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
     }
     
     const users = await User.find(filter)
-      .select('firstName lastName role specialization email')
+      .select('firstName lastName role specialization email permissions')
       .lean();
     
     // Format users for frontend compatibility
@@ -33,7 +33,8 @@ router.get('/', async (req, res) => {
       role: user.role,
       specialization: user.specialization || '',
       email: user.email,
-      name: `${user.firstName || ''} ${user.lastName || ''}`.trim()
+      name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+      permissions: user.permissions || {}
     }));
     
     console.log(`[/users] Found ${formattedUsers.length} users${role ? ` with role: ${role}` : ''}`);

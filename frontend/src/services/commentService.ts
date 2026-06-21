@@ -41,6 +41,14 @@ export const commentService = {
   createComment: async (data: CreateCommentData): Promise<Comment> => {
     const response = await apiService.post('/api/comments', data);
     return response.data;
+  },
+
+  /**
+   * Delete a comment
+   */
+  deleteComment: async (id: string, deleteType: 'both' | 'me' = 'both'): Promise<{ success: boolean; message: string }> => {
+    const response = await apiService.delete(`/api/comments/${id}?deleteType=${deleteType}`);
+    return response.data;
   }
 };
 
