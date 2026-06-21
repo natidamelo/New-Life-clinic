@@ -53,7 +53,7 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
   const [isOpen, setIsOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [mentionSearch, setMentionSearch] = useState<{ active: boolean; term: string; index: number }>({ active: false, term: '', index: 0 });
+  const [recipientId, setRecipientId] = useState<string>('all');
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   const isFirstLoad = React.useRef(true);
@@ -125,25 +125,9 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
     const currentText = newComment.trim();
     setNewComment(''); // Optimistically clear input
 
-    // Extract @mentions
-    const mentionMatches = currentText.match(/@(\w+)/g);
     const mentionedUserIds: string[] = [];
-
-    if (mentionMatches && allUsers.length > 0) {
-      mentionMatches.forEach(match => {
-        const username = match.substring(1).toLowerCase();
-        // Try to find a user where first name or last name matches
-        const matchedUser = allUsers.find(u => 
-          (u.firstName && u.firstName.toLowerCase().includes(username)) || 
-          (u.lastName && u.lastName.toLowerCase().includes(username)) ||
-          (u.name && u.name.toLowerCase().includes(username))
-        );
-        if (matchedUser && matchedUser.id) {
-          mentionedUserIds.push(matchedUser.id);
-        } else if (matchedUser && (matchedUser as any)._id) {
-          mentionedUserIds.push((matchedUser as any)._id);
-        }
-      });
+    if (recipientId !== 'all') {
+      mentionedUserIds.push(recipientId);
     }
 
     try {
@@ -167,43 +151,8 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
-    setNewComment(val);
-
-    const cursorPosition = e.target.selectionStart;
-    const textBeforeCursor = val.slice(0, cursorPosition);
-    
-    const match = textBeforeCursor.match(/@(\w*)$/);
-    if (match) {
-      setMentionSearch({
-        active: true,
-        term: match[1].toLowerCase(),
-        index: match.index !== undefined ? match.index : 0
-      });
-    } else {
-      setMentionSearch(prev => prev.active ? { ...prev, active: false } : prev);
-    }
+    setNewComment(e.target.value);
   };
-
-  const insertMention = (user: User) => {
-    const mentionName = (user.firstName || user.name || 'user').replace(/\s+/g, '');
-    const beforeMention = newComment.slice(0, mentionSearch.index);
-    const afterMention = newComment.slice(mentionSearch.index + mentionSearch.term.length + 1);
-    
-    setNewComment(`${beforeMention}@${mentionName} ${afterMention}`);
-    setMentionSearch({ active: false, term: '', index: 0 });
-    
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-      }
-    }, 10);
-  };
-
-  const filteredUsers = mentionSearch.active ? allUsers.filter(u => {
-    const searchString = ((u.firstName || '') + ' ' + (u.lastName || '') + ' ' + (u.name || '') + ' ' + (u.role || '')).toLowerCase();
-    return searchString.includes(mentionSearch.term);
-  }).slice(0, 15) : [];
 
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
@@ -253,6 +202,25 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
             <div className="flex flex-col gap-4">
               {comments.map((comment) => {
                 const isMe = user && (comment.userId === user.id || comment.userId === user._id);
+                
+                // Get the recipient name if it's a private message
+                let recipientLabel = '';
+                if (comment.mentionedUserIds && comment.mentionedUserIds.length > 0) {
+                  const rId = comment.mentionedUserIds[0];
+                  const isRecipientMe = user && (rId === user.id || rId === (user as any)._id);
+                  if (isRecipientMe) {
+                    recipientLabel = 'to you';
+                  } else {
+                    const recipientUser = allUsers.find(u => (u.id || (u as any)._id) === rId);
+                    if (recipientUser) {
+                      const recipientName = `${recipientUser.firstName || ''} ${recipientUser.lastName || ''}`.trim() || recipientUser.name;
+                      recipientLabel = `to ${recipientName}`;
+                    } else {
+                      recipientLabel = 'private';
+                    }
+                  }
+                }
+
                 return (
                   <div key={comment._id} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                     <div className="flex-shrink-0 mt-1">
@@ -262,8 +230,13 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
                     </div>
                     <div className={`flex flex-col max-w-[80%] ${isMe ? 'items-end' : 'items-start'}`}>
                       <div className="flex items-baseline gap-2 mb-1 mx-1">
-                        <span className="text-xs font-medium text-foreground/80">
+                        <span className="text-xs font-medium text-foreground/80 flex items-center gap-1 flex-wrap">
                           {isMe ? 'You' : comment.userName}
+                          {recipientLabel && (
+                            <span className="text-[10px] text-red-500 font-semibold bg-red-500/5 px-1.5 py-0.5 rounded border border-red-500/10">
+                              🔒 {recipientLabel}
+                            </span>
+                          )}
                         </span>
                         <span className="text-[10px] text-muted-foreground">
                           {formatTime(comment.createdAt)}
@@ -286,25 +259,32 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
         
         <div className="p-4 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           
-          {/* Mention Autocomplete Dropdown */}
-          {mentionSearch.active && filteredUsers.length > 0 && (
-            <div className="absolute bottom-full left-4 right-4 mb-2 bg-popover border border-border rounded-lg shadow-lg overflow-hidden z-50 max-h-48 overflow-y-auto">
-              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/30 border-b border-border">Select a user to mention:</div>
-              {filteredUsers.map(u => (
-                <div 
-                  key={u.id || (u as any)._id}
-                  className="px-3 py-2 text-sm hover:bg-muted cursor-pointer flex items-center gap-2 transition-colors"
-                  onClick={() => insertMention(u)}
-                >
-                  <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                    {(u.firstName?.[0] || u.name?.[0] || 'U').toUpperCase()}
-                  </div>
-                  <span className="font-medium">{u.firstName} {u.lastName}</span>
-                  {u.role && <span className="text-xs text-muted-foreground ml-auto capitalize bg-muted px-1.5 py-0.5 rounded">{u.role}</span>}
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Recipient Dropdown */}
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">Send to:</span>
+            <select
+              value={recipientId}
+              onChange={(e) => setRecipientId(e.target.value)}
+              className="flex h-8 w-full rounded-lg border border-border/60 bg-muted/30 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary/50 cursor-pointer font-medium text-foreground/80"
+            >
+              <option value="all" className="bg-background">Everyone (All)</option>
+              {allUsers
+                .filter(u => {
+                  const id = u.id || (u as any)._id;
+                  const myId = user?.id || (user as any)?._id;
+                  return id && myId && id !== myId;
+                })
+                .map(u => {
+                  const name = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name || 'Unknown User';
+                  const roleStr = u.role ? ` (${u.role})` : '';
+                  return (
+                    <option key={u.id || (u as any)._id} value={u.id || (u as any)._id} className="bg-background">
+                      {name}{roleStr}
+                    </option>
+                  );
+                })}
+            </select>
+          </div>
 
           <div className="relative flex items-end gap-2">
             <Textarea
