@@ -72,6 +72,7 @@ const StaffManagement: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<string>('');
   const [specialization, setSpecialization] = useState('');
+  const [deleteMessagesPermission, setDeleteMessagesPermission] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -84,6 +85,9 @@ const StaffManagement: React.FC = () => {
       patientAssignments: true, vitalsUpdates: true, labOrders: true, imagingRequests: true,
       procedures: true, medicationOrders: true, emergencyAlerts: true, systemUpdates: false,
       billingUpdates: true, dailyRevenue: true, paymentAlerts: true, attendanceUpdates: true
+    },
+    permissions: {
+      deleteMessages: false
     }
   });
   const [showEditModal, setShowEditModal] = useState(false);
@@ -146,6 +150,7 @@ const StaffManagement: React.FC = () => {
   const clearForm = () => {
     setFirstName(''); setLastName(''); setUsername(''); setEmail('');
     setPassword(''); setConfirmPassword(''); setRole(''); setSpecialization('');
+    setDeleteMessagesPermission(false);
   };
 
   const handleRoleChange = (selectedRole: string) => {
@@ -162,7 +167,17 @@ const StaffManagement: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const userData: any = { firstName, lastName, username, email, password, role };
+      const userData: any = { 
+        firstName, 
+        lastName, 
+        username, 
+        email, 
+        password, 
+        role,
+        permissions: {
+          deleteMessages: deleteMessagesPermission
+        }
+      };
       if (role === 'doctor') userData.specialization = specialization;
       await adminService.createUser(userData);
       toast.success(`Staff member '${firstName} ${lastName}' created successfully!`);
@@ -208,7 +223,10 @@ const StaffManagement: React.FC = () => {
       telegramChatId: user.telegramChatId || '',
       telegramNotificationsEnabled: user.telegramNotificationsEnabled || false,
       telegramUsername: user.telegramUsername || '',
-      notificationPreferences: { ...defaultPrefs, ...(user.notificationPreferences || {}) }
+      notificationPreferences: { ...defaultPrefs, ...(user.notificationPreferences || {}) },
+      permissions: {
+        deleteMessages: user.permissions?.deleteMessages || false
+      }
     });
     setShowEditModal(true);
   };
@@ -542,6 +560,20 @@ const StaffManagement: React.FC = () => {
                       </Select>
                     </div>
                   )}
+                  <div className="space-y-1.5 flex flex-col justify-end pb-0.5">
+                    <div className="flex items-center gap-2 h-10 px-1">
+                      <input
+                        type="checkbox"
+                        id="createDeleteMessages"
+                        checked={deleteMessagesPermission}
+                        onChange={e => setDeleteMessagesPermission(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                      />
+                      <Label htmlFor="createDeleteMessages" className="text-sm font-medium text-gray-700 cursor-pointer select-none">
+                        Can Delete Messages
+                      </Label>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -656,6 +688,11 @@ const StaffManagement: React.FC = () => {
                         </span>
                         {user.specialization && (
                           <span className="text-[11px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">{user.specialization}</span>
+                        )}
+                        {user.permissions?.deleteMessages && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800 whitespace-nowrap">
+                            🔑 Delete Msg
+                          </span>
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1">
@@ -787,6 +824,26 @@ const StaffManagement: React.FC = () => {
                   </Select>
                 </div>
               )}
+              <div className="space-y-1.5 flex flex-col justify-end pb-0.5">
+                <div className="flex items-center gap-2 h-10 px-1">
+                  <input
+                    type="checkbox"
+                    id="editDeleteMessages"
+                    checked={editForm.permissions?.deleteMessages || false}
+                    onChange={e => setEditForm(prev => ({
+                      ...prev,
+                      permissions: {
+                        ...prev.permissions,
+                        deleteMessages: e.target.checked
+                      }
+                    }))}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                  />
+                  <Label htmlFor="editDeleteMessages" className="text-sm font-medium text-gray-700 cursor-pointer select-none">
+                    Can Delete Messages
+                  </Label>
+                </div>
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="editPassword" className="text-xs">New Password <span className="text-muted-foreground">(optional)</span></Label>
                 <Input id="editPassword" type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)} minLength={6} placeholder="Leave blank to keep current" />
