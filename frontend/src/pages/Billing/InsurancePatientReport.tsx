@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -12,6 +12,14 @@ import {
   Banknote, AlertCircle, FileText, ChevronLeft, Filter, X, TrendingUp,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import {
+  gregorianToEthiopian,
+  ethiopianToGregorian,
+  getCurrentEthiopianDate,
+  ETHIOPIAN_MONTHS,
+  isValidEthiopianDate,
+  type EthiopianDate,
+} from '../../utils/ethiopianCalendar';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const fmt = (n: number) =>
@@ -24,6 +32,120 @@ const PRESETS = [
   { key: 'last6Months', label: 'Last 6M' },
   { key: 'thisYear',    label: 'This Year' },
 ];
+
+// ─── Ethiopian date display helper ───────────────────────────────────────────
+const ethFmt = (dateStr: string): string => {
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    const e = gregorianToEthiopian(d);
+    return `${e.day} ${ETHIOPIAN_MONTHS[e.month - 1]} ${e.year}`;
+  } catch { return ''; }
+};
+
+// ─── Ethiopian Date Picker (inline, no extra component dependency) ────────────
+const isLeapYear = (y: number) => ((y % 4 === 0) && (y % 100 !== 0)) || (y % 400 === 0);
+const maxDaysEth = (month: number, ethYear: number) =>
+  month <= 12 ? 30 : isLeapYear(ethYear + 7) ? 6 : 5;
+
+interface EthPickerProps {
+  label: string;
+  value: string;          // Gregorian yyyy-MM-dd
+  onChange: (greg: string) => void;
+}
+const EthiopianDatePicker: React.FC<EthPickerProps> = ({ label, value, onChange }) => {
+  const cur = getCurrentEthiopianDate();
+
+  // Derive initial Ethiopian values from the Gregorian value
+  const initEth = useMemo(() => {
+    if (!value) return { year: cur.year, month: cur.month, day: cur.day };
+    try {
+      const e = gregorianToEthiopian(new Date(value));
+      return { year: e.year, month: e.month, day: e.day };
+    } catch { return { year: cur.year, month: cur.month, day: cur.day }; }
+  }, []); // intentionally once
+
+  const [ethYear,  setEthYear]  = useState(initEth.year);
+  const [ethMonth, setEthMonth] = useState(initEth.month);
+  const [ethDay,   setEthDay]   = useState(initEth.day);
+
+  const yearOptions = useMemo(() => {
+    const opts = [];
+    for (let y = cur.year - 10; y <= cur.year + 2; y++) opts.push(y);
+    return opts;
+  }, [cur.year]);
+
+  const dayOptions = useMemo(() => {
+    const max = maxDaysEth(ethMonth, ethYear);
+    return Array.from({ length: max }, (_, i) => i + 1);
+  }, [ethMonth, ethYear]);
+
+  const commit = useCallback((y: number, m: number, d: number) => {
+    if (!isValidEthiopianDate(y, m, d)) return;
+    try {
+      const greg = ethiopianToGregorian(y, m, d);
+      onChange(format(greg, 'yyyy-MM-dd'));
+    } catch { /* invalid */ }
+  }, [onChange]);
+
+  const handleYear = (y: number) => {
+    setEthYear(y);
+    const maxD = maxDaysEth(ethMonth, y);
+    const safeDay = Math.min(ethDay, maxD);
+    setEthDay(safeDay);
+    commit(y, ethMonth, safeDay);
+  };
+  const handleMonth = (m: number) => {
+    setEthMonth(m);
+    const maxD = maxDaysEth(m, ethYear);
+    const safeDay = Math.min(ethDay, maxD);
+    setEthDay(safeDay);
+    commit(ethYear, m, safeDay);
+  };
+  const handleDay = (d: number) => { setEthDay(d); commit(ethYear, ethMonth, d); };
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+        <Calendar className="h-3 w-3 inline mr-1" />{label}
+      </p>
+      <div className="flex gap-1.5">
+        {/* Year */}
+        <select
+          value={ethYear}
+          onChange={e => handleYear(Number(e.target.value))}
+          className="flex-1 h-9 text-sm border border-gray-200 rounded-lg px-2 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 bg-white"
+        >
+          {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+        {/* Month */}
+        <select
+          value={ethMonth}
+          onChange={e => handleMonth(Number(e.target.value))}
+          className="flex-[1.6] h-9 text-sm border border-gray-200 rounded-lg px-2 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 bg-white"
+        >
+          {ETHIOPIAN_MONTHS.map((name, i) => (
+            <option key={i + 1} value={i + 1}>{name}</option>
+          ))}
+        </select>
+        {/* Day */}
+        <select
+          value={ethDay}
+          onChange={e => handleDay(Number(e.target.value))}
+          className="w-16 h-9 text-sm border border-gray-200 rounded-lg px-2 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 bg-white"
+        >
+          {dayOptions.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+      </div>
+      {/* Show Gregorian equivalent */}
+      {value && (
+        <p className="text-xs text-gray-400 mt-1">
+          = {format(new Date(value), 'dd MMM yyyy')} (GC)
+        </p>
+      )}
+    </div>
+  );
+};
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface InvoiceEntry {
@@ -204,7 +326,15 @@ const PatientRow: React.FC<{ patient: PatientEntry; index: number }> = ({ patien
                   <Receipt className="h-4 w-4 text-blue-400 flex-shrink-0" />
                   <span className="font-bold text-blue-700 text-sm">#{inv.invoiceNumber}</span>
                   <StatusBadge status={inv.status} />
-                  <span className="text-xs text-gray-400">{inv.issueDate ? format(new Date(inv.issueDate), 'dd MMM yyyy') : '-'}</span>
+                  <span className="text-xs text-gray-400">
+                    {inv.issueDate ? format(new Date(inv.issueDate), 'dd MMM yyyy') : '-'}
+                    {inv.issueDate && (
+                      <span className="ml-1.5 text-amber-500 font-medium">
+                        🇪🇹 {ethFmt(inv.issueDate)}
+                      </span>
+                    )}
+                  </span>
+
 
                   <div className="flex flex-wrap gap-1 flex-1">
                     <CategoryPill label="Card" value={inv.cardAmt} color="bg-indigo-50 text-indigo-600" />
@@ -271,6 +401,11 @@ const InsurancePatientReport: React.FC = () => {
   const [data, setData]           = useState<ReportData | null>(null);
   const [error, setError]         = useState<string | null>(null);
   const [search, setSearch]       = useState('');
+  const [useEthiopian, setUseEthiopian] = useState(false);
+
+  // Ethiopian date labels for the selected range
+  const ethStartLabel = startDate ? ethFmt(startDate) : '';
+  const ethEndLabel   = endDate   ? ethFmt(endDate)   : '';
 
   // ── Preset date range ──────────────────────────────────────────────────────
   const applyPreset = (key: string) => {
@@ -292,7 +427,10 @@ const InsurancePatientReport: React.FC = () => {
     setStartDate(format(s, 'yyyy-MM-dd'));
     setEndDate(format(e, 'yyyy-MM-dd'));
     setPreset(key);
-    toast.success(`Range: ${format(s, 'MMM dd')} – ${format(e, 'MMM dd, yyyy')}`);
+    // Show Ethiopian date range in toast
+    const eS = gregorianToEthiopian(s);
+    const eE = gregorianToEthiopian(e);
+    toast.success(`${eS.day} ${ETHIOPIAN_MONTHS[eS.month-1]} ${eS.year} – ${eE.day} ${ETHIOPIAN_MONTHS[eE.month-1]} ${eE.year}`);
   };
 
   // ── Fetch report ───────────────────────────────────────────────────────────
