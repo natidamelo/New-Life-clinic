@@ -1360,20 +1360,76 @@ router.put('/:id', [auth,
 });
 
 // DELETE prescription
-router.delete('/:id', [auth, checkPermission('doctor', 'admin')], async (req, res) => {
+router.delete('/:id', auth, checkRole('admin'), async (req, res) => {
   try {
-    const prescription = await Prescription.findById(req.params.id);
+    const { id } = req.params;
+    console.log(`[DELETE PRESCRIPTION] Deleting prescription ${id}`);
 
+    const prescription = await Prescription.findById(id);
     if (!prescription) {
       return res.status(404).json({ msg: 'Prescription not found' });
     }
 
-    prescription.status = 'Cancelled';
-    await prescription.save();
+    const MedicalInvoice = require('../models/MedicalInvoice');
+    const Payment = require('../models/Payment');
+    const Notification = require('../models/Notification');
+    const NurseTask = require('../models/NurseTask');
 
-    res.json({ msg: 'Prescription cancelled' });
+    // 1. Delete associated nurse tasks
+    const nurseTaskDeleteResult = await NurseTask.deleteMany({
+      prescriptionId: id
+    });
+    console.log(`[DELETE PRESCRIPTION] Deleted ${nurseTaskDeleteResult.deletedCount} nurse tasks`);
+
+    // 2. Identify associated invoices
+    const invoiceIds = new Set();
+    if (prescription.invoiceId) {
+      invoiceIds.add(prescription.invoiceId.toString());
+    }
+
+    // Also look for invoices where originalPrescriptionId = id or items have metadata.prescriptionId = id
+    const matchingInvoices = await MedicalInvoice.find({
+      $or: [
+        { originalPrescriptionId: id },
+        { 'items.metadata.prescriptionId': id }
+      ]
+    }).select('_id');
+
+    matchingInvoices.forEach(inv => invoiceIds.add(inv._id.toString()));
+
+    const invoiceIdsArray = Array.from(invoiceIds);
+    console.log(`[DELETE PRESCRIPTION] Found associated invoices to delete:`, invoiceIdsArray);
+
+    if (invoiceIdsArray.length > 0) {
+      // Cascade delete payments
+      const paymentDeleteResult = await Payment.deleteMany({
+        invoice: { $in: invoiceIdsArray }
+      });
+      console.log(`[DELETE PRESCRIPTION] Deleted ${paymentDeleteResult.deletedCount} payments`);
+
+      // Delete invoices
+      const invoiceDeleteResult = await MedicalInvoice.deleteMany({
+        _id: { $in: invoiceIdsArray }
+      });
+      console.log(`[DELETE PRESCRIPTION] Deleted ${invoiceDeleteResult.deletedCount} invoices`);
+    }
+
+    // 3. Cascade delete notifications
+    const notificationDeleteResult = await Notification.deleteMany({
+      $or: [
+        { relatedPrescriptionId: id },
+        { 'data.prescriptionId': id }
+      ]
+    });
+    console.log(`[DELETE PRESCRIPTION] Deleted ${notificationDeleteResult.deletedCount} notifications`);
+
+    // 4. Delete the prescription itself
+    await Prescription.findByIdAndDelete(id);
+    console.log(`[DELETE PRESCRIPTION] Successfully deleted prescription ${id}`);
+
+    res.json({ msg: 'Prescription and all associated nurse tasks, invoices, payments, and notifications deleted successfully' });
   } catch (err) {
-    console.error(err.message);
+    console.error('Error deleting prescription:', err);
     res.status(500).send('Server Error');
   }
 });

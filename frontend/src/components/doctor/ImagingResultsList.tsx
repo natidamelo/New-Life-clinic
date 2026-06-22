@@ -5,12 +5,15 @@ import imagingService, { ImagingOrder } from '../../services/imagingService';
 import { formatDate } from '../../utils/formatters';
 import { toast } from 'react-hot-toast';
 import ImagingResultsViewer from '../imaging/ImagingResultsViewer';
+import { useAuth } from '../../context/AuthContext';
+import { api } from '../../services/api';
 
 interface ImagingResultsListProps {
   doctorId?: string;
 }
 
 const ImagingResultsList: React.FC<ImagingResultsListProps> = ({ doctorId }) => {
+  const { user } = useAuth();
   const [results, setResults] = useState<ImagingOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<ImagingOrder | null>(null);
@@ -120,7 +123,7 @@ const ImagingResultsList: React.FC<ImagingResultsListProps> = ({ doctorId }) => 
                         {order.status}
                       </span>
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 flex items-center gap-2">
                       <button
                         onClick={async () => {
                           try {
@@ -150,6 +153,25 @@ const ImagingResultsList: React.FC<ImagingResultsListProps> = ({ doctorId }) => 
                       >
                         View Results
                       </button>
+                      {user?.role === 'admin' && order._id && !order._id.startsWith('fallback') && (
+                        <button
+                          onClick={async () => {
+                            if (window.confirm(`Are you sure you want to delete this imaging order (${order.imagingType})? All associated invoices, payments, and notifications will also be deleted.`)) {
+                              try {
+                                await api.delete(`/api/imaging-orders/${order._id}`);
+                                toast.success('Imaging order deleted successfully');
+                                fetchResults();
+                              } catch (err: any) {
+                                console.error('Error deleting imaging order:', err);
+                                toast.error(err.response?.data?.message || 'Failed to delete imaging order');
+                              }
+                            }
+                          }}
+                          className="px-3 py-1 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

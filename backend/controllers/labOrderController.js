@@ -1055,9 +1055,76 @@ const updateLabOrder = async (req, res) => {
 // @access  Private
 const deleteLabOrder = async (req, res) => {
   try {
+    const { id } = req.params;
+    console.log(`[DELETE LAB ORDER] Deleting lab order ${id}`);
+
+    const LabOrder = require('../models/LabOrder');
+    const MedicalInvoice = require('../models/MedicalInvoice');
+    const Payment = require('../models/Payment');
+    const Notification = require('../models/Notification');
+
+    const labOrder = await LabOrder.findById(id);
+    if (!labOrder) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lab order not found'
+      });
+    }
+
+    // Identify associated invoices
+    const invoiceIds = new Set();
+    if (labOrder.invoiceId) {
+      invoiceIds.add(labOrder.invoiceId.toString());
+    }
+    if (labOrder.serviceRequestId) {
+      invoiceIds.add(labOrder.serviceRequestId.toString());
+    }
+
+    // Also look for invoices where items have metadata.labOrderId = id or labOrderId = id
+    const matchingInvoices = await MedicalInvoice.find({
+      $or: [
+        { 'items.metadata.labOrderId': id },
+        { 'items.labOrderId': id }
+      ]
+    }).select('_id');
+
+    matchingInvoices.forEach(inv => invoiceIds.add(inv._id.toString()));
+
+    const invoiceIdsArray = Array.from(invoiceIds);
+    console.log(`[DELETE LAB ORDER] Found associated invoices to delete:`, invoiceIdsArray);
+
+    if (invoiceIdsArray.length > 0) {
+      // Cascade delete payments first
+      const paymentDeleteResult = await Payment.deleteMany({
+        invoice: { $in: invoiceIdsArray }
+      });
+      console.log(`[DELETE LAB ORDER] Deleted ${paymentDeleteResult.deletedCount} payments`);
+
+      // Delete invoices
+      const invoiceDeleteResult = await MedicalInvoice.deleteMany({
+        _id: { $in: invoiceIdsArray }
+      });
+      console.log(`[DELETE LAB ORDER] Deleted ${invoiceDeleteResult.deletedCount} invoices`);
+    }
+
+    // Cascade delete notifications
+    const notificationDeleteResult = await Notification.deleteMany({
+      $or: [
+        { relatedOrderId: id },
+        { 'data.labOrderId': id },
+        { 'data.labOrderIds': id },
+        { 'data.tests.labOrderId': id }
+      ]
+    });
+    console.log(`[DELETE LAB ORDER] Deleted ${notificationDeleteResult.deletedCount} notifications`);
+
+    // Delete the lab order itself
+    await LabOrder.findByIdAndDelete(id);
+    console.log(`[DELETE LAB ORDER] Successfully deleted lab order ${id}`);
+
     res.json({
       success: true,
-      message: 'Lab order deleted successfully'
+      message: 'Lab order and all associated invoices, payments, and notifications deleted successfully'
     });
   } catch (error) {
     console.error('Error deleting lab order:', error);

@@ -775,26 +775,73 @@ router.put('/:id', [auth,
   }
 });
 
-// DELETE imaging order (use with caution - better to change status to Cancelled)
+// DELETE imaging order
 router.delete('/:id', auth, checkRole('admin'), async (req, res) => {
   try {
-    const imagingOrder = await ImagingOrder.findById(req.params.id);
+    const { id } = req.params;
+    console.log(`[DELETE IMAGING ORDER] Deleting imaging order ${id}`);
+
+    const imagingOrder = await ImagingOrder.findById(id);
     if (!imagingOrder) {
       return res.status(404).json({ msg: 'Imaging order not found' });
     }
 
-    // Instead of deleting, change status to 'Cancelled'
-    imagingOrder.status = 'Cancelled';
-    await imagingOrder.save();
+    const MedicalInvoice = require('../models/MedicalInvoice');
+    const Payment = require('../models/Payment');
+    const Notification = require('../models/Notification');
 
-    // Optionally remove from Visit document?
-    // await Visit.findByIdAndUpdate(imagingOrder.visitId, {
-    //     $pull: { imagingOrderIds: imagingOrder._id }
-    // });
+    // Identify associated invoices
+    const invoiceIds = new Set();
+    if (imagingOrder.invoiceId) {
+      invoiceIds.add(imagingOrder.invoiceId.toString());
+    }
+    if (imagingOrder.serviceRequestId) {
+      invoiceIds.add(imagingOrder.serviceRequestId.toString());
+    }
 
-    res.json({ msg: 'Imaging order cancelled' });
+    // Also look for invoices where items have metadata.imagingOrderId = id or imagingId = id
+    const matchingInvoices = await MedicalInvoice.find({
+      $or: [
+        { 'items.metadata.imagingOrderId': id },
+        { 'items.imagingId': id }
+      ]
+    }).select('_id');
+
+    matchingInvoices.forEach(inv => invoiceIds.add(inv._id.toString()));
+
+    const invoiceIdsArray = Array.from(invoiceIds);
+    console.log(`[DELETE IMAGING ORDER] Found associated invoices to delete:`, invoiceIdsArray);
+
+    if (invoiceIdsArray.length > 0) {
+      // Cascade delete payments
+      const paymentDeleteResult = await Payment.deleteMany({
+        invoice: { $in: invoiceIdsArray }
+      });
+      console.log(`[DELETE IMAGING ORDER] Deleted ${paymentDeleteResult.deletedCount} payments`);
+
+      // Delete invoices
+      const invoiceDeleteResult = await MedicalInvoice.deleteMany({
+        _id: { $in: invoiceIdsArray }
+      });
+      console.log(`[DELETE IMAGING ORDER] Deleted ${invoiceDeleteResult.deletedCount} invoices`);
+    }
+
+    // Cascade delete notifications
+    const notificationDeleteResult = await Notification.deleteMany({
+      $or: [
+        { relatedOrderId: id },
+        { 'data.imagingOrderId': id }
+      ]
+    });
+    console.log(`[DELETE IMAGING ORDER] Deleted ${notificationDeleteResult.deletedCount} notifications`);
+
+    // Delete the imaging order itself
+    await ImagingOrder.findByIdAndDelete(id);
+    console.log(`[DELETE IMAGING ORDER] Successfully deleted imaging order ${id}`);
+
+    res.json({ msg: 'Imaging order and all associated invoices, payments, and notifications deleted successfully' });
   } catch (err) {
-    console.error(err.message);
+    console.error('Error deleting imaging order:', err);
     res.status(500).send('Server Error');
   }
 });

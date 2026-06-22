@@ -373,7 +373,10 @@ const getDoctorReferrals = async (req, res) => {
     const { doctorId } = req.params;
     const { status, urgency, startDate, endDate, limit = 10 } = req.query;
 
-    const filter = { referringDoctorId: doctorId };
+    const filter = {};
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+      filter.referringDoctorId = doctorId;
+    }
     if (status) filter.status = status;
     if (urgency) filter.urgency = urgency;
     

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCw, Pill, CalendarClock, Check, X, FileText } from 'lucide-react';
 import { api } from '../../services/api';
 import { User } from '../../types/user';
+import { toast } from 'react-hot-toast';
 
 interface PatientPrescriptionsProps {
   patientId: string;
@@ -170,6 +171,11 @@ const PatientPrescriptions: React.FC<PatientPrescriptionsProps> = ({ patientId, 
                     <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Status
                     </th>
+                    {user?.role === 'admin' && (
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Actions
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-primary-foreground divide-y divide-gray-200">
@@ -207,6 +213,31 @@ const PatientPrescriptions: React.FC<PatientPrescriptionsProps> = ({ patientId, 
                       <td className="px-4 py-3 whitespace-nowrap">
                         {getStatusBadge(prescription.status || 'Active')}
                       </td>
+                      {user?.role === 'admin' && (
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                          {prescription._id && !prescription._id.startsWith('fallback') ? (
+                            <button
+                              onClick={async () => {
+                                if (window.confirm(`Are you sure you want to delete this medication prescription? All associated nurse tasks, invoices, payments, and notifications will also be deleted.`)) {
+                                  try {
+                                    await api.delete(`/api/prescriptions/${prescription._id}`);
+                                    toast.success('Prescription deleted successfully');
+                                    fetchPrescriptions();
+                                  } catch (err: any) {
+                                    console.error('Error deleting prescription:', err);
+                                    toast.error(err.response?.data?.message || 'Failed to delete prescription');
+                                  }
+                                }
+                              }}
+                              className="text-red-600 hover:text-red-800 font-medium"
+                            >
+                              Delete
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground/40">N/A</span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -230,8 +261,27 @@ const PatientPrescriptions: React.FC<PatientPrescriptionsProps> = ({ patientId, 
                           <span className="text-xs text-muted-foreground">Rx#{prescription.prescriptionId}</span>
                         )}
                       </div>
-                      <div>
+                      <div className="flex items-center gap-2">
                         {getStatusBadge(prescription.status || 'Active')}
+                        {user?.role === 'admin' && prescription._id && !prescription._id.startsWith('fallback') && (
+                          <button
+                            onClick={async () => {
+                              if (window.confirm(`Are you sure you want to delete this prescription? All associated nurse tasks, invoices, payments, and notifications will also be deleted.`)) {
+                                try {
+                                  await api.delete(`/api/prescriptions/${prescription._id}`);
+                                  toast.success('Prescription deleted successfully');
+                                  fetchPrescriptions();
+                                } catch (err: any) {
+                                  console.error('Error deleting prescription:', err);
+                                  toast.error(err.response?.data?.message || 'Failed to delete prescription');
+                                }
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-800 text-xs font-semibold ml-2 border border-red-300 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded"
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -64,7 +64,10 @@ router.get('/doctor/:doctorId', auth, async (req, res) => {
     const { status, from, to } = req.query;
     
     // Build filter object
-    const filter = { doctor: doctorId };
+    const filter = {};
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+      filter.doctor = doctorId;
+    }
     
     // Add status filter if provided
     if (status) {

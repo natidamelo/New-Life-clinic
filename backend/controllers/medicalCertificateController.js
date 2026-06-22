@@ -450,7 +450,10 @@ const getDoctorCertificates = async (req, res) => {
     const { doctorId } = req.params;
     const { status, startDate, endDate, limit = 10 } = req.query;
 
-    const filter = { doctorId };
+    const filter = {};
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+      filter.doctorId = doctorId;
+    }
     if (status) filter.status = status;
     
     if (startDate || endDate) {

@@ -697,7 +697,11 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
         console.log('[DoctorDashboard] Fetching active patients, appointments, and lab results in parallel...');
         const [patientsRes, apptsRes, labsRes] = await Promise.all([
           api.get(apiUrl),
-          api.get('/api/appointments', { params: { doctorId: currentDoctorId, limit: 200 } }),
+          api.get('/api/appointments', {
+            params: (user?.role === 'admin' || user?.role === 'super_admin')
+              ? { limit: 200 }
+              : { doctorId: currentDoctorId, limit: 200 }
+          }),
           labService.getDoctorLabResults(currentDoctorId.toString())
         ]);
         
@@ -724,6 +728,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
         else if (Array.isArray(responseData?.appointments)) apptsData = responseData.appointments;
         
         doctorAppointments = apptsData.filter((a: any) => {
+          if (user?.role === 'admin' || user?.role === 'super_admin') return true;
           const docId = typeof a.doctorId === 'object' ? (a.doctorId?._id || a.doctorId?.id) : a.doctorId;
           return docId?.toString() === currentDoctorId?.toString();
         });
@@ -833,7 +838,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
         : assignedPatientsData.filter(p => {
           // Check if patient is assigned to current doctor
           const patientDoctorId = p.assignedDoctor?.id || p.assignedDoctor?._id || p.assignedDoctorId;
-          const isAssignedToCurrentDoctor = patientDoctorId?.toString() === currentDoctorId?.toString();
+          const isAssignedToCurrentDoctor = user?.role === 'admin' || user?.role === 'super_admin' || patientDoctorId?.toString() === currentDoctorId?.toString();
 
           // Check if patient is in an active workflow status
           const isActiveStatus = ['scheduled', 'Admitted', 'waiting', 'Admitted Patient', 'Observation'].includes(p.status);
@@ -912,7 +917,9 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
     try {
       const currentDoctorId = user?.id || user?._id;
       const response = await api.get('/api/appointments', {
-        params: { doctorId: currentDoctorId, limit: 200 }
+        params: (user?.role === 'admin' || user?.role === 'super_admin')
+          ? { limit: 200 }
+          : { doctorId: currentDoctorId, limit: 200 }
       });
       let data: any[] = [];
       if (Array.isArray(response.data)) data = response.data;
@@ -920,6 +927,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       else if (Array.isArray(response.data?.appointments)) data = response.data.appointments;
       // Filter to only this doctor's appointments
       const filtered = data.filter((a: any) => {
+        if (user?.role === 'admin' || user?.role === 'super_admin') return true;
         const docId = typeof a.doctorId === 'object' ? (a.doctorId?._id || a.doctorId?.id) : a.doctorId;
         return docId?.toString() === currentDoctorId?.toString();
       });
@@ -1679,7 +1687,12 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
 
     setPrescriptionsLoading(true);
     try {
-      const response = await prescriptionService.getPrescriptionsByDoctor(currentDoctorId);
+      let response;
+      if (user?.role === 'admin') {
+        response = await prescriptionService.getAllPrescriptions();
+      } else {
+        response = await prescriptionService.getPrescriptionsByDoctor(currentDoctorId);
+      }
 
       // Helper: extract the raw patient ObjectId string from a prescription
       const extractPatientId = (prescription: any): string | null => {

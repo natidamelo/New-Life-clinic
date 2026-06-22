@@ -2311,7 +2311,10 @@ router.get('/doctor/:doctorId/search', auth, asyncHandler(async (req, res) => {
       limit = 10 
     } = req.query;
 
-    let query = { 'metadata.doctorId': doctorId };
+    let query = {};
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+      query['metadata.doctorId'] = doctorId;
+    }
 
     // Apply filters
     if (patientId) {

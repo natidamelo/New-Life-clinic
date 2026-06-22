@@ -101,6 +101,6 @@ router.get('/:id', auth, checkRole('admin', 'lab', 'doctor', 'mch'), labOrderCon
 router.put('/:id', auth, checkRole('admin', 'lab'), labOrderController.updateLabOrder);
 
 // Delete a lab order
-router.delete('/:id', auth, checkRole('admin', 'lab'), labOrderController.deleteLabOrder);
+router.delete('/:id', auth, checkRole('admin'), labOrderController.deleteLabOrder);
 
 module.exports = router; 

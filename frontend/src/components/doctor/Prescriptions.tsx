@@ -4,6 +4,7 @@ import ProfessionalPrescriptionForm from './ProfessionalPrescriptionForm';
 import { toast } from 'react-toastify';
 import prescriptionService from '../../services/prescriptionService';
 import { useAuth } from '../../context/AuthContext';
+import { api } from '../../services/api';
 
 interface Prescription {
   id: string;
@@ -55,10 +56,13 @@ const Prescriptions: React.FC = () => {
   const fetchPrescriptions = async () => {
     setLoading(true);
     try {
-      // Fetch prescriptions from backend API using the service
+      // Fetch prescriptions data from backend API using the service
       let fetchedPrescriptions = [];
       
-      if (doctorId) {
+      if (user?.role === 'admin') {
+        console.log('Fetching all prescriptions for admin');
+        fetchedPrescriptions = await prescriptionService.getAllPrescriptions();
+      } else if (doctorId) {
         console.log('Fetching prescriptions for doctor:', doctorId);
         fetchedPrescriptions = await prescriptionService.getPrescriptionsByDoctor(doctorId);
       } else if (user?.id || user?._id) {
@@ -323,13 +327,32 @@ const Prescriptions: React.FC = () => {
                           ))}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground flex gap-3">
                         <button 
                           onClick={() => handleViewPrescription(prescription)}
                           className="text-primary hover:text-primary"
                         >
                           View Details
                         </button>
+                        {user?.role === 'admin' && prescription.id && !prescription.id.startsWith('fallback') && (
+                          <button 
+                            onClick={async () => {
+                              if (window.confirm(`Are you sure you want to delete this prescription? All associated nurse tasks, invoices, payments, and notifications will also be deleted.`)) {
+                                try {
+                                  await api.delete(`/api/prescriptions/${prescription.id}`);
+                                  toast.success('Prescription deleted successfully');
+                                  fetchPrescriptions();
+                                } catch (err: any) {
+                                  console.error('Error deleting prescription:', err);
+                                  toast.error(err.response?.data?.message || 'Failed to delete prescription');
+                                }
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-800 font-medium"
+                          >
+                            Delete
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

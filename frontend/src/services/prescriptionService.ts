@@ -167,6 +167,19 @@ const getPrescriptionsByDoctor = async (doctorId: string): Promise<Prescription[
     }
 };
 
+// Get all prescriptions (for admins)
+const getAllPrescriptions = async (): Promise<Prescription[]> => {
+    try {
+        const timestamp = Date.now();
+        const response = await api.get<Prescription[]>(`/api/prescriptions?_=${timestamp}`);
+
+        return Array.isArray(response.data) ? response.data : [];
+    } catch (error: any) {
+        console.error('Error fetching all prescriptions via API:', error);
+        return [];
+    }
+};
+
 // Get a single prescription by ID
 const getPrescriptionById = async (prescriptionId: string): Promise<Prescription> => {
     try {
@@ -334,6 +347,7 @@ export const prescriptionService = {
   getPatientPrescriptions,
   getPrescriptionsByPatient,
   getPrescriptionsByDoctor,
+  getAllPrescriptions,
   getPrescriptionById,
   updatePrescription,
   updatePrescriptionFrequency,

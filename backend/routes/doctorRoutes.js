@@ -186,7 +186,9 @@ router.get('/patients/active', auth, async (req, res) => {
     } else {
       query.isActive = true;
       query.status = { $ne: 'completed' };
-      query.assignedDoctorId = currentDoctorId;
+      if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+        query.assignedDoctorId = currentDoctorId;
+      }
     }
 
     // Get patients with pagination
@@ -273,17 +275,18 @@ router.get('/patients/completed', auth, async (req, res) => {
       'Not specified', 'not specified', 'NOT SPECIFIED'
     ];
 
-    // Include legacy/older patients by looking at finalized records authored by this doctor.
-    // This handles records where assignedDoctorId or patient status was not reliably synced.
-    const finalizedRecords = await MedicalRecord.find({
+    const finalizedQuery = {
       status: { $in: FINALIZED_STATUSES },
-      isDeleted: { $ne: true },
-      $or: [
+      isDeleted: { $ne: true }
+    };
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+      finalizedQuery.$or = [
         { doctorId: currentDoctorId },
         { doctor: currentDoctorId },
         { createdBy: currentDoctorId }
-      ]
-    }).select('patient patientId').lean();
+      ];
+    }
+    const finalizedRecords = await MedicalRecord.find(finalizedQuery).select('patient patientId').lean();
 
     const finalizedPatientIds = [
       ...new Set(
@@ -293,16 +296,22 @@ router.get('/patients/completed', auth, async (req, res) => {
       )
     ];
 
-    const doctorScopedConditions = [{ assignedDoctorId: currentDoctorId, status: 'completed' }];
-    if (finalizedPatientIds.length > 0) {
-      doctorScopedConditions.push({ _id: { $in: finalizedPatientIds } });
+    let query;
+    if (req.user.role === 'admin' || req.user.role === 'super_admin') {
+      query = {
+        isActive: true,
+        status: 'completed'
+      };
+    } else {
+      const doctorScopedConditions = [{ assignedDoctorId: currentDoctorId, status: 'completed' }];
+      if (finalizedPatientIds.length > 0) {
+        doctorScopedConditions.push({ _id: { $in: finalizedPatientIds } });
+      }
+      query = {
+        isActive: true,
+        $or: doctorScopedConditions
+      };
     }
-
-    // Build query for completed/doctor-finalized patients
-    const query = {
-      isActive: true,
-      $or: doctorScopedConditions
-    };
     
     // Add date range filter if provided
     if (dateFrom || dateTo) {

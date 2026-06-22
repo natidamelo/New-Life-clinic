@@ -4,6 +4,7 @@ import LaboratoryRequestForm from './LaboratoryRequestForm';
 import { toast } from 'react-toastify';
 import labService from '../../services/labService'; // Import the updated service
 import { useAuth } from '../../context/AuthContext';
+import { api } from '../../services/api';
 
 interface LabTestResult {
   id: string;
@@ -345,12 +346,17 @@ const LaboratoryTests: React.FC<LabTestsProps> = ({
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Results
               </th>
+              {user?.role === 'admin' && (
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="bg-primary-foreground divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-6 py-4 text-center">
+                <td colSpan={user?.role === 'admin' ? 6 : 5} className="px-6 py-4 text-center">
                   <div className="flex justify-center">
                     <RefreshCw className="h-5 w-5 text-primary animate-spin" />
                   </div>
@@ -358,7 +364,7 @@ const LaboratoryTests: React.FC<LabTestsProps> = ({
               </tr>
             ) : filteredTests.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-4 text-center text-muted-foreground">
+                <td colSpan={user?.role === 'admin' ? 6 : 5} className="px-6 py-4 text-center text-muted-foreground">
                   {activeTab === 'pending' 
                     ? 'No pending laboratory tests found.' 
                     : 'No completed laboratory tests found.'}
@@ -415,6 +421,27 @@ const LaboratoryTests: React.FC<LabTestsProps> = ({
                       </span>
                     )}
                   </td>
+                  {user?.role === 'admin' && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={async () => {
+                          if (window.confirm(`Are you sure you want to delete this lab order (${test.testName})? All associated invoices, payments, and notifications will also be deleted.`)) {
+                            try {
+                              await api.delete(`/api/lab-orders/${test.id || test._id}`);
+                              toast.success('Lab order deleted successfully');
+                              fetchLabTests();
+                            } catch (err: any) {
+                              console.error('Error deleting lab order:', err);
+                              toast.error(err.response?.data?.message || 'Failed to delete lab order');
+                            }
+                          }
+                        }}
+                        className="text-red-600 hover:text-red-800 font-medium"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))
             )}

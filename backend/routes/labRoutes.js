@@ -766,15 +766,18 @@ router.get('/doctor/:doctorId', auth, async (req, res) => {
       .lean();
     const assignedPatientIds = assignedPatients.map((p) => p._id);
 
-    const doctorLabQuery = {
-      $or: [
-        { sentToDoctorId: doctorObjectId, sentToDoctor: true },
-        { orderingDoctorId: doctorObjectId }
-      ]
-    };
+    let doctorLabQuery = {};
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+      doctorLabQuery = {
+        $or: [
+          { sentToDoctorId: doctorObjectId, sentToDoctor: true },
+          { orderingDoctorId: doctorObjectId }
+        ]
+      };
 
-    if (assignedPatientIds.length > 0) {
-      doctorLabQuery.$or.push({ patientId: { $in: assignedPatientIds } });
+      if (assignedPatientIds.length > 0) {
+        doctorLabQuery.$or.push({ patientId: { $in: assignedPatientIds } });
+      }
     }
 
     // Find all lab orders that are sent to/ordered by this doctor, with fallback to assigned patients

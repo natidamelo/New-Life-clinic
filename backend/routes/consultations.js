@@ -11,7 +11,13 @@ router.get('/doctor/:doctorId', auth(), async (req, res) => {
     const { doctorId } = req.params;
     const { status } = req.query;
     
-    const consultations = await Consultation.getByDoctor(doctorId, status);
+    let consultations;
+    if (req.user.role === 'admin' || req.user.role === 'super_admin') {
+      const filter = status ? { status } : {};
+      consultations = await Consultation.find(filter).populate('patientId serviceRequestId');
+    } else {
+      consultations = await Consultation.getByDoctor(doctorId, status);
+    }
     
     res.json({
       success: true,
@@ -176,8 +182,19 @@ router.get('/stats/doctor/:doctorId', auth(), async (req, res) => {
   try {
     const { doctorId } = req.params;
     
+    let matchStage;
+    let countQuery;
+    
+    if (req.user.role === 'admin' || req.user.role === 'super_admin') {
+      matchStage = {};
+      countQuery = {};
+    } else {
+      matchStage = { doctorId: new require('mongoose').Types.ObjectId(doctorId) };
+      countQuery = { doctorId };
+    }
+    
     const stats = await Consultation.aggregate([
-      { $match: { doctorId: new require('mongoose').Types.ObjectId(doctorId) } },
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
       {
         $group: {
           _id: '$status',
@@ -186,7 +203,7 @@ router.get('/stats/doctor/:doctorId', auth(), async (req, res) => {
       }
     ]);
     
-    const totalConsultations = await Consultation.countDocuments({ doctorId });
+    const totalConsultations = await Consultation.countDocuments(countQuery);
     
     res.json({
       success: true,
