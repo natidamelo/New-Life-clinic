@@ -76,7 +76,18 @@ class TelegramService {
         return false;
       }
 
-      for (const staff of staffWithTelegram) {
+      // Deduplicate by chat ID to avoid sending the same message twice to the same chat
+      const seenChatIds = new Set();
+      const uniqueStaff = staffWithTelegram.filter(staff => {
+        if (seenChatIds.has(staff.telegramChatId)) {
+          console.log(`📱 Skipping duplicate chat ID ${staff.telegramChatId} for ${staff.firstName} ${staff.lastName}`);
+          return false;
+        }
+        seenChatIds.add(staff.telegramChatId);
+        return true;
+      });
+
+      for (const staff of uniqueStaff) {
         try {
           const messageOptions = {
             parse_mode: 'HTML',
