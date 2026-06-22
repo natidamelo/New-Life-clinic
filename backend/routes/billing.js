@@ -6066,11 +6066,35 @@ router.get('/insurance-patient-report', auth, checkRole('admin', 'finance'), asy
       entry.invoiceCount += 1;
 
       // Tally insurance / cash / other payments
+      // Deduplicate payments by _id to avoid double-counting repeated records
+      const seenPmtIds = new Set();
+      let invInsurance = 0, invCash = 0, invOther = 0;
+
       for (const pmt of (inv.payments || [])) {
-        if (pmt.method === 'insurance') entry.insurancePaid += pmt.amount || 0;
-        else if (pmt.method === 'cash') entry.cashPaid += pmt.amount || 0;
-        else entry.otherPaid += pmt.amount || 0;
+        const pmtId = pmt._id ? pmt._id.toString() : null;
+        if (pmtId && seenPmtIds.has(pmtId)) continue; // skip duplicate
+        if (pmtId) seenPmtIds.add(pmtId);
+
+        if (pmt.method === 'insurance') invInsurance += pmt.amount || 0;
+        else if (pmt.method === 'cash') invCash += pmt.amount || 0;
+        else invOther += pmt.amount || 0;
       }
+
+      // Cap: total payments cannot exceed what was actually paid on the invoice
+      const maxPaid = inv.amountPaid || inv.total || 0;
+      const rawTotal = invInsurance + invCash + invOther;
+      if (rawTotal > maxPaid && rawTotal > 0) {
+        // Scale each payment proportionally down to amountPaid
+        const scale = maxPaid / rawTotal;
+        invInsurance = Math.round(invInsurance * scale * 100) / 100;
+        invCash      = Math.round(invCash      * scale * 100) / 100;
+        invOther     = Math.round(invOther     * scale * 100) / 100;
+      }
+
+      entry.insurancePaid += invInsurance;
+      entry.cashPaid      += invCash;
+      entry.otherPaid     += invOther;
+
 
       // Tally items by category
       let cardAmt = 0, labAmt = 0, medAmt = 0, svcAmt = 0;
@@ -6109,8 +6133,9 @@ router.get('/insurance-patient-report', auth, checkRole('admin', 'finance'), asy
         labAmt,
         medAmt,
         svcAmt,
-        insurancePmt: (inv.payments || []).filter(p => p.method === 'insurance').reduce((s, p) => s + p.amount, 0),
-        cashPmt: (inv.payments || []).filter(p => p.method === 'cash').reduce((s, p) => s + p.amount, 0),
+        insurancePmt: invInsurance,
+        cashPmt: invCash,
+
         items: (inv.items || []).map(it => ({
           description: it.description || it.serviceName || 'Unknown',
           itemType: it.itemType || it.category || 'service',
