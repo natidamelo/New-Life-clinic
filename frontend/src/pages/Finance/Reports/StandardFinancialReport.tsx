@@ -255,7 +255,8 @@ const StandardFinancialReport: React.FC = () => {
 
   const fs = financialSummary;
   const totalAging = agingData ? (agingData.current + agingData.days30 + agingData.days60 + agingData.days90 + agingData.over90) : 1;
-  const dso = fs && fs.totalRevenue > 0 ? Math.round((fs.totalOutstanding / fs.totalRevenue) * 365) : 0;
+  const periodDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+  const dso = fs && fs.totalRevenue > 0 ? Math.round((fs.totalOutstanding / fs.totalRevenue) * periodDays) : 0;
   const profitMarginPct = fs && fs.totalRevenue > 0 ? (fs.netProfit / fs.totalRevenue) * 100 : 0;
   const workingCapital = fs && fs.totalRevenue > 0 ? ((fs.totalRevenue - fs.totalOutstanding) / fs.totalRevenue * 100) : 0;
 
