@@ -861,7 +861,7 @@ const StaffManagement: React.FC = () => {
                 <div className="space-y-1.5">
                   <Label className="text-xs">Chat ID</Label>
                   <Input name="telegramChatId" value={editForm.telegramChatId} onChange={handleEditFormChange} placeholder="e.g. 429020716" />
-                  <p className="text-[11px] text-muted-foreground">Get via @Newlifeclinicnotifcationbot</p>
+                  <p className="text-[11px] text-muted-foreground">Get via @Newlife_23bot</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Username</Label>
