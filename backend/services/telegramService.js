@@ -27,6 +27,23 @@ class TelegramService {
       this.bot = new TelegramBot(botToken, { polling: true });
       this.isInitialized = true;
 
+      // Handle polling errors gracefully (e.g. invalid/revoked token)
+      this.bot.on('polling_error', (error) => {
+        if (error.code === 'ETELEGRAM' && error.message && error.message.includes('404')) {
+          console.error('❌ Telegram bot token is invalid or revoked (404 Not Found). Stopping polling.');
+          console.error('   Please update TELEGRAM_BOT_TOKEN in your .env file with a valid token from @BotFather');
+          this.bot.stopPolling();
+          this.isInitialized = false;
+        } else if (error.code === 'ETELEGRAM' && error.message && error.message.includes('401')) {
+          console.error('❌ Telegram bot token is unauthorized (401). Stopping polling.');
+          console.error('   Please update TELEGRAM_BOT_TOKEN in your .env file with a valid token from @BotFather');
+          this.bot.stopPolling();
+          this.isInitialized = false;
+        } else {
+          console.error('⚠️ Telegram polling error:', error.code, error.message);
+        }
+      });
+
       // Set up message handlers
       this.setupMessageHandlers();
 
