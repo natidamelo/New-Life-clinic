@@ -631,6 +631,140 @@ const getOLDCARTSStatus = (hpiText: string) => {
   };
 };
 
+const quickPickPhrases: Record<string, Array<{ text: string; isAbnormal: boolean }>> = {
+  generalAppearance: [
+    { text: "Well-appearing", isAbnormal: false },
+    { text: "Well-nourished", isAbnormal: false },
+    { text: "In no acute distress (NAD)", isAbnormal: false },
+    { text: "Alert and cooperative", isAbnormal: false },
+    { text: "Ill-appearing", isAbnormal: true },
+    { text: "Mild distress", isAbnormal: true },
+    { text: "Moderate distress", isAbnormal: true },
+    { text: "Severe distress", isAbnormal: true },
+    { text: "Lethargic", isAbnormal: true },
+    { text: "Dehydrated", isAbnormal: true }
+  ],
+  head: [
+    { text: "Normocephalic, atraumatic", isAbnormal: false },
+    { text: "No visible lesions", isAbnormal: false },
+    { text: "Tenderness on palpation", isAbnormal: true },
+    { text: "Visible deformity", isAbnormal: true },
+    { text: "Scalp laceration", isAbnormal: true },
+    { text: "Hematoma", isAbnormal: true }
+  ],
+  eyes: [
+    { text: "PERRLA", isAbnormal: false },
+    { text: "EOMI", isAbnormal: false },
+    { text: "Sclerae anicteric", isAbnormal: false },
+    { text: "Conjunctivae normal", isAbnormal: false },
+    { text: "No discharge", isAbnormal: false },
+    { text: "Conjunctival injection", isAbnormal: true },
+    { text: "Icterus", isAbnormal: true },
+    { text: "Pale conjunctiva", isAbnormal: true },
+    { text: "Pupils sluggish", isAbnormal: true },
+    { text: "Strabismus", isAbnormal: true },
+    { text: "Discharge present", isAbnormal: true }
+  ],
+  ears: [
+    { text: "TMs intact bilaterally", isAbnormal: false },
+    { text: "External canals clear", isAbnormal: false },
+    { text: "No discharge", isAbnormal: false },
+    { text: "TM erythematous", isAbnormal: true },
+    { text: "Cerumen impaction", isAbnormal: true },
+    { text: "Discharge present", isAbnormal: true },
+    { text: "Tenderness", isAbnormal: true },
+    { text: "Fluid behind TM", isAbnormal: true }
+  ],
+  nose: [
+    { text: "No congestion", isAbnormal: false },
+    { text: "Nasal mucosa pink", isAbnormal: false },
+    { text: "No discharge", isAbnormal: false },
+    { text: "Nasal congestion", isAbnormal: true },
+    { text: "Clear discharge", isAbnormal: true },
+    { text: "Purulent discharge", isAbnormal: true },
+    { text: "Septal deviation", isAbnormal: true },
+    { text: "Epistaxis", isAbnormal: true }
+  ],
+  throat: [
+    { text: "No pharyngeal erythema", isAbnormal: false },
+    { text: "Tonsils normal", isAbnormal: false },
+    { text: "Mucosa moist", isAbnormal: false },
+    { text: "No exudates", isAbnormal: false },
+    { text: "Mild pharyngeal erythema", isAbnormal: true },
+    { text: "Exudates present", isAbnormal: true },
+    { text: "Tonsillar enlargement", isAbnormal: true },
+    { text: "Cobblestoning", isAbnormal: true },
+    { text: "Dry mucosa", isAbnormal: true }
+  ],
+  cardiovascular: [
+    { text: "Regular rate and rhythm", isAbnormal: false },
+    { text: "S1, S2 normal", isAbnormal: false },
+    { text: "No murmurs/rubs/gallops", isAbnormal: false },
+    { text: "Capillary refill <2s", isAbnormal: false },
+    { text: "Tachycardia", isAbnormal: true },
+    { text: "Bradycardia", isAbnormal: true },
+    { text: "Systolic murmur", isAbnormal: true },
+    { text: "Diastolic murmur", isAbnormal: true },
+    { text: "Irregular rhythm", isAbnormal: true },
+    { text: "Pedal edema present", isAbnormal: true }
+  ],
+  respiratory: [
+    { text: "Clear to auscultation bilaterally", isAbnormal: false },
+    { text: "Symmetric expansion", isAbnormal: false },
+    { text: "No wheezes/rales/rhonchi", isAbnormal: false },
+    { text: "No accessory muscle use", isAbnormal: false },
+    { text: "Bilateral wheezing", isAbnormal: true },
+    { text: "Crackles present", isAbnormal: true },
+    { text: "Rhonchi present", isAbnormal: true },
+    { text: "Diminished breath sounds", isAbnormal: true },
+    { text: "Tachypnea", isAbnormal: true },
+    { text: "Accessory muscle use", isAbnormal: true }
+  ],
+  abdomen: [
+    { text: "Soft, non-tender", isAbnormal: false },
+    { text: "Non-distended", isAbnormal: false },
+    { text: "Bowel sounds normoactive", isAbnormal: false },
+    { text: "No masses or organomegaly", isAbnormal: false },
+    { text: "Tenderness present", isAbnormal: true },
+    { text: "Distended", isAbnormal: true },
+    { text: "Bowel sounds absent", isAbnormal: true },
+    { text: "Bowel sounds hyperactive", isAbnormal: true },
+    { text: "Rebound tenderness", isAbnormal: true },
+    { text: "Guarding present", isAbnormal: true },
+    { text: "Murphy's sign positive", isAbnormal: true }
+  ],
+  musculoskeletal: [
+    { text: "Full range of motion (ROM) all joints", isAbnormal: false },
+    { text: "No joint swelling/tenderness", isAbnormal: false },
+    { text: "Normal gait", isAbnormal: false },
+    { text: "Limited ROM", isAbnormal: true },
+    { text: "Joint swelling", isAbnormal: true },
+    { text: "Joint tenderness", isAbnormal: true },
+    { text: "Joint deformity", isAbnormal: true },
+    { text: "Antalgic gait", isAbnormal: true },
+    { text: "Spine tenderness", isAbnormal: true }
+  ],
+  neurological: [
+    { text: "Alert and oriented x4", isAbnormal: false },
+    { text: "Cranial nerves II-XII intact", isAbnormal: false },
+    { text: "Motor strength 5/5 all extremities", isAbnormal: false },
+    { text: "Sensory intact", isAbnormal: false },
+    { text: "Disoriented", isAbnormal: true },
+    { text: "Motor weakness", isAbnormal: true },
+    { text: "Deep tendon reflexes asymmetric", isAbnormal: true },
+    { text: "Gait unsteady", isAbnormal: true },
+    { text: "Tremor present", isAbnormal: true }
+  ],
+  genitourinary: [
+    { text: "External genitalia normal", isAbnormal: false },
+    { text: "No CVA tenderness", isAbnormal: false },
+    { text: "CVA tenderness present", isAbnormal: true },
+    { text: "Suprapubic tenderness", isAbnormal: true },
+    { text: "Hernia present", isAbnormal: true },
+    { text: "Discharge present", isAbnormal: true }
+  ]
+};
+
 export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = ({
   patientId,
   recordId,
@@ -1069,6 +1203,7 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   const [currentRecordId, setCurrentRecordId] = useState<string | null>(recordId || null);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [activeExamTab, setActiveExamTab] = useState('All systems');
+  const [expandedSystems, setExpandedSystems] = useState<Record<string, boolean>>({});
 
   // --- HPI & Voice Features State ---
   const [hpiHistory, setHpiHistory] = useState<string[]>([]);
@@ -5398,6 +5533,27 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           'Other'
         ];
 
+        const toggleExpandSystem = (key: string) => {
+          setExpandedSystems(prev => ({ ...prev, [key]: !prev[key] }));
+        };
+
+        const handleAppendFinding = (systemKey: string, phrase: string) => {
+          const currentSystem = formData.physicalExam.systems[systemKey as keyof typeof formData.physicalExam.systems] || { findings: '' };
+          const currentVal = currentSystem.findings || '';
+          let newVal = '';
+          if (currentVal.trim() === '') {
+            newVal = phrase;
+          } else {
+            const cleanVal = currentVal.trim();
+            if (cleanVal.endsWith(',')) {
+              newVal = `${cleanVal} ${phrase}`;
+            } else {
+              newVal = `${cleanVal}, ${phrase}`;
+            }
+          }
+          handleSystemFindingsChange(systemKey, newVal);
+        };
+
         const filteredSystems = systemConfig.filter(sys => tabGroups[activeExamTab].includes(sys.key));
 
         const totalExamined = Object.values(formData.physicalExam.systems).filter((sys: any) => sys.status !== 'none').length;
@@ -5567,108 +5723,241 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                   </Box>
 
                   {/* Systems Rows Section */}
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                    {filteredSystems.map((system) => {
+                  <Box sx={{
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    overflow: 'hidden'
+                  }}>
+                    {filteredSystems.map((system, idx) => {
                       const SystemIcon = system.icon;
-                      const findingsValue = formData.physicalExam.systems[system.key as keyof typeof formData.physicalExam.systems]?.findings || '';
-                      
+                      const systemState = formData.physicalExam.systems[system.key as keyof typeof formData.physicalExam.systems] || { status: 'none', findings: '' };
+                      const findingsValue = systemState.findings || '';
+                      const status = systemState.status || 'none';
+                      const isExpanded = !!expandedSystems[system.key];
+                      const isAbnormal = status === 'abnormal';
+
+                      // Determine colors based on status and mode
+                      const rowBg = isAbnormal
+                        ? (theme: any) => alpha(theme.palette.error.main, theme.palette.mode === 'dark' ? 0.12 : 0.04)
+                        : 'background.paper';
+
+                      const textColor = isAbnormal
+                        ? (theme: any) => theme.palette.mode === 'dark' ? theme.palette.error.light : theme.palette.error.dark
+                        : 'text.primary';
+
+                      const findingsColor = isAbnormal
+                        ? (theme: any) => theme.palette.mode === 'dark' ? theme.palette.error.light : theme.palette.error.dark
+                        : 'text.secondary';
+
+                      const iconBg = isAbnormal
+                        ? (theme: any) => alpha(theme.palette.error.main, 0.15)
+                        : 'grey.50';
+
+                      const iconColor = isAbnormal
+                        ? 'error.main'
+                        : 'text.secondary';
+
                       return (
                         <Box key={system.key} sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 2,
-                          py: 1,
-                          px: 1.5,
-                          borderRadius: 2,
-                          border: '1px solid',
+                          borderBottom: idx < filteredSystems.length - 1 ? '1px solid' : 'none',
                           borderColor: 'divider',
-                          bgcolor: 'background.paper',
-                          transition: 'all 0.2s',
-                          '&:hover': {
-                            borderColor: 'grey.300',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
-                          }
                         }}>
-                          {/* Centered Icon */}
+                          {/* Main Row */}
                           <Box sx={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            bgcolor: 'grey.50',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'text.secondary',
-                            flexShrink: 0
+                            gap: 2,
+                            py: '13px',
+                            px: 2.5,
+                            bgcolor: rowBg,
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                              bgcolor: isAbnormal
+                                ? (theme: any) => alpha(theme.palette.error.main, theme.palette.mode === 'dark' ? 0.16 : 0.06)
+                                : (theme: any) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'grey.25'
+                            }
                           }}>
-                            <SystemIcon sx={{ fontSize: '1.1rem' }} />
+                            {/* Centered Icon */}
+                            <Box sx={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: '50%',
+                              bgcolor: iconBg,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: iconColor,
+                              flexShrink: 0
+                            }}>
+                              <SystemIcon sx={{ fontSize: '1.1rem' }} />
+                            </Box>
+
+                            {/* 90px Fixed Width Label */}
+                            <Typography sx={{
+                              width: 90,
+                              flexShrink: 0,
+                              fontWeight: 500,
+                              fontSize: '14px',
+                              color: textColor
+                            }}>
+                              {system.displayName}
+                            </Typography>
+
+                            {/* Transparent Flex-Grow Input */}
+                            <InputBase
+                              fullWidth
+                              value={findingsValue}
+                              placeholder={`Enter ${system.displayName.toLowerCase()} findings...`}
+                              disabled={mode === 'view'}
+                              onChange={(e) => handleSystemFindingsChange(system.key, e.target.value)}
+                              inputProps={{ 
+                                style: { 
+                                  fontSize: '13px',
+                                  color: isAbnormal ? undefined : 'text.secondary'
+                                } 
+                              }}
+                              sx={{
+                                flexGrow: 1,
+                                color: findingsColor,
+                                borderBottom: '1px solid transparent',
+                                '&:hover': { borderBottom: mode === 'view' ? 'none' : '1px solid', borderColor: 'divider' },
+                                '&.Mui-focused': { borderBottom: '1px solid', borderColor: isAbnormal ? 'error.main' : 'primary.main' }
+                              }}
+                            />
+
+                            {/* Controls Area (Right) */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+                              {/* Expand/Collapse Button */}
+                              {mode !== 'view' && (
+                                <IconButton
+                                  size="small"
+                                  onClick={() => toggleExpandSystem(system.key)}
+                                  sx={{
+                                    transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                    transition: 'transform 0.2s',
+                                    p: 0.5,
+                                    color: isAbnormal ? 'error.main' : 'text.secondary'
+                                  }}
+                                >
+                                  <ExpandMoreIcon sx={{ fontSize: '1.2rem' }} />
+                                </IconButton>
+                              )}
+
+                              {/* Warning Triangle Icon (Only when Abnormal) */}
+                              {isAbnormal && (
+                                <Tooltip title="Abnormal findings reported">
+                                  <WarningIcon sx={{ fontSize: '1.1rem', color: 'error.main' }} />
+                                </Tooltip>
+                              )}
+
+                              {/* Clickable Status Dot */}
+                              <Tooltip title={mode === 'view' ? '' : 'Cycle status: Gray (None) -> Green (Normal) -> Red (Abnormal)'}>
+                                <Box
+                                  onClick={() => mode !== 'view' && cycleStatus(system.key)}
+                                  sx={{
+                                    cursor: mode === 'view' ? 'default' : 'pointer',
+                                    width: 24,
+                                    height: 24,
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s',
+                                    '&:hover': mode === 'view' ? {} : { bgcolor: isAbnormal ? 'rgba(239, 68, 68, 0.08)' : 'grey.100' }
+                                  }}
+                                >
+                                  <Box
+                                    sx={{
+                                      width: 10,
+                                      height: 10,
+                                      borderRadius: '50%',
+                                      bgcolor: (() => {
+                                        if (status === 'normal') return '#22c55e';
+                                        if (status === 'abnormal') return '#ef4444';
+                                        return '#d1d5db';
+                                      })(),
+                                      boxShadow: (() => {
+                                        if (status === 'normal') return '0 0 6px rgba(34, 197, 94, 0.4)';
+                                        if (status === 'abnormal') return '0 0 6px rgba(239, 68, 68, 0.4)';
+                                        return 'none';
+                                      })(),
+                                      transition: 'all 0.2s'
+                                    }}
+                                  />
+                                </Box>
+                              </Tooltip>
+                            </Box>
                           </Box>
 
-                          {/* 90px Fixed Width Label */}
-                          <Typography sx={{
-                            width: 90,
-                            flexShrink: 0,
-                            fontWeight: 600,
-                            fontSize: '0.85rem',
-                            color: 'text.primary'
-                          }}>
-                            {system.displayName}
-                          </Typography>
-
-                          {/* Transparent Flex-Grow Input */}
-                          <InputBase
-                            fullWidth
-                            value={findingsValue}
-                            placeholder={`Enter ${system.displayName.toLowerCase()} findings...`}
-                            disabled={mode === 'view'}
-                            onChange={(e) => handleSystemFindingsChange(system.key, e.target.value)}
-                            inputProps={{ style: { fontSize: '0.875rem' } }}
-                            sx={{
-                              flexGrow: 1,
-                              borderBottom: '1px solid transparent',
-                              '&:hover': { borderBottom: '1px solid', borderColor: 'divider' },
-                              '&.Mui-focused': { borderBottom: '1px solid', borderColor: 'primary.main' }
-                            }}
-                          />
-
-                          {/* Clickable Status Dot */}
-                          <Tooltip title={mode === 'view' ? '' : 'Cycle status: Gray (None) -> Green (Normal) -> Red (Abnormal)'}>
-                            <Box
-                              onClick={() => mode !== 'view' && cycleStatus(system.key)}
-                              sx={{
-                                cursor: mode === 'view' ? 'default' : 'pointer',
-                                width: 24,
-                                height: 24,
-                                borderRadius: '50%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.2s',
-                                '&:hover': mode === 'view' ? {} : { bgcolor: 'grey.100' }
-                              }}
-                            >
-                              <Box
-                                sx={{
-                                  width: 10,
-                                  height: 10,
-                                  borderRadius: '50%',
-                                  bgcolor: (() => {
-                                    const status = formData.physicalExam.systems[system.key as keyof typeof formData.physicalExam.systems]?.status || 'none';
-                                    if (status === 'normal') return '#22c55e';
-                                    if (status === 'abnormal') return '#ef4444';
-                                    return '#d1d5db';
-                                  })(),
-                                  boxShadow: (() => {
-                                    const status = formData.physicalExam.systems[system.key as keyof typeof formData.physicalExam.systems]?.status || 'none';
-                                    if (status === 'normal') return '0 0 6px rgba(34, 197, 94, 0.4)';
-                                    if (status === 'abnormal') return '0 0 6px rgba(239, 68, 68, 0.4)';
-                                    return 'none';
-                                  })(),
-                                  transition: 'all 0.2s'
-                                }}
-                              />
-                            </Box>
-                          </Tooltip>
+                          {/* Expanded Chips Panel */}
+                          <AnimatePresence>
+                            {isExpanded && mode !== 'view' && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                style={{ overflow: 'hidden' }}
+                              >
+                                <Box sx={{
+                                  px: 2.5,
+                                  pb: 2.5,
+                                  pt: 0.5,
+                                  bgcolor: isAbnormal
+                                    ? (theme: any) => alpha(theme.palette.error.main, theme.palette.mode === 'dark' ? 0.08 : 0.02)
+                                    : (theme: any) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.01)' : 'grey.25',
+                                  borderTop: '1px dashed',
+                                  borderColor: 'divider',
+                                  display: 'flex',
+                                  flexWrap: 'wrap',
+                                  gap: 1
+                                }}>
+                                  {quickPickPhrases[system.key]?.map((phrase, pIdx) => {
+                                    return (
+                                      <Chip
+                                        key={pIdx}
+                                        label={phrase.text}
+                                        size="small"
+                                        onClick={() => handleAppendFinding(system.key, phrase.text)}
+                                        sx={{
+                                          fontSize: '0.75rem',
+                                          height: '26px',
+                                          cursor: 'pointer',
+                                          transition: 'all 0.15s',
+                                          ...(phrase.isAbnormal ? {
+                                            border: '1px solid',
+                                            borderColor: 'error.200',
+                                            bgcolor: (theme: any) => alpha(theme.palette.error.main, 0.05),
+                                            color: (theme: any) => theme.palette.mode === 'dark' ? theme.palette.error.light : theme.palette.error.dark,
+                                            '&:hover': {
+                                              bgcolor: (theme: any) => alpha(theme.palette.error.main, 0.12),
+                                              borderColor: 'error.400'
+                                            }
+                                          } : {
+                                            border: '1px solid',
+                                            borderColor: 'success.100',
+                                            bgcolor: (theme: any) => alpha(theme.palette.success.main, 0.05),
+                                            color: (theme: any) => theme.palette.mode === 'dark' ? theme.palette.success.light : theme.palette.success.dark,
+                                            '&:hover': {
+                                              bgcolor: (theme: any) => alpha(theme.palette.success.main, 0.12),
+                                              borderColor: 'success.300'
+                                            }
+                                          })
+                                        }}
+                                      />
+                                    );
+                                  })}
+                                  {(!quickPickPhrases[system.key] || quickPickPhrases[system.key].length === 0) && (
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                      No quick phrases available for this system.
+                                    </Typography>
+                                  )}
+                                </Box>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </Box>
                       );
                     })}
