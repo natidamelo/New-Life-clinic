@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { auth, checkPermission } = require('../middleware/auth');
+const { auth, checkPermission, checkRole } = require('../middleware/auth');
 const { syncPaymentData } = require('../middleware/paymentSyncMiddleware');
 const Prescription = require('../models/Prescription');
 const MedicalRecord = require('../models/MedicalRecord');
