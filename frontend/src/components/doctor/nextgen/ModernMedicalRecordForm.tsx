@@ -1202,6 +1202,7 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   // Smart auto-fill state
   const [hpiSuggestions, setHpiSuggestions] = useState<string[]>([]);
   const [showHpiSuggestions, setShowHpiSuggestions] = useState(false);
+  const [hasDismissedSuggestions, setHasDismissedSuggestions] = useState(false);
   const [hpiAutoFillLoading, setHpiAutoFillLoading] = useState(false);
   const [physicalExamAutoFilled, setPhysicalExamAutoFilled] = useState(false);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
@@ -1223,6 +1224,8 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   const [geminiDiagnoses, setGeminiDiagnoses] = useState<Array<{ condition: string; reasoning: string; isRedFlag: boolean }>>([]);
   const [geminiLabs, setGeminiLabs] = useState<string[]>([]);
   const [geminiExams, setGeminiExams] = useState<string[]>([]);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
 
   // Load custom findings from localStorage on mount
   useEffect(() => {
@@ -2383,47 +2386,32 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   const updateInsightsFromHPI = useCallback(async (hpiText: string) => {
     if (!hpiText || !hpiText.trim()) return;
     
-    const ccDescription = typeof formData.chiefComplaint === 'string'
-      ? formData.chiefComplaint
-      : (formData.chiefComplaint as any)?.description || '';
+    setInsightsLoading(true);
+    setInsightsError(null);
 
     try {
-      const parsedDuration = AIAssistantService.parseDurationFromChiefComplaint(ccDescription);
-      const durationToUse = formData.chiefComplaint.duration || parsedDuration || '';
-
-      const payload = {
-        chiefComplaint: ccDescription,
-        age: patientData.age,
-        gender: patientData.gender,
-        historyOfPresentIllness: hpiText,
-        onset: (formData.chiefComplaint as any).onsetPattern || undefined,
-        duration: durationToUse || undefined,
-        severity: formData.chiefComplaint.severity,
-        progression: formData.chiefComplaint.progression,
-        location: formData.chiefComplaint.location,
-        aggravatingFactors: (formData.chiefComplaint as any).aggravatingFactors || [],
-        relievingFactors: (formData.chiefComplaint as any).relievingFactors || [],
-        associatedSymptoms: (formData.chiefComplaint as any).associatedSymptoms || [],
-        pastMedicalHistory: propPatientData?.pastMedicalHistory || ''
-      };
-
-      const result = await AIAssistantService.generateHPIWithGemini(
-        payload,
+      const result = await AIAssistantService.getClinicalInsights(
+        {
+          age: patientData.age,
+          gender: patientData.gender,
+          hpi: hpiText
+        },
         API_BASE_URL,
         getAuthToken() || undefined
       );
 
-      // Update Gemini suggestions states
-      setGeminiPhrases(result.suggestedPhrases || {});
-      setGeminiAvailable(result.isAIAvailable);
-      if (result.redFlags?.length) setGeminiRedFlags(result.redFlags);
-      if (result.differentialDiagnoses?.length) setGeminiDiagnoses(result.differentialDiagnoses as any[]);
-      if (result.suggestedLabs?.length) setGeminiLabs(result.suggestedLabs);
-      if (result.suggestedExams?.length) setGeminiExams(result.suggestedExams);
-    } catch (error) {
+      // Update AI clinical insights states
+      setGeminiDiagnoses(result.differentials || []);
+      setGeminiLabs(result.suggestedLabs || []);
+      setGeminiExams(result.focusedExam || []);
+      setGeminiAvailable(true);
+    } catch (error: any) {
       console.error('Error updating insights from HPI:', error);
+      setInsightsError(error.message || 'Failed to load clinical insights. Please try again.');
+    } finally {
+      setInsightsLoading(false);
     }
-  }, [formData, patientData, propPatientData]);
+  }, [patientData]);
 
   const autoFillRef = useRef(autoFillHPI);
   const updateInsightsRef = useRef(updateInsightsFromHPI);
@@ -2721,6 +2709,50 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
       if (hpiDebounceRef.current) clearTimeout(hpiDebounceRef.current);
     };
   }, [formData.chiefComplaint]);
+
+  // Update suggested phrases locally and instantly whenever Chief Complaint or OLDCARTS fields change
+  useEffect(() => {
+    const ccDescription = formData.chiefComplaint.description || '';
+    if (!ccDescription.trim()) {
+      setGeminiPhrases({});
+      setShowHpiSuggestions(false);
+      return;
+    }
+
+    const localPatientData = {
+      chiefComplaint: ccDescription,
+      age: patientData.age,
+      gender: patientData.gender,
+      onset: formData.chiefComplaint.onset,
+      location: formData.chiefComplaint.location,
+      duration: formData.chiefComplaint.duration,
+      character: formData.chiefComplaint.character,
+      radiating: formData.chiefComplaint.radiating,
+      timing: formData.chiefComplaint.timing,
+      associatingSymptoms: formData.chiefComplaint.associatingSymptoms,
+      historyOfPresentIllness: formData.historyOfPresentIllness
+    };
+
+    const localPhrases = AIAssistantService.buildLocalSuggestedPhrases(localPatientData);
+    setGeminiPhrases(localPhrases);
+
+    if (!hasDismissedSuggestions) {
+      setShowHpiSuggestions(true);
+    }
+  }, [
+    formData.chiefComplaint.description,
+    formData.chiefComplaint.onset,
+    formData.chiefComplaint.location,
+    formData.chiefComplaint.duration,
+    formData.chiefComplaint.character,
+    formData.chiefComplaint.radiating,
+    formData.chiefComplaint.timing,
+    formData.chiefComplaint.associatingSymptoms,
+    formData.historyOfPresentIllness,
+    patientData.age,
+    patientData.gender,
+    hasDismissedSuggestions
+  ]);
 
   // Pediatric suggestion banner logic
   useEffect(() => {
@@ -4420,8 +4452,9 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
         }
         return updated;
       });
+      debouncedUpdateInsightsFromHPI(newHpi);
     }, 300),
-    []
+    [debouncedUpdateInsightsFromHPI]
   );
 
   const handleOldcartsChange = (field: string, value: string) => {
@@ -5005,7 +5038,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                                   <SparkleIcon sx={{ fontSize: '0.8rem' }} />
                                   {geminiAvailable ? 'AI Suggested phrases — click to fill:' : 'Suggested phrases — click to append:'}
                                 </Typography>
-                                <Chip label="Dismiss" size="small" onClick={() => setShowHpiSuggestions(false)} sx={{ fontSize: '0.65rem', height: '18px', cursor: 'pointer' }} />
+                                <Chip label="Dismiss" size="small" onClick={() => { setShowHpiSuggestions(false); setHasDismissedSuggestions(true); }} sx={{ fontSize: '0.65rem', height: '18px', cursor: 'pointer' }} />
                               </Box>
 
                               {/* Form-field phrases */}
@@ -5097,8 +5130,6 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                                           }
                                         };
                                         setFormData(updated);
-                                        setIsHpiManuallyEdited(true);
-                                        if (!isFirstRender.current) { autoSaveDraft(updated); memorySystem.updateData(); }
                                         setShowHpiSuggestions(false);
                                         debouncedUpdateInsightsFromHPI(newText);
                                       }}
@@ -5112,81 +5143,125 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                         </Box>
 
                         {/* Clinical Synthesis & Differential Reasoning */}
-                        {geminiDiagnoses.length > 0 && (
+                        {(geminiDiagnoses.length > 0 || insightsLoading || insightsError) && (
                           <Box sx={{ border: '1px solid', borderColor: 'primary.200', borderRadius: 2, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-                            <Box sx={{ bgcolor: 'primary.50', px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1, borderBottom: '1px solid', borderColor: 'primary.100' }}>
-                              <SparkleIcon sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
-                              <Typography variant="subtitle2" sx={{ color: 'primary.dark', fontWeight: 600 }}>AI Clinical Insights & Differentials</Typography>
+                            <Box sx={{ bgcolor: 'primary.50', px: 2, py: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'primary.100', flexWrap: 'wrap', gap: 1 }}>
+                              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <SparkleIcon sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
+                                  <Typography variant="subtitle2" sx={{ color: 'primary.dark', fontWeight: 600 }}>AI Clinical Insights & Differentials</Typography>
+                                </Box>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.68rem', mt: 0.2 }}>
+                                  ⚠️ AI-generated suggestions for reference only — clinical judgment required
+                                </Typography>
+                              </Box>
+                              <Button
+                                size="small"
+                                variant="text"
+                                color="primary"
+                                startIcon={insightsLoading ? <CircularProgress size={12} color="inherit" /> : <RefreshIcon sx={{ fontSize: '0.9rem !important' }} />}
+                                disabled={insightsLoading}
+                                onClick={() => {
+                                  const hpiText = (formData as any).historyOfPresentIllness || '';
+                                  updateInsightsFromHPI(hpiText);
+                                }}
+                                sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0.2 }}
+                              >
+                                {insightsLoading ? 'Analyzing…' : 'Refresh Insights'}
+                              </Button>
                             </Box>
                             <Box sx={{ p: 2 }}>
-                              <Grid container spacing={2}>
-                                <Grid size={{ xs: 12, md: 7 }}>
-                                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Top Differentials (DDx)</Typography>
-                                  <Stack spacing={1.5}>
-                                    {geminiDiagnoses.map((ddx, idx) => (
-                                      <Box key={idx} sx={{ p: 1.5, bgcolor: ddx.isRedFlag ? 'error.50' : 'grey.50', borderRadius: 1, border: '1px solid', borderColor: ddx.isRedFlag ? 'error.200' : 'grey.200' }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                          <Typography variant="body2" sx={{ fontWeight: 700, color: ddx.isRedFlag ? 'error.dark' : 'text.primary' }}>{idx + 1}. {ddx.condition}</Typography>
-                                          {ddx.isRedFlag && <Chip size="small" label="RED FLAG" color="error" sx={{ height: 16, fontSize: '0.6rem', fontWeight: 'bold' }} />}
+                              {insightsLoading ? (
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4, gap: 1.5 }}>
+                                  <CircularProgress size={32} sx={{ color: '#0d9488' }} />
+                                  <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>Analyzing clinical picture...</Typography>
+                                </Box>
+                              ) : insightsError ? (
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 3, gap: 1.5 }}>
+                                  <Typography variant="body2" color="error.main" sx={{ fontWeight: 500 }}>{insightsError}</Typography>
+                                  <Button 
+                                    size="small" 
+                                    variant="outlined" 
+                                    color="primary" 
+                                    onClick={() => {
+                                      const hpiText = (formData as any).historyOfPresentIllness || '';
+                                      updateInsightsFromHPI(hpiText);
+                                    }}
+                                    sx={{ textTransform: 'none' }}
+                                  >
+                                    Retry Analysis
+                                  </Button>
+                                </Box>
+                              ) : (
+                                <Grid container spacing={2}>
+                                  <Grid size={{ xs: 12, md: 7 }}>
+                                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Top Differentials (DDx)</Typography>
+                                    <Stack spacing={1.5}>
+                                      {geminiDiagnoses.map((ddx, idx) => (
+                                        <Box key={idx} sx={{ p: 1.5, bgcolor: ddx.isRedFlag ? 'error.50' : 'grey.50', borderRadius: 1, border: '1px solid', borderColor: ddx.isRedFlag ? 'error.200' : 'grey.200' }}>
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                            <Typography variant="body2" sx={{ fontWeight: 700, color: ddx.isRedFlag ? 'error.dark' : 'text.primary' }}>{idx + 1}. {ddx.condition}</Typography>
+                                            {ddx.isRedFlag && <Chip size="small" label="RED FLAG" color="error" sx={{ height: 16, fontSize: '0.6rem', fontWeight: 'bold' }} />}
+                                          </Box>
+                                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', lineHeight: 1.4 }}>{ddx.reasoning}</Typography>
+                                          <Button size="small" sx={{ mt: 1, fontSize: '0.65rem', py: 0, textTransform: 'none' }} onClick={() => {
+                                            const updated = { ...formData, assessment: { ...formData.assessment, primaryDiagnosis: ddx.condition } };
+                                            setFormData(updated);
+                                            toast.success(`Set Primary Diagnosis: ${ddx.condition}`);
+                                          }}>
+                                            Set as Primary Dx
+                                          </Button>
                                         </Box>
-                                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', lineHeight: 1.4 }}>{ddx.reasoning}</Typography>
-                                        <Button size="small" sx={{ mt: 1, fontSize: '0.65rem', py: 0, textTransform: 'none' }} onClick={() => {
-                                          const updated = { ...formData, assessment: { ...formData.assessment, primaryDiagnosis: ddx.condition } };
-                                          setFormData(updated);
-                                          toast.success(`Set Primary Diagnosis: ${ddx.condition}`);
-                                        }}>
-                                          Set as Primary Dx
-                                        </Button>
+                                      ))}
+                                    </Stack>
+                                  </Grid>
+                                  <Grid size={{ xs: 12, md: 5 }}>
+                                    {geminiLabs.length > 0 && (
+                                      <Box sx={{ mb: 2 }}>
+                                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Suggested Lab Tests</Typography>
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                          {geminiLabs.map((lab, idx) => (
+                                            <Chip 
+                                              key={idx} 
+                                              label={`+ Add ${lab}`} 
+                                              size="small" 
+                                              variant="outlined" 
+                                              color="primary" 
+                                              sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'primary.50' }, fontSize: '0.7rem' }} 
+                                              onClick={() => {
+                                                const currentOrders = formData.assessment?.labOrders || [];
+                                                if (!currentOrders.includes(lab)) {
+                                                  const updated = {
+                                                    ...formData,
+                                                    assessment: {
+                                                      ...formData.assessment,
+                                                      labOrders: [...currentOrders, lab]
+                                                    }
+                                                  };
+                                                  setFormData(updated);
+                                                  toast.success(`Added ${lab} to Lab Orders`);
+                                                } else {
+                                                  toast.info(`${lab} is already ordered`);
+                                                }
+                                              }} 
+                                            />
+                                          ))}
+                                        </Box>
                                       </Box>
-                                    ))}
-                                  </Stack>
+                                    )}
+                                    {geminiExams.length > 0 && (
+                                      <Box>
+                                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Focused Physical Exam</Typography>
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                          {geminiExams.map((exam, idx) => (
+                                            <Chip key={idx} label={exam} size="small" sx={{ bgcolor: 'grey.100', fontSize: '0.7rem' }} />
+                                          ))}
+                                        </Box>
+                                      </Box>
+                                    )}
+                                  </Grid>
                                 </Grid>
-                                <Grid size={{ xs: 12, md: 5 }}>
-                                  {geminiLabs.length > 0 && (
-                                    <Box sx={{ mb: 2 }}>
-                                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Suggested Lab Tests</Typography>
-                                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                        {geminiLabs.map((lab, idx) => (
-                                          <Chip 
-                                            key={idx} 
-                                            label={`+ Add ${lab}`} 
-                                            size="small" 
-                                            variant="outlined" 
-                                            color="primary" 
-                                            sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'primary.50' }, fontSize: '0.7rem' }} 
-                                            onClick={() => {
-                                              const currentOrders = formData.assessment?.labOrders || [];
-                                              if (!currentOrders.includes(lab)) {
-                                                const updated = {
-                                                  ...formData,
-                                                  assessment: {
-                                                    ...formData.assessment,
-                                                    labOrders: [...currentOrders, lab]
-                                                  }
-                                                };
-                                                setFormData(updated);
-                                                toast.success(`Added ${lab} to Lab Orders`);
-                                              } else {
-                                                toast.info(`${lab} is already ordered`);
-                                              }
-                                            }} 
-                                          />
-                                        ))}
-                                      </Box>
-                                    </Box>
-                                  )}
-                                  {geminiExams.length > 0 && (
-                                    <Box>
-                                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Focused Physical Exam</Typography>
-                                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                        {geminiExams.map((exam, idx) => (
-                                          <Chip key={idx} label={exam} size="small" sx={{ bgcolor: 'grey.100', fontSize: '0.7rem' }} />
-                                        ))}
-                                      </Box>
-                                    </Box>
-                                  )}
-                                </Grid>
-                              </Grid>
+                              )}
                             </Box>
                           </Box>
                         )}

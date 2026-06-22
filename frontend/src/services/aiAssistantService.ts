@@ -751,6 +751,51 @@ export class AIAssistantService {
   }
 
   /**
+   * Fetch live AI clinical insights (differentials, suggested labs, and focused physical exam maneuvers)
+   * from the backend Anthropic Claude/Gemini API based on demographics and the full HPI narrative.
+   */
+  static async getClinicalInsights(
+    payload: { age?: number; gender?: string; hpi: string },
+    apiBaseUrl: string = '',
+    authToken?: string
+  ): Promise<{
+    differentials: Array<{ condition: string; reasoning: string; isRedFlag: boolean }>;
+    suggestedLabs: string[];
+    focusedExam: string[];
+  }> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+    const response = await fetch(`${apiBaseUrl}/api/ai/clinical-insights`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(25000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const json = await response.json();
+    if (!json.success || !json.data) {
+      throw new Error(json.message || 'Failed to fetch clinical insights');
+    }
+
+    const mappedDifferentials = (json.data.differentials || []).map((diff: any) => ({
+      condition: diff.diagnosis || diff.condition || '',
+      reasoning: diff.rationale || diff.reasoning || '',
+      isRedFlag: !!(diff.redFlag || diff.isRedFlag)
+    }));
+
+    return {
+      differentials: mappedDifferentials,
+      suggestedLabs: json.data.suggestedLabs || [],
+      focusedExam: json.data.focusedExam || []
+    };
+  }
+
+  /**
    * Generate a rich HPI narrative and suggested phrases using the Gemini backend endpoint.
    * Falls back to the local generateHPINarrative() if the backend is unavailable or not configured.
    */
@@ -1662,13 +1707,14 @@ export class AIAssistantService {
       headache:       ['frontal region', 'temporal area', 'occipital region', 'generalized'],
       chest_pain:     ['substernal area', 'left chest', 'epigastric region'],
       respiratory:    ['upper respiratory tract', 'chest'],
+      fever:          ['systemic', 'generalized'],
       back_pain:      ['lumbar region', 'lumbosacral area', 'thoracic spine'],
       dizziness:      [],
       flank:          ['left flank', 'right flank', 'bilateral flank'],
-      musculoskeletal:['affected joint', 'lumbar region', 'cervical spine'],
+      musculoskeletal:['affected joint', 'knee joint', 'shoulder joint', 'hip joint', 'wrist joint', 'ankle joint'],
       urinary:        ['suprapubic region', 'lower abdomen'],
       skin:           ['affected area', 'trunk', 'extremities'],
-      general:        []
+      general:        ['generalized', 'localized', 'unspecified region']
     };
 
     const locations = desc.locationHint
@@ -1680,13 +1726,14 @@ export class AIAssistantService {
       abdominal:      ['burning and crampy', 'sharp and stabbing', 'dull and aching', 'colicky', 'a sensation of fullness and distension'],
       headache:       ['throbbing and pulsating', 'pressure-like', 'sharp and stabbing', 'band-like'],
       chest_pain:     ['pressure-like and squeezing', 'sharp and pleuritic', 'burning'],
-      respiratory:    ['dry and hacking', 'productive with sputum', 'wheezing'],
+      respiratory:    ['dry and hacking', 'productive with sputum', 'wheezing', 'congested'],
+      fever:          ['intermittent', 'continuous', 'subjective', 'remittent', 'spike'],
       back_pain:      ['dull and aching', 'sharp with radiation', 'muscle spasm'],
       dizziness:      ['true vertigo (spinning)', 'lightheadedness', 'presyncope'],
       flank:          ['dull and aching', 'colicky', 'sharp'],
-      musculoskeletal:['aching', 'sharp on movement', 'stiffness'],
+      musculoskeletal:['aching', 'sharp on movement', 'stiffness', 'throbbing', 'dull ache'],
       urinary:        ['burning', 'dysuria', 'urgency'],
-      general:        ['dull', 'aching', 'intermittent']
+      general:        ['sharp', 'dull', 'aching', 'burning', 'throbbing']
     };
 
     const extractedChars = desc.characterWords.slice(0, 3);
@@ -1699,11 +1746,12 @@ export class AIAssistantService {
       headache:    ['bright light and noise', 'physical activity', 'stress', 'skipping meals'],
       chest_pain:  ['exertion and physical activity', 'deep inspiration', 'lying flat'],
       respiratory: ['cold air and exertion', 'lying flat at night', 'allergen exposure'],
+      fever:       ['exertion', 'dehydration', 'warm environment'],
       back_pain:   ['prolonged sitting and bending', 'lifting heavy objects', 'twisting movements'],
       dizziness:   ['head movement', 'position changes', 'standing suddenly'],
       flank:       ['movement and percussion', 'physical activity'],
       urinary:     ['urination', 'holding urine', 'sexual activity'],
-      general:     ['physical activity', 'stress']
+      general:     ['physical activity', 'movement', 'stress']
     };
     const extractedAgg = desc.aggravatingHints;
     const catAgg = (categoryAgg[category] || []).filter(a => !extractedAgg.some(e => e.includes(a.split(' ')[0])));
@@ -1715,6 +1763,7 @@ export class AIAssistantService {
       headache:    ['rest in dark room', 'analgesics', 'sleep', 'cold compress'],
       chest_pain:  ['rest', 'antacids', 'nitroglycerin', 'leaning forward'],
       respiratory: ['warm fluids and rest', 'cough suppressants', 'inhaler'],
+      fever:       ['antipyretics', 'cold compress', 'hydration', 'rest'],
       back_pain:   ['rest and position change', 'analgesics', 'heat application'],
       dizziness:   ['lying still', 'fixating on a point', 'hydration'],
       flank:       ['rest and hydration', 'analgesics', 'heat application'],
@@ -1730,10 +1779,12 @@ export class AIAssistantService {
       abdominal:   ['nausea without vomiting', 'bloating and early satiety', 'belching', 'decreased appetite'],
       headache:    ['nausea and photophobia', 'phonophobia', 'visual aura'],
       chest_pain:  ['shortness of breath', 'diaphoresis', 'palpitations'],
-      respiratory: ['sore throat and nasal congestion', 'fatigue and myalgias', 'low-grade fever'],
+      respiratory: ['sputum production', 'wheezing', 'shortness of breath', 'sore throat and nasal congestion', 'fatigue and myalgias'],
+      fever:       ['chills and rigors', 'sweating', 'myalgias and body aches', 'fatigue'],
       back_pain:   ['mild morning stiffness', 'no lower extremity radiation'],
       dizziness:   ['nausea', 'tinnitus', 'hearing changes'],
       flank:       ['urinary frequency', 'dysuria', 'hematuria'],
+      musculoskeletal: ['swelling and warmth', 'joint stiffness', 'reduced range of motion', 'crepitus'],
       urinary:     ['urinary urgency and frequency', 'dysuria', 'lower abdominal discomfort'],
       general:     ['fatigue', 'malaise', 'decreased appetite']
     };
@@ -1774,7 +1825,8 @@ export class AIAssistantService {
     if (complaint.includes('flank')) return 'flank';
     if (complaint.includes('abdominal') || complaint.includes('stomach') || complaint.includes('epigastric') || complaint.includes('abdominal cramp')) return 'abdominal';
     if (complaint.includes('back pain') || complaint.includes('lower back') || complaint.includes('lumbar')) return 'back_pain';
-    if (complaint.includes('cough') || complaint.includes('fever') || complaint.includes('cold') || complaint.includes('sore throat') || complaint.includes('throat pain') || complaint.includes('respiratory')) return 'respiratory';
+    if (complaint.includes('cough') || complaint.includes('respiratory')) return 'respiratory';
+    if (complaint.includes('fever') || complaint.includes('chills')) return 'fever';
     if (complaint.includes('dizziness') || complaint.includes('vertigo')) return 'dizziness';
     if (complaint.includes('rash') || complaint.includes('skin') || complaint.includes('itching')) return 'skin';
     if (complaint.includes('joint') || complaint.includes('arthralgia') || complaint.includes('knee') || complaint.includes('shoulder')) return 'musculoskeletal';
