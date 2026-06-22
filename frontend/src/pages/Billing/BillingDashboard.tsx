@@ -31,6 +31,7 @@ import BillingReports from './BillingReports';
 import DetailedBillingReport from './DetailedBillingReport';
 import PatientDemographics from './PatientDemographics';
 import AIAdvisorPanel from '../../components/Billing/AIAdvisorPanel';
+import InsurancePatientReport from './InsurancePatientReport';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmtCurrency = (n: number) =>
@@ -120,6 +121,7 @@ const TABS = [
   { key: 'medication',   label: 'Medication & Lab',     icon: <Pill className="h-4 w-4" /> },
   { key: 'reports',      label: 'Basic Reports',        icon: <BarChart3 className="h-4 w-4" /> },
   { key: 'detailed',     label: 'Detailed Reports',     icon: <Search className="h-4 w-4" /> },
+  { key: 'insurance',    label: 'Insurance Report',     icon: <ShieldCheck className="h-4 w-4" /> },
   { key: 'demographics', label: 'Demographics',         icon: <Users className="h-4 w-4" /> },
 ];
 
@@ -131,6 +133,7 @@ const getTabFromPath = (pathname: string): string => {
   if (path.includes('item-revenue-report')) return 'medication';
   if (path.includes('reports/detailed')) return 'detailed';
   if (path.includes('reports')) return 'reports';
+  if (path.includes('insurance-report')) return 'insurance';
   if (path.includes('patient-demographics')) return 'demographics';
   return 'overview';
 };
@@ -143,6 +146,7 @@ const getPathFromTab = (tab: string): string => {
     case 'medication':   return '/app/billing/item-revenue-report';
     case 'reports':      return '/app/billing/reports';
     case 'detailed':     return '/app/billing/reports/detailed';
+    case 'insurance':    return '/app/billing/insurance-report';
     case 'demographics': return '/app/billing/patient-demographics';
     default:             return '/app/billing';
   }
@@ -561,6 +565,7 @@ const BillingDashboard: React.FC = () => {
         {activeTab === 'medication' && <ItemRevenueReport />}
         {activeTab === 'reports' && <BillingReports />}
         {activeTab === 'detailed' && <DetailedBillingReport />}
+        {activeTab === 'insurance' && <InsurancePatientReport />}
         {activeTab === 'demographics' && <PatientDemographics />}
       </div>
     </div>

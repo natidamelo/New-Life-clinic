@@ -6002,4 +6002,147 @@ router.post('/fix-insurance-invoices', auth, async (req, res) => {
   }
 });
 
-module.exports = router; 
+// @route   GET /api/billing/insurance-patient-report
+// @desc    Detailed per-patient insurance report: cards, lab, medication, services & totals
+router.get('/insurance-patient-report', auth, checkRole('admin', 'finance'), async (req, res) => {
+  try {
+    const { startDate, endDate, patientId } = req.query;
+
+    const dateFilter = {};
+    if (startDate) dateFilter.$gte = new Date(startDate);
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      dateFilter.$lte = end;
+    }
+    const hasDateFilter = startDate || endDate;
+
+    // Match invoices that have at least one insurance payment
+    const matchStage = {
+      status: { $nin: ['cancelled'] },
+      'payments.method': 'insurance',
+    };
+    if (hasDateFilter) matchStage.issueDate = dateFilter;
+    if (patientId) matchStage['patient'] = require('mongoose').Types.ObjectId.isValid(patientId)
+      ? require('mongoose').Types.ObjectId(patientId) : patientId;
+
+    const invoices = await MedicalInvoice.find(matchStage)
+      .populate('patient', 'firstName lastName patientId phone gender')
+      .lean();
+
+    // Build per-patient summary
+    const patientMap = {};
+
+    for (const inv of invoices) {
+      const pat = inv.patient;
+      const pid = pat?._id?.toString() || inv.patientId || 'unknown';
+      const patName = pat
+        ? `${pat.firstName || ''} ${pat.lastName || ''}`.trim()
+        : inv.patientName || 'Unknown Patient';
+      const patientIdCode = pat?.patientId || inv.patientId || '-';
+
+      if (!patientMap[pid]) {
+        patientMap[pid] = {
+          patientId: pid,
+          patientIdCode,
+          patientName: patName,
+          phone: pat?.phone || '-',
+          gender: pat?.gender || '-',
+          invoiceCount: 0,
+          cardTotal: 0,
+          labTotal: 0,
+          medicationTotal: 0,
+          serviceTotal: 0,
+          grandTotal: 0,
+          insurancePaid: 0,
+          cashPaid: 0,
+          otherPaid: 0,
+          balance: 0,
+          invoices: [],
+        };
+      }
+
+      const entry = patientMap[pid];
+      entry.invoiceCount += 1;
+
+      // Tally insurance / cash / other payments
+      for (const pmt of (inv.payments || [])) {
+        if (pmt.method === 'insurance') entry.insurancePaid += pmt.amount || 0;
+        else if (pmt.method === 'cash') entry.cashPaid += pmt.amount || 0;
+        else entry.otherPaid += pmt.amount || 0;
+      }
+
+      // Tally items by category
+      let cardAmt = 0, labAmt = 0, medAmt = 0, svcAmt = 0;
+      for (const item of (inv.items || [])) {
+        const amt = (item.quantity || 1) * (item.unitPrice || 0);
+        const type = (item.itemType || item.category || '').toLowerCase();
+        const desc = (item.description || item.serviceName || '').toLowerCase();
+
+        if (type === 'card' || desc.includes('card') || desc.includes('membership')) {
+          cardAmt += amt;
+        } else if (type === 'lab' || type === 'laboratory' || type === 'imaging') {
+          labAmt += amt;
+        } else if (type === 'medication' || type === 'medicine' || type === 'supply') {
+          medAmt += amt;
+        } else {
+          svcAmt += amt;
+        }
+      }
+
+      entry.cardTotal       += cardAmt;
+      entry.labTotal        += labAmt;
+      entry.medicationTotal += medAmt;
+      entry.serviceTotal    += svcAmt;
+      entry.grandTotal      += inv.total || 0;
+      entry.balance         += inv.balance || 0;
+
+      entry.invoices.push({
+        invoiceId: inv._id,
+        invoiceNumber: inv.invoiceNumber,
+        issueDate: inv.issueDate,
+        status: inv.status,
+        total: inv.total,
+        amountPaid: inv.amountPaid,
+        balance: inv.balance,
+        cardAmt,
+        labAmt,
+        medAmt,
+        svcAmt,
+        insurancePmt: (inv.payments || []).filter(p => p.method === 'insurance').reduce((s, p) => s + p.amount, 0),
+        cashPmt: (inv.payments || []).filter(p => p.method === 'cash').reduce((s, p) => s + p.amount, 0),
+        items: (inv.items || []).map(it => ({
+          description: it.description || it.serviceName || 'Unknown',
+          itemType: it.itemType || it.category || 'service',
+          quantity: it.quantity || 1,
+          unitPrice: it.unitPrice || 0,
+          total: (it.quantity || 1) * (it.unitPrice || 0),
+        })),
+      });
+    }
+
+    const patients = Object.values(patientMap).sort((a, b) => b.grandTotal - a.grandTotal);
+
+    // Overall summary
+    const summary = {
+      totalPatients: patients.length,
+      totalInvoices: patients.reduce((s, p) => s + p.invoiceCount, 0),
+      totalCardRevenue: patients.reduce((s, p) => s + p.cardTotal, 0),
+      totalLabRevenue: patients.reduce((s, p) => s + p.labTotal, 0),
+      totalMedicationRevenue: patients.reduce((s, p) => s + p.medicationTotal, 0),
+      totalServiceRevenue: patients.reduce((s, p) => s + p.serviceTotal, 0),
+      totalGrandRevenue: patients.reduce((s, p) => s + p.grandTotal, 0),
+      totalInsurancePaid: patients.reduce((s, p) => s + p.insurancePaid, 0),
+      totalCashPaid: patients.reduce((s, p) => s + p.cashPaid, 0),
+      totalBalance: patients.reduce((s, p) => s + p.balance, 0),
+    };
+
+    res.json({ success: true, data: { summary, patients, dateRange: { startDate, endDate } } });
+  } catch (error) {
+    console.error('Error getting insurance patient report:', error);
+    res.status(500).json({ success: false, message: 'Failed to get insurance patient report', error: error.message });
+  }
+});
+
+module.exports = router;
+

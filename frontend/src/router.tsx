@@ -231,6 +231,10 @@ const router = createBrowserRouter([
         element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><BillingDashboard /></LazyWrapper></ProtectedRoute>
       },
       {
+        path: 'billing/insurance-report',
+        element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><BillingDashboard /></LazyWrapper></ProtectedRoute>
+      },
+      {
         path: 'billing/financial-advisor',
         element: <ProtectedRoute allowedRoles={['admin', 'finance']}><LazyWrapper><FinancialAdvisor /></LazyWrapper></ProtectedRoute>
       },
