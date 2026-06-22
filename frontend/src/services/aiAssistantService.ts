@@ -87,6 +87,8 @@ export interface PatientData {
   relievingFactors?: string[];
   timing?: string;
   severity?: string;
+  radiating?: string;
+  associatingSymptoms?: string;
   // Additional clinical fields
   progression?: string;
   associatedSymptoms?: string[];
@@ -653,127 +655,99 @@ export class AIAssistantService {
       location,
       duration,
       character,
-      aggravatingFactors = [],
-      relievingFactors = [],
+      radiating,
       timing,
       severity,
-      progression,
-      associatedSymptoms = [],
-      pastMedicalHistory
+      associatingSymptoms,
+      associatedSymptoms = []
     } = patientData;
 
-    const complaint = chiefComplaint.toLowerCase().trim();
-    const ageStr = age ? `${age}-year-old` : 'adult';
-    const genderStr = gender || 'patient';
-    const durationResolved = duration || AIAssistantService.parseDurationFromChiefComplaint(chiefComplaint) || '';
+    const parts: string[] = [];
+    const ccText = chiefComplaint?.trim();
 
-    const complaintCategory = AIAssistantService.classifyComplaint(complaint);
-
-    // Extract dynamic descriptors from the actual complaint text
-    const desc = AIAssistantService.extractComplaintDescriptors(complaint);
-    const categoryDefaults = AIAssistantService.getOLDCARTSDefaults(complaintCategory, complaint);
-
-    // --- Resolve each OLDCARTS element ---
-    // Priority: (1) form field entered by user  (2) extracted from complaint text
-    // Category defaults are ONLY used for onset, location, character, and negatives.
-    // Aggravating / relieving / timing / associated are NEVER assumed from defaults —
-    // they are only written when we actually know them.
-
-    const resolvedLocation  = location || desc.locationHint || categoryDefaults.location;
-    const resolvedOnset     = onset    || desc.onsetHint    || categoryDefaults.onset;
-    const resolvedNoun      = desc.symptomNoun !== 'discomfort' ? desc.symptomNoun : categoryDefaults.symptomNoun;
-
-    // Character: form field > complaint-extracted > category default (character is safe to default)
-    let resolvedCharacter = '';
-    if (character && character.trim()) {
-      resolvedCharacter = character.trim();
-    } else if (desc.characterWords.length > 0) {
-      resolvedCharacter = desc.characterWords.slice(0, 2).join(' and ');
-    } else if (categoryDefaults.character) {
-      resolvedCharacter = categoryDefaults.character;
+    let introSentence = '';
+    if (ccText) {
+      const agePrefix = age ? `${age}-year-old ` : '';
+      const genderPrefix = gender && gender !== 'unknown' ? `${gender.toLowerCase()} ` : 'patient ';
+      introSentence = `${agePrefix}${genderPrefix}presents with ${ccText}`;
+      
+      const dur = duration?.trim();
+      const ons = onset?.trim()?.toLowerCase();
+      
+      if (dur && ons) {
+        introSentence += ` for ${dur}, ${ons} in onset.`;
+      } else if (dur) {
+        introSentence += ` for ${dur}.`;
+      } else if (ons) {
+        introSentence += `, ${ons} in onset.`;
+      } else {
+        introSentence += `.`;
+      }
     }
 
-    // Aggravating: form field > complaint-extracted ONLY (no category fallback)
-    let aggravatingText = '';
-    if (aggravatingFactors.length > 0) {
-      aggravatingText = `The ${resolvedNoun} is aggravated by ${AIAssistantService.joinList(aggravatingFactors)}.`;
-    } else if (desc.aggravatingHints.length > 0) {
-      aggravatingText = `The ${resolvedNoun} is aggravated by ${AIAssistantService.joinList(desc.aggravatingHints)}.`;
-    }
-    // ← no categoryDefaults.aggravating fallback: never assume "meals and spicy food" if patient didn't say so
+    let painSentence = '';
+    const loc = location?.trim();
+    const char = character?.trim()?.toLowerCase();
+    const rad = radiating?.trim() || (patientData as any).radiating?.trim();
 
-    // Relieving: form field > complaint-extracted ONLY (no category fallback)
-    let relievingText = '';
-    if (relievingFactors.length > 0) {
-      relievingText = `The patient reports partial relief with ${AIAssistantService.joinList(relievingFactors)}.`;
-    } else if (desc.relievingHints.length > 0) {
-      relievingText = `The patient reports partial relief with ${AIAssistantService.joinList(desc.relievingHints)}.`;
-    }
-    // ← no categoryDefaults.relieving fallback: never assume "antacids" if patient didn't say so
-
-    // Timing: form field ONLY — never inject "postprandially" or "nocturnal" unless entered
-    const resolvedTiming = timing || '';
-    // ← categoryDefaults.timing removed: it hardcodes things like "The pain is worse postprandially"
-
-    // Associated: form field > complaint-extracted ONLY (no category fallback)
-    let associatedText = '';
-    if (associatedSymptoms.length > 0) {
-      associatedText = `Associated symptoms include ${AIAssistantService.joinList(associatedSymptoms)}.`;
-    } else if (desc.associatedHints.length > 0) {
-      associatedText = `Associated with ${AIAssistantService.joinList(desc.associatedHints)}.`;
-    }
-    // ← no categoryDefaults.associated fallback: never inject "nausea but no vomiting" unless known
-
-    // Build the narrative sentence by sentence
-    const sentences: string[] = [];
-
-    sentences.push(
-      `This is a ${ageStr} ${genderStr} patient who presented with a chief complaint of ${chiefComplaint.trim()}.`
-    );
-
-    if (resolvedOnset) {
-      sentences.push(`The symptoms began ${resolvedOnset}.`);
+    if (loc || char || rad) {
+      const partsOfPain: string[] = [];
+      if (loc) {
+        let locText = loc;
+        const lowerLoc = loc.toLowerCase();
+        if (!lowerLoc.startsWith('the ') && ['head', 'chest', 'abdomen', 'back', 'jaw', 'neck'].includes(lowerLoc)) {
+          locText = 'the ' + lowerLoc;
+        }
+        partsOfPain.push(`located in ${locText}`);
+      }
+      if (char) {
+        partsOfPain.push(`described as ${char}`);
+      }
+      if (rad) {
+        const lowerRad = rad.toLowerCase();
+        if (lowerRad === 'none') {
+          partsOfPain.push(`without radiation`);
+        } else {
+          partsOfPain.push(`with radiation to ${rad}`);
+        }
+      }
+      if (partsOfPain.length > 0) {
+        painSentence = `Pain is ` + partsOfPain.join(', ') + '.';
+      }
     }
 
-    if (resolvedLocation) {
-      const cleanLoc = resolvedLocation.toLowerCase().startsWith('the ')
-        ? resolvedLocation.slice(4)
-        : resolvedLocation;
-      sentences.push(`The ${resolvedNoun} is localized to the ${cleanLoc}.`);
+    let timingSentence = '';
+    const tim = timing?.trim()?.toLowerCase();
+    const sev = severity !== undefined && severity !== null && String(severity).trim() !== '' ? String(severity).trim() : '';
+
+    if (tim || sev) {
+      if (tim && sev) {
+        const isNumeric = /^\d+(\.\d+)?$/.test(sev);
+        const sevSuffix = isNumeric ? '/10' : '';
+        timingSentence = `The pattern is ${tim}, rated ${sev}${sevSuffix} in intensity.`;
+      } else if (tim) {
+        timingSentence = `The pattern is ${tim}.`;
+      } else if (sev) {
+        const isNumeric = /^\d+(\.\d+)?$/.test(sev);
+        const sevSuffix = isNumeric ? '/10' : '';
+        timingSentence = `Pain is rated ${sev}${sevSuffix} in intensity.`;
+      }
     }
 
-    if (durationResolved) {
-      sentences.push(`The symptoms have been present for ${durationResolved}.`);
+    let associatedSentence = '';
+    const assocValue = associatingSymptoms?.trim() || 
+                       (Array.isArray(associatedSymptoms) ? associatedSymptoms.join(', ') : String(associatedSymptoms || '')).trim();
+
+    if (assocValue) {
+      if (assocValue.toLowerCase() === 'none') {
+        associatedSentence = `No associated symptoms reported.`;
+      } else {
+        associatedSentence = `Associated with ${assocValue}.`;
+      }
     }
 
-    if (resolvedCharacter) {
-      sentences.push(`The ${resolvedNoun} is described as ${resolvedCharacter} in nature.`);
-    }
-
-    if (aggravatingText) sentences.push(aggravatingText);
-    if (relievingText)   sentences.push(relievingText);
-    if (resolvedTiming)  sentences.push(resolvedTiming);
-
-    if (severity && severity.trim()) {
-      sentences.push(`The patient rates the severity as ${severity.toLowerCase()}.`);
-    }
-
-    if (progression && progression.trim()) {
-      sentences.push(`The symptoms have been ${progression.toLowerCase()} since onset.`);
-    }
-
-    if (associatedText) sentences.push(associatedText);
-
-    // Pertinent negatives: always derived from the complaint location, not category defaults
-    sentences.push(desc.negatives);
-
-    if (pastMedicalHistory && pastMedicalHistory.trim()) {
-      sentences.push(`Past medical history is significant for ${pastMedicalHistory.trim()}.`);
-    }
-
-    sentences.push('Review of systems is otherwise negative.');
-
-    return sentences.join(' ');
+    const finalParagraph = [introSentence, painSentence, timingSentence, associatedSentence].filter(Boolean).join(' ');
+    return finalParagraph;
   }
 
   /**

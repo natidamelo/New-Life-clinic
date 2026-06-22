@@ -2314,14 +2314,19 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
         age: patientData.age,
         gender: patientData.gender,
         historyOfPresentIllness: (formData as any).historyOfPresentIllness || undefined,
-        onset: (formData.chiefComplaint as any).onsetPattern || undefined,
-        duration: durationToUse || undefined,
-        severity: formData.chiefComplaint.severity,
-        progression: formData.chiefComplaint.progression,
-        location: formData.chiefComplaint.location,
+        onset: formData.chiefComplaint.onset || undefined,
+        onsetPattern: formData.chiefComplaint.onset || undefined,
+        duration: formData.chiefComplaint.duration || durationToUse || undefined,
+        severity: formData.chiefComplaint.severity || undefined,
+        progression: formData.chiefComplaint.progression || undefined,
+        location: formData.chiefComplaint.location || undefined,
+        character: formData.chiefComplaint.character || undefined,
+        radiating: formData.chiefComplaint.radiating || undefined,
+        timing: formData.chiefComplaint.timing || undefined,
+        associatingSymptoms: formData.chiefComplaint.associatingSymptoms || undefined,
+        associatedSymptoms: formData.chiefComplaint.associatingSymptoms ? [formData.chiefComplaint.associatingSymptoms] : [],
         aggravatingFactors: (formData.chiefComplaint as any).aggravatingFactors || [],
         relievingFactors: (formData.chiefComplaint as any).relievingFactors || [],
-        associatedSymptoms: (formData.chiefComplaint as any).associatedSymptoms || [],
         pastMedicalHistory: propPatientData?.pastMedicalHistory || ''
       };
 
@@ -4306,53 +4311,94 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
     isHpiManuallyEditedRef.current = isHpiManuallyEdited;
   }, [isHpiManuallyEdited]);
 
+  // Data Flow: OLDCARTS state -> template function -> HPI textarea
   const generateHPIText = (cc: typeof formData.chiefComplaint) => {
     const parts: string[] = [];
-    
-    const chief = cc.description?.trim() || '[Chief Complaint]';
-    const onset = cc.onset?.trim();
+    const age = patientData?.age;
+    const gender = patientData?.gender?.toLowerCase();
+    const ccText = cc.description?.trim();
+
+    let introSentence = '';
+    if (ccText) {
+      const agePrefix = age ? `${age}-year-old ` : '';
+      const genderPrefix = gender && gender !== 'unknown' ? `${gender} ` : 'patient ';
+      introSentence = `${agePrefix}${genderPrefix}presents with ${ccText}`;
+      
+      const duration = cc.duration?.trim();
+      const onset = cc.onset?.trim()?.toLowerCase();
+      
+      if (duration && onset) {
+        introSentence += ` for ${duration}, ${onset} in onset.`;
+      } else if (duration) {
+        introSentence += ` for ${duration}.`;
+      } else if (onset) {
+        introSentence += `, ${onset} in onset.`;
+      } else {
+        introSentence += `.`;
+      }
+    }
+
+    let painSentence = '';
     const location = cc.location?.trim();
-    const duration = cc.duration?.trim();
-    const character = cc.character?.trim();
+    const character = cc.character?.trim()?.toLowerCase();
     const radiating = cc.radiating?.trim();
+
+    if (location || character || radiating) {
+      const partsOfPain: string[] = [];
+      if (location) {
+        let locText = location;
+        const lowerLoc = location.toLowerCase();
+        if (!lowerLoc.startsWith('the ') && ['head', 'chest', 'abdomen', 'back', 'jaw', 'neck'].includes(lowerLoc)) {
+          locText = 'the ' + lowerLoc;
+        }
+        partsOfPain.push(`located in ${locText}`);
+      }
+      if (character) {
+        partsOfPain.push(`described as ${character}`);
+      }
+      if (radiating) {
+        const lowerRad = radiating.toLowerCase();
+        if (lowerRad === 'none') {
+          partsOfPain.push(`without radiation`);
+        } else {
+          partsOfPain.push(`with radiation to ${radiating}`);
+        }
+      }
+      if (partsOfPain.length > 0) {
+        painSentence = `Pain is ` + partsOfPain.join(', ') + '.';
+      }
+    }
+
+    let timingSentence = '';
+    const timing = cc.timing?.trim()?.toLowerCase();
+    const severity = cc.severity !== undefined && cc.severity !== null && String(cc.severity).trim() !== '' ? String(cc.severity).trim() : '';
+
+    if (timing || severity) {
+      if (timing && severity) {
+        const isNumeric = /^\d+(\.\d+)?$/.test(severity);
+        const sevSuffix = isNumeric ? '/10' : '';
+        timingSentence = `The pattern is ${timing}, rated ${severity}${sevSuffix} in intensity.`;
+      } else if (timing) {
+        timingSentence = `The pattern is ${timing}.`;
+      } else if (severity) {
+        const isNumeric = /^\d+(\.\d+)?$/.test(severity);
+        const sevSuffix = isNumeric ? '/10' : '';
+        timingSentence = `Pain is rated ${severity}${sevSuffix} in intensity.`;
+      }
+    }
+
+    let associatedSentence = '';
     const associating = cc.associatingSymptoms?.trim();
-    const timing = cc.timing?.trim();
-    const severity = cc.severity?.trim();
-
-    let sentence1 = `Patient reports ${chief}`;
-    
-    const withParts: string[] = [];
-    if (onset) withParts.push(`onset ${onset}`);
-    if (location) withParts.push(`located at ${location}`);
-    if (duration) withParts.push(`lasting ${duration}`);
-    
-    if (withParts.length > 0) {
-      sentence1 += ` with ${withParts.join(', ')}`;
-    }
-    sentence1 += '.';
-    parts.push(sentence1);
-
-    if (character || radiating) {
-      const descParts: string[] = [];
-      if (character) descParts.push(`described as ${character}`);
-      if (radiating) descParts.push(`radiating to ${radiating}`);
-      parts.push(descParts.join(', ').replace(/^\w/, c => c.toUpperCase()) + '.');
-    }
-
     if (associating) {
-      parts.push(`Associated with ${associating}.`);
+      if (associating.toLowerCase() === 'none') {
+        associatedSentence = `No associated symptoms reported.`;
+      } else {
+        associatedSentence = `Associated with ${associating}.`;
+      }
     }
 
-    if (timing) {
-      parts.push(`Pattern is ${timing}.`);
-    }
-
-    if (severity) {
-      const isNumeric = /^\d+(\.\d+)?$/.test(severity);
-      parts.push(`Severity rated ${severity}${isNumeric ? '/10' : ''}.`);
-    }
-
-    return parts.join(' ');
+    const finalParagraph = [introSentence, painSentence, timingSentence, associatedSentence].filter(Boolean).join(' ');
+    return finalParagraph;
   };
 
   const debouncedMergeOldcartsIntoHpi = useMemo(

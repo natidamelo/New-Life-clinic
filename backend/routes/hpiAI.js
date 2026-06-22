@@ -49,6 +49,8 @@ function buildHPIPrompt(data) {
   var location = data.location || '';
   var onset = data.onset || '';
   var character = data.character || '';
+  var radiating = data.radiating || '';
+  var timing = data.timing || '';
   var aggravating = Array.isArray(data.aggravatingFactors)
     ? data.aggravatingFactors.join(', ')
     : data.aggravatingFactors || '';
@@ -57,7 +59,7 @@ function buildHPIPrompt(data) {
     : data.relievingFactors || '';
   var associated = Array.isArray(data.associatedSymptoms)
     ? data.associatedSymptoms.join(', ')
-    : data.associatedSymptoms || '';
+    : data.associatedSymptoms || data.associatingSymptoms || '';
   var pmh = data.pastMedicalHistory || '';
   var meds = Array.isArray(data.currentMedications)
     ? data.currentMedications.join(', ')
@@ -71,6 +73,8 @@ function buildHPIPrompt(data) {
   if (location) knownFields.push('Location: ' + location);
   if (onset) knownFields.push('Onset: ' + onset);
   if (character) knownFields.push('Character: ' + character);
+  if (radiating) knownFields.push('Radiating: ' + radiating);
+  if (timing) knownFields.push('Timing: ' + timing);
   if (aggravating) knownFields.push('Aggravating factors: ' + aggravating);
   if (relieving) knownFields.push('Relieving factors: ' + relieving);
   if (associated) knownFields.push('Associated symptoms: ' + associated);
@@ -87,12 +91,9 @@ function buildHPIPrompt(data) {
     knownFields.length > 0 ? '  ' + knownFields.join('\n  ') : '',
     '',
     'CRITICAL INSTRUCTIONS:',
-    hpi 
-      ? '1. The clinician has provided an Existing HPI Narrative. Use this Existing HPI Narrative as your primary source of clinical evidence. The differential diagnoses (DDx), red flags, and suggested labs/exams MUST be exact, highly specific, and directly generated based on the symptoms and details described in this HPI Narrative. Return this HPI narrative in the "narrative" field of the JSON output, or minorly polish it for medical grammar and professional terminology, but do not change its core symptoms.'
-      : '1. The HPI narrative MUST reflect the patient\'s exact chief complaint words and descriptors. If the complaint says "swollen" — use phrases like "sensation of swelling and distension", NOT generic "burning". If the complaint says "burning" — use "burning epigastric discomfort". If the complaint says "tight" — use "tightness and constricting sensation". NEVER produce a generic template. Every narrative must be unique to this chief complaint.',
-    '',
-    '2. Write/polish a clear, professional HPI paragraph (OLD CARTS: Onset, Location, Duration, Character, Aggravating, Relieving, Timing, Severity). Use third-person. Include pertinent negatives. 6–10 sentences.',
-    '',
+    '1. DO NOT fabricate, invent, or assume any symptoms, clinical details, denies, or Review of Systems findings that are not explicitly provided in the input fields. Every statement in the HPI narrative must trace back directly to the provided input. If a field is empty, do not speculate on it. Do not fabricate negative findings (such as "denies head trauma, denies fever") unless explicitly selected or entered in associated symptoms or HPI narrative.',
+    '2. Write a single, flowing, professional cohesive clinical paragraph using the provided OLDCARTS fields. Join the sentences naturally without bullet points or short disconnected sentences. It should read the way an experienced physician would dictate it.',
+    '   For example: "[Age]-year-old [sex] presents with [Chief Complaint] for [Duration], [Onset] in onset. Pain is located at [Location], described as [Character], with radiation to [Radiating] (or without radiation). Pattern is [Timing], rated [Severity]/10 in intensity. Associated with [Associated symptoms] (or no associated symptoms reported)."',
     '3. Generate complaint-SPECIFIC suggested phrases for each OLD CARTS category.',
     '   "duration", "severity", "progression", "location" → short values only (e.g. "2 days", "Moderate").',
     '   "character", "aggravating", "relieving", "associated" → complete clinical phrases tailored to THIS complaint.',
@@ -100,11 +101,10 @@ function buildHPIPrompt(data) {
     '4. List 3-5 red flag symptoms specific to this chief complaint the clinician should rule out.',
     '',
     '5. List 3-5 most likely differential diagnoses (DDx) for this specific presentation. Ensure they precisely match the symptoms in the HPI.',
-    '   For example, if epigastric pain, heartburn, and loose stools/diarrhea are described, the top diagnoses should include GERD, Gastritis, and Acute Gastroenteritis.',
     '',
     'Return ONLY valid JSON (no markdown, no code fences):',
     '{',
-    '  "narrative": "HPI paragraph specific to this chief complaint and patient descriptors.",',
+    '  "narrative": "Cohesive clinical HPI paragraph strictly reflecting the patient\'s actual symptoms and OLDCARTS inputs.",',
     '  "suggestedPhrases": {',
     '    "duration": ["2 days", "3 days", "1 week"],',
     '    "severity": ["Mild", "Moderate", "Severe"],',
