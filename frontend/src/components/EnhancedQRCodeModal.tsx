@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Smartphone, Wifi, WifiOff, Shield, BarChart3, Users, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, Smartphone, Wifi, WifiOff, Shield, BarChart3, Users, Clock, CheckCircle, AlertCircle, Printer } from 'lucide-react';
 import api from '../services/apiService';
+import { useAuth } from '../context/AuthContext';
 
 interface EnhancedQRCodeModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ const EnhancedQRCodeModal: React.FC<EnhancedQRCodeModalProps> = ({
   currentStatus,
   onStatusUpdate
 }) => {
+  const { user } = useAuth();
   const [enhancedStatus, setEnhancedStatus] = useState<EnhancedStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [qrCode, setQrCode] = useState<string>('');
@@ -196,6 +198,133 @@ const EnhancedQRCodeModal: React.FC<EnhancedQRCodeModalProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handlePrint = () => {
+    if (!qrCode) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Could not open print window. Please allow popups.');
+      return;
+    }
+
+    const title = selectedType === 'checkin' ? 'Check-in (Enhanced)' : 'Check-out (Enhanced)';
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Print QR Code - ${title}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              padding: 20px;
+              box-sizing: border-box;
+              text-align: center;
+            }
+            .container {
+              border: 2px solid #ccc;
+              padding: 40px;
+              border-radius: 12px;
+              max-width: 500px;
+              box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            h1 {
+              font-size: 24px;
+              color: #1a1a1a;
+              margin-top: 0;
+              margin-bottom: 8px;
+            }
+            h2 {
+              font-size: 20px;
+              color: #4b5563;
+              margin-bottom: 24px;
+              font-weight: 500;
+            }
+            .qr-image {
+              width: 300px;
+              height: 300px;
+              margin-bottom: 24px;
+              border: 1px solid #e5e7eb;
+              padding: 10px;
+              background-color: white;
+            }
+            .info {
+              font-size: 14px;
+              color: #6b7280;
+              margin-bottom: 8px;
+              text-align: left;
+              max-width: 320px;
+              margin-left: auto;
+              margin-right: auto;
+            }
+            .info-item {
+              display: flex;
+              justify-content: space-between;
+              border-bottom: 1px dashed #e5e7eb;
+              padding: 6px 0;
+            }
+            .info-label {
+              font-weight: 600;
+              color: #374151;
+            }
+            @media print {
+              body {
+                height: auto;
+              }
+              .container {
+                border: none;
+                box-shadow: none;
+                padding: 0;
+              }
+              .no-print {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>New Life Clinic</h1>
+            <h2>${title} QR Code</h2>
+            <img class="qr-image" src="${qrCode}" alt="QR Code" />
+            <div class="info">
+              <div class="info-item">
+                <span class="info-label">Staff Member:</span>
+                <span>${user?.firstName || ''} ${user?.lastName || ''}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Role:</span>
+                <span style="text-transform: capitalize;">${user?.role || ''}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Generated At:</span>
+                <span>${new Date().toLocaleString()}</span>
+              </div>
+            </div>
+            <p class="no-print" style="margin-top: 30px; font-size: 12px; color: #9ca3af;">
+              If the print dialog did not open automatically, press Ctrl+P or Cmd+P to print.
+            </p>
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.onafterprint = function() {
+                  window.close();
+                };
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   useEffect(() => {
@@ -395,8 +524,18 @@ const EnhancedQRCodeModal: React.FC<EnhancedQRCodeModalProps> = ({
               <div className="flex items-center justify-center">
                 {qrCode ? (
                   <div className="text-center">
-                    <img src={qrCode} alt="Enhanced QR Code" className="mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Enhanced QR Code Generated</p>
+                    <img src={qrCode} alt="Enhanced QR Code" className="mx-auto mb-2 w-72 h-72 border-4 border-border/40 rounded-lg shadow-lg bg-primary-foreground" />
+                    
+                    {/* Print QR Code Button */}
+                    <button
+                      onClick={handlePrint}
+                      className="mt-2 mb-3 flex items-center justify-center gap-2 w-full max-w-[280px] mx-auto bg-primary text-primary-foreground py-2 px-4 rounded-lg hover:bg-primary/95 transition-colors font-medium"
+                    >
+                      <Printer className="h-4 w-4" />
+                      <span>Print QR Code</span>
+                    </button>
+                    
+                    <p className="text-sm text-muted-foreground mt-2">Enhanced QR Code Generated</p>
                   </div>
                 ) : (
                   <div className="text-center text-muted-foreground">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { XMarkIcon, QrCodeIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, QrCodeIcon, ArrowUpIcon, ArrowDownIcon, PrinterIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/apiService';
 import { toast } from 'react-hot-toast';
@@ -518,6 +518,147 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
 
   // REMOVED: Local device registration function
   // Users must scan the staff registration QR code from admin to register their device
+
+  const handlePrint = () => {
+    if (!qrCodeData) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Could not open print window. Please allow popups.');
+      return;
+    }
+
+    const title = hashType === 'qr-checkin' ? 
+      (currentStatus?.isOvertimeTime ? 'Check-in for Overtime' : 'Check-in') : 
+      (currentStatus?.isOvertime && currentStatus?.status === 'clocked_in' ? 'Check-out (Overtime)' : 'Check-out');
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Print QR Code - ${title}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              padding: 20px;
+              box-sizing: border-box;
+              text-align: center;
+            }
+            .container {
+              border: 2px solid #ccc;
+              padding: 40px;
+              border-radius: 12px;
+              max-width: 500px;
+              box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            h1 {
+              font-size: 24px;
+              color: #1a1a1a;
+              margin-top: 0;
+              margin-bottom: 8px;
+            }
+            h2 {
+              font-size: 20px;
+              color: #4b5563;
+              margin-bottom: 24px;
+              font-weight: 500;
+            }
+            .qr-image {
+              width: 300px;
+              height: 300px;
+              margin-bottom: 24px;
+              border: 1px solid #e5e7eb;
+              padding: 10px;
+              background-color: white;
+            }
+            .info {
+              font-size: 14px;
+              color: #6b7280;
+              margin-bottom: 8px;
+              text-align: left;
+              max-width: 320px;
+              margin-left: auto;
+              margin-right: auto;
+            }
+            .info-item {
+              display: flex;
+              justify-content: space-between;
+              border-bottom: 1px dashed #e5e7eb;
+              padding: 6px 0;
+            }
+            .info-label {
+              font-weight: 600;
+              color: #374151;
+            }
+            .info-value {
+              font-family: monospace;
+            }
+            @media print {
+              body {
+                height: auto;
+              }
+              .container {
+                border: none;
+                box-shadow: none;
+                padding: 0;
+              }
+              .no-print {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>New Life Clinic</h1>
+            <h2>${title} QR Code</h2>
+            <img class="qr-image" src="${qrCodeData.qrCodeDataUrl}" alt="QR Code" />
+            <div class="info">
+              <div class="info-item">
+                <span class="info-label">Staff Member:</span>
+                <span>${user?.firstName || ''} ${user?.lastName || ''}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Role:</span>
+                <span style="text-transform: capitalize;">${user?.role || ''}</span>
+              </div>
+              ${location ? `
+              <div class="info-item">
+                <span class="info-label">Location:</span>
+                <span>${location}</span>
+              </div>` : ''}
+              <div class="info-item">
+                <span class="info-label">Generated At:</span>
+                <span>${new Date().toLocaleString()}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Expires:</span>
+                <span>${qrCodeData.expiresAt ? new Date(qrCodeData.expiresAt).toLocaleString() : 'Never'}</span>
+              </div>
+            </div>
+            <p class="no-print" style="margin-top: 30px; font-size: 12px; color: #9ca3af;">
+              If the print dialog did not open automatically, press Ctrl+P or Cmd+P to print.
+            </p>
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.onafterprint = function() {
+                  window.close();
+                };
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   const handleClose = () => {
     setQrCodeData(null);
@@ -1073,6 +1214,18 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
                           imageRendering: 'crisp-edges'
                         }}
                       />
+                    </div>
+                    
+                    {/* Print QR Code Button */}
+                    <div className="mb-3">
+                      <Button
+                        onClick={handlePrint}
+                        className="mx-auto w-72 flex items-center justify-center gap-2"
+                        variant="default"
+                      >
+                        <PrinterIcon className="w-4 h-4" />
+                        Print QR Code
+                      </Button>
                     </div>
                     
                     {/* Mobile Scanning Instructions */}
