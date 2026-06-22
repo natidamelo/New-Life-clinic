@@ -14,6 +14,8 @@ import {
   DollarSign, CheckCircle2, Clock, FileText, Banknote, ShieldCheck,
   CreditCard, ChevronDown, ChevronUp, Receipt, Calendar, X
 } from 'lucide-react';
+import { gregorianToEthiopian } from '../../utils/ethiopianCalendar';
+import EthiopianDatePickerInline from '../../components/EthiopianDatePickerInline';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface DetailedInvoice {
@@ -193,6 +195,7 @@ const DetailedBillingReport: React.FC = () => {
   const [filters, setFilters] = useState({ status: '', paymentMethod: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<string | null>('thisMonth');
+  const [showEthiopianCalendar, setShowEthiopianCalendar] = useState(false);
 
   const validateDates = () => {
     if (!startDate || !endDate) { setError('Please select both dates'); return false; }
@@ -281,18 +284,37 @@ const DetailedBillingReport: React.FC = () => {
         </CardHeader>
         <CardContent className="pt-5 space-y-5">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Start Date</Label>
-              <Input type="date" value={startDate ? format(startDate, 'yyyy-MM-dd') : ''}
-                onChange={e => { setStartDate(e.target.value ? new Date(e.target.value) : null); setSelectedPreset(null); }}
-                className="h-9 text-sm border-gray-200 focus:border-indigo-400" />
-            </div>
-            <div>
-              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">End Date</Label>
-              <Input type="date" value={endDate ? format(endDate, 'yyyy-MM-dd') : ''}
-                onChange={e => { setEndDate(e.target.value ? new Date(e.target.value) : null); setSelectedPreset(null); }}
-                className="h-9 text-sm border-gray-200 focus:border-indigo-400" />
-            </div>
+            {showEthiopianCalendar ? (
+              <>
+                <EthiopianDatePickerInline
+                  label="Start Date (Ethiopian)"
+                  value={startDate}
+                  onChange={date => { setStartDate(date); setSelectedPreset(null); }}
+                  focusClassName="focus:ring-indigo-500/30 focus:border-indigo-400"
+                />
+                <EthiopianDatePickerInline
+                  label="End Date (Ethiopian)"
+                  value={endDate}
+                  onChange={date => { setEndDate(date); setSelectedPreset(null); }}
+                  focusClassName="focus:ring-indigo-500/30 focus:border-indigo-400"
+                />
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Start Date</Label>
+                  <Input type="date" value={startDate ? format(startDate, 'yyyy-MM-dd') : ''}
+                    onChange={e => { setStartDate(e.target.value ? new Date(e.target.value) : null); setSelectedPreset(null); }}
+                    className="h-9 text-sm border-gray-200 focus:border-indigo-400" />
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">End Date</Label>
+                  <Input type="date" value={endDate ? format(endDate, 'yyyy-MM-dd') : ''}
+                    onChange={e => { setEndDate(e.target.value ? new Date(e.target.value) : null); setSelectedPreset(null); }}
+                    className="h-9 text-sm border-gray-200 focus:border-indigo-400" />
+                </div>
+              </>
+            )}
             <div>
               <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Status</Label>
               <Select value={filters.status || 'all'} onValueChange={v => setFilters({ ...filters, status: v === 'all' ? '' : v })}>
@@ -317,14 +339,31 @@ const DetailedBillingReport: React.FC = () => {
             </div>
           </div>
 
-          {/* Presets */}
-          <div className="flex flex-wrap gap-2">
-            {PRESETS.map(({ key, label }) => (
-              <button key={key} onClick={() => setPresetDateRange(key)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                  selectedPreset === key ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
-                }`}>{label}</button>
-            ))}
+          {/* Presets & Ethiopian Toggle */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map(({ key, label }) => (
+                <button key={key} onClick={() => setPresetDateRange(key)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    selectedPreset === key ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+                  }`}>{label}</button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowEthiopianCalendar(!showEthiopianCalendar)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                showEthiopianCalendar ? 'bg-indigo-100 text-indigo-800 border-indigo-200' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+              }`}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              {showEthiopianCalendar ? 'Gregorian Calendar' : 'Ethiopian Calendar'}
+            </button>
+            {showEthiopianCalendar && startDate && endDate && (
+              <span className="text-xs text-gray-500">
+                🇪🇹 {gregorianToEthiopian(startDate).shortFormatted} – {gregorianToEthiopian(endDate).shortFormatted}
+              </span>
+            )}
           </div>
 
           {error && (

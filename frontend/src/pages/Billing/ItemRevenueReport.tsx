@@ -19,6 +19,8 @@ import { format, subMonths, subYears } from 'date-fns';
 import api from '../../services/apiService';
 import { useSafeTheme } from '../../hooks/useSafeTheme';
 import { motion } from 'framer-motion';
+import { gregorianToEthiopian } from '../../utils/ethiopianCalendar';
+import EthiopianDatePickerInline from '../../components/EthiopianDatePickerInline';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface MonthlyBreakdown { month: string; revenue: number; quantity: number; }
@@ -267,6 +269,7 @@ const ItemRevenueReport: React.FC = () => {
   const { isDarkMode } = useSafeTheme();
   const [startDate, setStartDate] = useState<string>(() => format(subYears(new Date(), 1), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
+  const [showEthiopianCalendar, setShowEthiopianCalendar] = useState(false);
   const [activeType, setActiveType] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [cardsOpen, setCardsOpen] = useState(false);
@@ -641,47 +644,93 @@ const ItemRevenueReport: React.FC = () => {
       }`}>
         <CardContent className="p-5">
           <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex gap-3 flex-1 w-full">
-              <div className="flex-1">
-                <label className={`text-xs font-semibold mb-1.5 block flex items-center gap-1.5 ${
-                  isDarkMode ? 'text-slate-400' : 'text-gray-500'
-                }`}>
-                  <Calendar className="h-3.5 w-3.5" /> From Date
-                </label>
-                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-                  className={`text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 ${
-                    isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-200' : 'border-gray-200'
-                  }`} />
+            <div className="flex-1 w-full">
+              <div className="flex gap-3 w-full">
+                {showEthiopianCalendar ? (
+                  <>
+                    <EthiopianDatePickerInline
+                      label="From Date (Ethiopian)"
+                      value={startDate ? new Date(startDate) : null}
+                      onChange={date => date && setStartDate(format(date, 'yyyy-MM-dd'))}
+                      focusClassName={isDarkMode ? "focus:ring-cyan-500/30 focus:border-cyan-400" : "focus:ring-blue-500/30 focus:border-blue-400"}
+                      className="flex-1"
+                    />
+                    <EthiopianDatePickerInline
+                      label="To Date (Ethiopian)"
+                      value={endDate ? new Date(endDate) : null}
+                      onChange={date => date && setEndDate(format(date, 'yyyy-MM-dd'))}
+                      focusClassName={isDarkMode ? "focus:ring-cyan-500/30 focus:border-cyan-400" : "focus:ring-blue-500/30 focus:border-blue-400"}
+                      className="flex-1"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <div className="flex-1">
+                      <label className={`text-xs font-semibold mb-1.5 block flex items-center gap-1.5 ${
+                        isDarkMode ? 'text-slate-400' : 'text-gray-500'
+                      }`}>
+                        <Calendar className="h-3.5 w-3.5" /> From Date
+                      </label>
+                      <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                        className={`text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 ${
+                          isDarkMode ? 'bg-slate-955 border-slate-800 text-slate-200' : 'border-gray-200'
+                        }`} />
+                    </div>
+                    <div className="flex-1">
+                      <label className={`text-xs font-semibold mb-1.5 block flex items-center gap-1.5 ${
+                        isDarkMode ? 'text-slate-400' : 'text-gray-500'
+                      }`}>
+                        <Calendar className="h-3.5 w-3.5" /> To Date
+                      </label>
+                      <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                        className={`text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 ${
+                          isDarkMode ? 'bg-slate-955 border-slate-800 text-slate-200' : 'border-gray-200'
+                        }`} />
+                    </div>
+                  </>
+                )}
               </div>
-              <div className="flex-1">
-                <label className={`text-xs font-semibold mb-1.5 block flex items-center gap-1.5 ${
-                  isDarkMode ? 'text-slate-400' : 'text-gray-500'
-                }`}>
-                  <Calendar className="h-3.5 w-3.5" /> To Date
-                </label>
-                <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
-                  className={`text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 ${
-                    isDarkMode ? 'bg-slate-955 border-slate-800 text-slate-200' : 'border-gray-200'
-                  }`} />
-              </div>
+              {showEthiopianCalendar && startDate && endDate && (
+                <p className="text-xs text-blue-500 font-medium mt-1.5">
+                  🇪🇹 {gregorianToEthiopian(new Date(startDate)).shortFormatted} – {gregorianToEthiopian(new Date(endDate)).shortFormatted}
+                </p>
+              )}
             </div>
-            {/* Quick presets */}
-            <div className="flex gap-1.5 flex-wrap w-full md:w-auto">
-              {[
-                { label: '1M', fn: () => { setStartDate(format(subMonths(new Date(), 1), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); } },
-                { label: '3M', fn: () => { setStartDate(format(subMonths(new Date(), 3), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); } },
-                { label: '6M', fn: () => { setStartDate(format(subMonths(new Date(), 6), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); } },
-                { label: '1Y', fn: () => { setStartDate(format(subYears(new Date(), 1), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); } },
-              ].map(({ label, fn }) => (
-                <button key={label} onClick={fn}
-                  className={`px-3.5 py-2 text-xs font-semibold rounded-lg border transition-all duration-200 ${
-                    isDarkMode 
-                      ? 'border-slate-800 bg-slate-955 text-slate-400 hover:border-cyan-500/50 hover:text-cyan-400 hover:bg-slate-900' 
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-blue-400 hover:text-blue-700 hover:bg-gray-50'
-                  }`}>
-                  {label}
-                </button>
-              ))}
+            {/* Quick presets & Ethiopian Toggle */}
+            <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
+              <div className="flex gap-1.5">
+                {[
+                  { label: '1M', fn: () => { setStartDate(format(subMonths(new Date(), 1), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); } },
+                  { label: '3M', fn: () => { setStartDate(format(subMonths(new Date(), 3), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); } },
+                  { label: '6M', fn: () => { setStartDate(format(subMonths(new Date(), 6), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); } },
+                  { label: '1Y', fn: () => { setStartDate(format(subYears(new Date(), 1), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); } },
+                ].map(({ label, fn }) => (
+                  <button key={label} onClick={fn}
+                    className={`px-3.5 py-2 text-xs font-semibold rounded-lg border transition-all duration-200 ${
+                      isDarkMode 
+                        ? 'border-slate-800 bg-slate-955 text-slate-400 hover:border-cyan-500/50 hover:text-cyan-400 hover:bg-slate-900' 
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-blue-400 hover:text-blue-700 hover:bg-gray-50'
+                    }`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEthiopianCalendar(!showEthiopianCalendar)}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors border ${
+                  showEthiopianCalendar
+                    ? isDarkMode
+                      ? 'bg-cyan-950 text-cyan-400 border-cyan-800'
+                      : 'bg-blue-100 text-blue-800 border-blue-200'
+                    : isDarkMode
+                      ? 'bg-slate-955 text-slate-400 border-slate-800 hover:bg-slate-900'
+                      : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <Calendar className="h-3.5 w-3.5" />
+                {showEthiopianCalendar ? 'Gregorian' : 'Ethiopian'}
+              </button>
             </div>
           </div>
         </CardContent>

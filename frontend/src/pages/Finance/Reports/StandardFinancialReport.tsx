@@ -20,6 +20,7 @@ import { format } from 'date-fns';
 import billingService from '../../../services/billingService';
 import { useNavigate, Link } from 'react-router-dom';
 import { gregorianToEthiopian } from '../../../utils/ethiopianCalendar';
+import EthiopianDatePickerInline from '../../../components/EthiopianDatePickerInline';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FinancialSummary {
@@ -298,7 +299,7 @@ const StandardFinancialReport: React.FC = () => {
             </p>
             {showEthiopianCalendar && (
               <p className="text-emerald-200/90 text-xs mt-0.5 flex items-center gap-1">
-                <span className="opacity-80">በዓለም አቆጣጠር:</span>
+                <span className="opacity-80">የቀን አቆጣጠር:</span>
                 {gregorianToEthiopian(startDate).formatted} – {gregorianToEthiopian(endDate).formatted}
               </p>
             )}
@@ -326,18 +327,37 @@ const StandardFinancialReport: React.FC = () => {
         <CardContent className="p-5">
           <div className="flex flex-col sm:flex-row gap-4 items-end">
             <div className="flex-1 grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Start Date</Label>
-                <Input type="date" value={format(startDate, 'yyyy-MM-dd')}
-                  onChange={e => e.target.value && setStartDate(new Date(e.target.value))}
-                  className="h-9 text-sm border-gray-200 focus:border-emerald-400" />
-              </div>
-              <div>
-                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">End Date</Label>
-                <Input type="date" value={format(endDate, 'yyyy-MM-dd')}
-                  onChange={e => e.target.value && setEndDate(new Date(e.target.value))}
-                  className="h-9 text-sm border-gray-200 focus:border-emerald-400" />
-              </div>
+              {showEthiopianCalendar ? (
+                <>
+                  <EthiopianDatePickerInline
+                    label="Start Date (Ethiopian)"
+                    value={startDate}
+                    onChange={date => date && setStartDate(date)}
+                    focusClassName="focus:ring-emerald-500/30 focus:border-emerald-400"
+                  />
+                  <EthiopianDatePickerInline
+                    label="End Date (Ethiopian)"
+                    value={endDate}
+                    onChange={date => date && setEndDate(date)}
+                    focusClassName="focus:ring-emerald-500/30 focus:border-emerald-400"
+                  />
+                </>
+              ) : (
+                <>
+                  <div>
+                    <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Start Date</Label>
+                    <Input type="date" value={format(startDate, 'yyyy-MM-dd')}
+                      onChange={e => e.target.value && setStartDate(new Date(e.target.value))}
+                      className="h-9 text-sm border-gray-200 focus:border-emerald-400" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">End Date</Label>
+                    <Input type="date" value={format(endDate, 'yyyy-MM-dd')}
+                      onChange={e => e.target.value && setEndDate(new Date(e.target.value))}
+                      className="h-9 text-sm border-gray-200 focus:border-emerald-400" />
+                  </div>
+                </>
+              )}
               {/* Ethiopian calendar toggle */}
               <div className="col-span-2 flex items-center gap-2 pt-1">
                 <button
@@ -350,7 +370,7 @@ const StandardFinancialReport: React.FC = () => {
                   }`}
                 >
                   <Calendar className="h-3.5 w-3.5" />
-                  {showEthiopianCalendar ? 'በዓለም አቆጣጠር (Ethiopian)' : 'Show Ethiopian Calendar'}
+                  {showEthiopianCalendar ? 'የቀን አቆጣጠር (Ethiopian)' : 'Show Ethiopian Calendar'}
                 </button>
                 {showEthiopianCalendar && (
                   <span className="text-xs text-gray-500">

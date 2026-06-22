@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '../../components/ui/alert';
 import { format } from 'date-fns';
 import billingService from '../../services/billingService';
 import { gregorianToEthiopian } from '../../utils/ethiopianCalendar';
+import EthiopianDatePickerInline from '../../components/EthiopianDatePickerInline';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar
@@ -325,18 +326,37 @@ const BillingDashboard: React.FC = () => {
               <CardContent className="p-5">
                 <div className="flex flex-col md:flex-row gap-4 items-end">
                   <div className="grid grid-cols-2 gap-3 flex-1">
-                    <div>
-                      <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Start Date</Label>
-                      <Input type="date" value={format(startDate, 'yyyy-MM-dd')}
-                        onChange={e => e.target.value && setStartDate(new Date(e.target.value))}
-                        className="h-9 text-sm border-gray-200 focus:border-blue-400" />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">End Date</Label>
-                      <Input type="date" value={format(endDate, 'yyyy-MM-dd')}
-                        onChange={e => e.target.value && setEndDate(new Date(e.target.value))}
-                        className="h-9 text-sm border-gray-200 focus:border-blue-400" />
-                    </div>
+                    {showEthiopianCalendar ? (
+                      <>
+                        <EthiopianDatePickerInline
+                          label="Start Date (Ethiopian)"
+                          value={startDate}
+                          onChange={date => date && setStartDate(date)}
+                          focusClassName="focus:ring-blue-500/30 focus:border-blue-400"
+                        />
+                        <EthiopianDatePickerInline
+                          label="End Date (Ethiopian)"
+                          value={endDate}
+                          onChange={date => date && setEndDate(date)}
+                          focusClassName="focus:ring-blue-500/30 focus:border-blue-400"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Start Date</Label>
+                          <Input type="date" value={format(startDate, 'yyyy-MM-dd')}
+                            onChange={e => e.target.value && setStartDate(new Date(e.target.value))}
+                            className="h-9 text-sm border-gray-200 focus:border-blue-400" />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">End Date</Label>
+                          <Input type="date" value={format(endDate, 'yyyy-MM-dd')}
+                            onChange={e => e.target.value && setEndDate(new Date(e.target.value))}
+                            className="h-9 text-sm border-gray-200 focus:border-blue-400" />
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="flex rounded-xl overflow-hidden border border-gray-200 shadow-sm">

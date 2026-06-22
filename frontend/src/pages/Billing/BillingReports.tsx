@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '../../components/ui/alert';
 import { format, isAfter, addMonths, startOfMonth } from 'date-fns';
 import billingService from '../../services/billingService';
 import { gregorianToEthiopian } from '../../utils/ethiopianCalendar';
+import EthiopianDatePickerInline from '../../components/EthiopianDatePickerInline';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
@@ -122,18 +123,37 @@ const BillingReports: React.FC = () => {
 
           {/* Date + Format row */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Start Date</Label>
-              <Input type="date" value={startDate ? format(startDate, 'yyyy-MM-dd') : ''}
-                onChange={e => { setStartDate(e.target.value ? new Date(e.target.value) : null); setSelectedPreset(null); setSuccess(false); }}
-                className="h-9 text-sm border-gray-200 focus:border-blue-400" />
-            </div>
-            <div>
-              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">End Date</Label>
-              <Input type="date" value={endDate ? format(endDate, 'yyyy-MM-dd') : ''}
-                onChange={e => { setEndDate(e.target.value ? new Date(e.target.value) : null); setSelectedPreset(null); setSuccess(false); }}
-                className="h-9 text-sm border-gray-200 focus:border-blue-400" />
-            </div>
+            {showEthiopianCalendar ? (
+              <>
+                <EthiopianDatePickerInline
+                  label="Start Date (Ethiopian)"
+                  value={startDate}
+                  onChange={date => { setStartDate(date); setSelectedPreset(null); setSuccess(false); }}
+                  focusClassName="focus:ring-blue-500/30 focus:border-blue-400"
+                />
+                <EthiopianDatePickerInline
+                  label="End Date (Ethiopian)"
+                  value={endDate}
+                  onChange={date => { setEndDate(date); setSelectedPreset(null); setSuccess(false); }}
+                  focusClassName="focus:ring-blue-500/30 focus:border-blue-400"
+                />
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Start Date</Label>
+                  <Input type="date" value={startDate ? format(startDate, 'yyyy-MM-dd') : ''}
+                    onChange={e => { setStartDate(e.target.value ? new Date(e.target.value) : null); setSelectedPreset(null); setSuccess(false); }}
+                    className="h-9 text-sm border-gray-200 focus:border-blue-400" />
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">End Date</Label>
+                  <Input type="date" value={endDate ? format(endDate, 'yyyy-MM-dd') : ''}
+                    onChange={e => { setEndDate(e.target.value ? new Date(e.target.value) : null); setSelectedPreset(null); setSuccess(false); }}
+                    className="h-9 text-sm border-gray-200 focus:border-blue-400" />
+                </div>
+              </>
+            )}
             <div>
               <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Export Format</Label>
               <Select value={reportFormat} onValueChange={v => setReportFormat(v as ReportFormat)}>
@@ -174,7 +194,7 @@ const BillingReports: React.FC = () => {
                 </p>
                 {showEthiopianCalendar && (
                   <p className="text-xs text-gray-500 flex items-center gap-1">
-                    <span className="font-medium text-gray-600">በዓለም አቆጣጠር:</span>
+                    <span className="font-medium text-gray-600">የቀን አቆጣጠር:</span>
                     {gregorianToEthiopian(startDate).formatted} – {gregorianToEthiopian(endDate).formatted}
                   </p>
                 )}
