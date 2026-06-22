@@ -532,33 +532,76 @@ const InsurancePatientReport: React.FC = () => {
       {/* ── Filters ────────────────────────────────────────────────────────── */}
       <Card className="shadow-sm border border-gray-200">
         <CardHeader className="pb-3 border-b border-gray-100">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <Filter className="h-4 w-4 text-violet-600" /> Date Range & Filters
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Filter className="h-4 w-4 text-violet-600" /> Date Range &amp; Filters
+            </CardTitle>
+            {/* ── Ethiopian Calendar Toggle ── */}
+            <button
+              onClick={() => setUseEthiopian(u => !u)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                useEthiopian
+                  ? 'bg-amber-500 text-white border-amber-500 shadow-md'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-amber-400 hover:text-amber-600'
+              }`}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              {useEthiopian ? '🇪🇹 Ethiopian (EC)' : '📅 Switch to Ethiopian'}
+            </button>
+          </div>
+          {/* Always show Ethiopian range below */}
+          {ethStartLabel && ethEndLabel && (
+            <p className="text-xs text-amber-600 font-medium mt-2">
+              🇪🇹 {ethStartLabel} – {ethEndLabel}
+            </p>
+          )}
         </CardHeader>
         <CardContent className="pt-5 space-y-4">
-          {/* Date pickers */}
-          <div className="grid grid-cols-2 gap-4 max-w-md">
-            <div>
-              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
-                <Calendar className="h-3 w-3 inline mr-1" />From Date
-              </Label>
-              <Input
-                type="date" value={startDate}
-                onChange={e => { setStartDate(e.target.value); setPreset(''); }}
-                className="h-9 text-sm"
-              />
-            </div>
-            <div>
-              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
-                <Calendar className="h-3 w-3 inline mr-1" />To Date
-              </Label>
-              <Input
-                type="date" value={endDate}
-                onChange={e => { setEndDate(e.target.value); setPreset(''); }}
-                className="h-9 text-sm"
-              />
-            </div>
+          {/* Date pickers — switch between Gregorian and Ethiopian */}
+          <div className="grid grid-cols-2 gap-4 max-w-xl">
+            {useEthiopian ? (
+              <>
+                <EthiopianDatePicker
+                  label="From Date (Ethiopian)"
+                  value={startDate}
+                  onChange={v => { setStartDate(v); setPreset(''); }}
+                />
+                <EthiopianDatePicker
+                  label="To Date (Ethiopian)"
+                  value={endDate}
+                  onChange={v => { setEndDate(v); setPreset(''); }}
+                />
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                    <Calendar className="h-3 w-3 inline mr-1" />From Date
+                  </Label>
+                  <Input
+                    type="date" value={startDate}
+                    onChange={e => { setStartDate(e.target.value); setPreset(''); }}
+                    className="h-9 text-sm"
+                  />
+                  {ethStartLabel && (
+                    <p className="text-xs text-amber-500 mt-1">🇪🇹 {ethStartLabel}</p>
+                  )}
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                    <Calendar className="h-3 w-3 inline mr-1" />To Date
+                  </Label>
+                  <Input
+                    type="date" value={endDate}
+                    onChange={e => { setEndDate(e.target.value); setPreset(''); }}
+                    className="h-9 text-sm"
+                  />
+                  {ethEndLabel && (
+                    <p className="text-xs text-amber-500 mt-1">🇪🇹 {ethEndLabel}</p>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Presets */}
