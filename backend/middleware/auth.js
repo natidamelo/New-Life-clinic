@@ -213,6 +213,11 @@ const checkPermission = (permission) => {
                 return next();
             }
             
+            // Doctor bypass - doctors have all clinical/reporting permissions
+            if (req.user.role === 'doctor') {
+                return next();
+            }
+            
             // Special bypass for reception role for manageBilling permission
             if (permission === 'manageBilling' && req.user.role === 'reception') {
                 return next();
