@@ -5142,6 +5142,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                           <th>Frequency</th>
                           <th>Duration</th>
                           <th>Instructions</th>
+                          {user?.role === 'admin' && <th>Actions</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -5167,6 +5168,59 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                                 <td>{med.frequency || 'Not specified'}</td>
                                 <td>{med.duration || 'Not specified'}</td>
                                 <td>{med.instructions || med.nurseInstructions || med.notes || 'Take as directed'}</td>
+                                {user?.role === 'admin' && (
+                                  <td className="px-2 py-1 text-center">
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={async () => {
+                                        if (window.confirm(`Are you sure you want to delete "${med.name || med.medication || med.medicationName || 'this medication'}" from the prescription?`)) {
+                                          try {
+                                            if (p.medications.length === 1) {
+                                              // Only one medication left in this prescription: delete the entire prescription
+                                              await api.delete(`/api/prescriptions/${p._id}`);
+                                              toast.success('Medication and prescription deleted successfully');
+                                            } else {
+                                              // Multiple medications: update the prescription by removing this medication
+                                              const updatedMeds = p.medications.filter((_, idx) => idx !== index);
+                                              await api.put(`/api/prescriptions/${p._id}`, { medications: updatedMeds });
+                                              toast.success('Medication deleted successfully');
+                                            }
+                                            
+                                            // Refresh data on parent dashboard page
+                                            await fetchAllPrescriptions();
+                                            
+                                            // Update the local state of the open modal
+                                            setSelectedPatientPrescriptions(prev => {
+                                              if (!prev) return null;
+                                              if (p.medications.length === 1) {
+                                                // If we deleted the whole prescription, remove it from the list
+                                                const filtered = prev.filter(item => item._id !== p._id);
+                                                return filtered.length > 0 ? filtered : null;
+                                              } else {
+                                                // If we updated the prescription, map the updated array
+                                                return prev.map(item => {
+                                                  if (item._id === p._id) {
+                                                    return {
+                                                      ...item,
+                                                      medications: item.medications.filter((_, idx) => idx !== index)
+                                                    };
+                                                  }
+                                                  return item;
+                                                });
+                                              }
+                                            });
+                                          } catch (err: any) {
+                                            console.error('Error deleting medication:', err);
+                                            toast.error(err.response?.data?.message || 'Failed to delete medication');
+                                          }
+                                        }
+                                      }}
+                                    >
+                                      Delete
+                                    </Button>
+                                  </td>
+                                )}
                               </tr>
                             );
                           })
