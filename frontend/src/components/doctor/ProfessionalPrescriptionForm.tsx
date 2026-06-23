@@ -3152,7 +3152,7 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                             box-shadow: none;
                             border-radius: 0;
                             border: 3px solid #333;
-                            overflow: hidden;
+                            overflow: visible;
                             position: relative;
                             min-height: 200mm;
                             padding: 14px;
@@ -3405,8 +3405,8 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                          
                          @media print {
                              @page {
-                                 size: A4;
-                                 margin: 3mm 5mm;
+                                 size: A5 portrait;
+                                 margin: 5mm;
                              }
                              
                              *:not(.prescription-container) {
@@ -3418,11 +3418,11 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                              body { 
                                  margin: 0; 
                                  padding: 0;
-                                 font-size: 9px;
+                                 font-size: 11px !important;
                                  color: black !important;
                                  background: white !important;
-                                 max-height: 14.8cm;
-                                 overflow: hidden;
+                                 width: 100% !important;
+                                 height: auto !important;
                                  -webkit-print-color-adjust: exact;
                                  print-color-adjust: exact;
                              }
@@ -3431,8 +3431,9 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                                  box-shadow: none;
                                  border-radius: 0;
                                  max-width: none;
-                                 height: 14.8cm;
-                                 overflow: hidden;
+                                 width: 100% !important;
+                                 height: auto !important;
+                                 overflow: visible !important;
                                  border-color: black !important;
                              }
                              

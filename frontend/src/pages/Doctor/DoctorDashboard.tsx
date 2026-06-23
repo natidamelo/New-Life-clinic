@@ -4480,7 +4480,8 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                               .prescription-form {
                                 width: 100%;
                                 max-width: 100%;
-                                height: 100%;
+                                min-height: calc(100vh - 10px);
+                                height: auto;
                                 margin: 0;
                                 border: 3px solid #333;
                                 padding: 16px;
@@ -4631,42 +4632,88 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                               }
                               @media print {
                                 body { 
-                                  font-size: 14px;
-                                  width: 148mm;
-                                  height: 210mm;
+                                  font-size: 11px !important;
+                                  width: 100% !important;
+                                  height: auto !important;
+                                  margin: 0 !important;
+                                  padding: 0 !important;
                                 }
                                 .prescription-form {
-                                  height: 100%;
-                                  padding: 14px;
+                                  width: 100% !important;
+                                  height: auto !important;
+                                  min-height: calc(100vh - 10px) !important;
+                                  padding: 10px;
+                                  box-sizing: border-box !important;
                                 }
                                 .clinic-header {
                                   background: #f8fafc !important;
                                   border: 1px solid #cbd5e1 !important;
                                   border-radius: 6px !important;
                                   color: #0f172a !important;
-                                  padding: 8px 12px !important;
+                                  padding: 6px 10px !important;
                                 }
                                 .clinic-header::after {
                                   display: none !important;
                                 }
                                 .clinic-name {
                                   color: #0f172a !important;
+                                  font-size: 13px !important;
                                 }
                                 .clinic-subtitle {
                                   color: #475569 !important;
+                                  font-size: 10px !important;
                                 }
                                 .clinic-contact-right {
                                   color: #475569 !important;
+                                  font-size: 8px !important;
                                 }
                                 .clinic-logo {
-                                  width: 40px;
-                                  height: 40px;
+                                  width: 32px;
+                                  height: 32px;
                                   border: 1px solid #cbd5e1 !important;
+                                }
+                                .document-type-badge {
+                                  padding: 4px 0 2px !important;
+                                  margin-bottom: 6px !important;
+                                }
+                                .document-type-badge span {
+                                  font-size: 10px !important;
+                                  padding: 2px 12px !important;
+                                }
+                                .document-meta {
+                                  margin-bottom: 8px !important;
+                                  font-size: 11px !important;
+                                  padding: 4px 6px !important;
+                                }
+                                .patient-section, .prescription-section {
+                                  margin-bottom: 8px !important;
+                                }
+                                .section-title {
+                                  font-size: 12px !important;
+                                  margin-bottom: 4px !important;
+                                }
+                                .patient-info {
+                                  gap: 4px !important;
+                                  margin-bottom: 8px !important;
+                                }
+                                .patient-field {
+                                  font-size: 11px !important;
                                 }
                                 .medications-table th,
                                 .medications-table td {
-                                  font-size: 12px;
-                                  padding: 5px 6px;
+                                  font-size: 11px !important;
+                                  padding: 4px 5px !important;
+                                }
+                                .doctor-section {
+                                  margin-top: 10px !important;
+                                  padding-top: 10px !important;
+                                  gap: 12px !important;
+                                }
+                                .doctor-info, .dispenser-info {
+                                  font-size: 11px !important;
+                                }
+                                .signature-box {
+                                  height: 35px !important;
                                 }
                                 .footer {
                                   display: none;

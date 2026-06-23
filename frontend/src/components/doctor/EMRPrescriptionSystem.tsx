@@ -315,8 +315,8 @@ const EMRPrescriptionSystem: React.FC = () => {
               <title>Prescription - ${prescription.patient.firstName} ${prescription.patient.lastName}</title>
               <style>
                   @page {
-                      size: A4;
-                      margin: 5mm 8mm;
+                      size: A5 portrait;
+                      margin: 5mm;
                   }
                   
                   * {
@@ -343,9 +343,10 @@ const EMRPrescriptionSystem: React.FC = () => {
                       background: white;
                       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
                       border-radius: 8px;
-                      overflow: hidden;
+                      overflow: visible;
                       position: relative;
-                      height: 100vh;
+                      min-height: calc(100vh - 10px);
+                      height: auto;
                   }
                   
                   .prescription-container::before {
@@ -659,26 +660,27 @@ const EMRPrescriptionSystem: React.FC = () => {
                   
                   @media print {
                       @page {
-                          size: A4;
-                          margin: 3mm 5mm;
+                          size: A5 portrait;
+                          margin: 5mm;
                       }
                       
                       body { 
                           margin: 0; 
                           padding: 0;
-                          font-size: 9px;
+                          font-size: 11px !important;
                           color: #1e293b !important;
                           background: white !important;
-                          max-height: 14.8cm;
-                          overflow: hidden;
+                          width: 100% !important;
+                          height: auto !important;
                       }
                       
                       .prescription-container {
                           box-shadow: none;
                           border-radius: 0;
                           max-width: none;
-                          height: 14.8cm;
-                          overflow: hidden;
+                          width: 100% !important;
+                          height: auto !important;
+                          overflow: visible !important;
                       }
                       
                       .prescription-container::before {
