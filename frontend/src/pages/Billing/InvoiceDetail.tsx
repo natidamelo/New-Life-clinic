@@ -612,14 +612,14 @@ const InvoiceDetail: React.FC = () => {
     top: 50% !important; 
     left: 50% !important; 
     transform: translate(-50%, -50%) rotate(-45deg) !important; 
-    font-size: 70px !important; 
+    font-size: 90px !important; 
     font-weight: normal !important; 
-    color: rgba(0, 0, 0, 0.1) !important; 
+    color: rgba(0, 0, 0, 0.2) !important; 
     z-index: 99999 !important; 
     pointer-events: none !important; 
     white-space: nowrap !important; 
     user-select: none !important;
-    letter-spacing: 2px !important;
+    letter-spacing: 4px !important;
     opacity: 1 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -633,14 +633,14 @@ const InvoiceDetail: React.FC = () => {
   top: 50% !important;
   left: 50% !important;
   transform: translate(-50%, -50%) rotate(-45deg) !important;
-  font-size: 70px !important;
+  font-size: 90px !important;
   font-weight: normal !important;
-  color: rgba(0, 0, 0, 0.1) !important;
+  color: rgba(0, 0, 0, 0.2) !important;
   z-index: 99999 !important;
   pointer-events: none !important;
   white-space: nowrap !important;
   user-select: none !important;
-  letter-spacing: 2px !important;
+  letter-spacing: 4px !important;
   opacity: 1 !important;
 }
         `}
@@ -1213,14 +1213,14 @@ const InvoiceDetail: React.FC = () => {
         top: '50%', 
         left: '50%', 
         transform: 'translate(-50%, -50%) rotate(-45deg)',
-        fontSize: '70px',
+        fontSize: '90px',
         fontWeight: 'normal',
-        color: 'rgba(0, 0, 0, 0.1)',
+        color: 'rgba(0, 0, 0, 0.2)',
         zIndex: 99999,
         pointerEvents: 'none',
         whiteSpace: 'nowrap',
         userSelect: 'none',
-        letterSpacing: '2px',
+        letterSpacing: '4px',
         display: 'block',
         visibility: 'visible',
         opacity: 1
@@ -1234,14 +1234,14 @@ const InvoiceDetail: React.FC = () => {
           top: '50%', 
           left: '50%', 
           transform: 'translate(-50%, -50%) rotate(-45deg)',
-          fontSize: '70px',
+          fontSize: '90px',
           fontWeight: 'normal',
-          color: 'rgba(0, 0, 0, 0.1)',
+          color: 'rgba(0, 0, 0, 0.2)',
           zIndex: 99999,
           pointerEvents: 'none',
           whiteSpace: 'nowrap',
           userSelect: 'none',
-          letterSpacing: '2px',
+          letterSpacing: '4px',
           display: 'block',
           visibility: 'visible',
           opacity: 1
@@ -1253,14 +1253,14 @@ const InvoiceDetail: React.FC = () => {
   top: 50%; 
   left: 50%; 
   transform: translate(-50%, -50%) rotate(-45deg); 
-  font-size: 70px !important; 
+  font-size: 90px !important; 
   font-weight: normal !important; 
-  color: rgba(0, 0, 0, 0.1) !important; 
+  color: rgba(0, 0, 0, 0.2) !important; 
   z-index: 99999; 
   pointer-events: none; 
   white-space: nowrap; 
   user-select: none;
-  letter-spacing: 2px;
+  letter-spacing: 4px;
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
