@@ -76,7 +76,11 @@ const createMedicalCertificate = async (req, res) => {
       clinicAddress,
       clinicPhone,
       clinicLicense,
-      notes
+      notes,
+      caregiverName,
+      caregiverRelation,
+      caregiverPhone,
+      caregiverIdNumber
     } = req.body;
 
     // Handle digital signature file upload
@@ -146,7 +150,11 @@ const createMedicalCertificate = async (req, res) => {
       notes,
       digitalSignature: digitalSignatureData,
       createdBy: req.user._id,
-      status: 'Issued'
+      status: 'Issued',
+      caregiverName,
+      caregiverRelation,
+      caregiverPhone,
+      caregiverIdNumber
     });
 
     await medicalCertificate.save();
@@ -298,7 +306,8 @@ const UPDATABLE_FIELDS = [
   'patientId', 'patientDisplayId', 'patientName', 'patientAge', 'patientGender',
   'patientAddress', 'patientPhone', 'diagnosis', 'symptoms', 'treatment', 'prescription',
   'recommendations', 'followUpDate', 'restPeriod', 'workRestriction', 'certificateType',
-  'validFrom', 'validUntil', 'clinicName', 'clinicAddress', 'clinicPhone', 'clinicLicense', 'notes'
+  'validFrom', 'validUntil', 'clinicName', 'clinicAddress', 'clinicPhone', 'clinicLicense', 'notes',
+  'caregiverName', 'caregiverRelation', 'caregiverPhone', 'caregiverIdNumber'
 ];
 
 /**
@@ -602,7 +611,13 @@ const generatePrintableCertificate = async (req, res) => {
       },
       notes: certificate.notes,
       certificateType: certificate.certificateType,
-      digitalSignature: certificate.digitalSignature
+      digitalSignature: certificate.digitalSignature,
+      caregiver: {
+        name: certificate.caregiverName || '',
+        relation: certificate.caregiverRelation || '',
+        phone: certificate.caregiverPhone || '',
+        idNumber: certificate.caregiverIdNumber || ''
+      }
     };
 
     res.json({

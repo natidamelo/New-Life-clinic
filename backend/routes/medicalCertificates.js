@@ -58,10 +58,14 @@ const createCertificateValidation = [
   body('patientGender').isIn(['Male', 'Female', 'Other']).withMessage('Valid gender is required'),
   body('patientAddress').notEmpty().withMessage('Patient address is required'),
   body('diagnosis').notEmpty().withMessage('Diagnosis is required'),
-  body('certificateType').optional().isIn(['Medical Certificate', 'Sick Leave Certificate', 'Fitness Certificate', 'Treatment Certificate']),
+  body('certificateType').optional().isIn(['Medical Certificate', 'Sick Leave Certificate', 'Fitness Certificate', 'Treatment Certificate', 'Caregiver Leave Certificate']),
   body('validFrom').optional().isISO8601().withMessage('Valid from date must be in ISO format'),
   body('validUntil').optional().isISO8601().withMessage('Valid until date must be in ISO format'),
-  body('followUpDate').optional().isISO8601().withMessage('Follow-up date must be in ISO format')
+  body('followUpDate').optional().isISO8601().withMessage('Follow-up date must be in ISO format'),
+  body('caregiverName').optional().trim(),
+  body('caregiverRelation').optional().trim(),
+  body('caregiverPhone').optional().trim(),
+  body('caregiverIdNumber').optional().trim()
 ];
 
 const updateCertificateValidation = [
@@ -70,10 +74,14 @@ const updateCertificateValidation = [
   body('patientAge').optional().isInt({ min: 0, max: 150 }).withMessage('Valid patient age is required'),
   body('patientGender').optional().isIn(['Male', 'Female', 'Other']).withMessage('Valid gender is required'),
   body('diagnosis').optional().notEmpty().withMessage('Diagnosis cannot be empty'),
-  body('certificateType').optional().isIn(['Medical Certificate', 'Sick Leave Certificate', 'Fitness Certificate', 'Treatment Certificate']),
+  body('certificateType').optional().isIn(['Medical Certificate', 'Sick Leave Certificate', 'Fitness Certificate', 'Treatment Certificate', 'Caregiver Leave Certificate']),
   body('validFrom').optional().isISO8601().withMessage('Valid from date must be in ISO format'),
   body('validUntil').optional().isISO8601().withMessage('Valid until date must be in ISO format'),
-  body('followUpDate').optional().isISO8601().withMessage('Follow-up date must be in ISO format')
+  body('followUpDate').optional().isISO8601().withMessage('Follow-up date must be in ISO format'),
+  body('caregiverName').optional().trim(),
+  body('caregiverRelation').optional().trim(),
+  body('caregiverPhone').optional().trim(),
+  body('caregiverIdNumber').optional().trim()
 ];
 
 const idValidation = [

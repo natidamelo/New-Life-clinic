@@ -19,6 +19,10 @@ interface MedicalCertificate {
   validUntil: string;
   status: string;
   doctorName: string;
+  caregiverName?: string;
+  caregiverRelation?: string;
+  caregiverPhone?: string;
+  caregiverIdNumber?: string;
 }
 
 interface Patient {
@@ -263,7 +267,11 @@ const MedicalCertificates: React.FC = () => {
     clinicPhone: '+251925959219',
     clinicLicense: 'CL-001',
     notes: '',
-    digitalSignature: null as File | null
+    digitalSignature: null as File | null,
+    caregiverName: '',
+    caregiverRelation: '',
+    caregiverPhone: '',
+    caregiverIdNumber: ''
   });
 
   // Statistics state
@@ -600,7 +608,11 @@ const MedicalCertificates: React.FC = () => {
         clinicPhone: cert.clinicPhone ?? '+251925959219',
         clinicLicense: cert.clinicLicense ?? 'CL-001',
         notes: cert.notes ?? '',
-        digitalSignature: null
+        digitalSignature: null,
+        caregiverName: cert.caregiverName ?? '',
+        caregiverRelation: cert.caregiverRelation ?? '',
+        caregiverPhone: cert.caregiverPhone ?? '',
+        caregiverIdNumber: cert.caregiverIdNumber ?? ''
       });
       setEditingCertificateId(certificateId);
       setActiveTab('form');
@@ -639,7 +651,11 @@ const MedicalCertificates: React.FC = () => {
       clinicPhone: clinic?.contactPhone || '+251925959219',
       clinicLicense: clinic?.licenseNumber || 'CL-001',
       notes: '',
-      digitalSignature: null
+      digitalSignature: null,
+      caregiverName: '',
+      caregiverRelation: '',
+      caregiverPhone: '',
+      caregiverIdNumber: ''
     });
     setSelectedPatient(null);
   };
@@ -721,7 +737,11 @@ const MedicalCertificates: React.FC = () => {
           clinicAddress: formData.clinicAddress || null,
           clinicPhone: formData.clinicPhone || null,
           clinicLicense: formData.clinicLicense || null,
-          notes: formData.notes || null
+          notes: formData.notes || null,
+          caregiverName: formData.caregiverName || null,
+          caregiverRelation: formData.caregiverRelation || null,
+          caregiverPhone: formData.caregiverPhone || null,
+          caregiverIdNumber: formData.caregiverIdNumber || null
         };
         Object.keys(payload).forEach(k => {
           if (k === 'notes') return; // always send notes so Additional Notes edits persist
@@ -858,7 +878,11 @@ const MedicalCertificates: React.FC = () => {
           clinicPhone: clinic?.contactPhone || '+251925959219',
           clinicLicense: clinic?.licenseNumber || 'CL-001',
           notes: '',
-          digitalSignature: null
+          digitalSignature: null,
+          caregiverName: '',
+          caregiverRelation: '',
+          caregiverPhone: '',
+          caregiverIdNumber: ''
         });
         setSelectedPatient(null);
         setActiveTab('list');
@@ -950,6 +974,35 @@ const MedicalCertificates: React.FC = () => {
         // Open print window with certificate data
         const printWindow = window.open('', '_blank', 'width=800,height=600');
         if (printWindow) {
+          // Dynamic narrative generation based on certificate type
+          const certType = certificateData.certificateType || 'Medical Certificate';
+          const patientName = certificateData.patient.name || 'N/A';
+          const patientAge = certificateData.patient.age || 'N/A';
+          const patientGender = certificateData.patient.gender || 'N/A';
+          const patientAddress = certificateData.patient.address || 'N/A';
+          const patientId = certificateData.patient.id || 'N/A';
+          const diagnosis = certificateData.medical.diagnosis || 'N/A';
+          const restPeriod = certificateData.medical.restPeriod || 'N/A';
+          const validFrom = certificateData.validFrom || 'N/A';
+          const validUntil = certificateData.validUntil || 'N/A';
+          
+          let narrativeText = '';
+          if (certType === 'Caregiver Leave Certificate') {
+            const caregiverName = certificateData.caregiver?.name || 'N/A';
+            const caregiverRelation = certificateData.caregiver?.relation || 'N/A';
+            const caregiverIdNumber = certificateData.caregiver?.idNumber ? `, ID No: ${certificateData.caregiver.idNumber}` : '';
+            narrativeText = `This is to certify that the patient <strong>${patientName}</strong> (Patient ID: ${patientId}, Age: ${patientAge}, Gender: ${patientGender}) has been clinically examined at our medical center. Due to the patient's medical condition (diagnosed as <strong>${diagnosis}</strong>), the patient requires constant nursing supervision and supportive care. It is therefore certified that the patient's caregiver, <strong>${caregiverName}</strong> (Relationship: <strong>${caregiverRelation}</strong>${caregiverIdNumber}), is required to attend to and care for the patient. It is recommended that the caregiver be excused from duties/work for a rest and nursing leave period of <strong>${restPeriod}</strong>, effective from <strong>${validFrom}</strong> to <strong>${validUntil}</strong>.`;
+          } else if (certType === 'Sick Leave Certificate') {
+            narrativeText = `This is to certify that <strong>${patientName}</strong> (Patient ID: ${patientId}, Age: ${patientAge}, Gender: ${patientGender}) has been examined at our clinic. The patient is diagnosed with <strong>${diagnosis}</strong> and is medically unfit to perform regular duties. Complete rest is required for a period of <strong>${restPeriod}</strong>, effective from <strong>${validFrom}</strong> to <strong>${validUntil}</strong>, to facilitate proper clinical recovery.`;
+          } else {
+            const treatment = certificateData.medical.treatment ? ` and received treatment consisting of <strong>${certificateData.medical.treatment}</strong>` : '';
+            const recommendations = certificateData.medical.recommendations ? ` Recommendations: <strong>${certificateData.medical.recommendations}</strong>.` : '';
+            narrativeText = `This is to certify that <strong>${patientName}</strong> (Patient ID: ${patientId}, Age: ${patientAge}, Gender: ${patientGender}), residing at ${patientAddress}, was clinically evaluated at our medical center. The patient was diagnosed with <strong>${diagnosis}</strong>${treatment}.${recommendations}`;
+          }
+
+          // Build QR code URL
+          const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent('https://new-life-clinic.vercel.app/verify/certificate/' + certificateData.certificateNumber)}`;
+
           printWindow.document.write(`
             <!DOCTYPE html>
             <html>
@@ -958,451 +1011,447 @@ const MedicalCertificates: React.FC = () => {
               <style>
                 @page {
                   size: A5 portrait;
-                  margin: 5mm;
+                  margin: 0;
                 }
                 body { 
-                  font-family: 'Arial', sans-serif; 
+                  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
                   margin: 0; 
-                  padding: 0; 
-                  line-height: 1.5; 
-                  background: white;
-                  color: #333;
-                  font-size: 15px;
+                  padding: 8mm; 
+                  background-color: white;
+                  color: #2d3748;
+                  -webkit-print-color-adjust: exact;
+                  print-color-adjust: exact;
+                  font-size: 11px;
+                  line-height: 1.4;
                 }
-                .certificate-container {
-                  width: 100%; /* Fill the page width */
-                  max-width: 100%;
-                  min-height: 200mm;
+                .certificate-frame {
+                  position: relative;
+                  width: 100%;
                   height: auto;
-                  margin: 0;
-                  border: 3px solid #2c5aa0;
-                  padding: 18px;
+                  min-height: 194mm;
                   box-sizing: border-box;
-                  box-shadow: none;
+                  border: 4px double #1a365d;
+                  padding: 12px;
                   display: flex;
                   flex-direction: column;
+                }
+                .watermark-bg {
+                  position: absolute;
+                  top: 50%;
+                  left: 50%;
+                  transform: translate(-50%, -50%);
+                  width: 75mm;
+                  height: 75mm;
+                  z-index: 0;
+                  pointer-events: none;
+                  opacity: 0.035;
                 }
                 .clinic-header {
-                  background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
-                  color: white;
-                  padding: 10px 14px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: space-between;
-                  margin-bottom: 0;
                   position: relative;
-                }
-                .clinic-header::after {
-                  content: '';
-                  position: absolute;
-                  bottom: 0;
-                  left: 0;
-                  right: 0;
-                  height: 3px;
-                  background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853);
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  border-bottom: 2px solid #1a365d;
+                  padding-bottom: 6px;
+                  margin-bottom: 8px;
+                  z-index: 1;
                 }
                 .clinic-logo {
-                  width: 40px;
-                  height: 40px;
+                  height: 38px;
+                  width: auto;
                   object-fit: contain;
-                  flex-shrink: 0;
-                  border-radius: 8px;
-                  border: 2px solid rgba(255,255,255,0.3);
+                  border-radius: 4px;
                 }
-                .clinic-info-center {
-                  flex: 1;
-                  text-align: center;
-                  padding: 0 15px;
+                .clinic-details {
+                  text-align: left;
+                  flex-grow: 1;
+                  padding-left: 10px;
                 }
-                .clinic-name {
-                  font-size: 15px;
-                  font-weight: 800;
+                .clinic-details h1 {
+                  font-family: Georgia, serif;
+                  font-size: 14px;
+                  font-weight: bold;
+                  color: #1a365d;
+                  margin: 0 0 2px 0;
                   text-transform: uppercase;
-                  letter-spacing: 1.5px;
-                  color: white;
-                  margin-bottom: 2px;
+                  letter-spacing: 0.5px;
                 }
-                .clinic-subtitle {
-                  font-size: 11px;
-                  color: rgba(255,255,255,0.75);
-                  font-weight: 500;
+                .clinic-details p {
+                  font-size: 8px;
+                  color: #4a5568;
+                  margin: 0;
+                  line-height: 1.3;
                 }
-                .clinic-contact-right {
-                  font-size: 9px;
-                  color: rgba(255,255,255,0.7);
+                .clinic-meta-right {
                   text-align: right;
-                  line-height: 1.6;
-                  white-space: nowrap;
+                  font-size: 8px;
+                  color: #4a5568;
+                  line-height: 1.3;
                 }
-                .document-type-badge {
+                .certificate-title-container {
                   text-align: center;
-                  padding: 8px 0 6px;
-                  margin-bottom: 12px;
-                  border-bottom: 1px solid #e2e8f0;
+                  margin: 8px 0;
+                  z-index: 1;
                 }
-                .document-type-badge span {
-                  display: inline-block;
-                  font-size: 12px;
-                  font-weight: 700;
+                .certificate-title-container h2 {
+                  font-family: Georgia, serif;
+                  font-size: 13px;
+                  font-weight: bold;
                   color: #1a365d;
                   text-transform: uppercase;
-                  letter-spacing: 2px;
-                  padding: 4px 18px;
-                  border: 1.5px solid #1a365d;
-                  border-radius: 20px;
+                  margin: 0;
+                  letter-spacing: 1.5px;
+                  display: inline-block;
+                  border-bottom: 1.5px solid #d69e2e;
+                  padding-bottom: 1px;
                 }
-                .certificate-meta {
+                .meta-info-bar {
                   display: flex;
                   justify-content: space-between;
-                  align-items: center;
-                  background: #f8f9fa;
-                  padding: 10px;
-                  border-radius: 5px;
-                  margin-bottom: 15px;
-                  border-left: 4px solid #2c5aa0;
+                  background-color: #f7fafc;
+                  border: 1px solid #e2e8f0;
+                  border-radius: 4px;
+                  padding: 5px 8px;
+                  margin-bottom: 8px;
+                  font-size: 8.5px;
+                  z-index: 1;
                 }
-                .meta-item {
+                .meta-info-item strong {
+                  color: #1a365d;
+                }
+                .narrative-block {
+                  font-size: 10.5px;
+                  line-height: 1.5;
+                  text-align: justify;
+                  margin-bottom: 10px;
+                  color: #2d3748;
+                  z-index: 1;
+                  text-indent: 15px;
+                }
+                .narrative-block strong {
+                  color: #1a365d;
+                }
+                .details-grid {
+                  display: grid;
+                  grid-template-columns: 1fr 1fr;
+                  gap: 8px;
+                  margin-bottom: 8px;
+                  z-index: 1;
+                }
+                .details-card {
+                  border: 1px solid #e2e8f0;
+                  border-radius: 4px;
+                  background-color: #fff;
+                  padding: 6px;
+                }
+                .details-card h3 {
+                  font-size: 9px;
+                  font-weight: bold;
+                  color: #1a365d;
+                  margin: 0 0 4px 0;
+                  text-transform: uppercase;
+                  border-bottom: 1px solid #e2e8f0;
+                  padding-bottom: 1px;
+                  letter-spacing: 0.5px;
+                }
+                .details-row {
                   display: flex;
-                  flex-direction: column;
-                  align-items: center;
+                  margin-bottom: 3px;
+                  font-size: 8.5px;
+                  line-height: 1.2;
                 }
-                .meta-label {
-                  font-size: 0.9rem;
-                  color: #666;
-                  font-weight: 500;
-                  margin-bottom: 4px;
+                .details-row:last-child {
+                  margin-bottom: 0;
                 }
-                .meta-value {
-                  font-size: 1rem;
-                  color: #333;
-                  font-weight: 600;
+                .details-row .label {
+                  font-weight: bold;
+                  color: #4a5568;
+                  width: 80px;
+                  flex-shrink: 0;
                 }
-                .status-badge {
-                  background: #28a745;
-                  color: white;
-                  padding: 4px 12px;
-                  border-radius: 14px;
-                  font-size: 0.9rem;
-                  font-weight: 600;
+                .details-row .val {
+                  color: #1a202c;
+                  word-break: break-word;
                 }
-                .certificate-section { 
-                  margin-bottom: 12px; 
-                  background: #fafafa;
-                  padding: 12px;
-                  border-radius: 5px;
-                  border-left: 4px solid #2c5aa0;
+                .notes-card {
+                  border: 1px dashed #cbd5e0;
+                  border-radius: 4px;
+                  padding: 4px 6px;
+                  margin-bottom: 8px;
+                  z-index: 1;
                 }
-                .certificate-section h3 { 
-                  font-size: 1.2rem; 
-                  margin-bottom: 8px; 
-                  color: #2c5aa0; 
-                  border-bottom: 2px solid #e9ecef; 
-                  padding-bottom: 5px; 
-                  font-weight: 800;
+                .notes-card h3 {
+                  font-size: 8.5px;
+                  font-weight: bold;
+                  color: #4a5568;
+                  margin: 0 0 2px 0;
+                  text-transform: uppercase;
                 }
-                .certificate-info { 
-                  display: grid; 
-                  grid-template-columns: 1fr 1fr; 
-                  gap: 10px; 
-                  margin-bottom: 8px; 
+                .notes-card p {
+                  font-size: 8px;
+                  color: #2d3748;
+                  margin: 0;
+                  white-space: pre-wrap;
                 }
-                .info-item {
+                .footer-signature-section {
                   display: flex;
-                  flex-direction: column;
-                  margin-bottom: 5px;
+                  justify-content: space-between;
+                  align-items: flex-end;
+                  margin-top: auto;
+                  padding-top: 8px;
+                  border-top: 1px solid #e2e8f0;
+                  z-index: 1;
                 }
-                .info-label {
-                  font-weight: 800;
-                  color: #2c5aa0;
-                  font-size: 1rem;
+                .doctor-info-block {
+                  text-align: left;
+                  max-width: 60%;
+                }
+                .signature-box {
+                  margin-top: 3px;
                   margin-bottom: 3px;
                 }
-                .info-value {
-                  color: #333;
-                  font-size: 0.95rem;
-                  padding: 2px 0;
+                .signature-image {
+                  max-height: 38px;
+                  max-width: 120px;
+                  mix-blend-mode: multiply;
                 }
-                .certificate-body {
-                  flex-grow: 1;
+                .signature-placeholder {
+                  height: 38px;
+                  border-bottom: 1px solid #718096;
+                  width: 120px;
+                  margin-bottom: 3px;
+                }
+                .doctor-name-title {
+                  font-size: 9px;
+                  font-weight: bold;
+                  color: #1a365d;
+                  margin: 0;
+                }
+                .doctor-license {
+                  font-size: 8px;
+                  color: #718096;
+                  margin: 0;
+                }
+                .security-verification-block {
                   display: flex;
-                  flex-direction: column;
+                  align-items: center;
+                  border: 1px solid #e2e8f0;
+                  border-radius: 4px;
+                  padding: 4px;
+                  background-color: #f7fafc;
+                  max-width: 150px;
                 }
-                .certificate-footer { 
-                  display: flex; 
-                  justify-content: space-between; 
-                  margin-top: auto;
-                  padding-top: 15px; 
-                  border-top: 2px solid #2c5aa0; 
+                .qr-code-img {
+                  width: 44px;
+                  height: 44px;
+                  flex-shrink: 0;
                 }
-                .signature-section { 
-                  text-align: center; 
-                  flex: 1;
-                  margin: 0 12px;
-                  font-size: 1rem;
+                .qr-details {
+                  margin-left: 5px;
+                  font-size: 6.5px;
+                  color: #718096;
+                  line-height: 1.2;
                 }
-                .signature-line { 
-                  border-bottom: 2px solid #333; 
-                  width: 150px; 
-                  margin: 12px auto 4px; 
-                  height: 1px;
+                .qr-details strong {
+                  color: #1a365d;
+                  font-size: 7px;
                 }
-                .footer-info {
-                  text-align: center;
-                  margin-top: 12px;
-                  padding-top: 8px;
-                  border-top: 1px solid #ddd;
-                  color: #666;
-                  font-size: 0.85rem;
-                }
-                @media print { 
-                  html, body { 
-                    margin: 0; 
-                    padding: 0; 
-                    font-size: 13px;
-                    width: auto;
-                    height: auto;
-                    min-height: 100%;
-                    color: black !important;
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
+                @media print {
+                  body {
+                    padding: 0;
+                    margin: 4mm;
                   }
-                  * {
-                    color: black !important;
-                    border-color: black !important;
+                  .certificate-frame {
+                    border-color: #000;
+                    min-height: 186mm;
                   }
-                  .certificate-container { 
-                    box-shadow: none; 
-                    border: 3px solid black !important; 
-                    padding: 15px;
-                    width: 100%;
-                    min-height: 190mm;
-                    height: auto;
-                    box-sizing: border-box;
-                    margin: 0;
-                  }
-                  /* Prevent sections from splitting across pages */
                   .clinic-header {
-                    background: #f8fafc !important;
-                    border: 1px solid #cbd5e1 !important;
-                    border-radius: 6px !important;
-                    color: #0f172a !important;
-                    padding: 8px 12px !important;
-                    page-break-inside: avoid;
-                    break-inside: avoid;
+                    border-bottom-color: #000;
                   }
-                  .clinic-header::after {
-                    display: none !important;
+                  .certificate-title-container h2 {
+                    color: #000;
+                    border-bottom-color: #000;
                   }
-                  .clinic-name {
-                    color: #0f172a !important;
+                  .meta-info-bar {
+                    background-color: #fff;
+                    border-color: #000;
                   }
-                  .clinic-subtitle {
-                    color: #475569 !important;
+                  .details-card {
+                    border-color: #000;
+                    background-color: #fff;
                   }
-                  .clinic-contact-right {
-                    color: #475569 !important;
+                  .details-card h3 {
+                    color: #000;
+                    border-bottom-color: #000;
                   }
-                  .clinic-logo {
-                    border: 1px solid #cbd5e1 !important;
+                  .security-verification-block {
+                    background-color: #fff;
+                    border-color: #000;
                   }
-                  .document-type-badge span {
-                    color: #1a365d !important;
-                    border-color: #1a365d !important;
+                  .qr-details strong {
+                    color: #000;
                   }
-                  .certificate-meta {
-                    page-break-inside: avoid;
-                    break-inside: avoid;
-                  }
-                  .certificate-section {
-                    margin-bottom: 10px;
-                    padding: 10px;
-                    page-break-inside: avoid;
-                    break-inside: avoid;
-                  }
-                  .certificate-section h3 {
-                    font-size: 1.15rem;
-                    margin-bottom: 6px;
-                  }
-                  .certificate-info {
-                    gap: 8px;
-                  }
-                  .info-label {
-                    font-size: 0.95rem;
-                  }
-                  .info-value {
-                    font-size: 0.9rem;
-                  }
-                  .certificate-footer {
-                    margin-top: auto;
-                    padding-top: 12px;
-                    page-break-inside: avoid;
-                    break-inside: avoid;
-                  }
-                  .signature-section {
-                    font-size: 0.95rem;
-                  }
-                  .footer-info { 
-                    display: none !important; 
-                  }
-                  .info-label, h3 {
-                    color: black !important;
-                  }
-                  .certificate-meta { 
-                    background: white !important; 
-                    border-left-color: black !important; 
-                  }
-                  .certificate-section { 
-                    background: white !important; 
-                    border-left-color: black !important; 
-                  }
-                  .status-badge {
-                    background: white !important;
-                    color: black !important;
-                    border: 1px solid black !important;
-                  }
-                  .meta-label, .meta-value { color: black !important; }
                 }
               </style>
             </head>
             <body>
-              <div class="certificate-container">
+              <div class="certificate-frame">
+                <!-- Medical Emblem Watermark -->
+                <svg class="watermark-bg" viewBox="0 0 24 24">
+                  <path fill="#1a365d" d="M19 10.5h-5.5V5h-3v5.5H5v3h5.5V19h3v-5.5H19v-3z"/>
+                </svg>
+
+                <!-- Clinic Letterhead Header -->
                 <div class="clinic-header">
                   <img src="${clinic?.logo || "/assets/images/logo.jpg"}" alt="Logo" class="clinic-logo" onerror="this.style.display='none'">
-                  <div class="clinic-info-center">
-                    <div class="clinic-name">${certificateData.clinic.name || 'New Life Medium Clinic PLC'}</div>
-                    <div class="clinic-subtitle">Healthcare Services</div>
+                  <div class="clinic-details">
+                    <h1>${certificateData.clinic.name || 'New Life Medium Clinic PLC'}</h1>
+                    <p>Primary Healthcare & Specialty Clinical Services</p>
+                    <p>📍 ${certificateData.clinic.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}</p>
                   </div>
-                  <div class="clinic-contact-right">
-                    📍 ${certificateData.clinic.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}<br>
+                  <div class="clinic-meta-right">
                     📞 ${certificateData.clinic.phone || '+251925959219'}<br>
-                    🪪 TIN: ${certificateData.clinic.license || 'CL-001'}
+                    🪪 License: ${certificateData.clinic.license || 'CL-001'}
                   </div>
                 </div>
-                <div class="document-type-badge">
-                  <span>── Medical Certificate ──</span>
+
+                <!-- Certificate Title -->
+                <div class="certificate-title-container">
+                  <h2>${certType}</h2>
                 </div>
-                
-                <div class="certificate-meta">
-                  <div class="meta-item">
-                    <div class="meta-label">Date</div>
-                    <div class="meta-value">${certificateData.dateIssued}</div>
+
+                <!-- Meta Information Bar -->
+                <div class="meta-info-bar">
+                  <div class="meta-info-item">
+                    <strong>Ref No:</strong> ${certificateData.certificateNumber}
                   </div>
-                  <div class="meta-item">
-                    <div class="meta-label">Certificate Number</div>
-                    <div class="meta-value">${certificateData.certificateNumber}</div>
+                  <div class="meta-info-item">
+                    <strong>Date Issued:</strong> ${certificateData.dateIssued}
                   </div>
-                  <div class="meta-item">
-                    <div class="meta-label">Type</div>
-                    <div class="meta-value">${certificateData.certificateType || 'Medical Certificate'}</div>
+                  <div class="meta-info-item">
+                    <strong>Valid Until:</strong> ${certificateData.validUntil}
                   </div>
-                  <div class="meta-item">
-                    <div class="meta-label">Valid Until</div>
-                    <div class="meta-value">${certificateData.validUntil}</div>
-                  </div>
-                  <div class="meta-item">
-                    <div class="meta-label">Status</div>
-                    <div class="status-badge">Active</div>
+                  <div class="meta-info-item">
+                    <strong>Status:</strong> <span style="color: #2f855a; font-weight: bold;">Verified</span>
                   </div>
                 </div>
-              <div class="certificate-body">
-                <div class="certificate-section">
-                  <h3>Patient Information</h3>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; font-size: 0.85rem;">
-                    <div>
-                      <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 2px;" class="info-label">FULL NAME</div>
-                      <div style="margin-bottom: 8px;">${certificateData.patient.name}</div>
-                      <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 2px;" class="info-label">AGE</div>
-                      <div>${certificateData.patient.age || 'Not specified'}</div>
+
+                <!-- Certification Narrative Paragraph -->
+                <div class="narrative-block">
+                  ${narrativeText}
+                </div>
+
+                <!-- Structured details section -->
+                <div class="details-grid">
+                  <!-- Patient & Caregiver details card -->
+                  <div class="details-card">
+                    <h3>Subject Details</h3>
+                    <div class="details-row">
+                      <span class="label">Patient Name:</span>
+                      <span class="val">${patientName}</span>
                     </div>
-                    <div>
-                      <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 2px;" class="info-label">PATIENT ID</div>
-                      <div style="margin-bottom: 8px;">${certificateData.patient.id || 'N/A'}</div>
-                      <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 2px;" class="info-label">GENDER</div>
-                      <div>${certificateData.patient.gender || 'Not specified'}</div>
+                    <div class="details-row">
+                      <span class="label">Age / Gender:</span>
+                      <span class="val">${patientAge} yrs / ${patientGender}</span>
                     </div>
-                    <div>
-                      <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 2px;" class="info-label">ADDRESS</div>
-                      <div style="margin-bottom: 8px;">${certificateData.patient.address || 'Not specified'}</div>
-                      <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 2px;" class="info-label">PHONE</div>
-                      <div>${certificateData.patient.phone || 'Not specified'}</div>
+                    <div class="details-row">
+                      <span class="label">Address / Phone:</span>
+                      <span class="val">${patientAddress} / ${certificateData.patient.phone || 'N/A'}</span>
                     </div>
+                    ${certType === 'Caregiver Leave Certificate' ? `
+                      <div style="margin-top: 5px; border-top: 1px dashed #e2e8f0; padding-top: 4px;">
+                        <div class="details-row">
+                          <span class="label">Caregiver Name:</span>
+                          <span class="val">${certificateData.caregiver?.name || 'N/A'}</span>
+                        </div>
+                        <div class="details-row">
+                          <span class="label">Relationship:</span>
+                          <span class="val">${certificateData.caregiver?.relation || 'N/A'}</span>
+                        </div>
+                        <div class="details-row">
+                          <span class="label">Contact / ID:</span>
+                          <span class="val">${certificateData.caregiver?.phone || 'N/A'} / ${certificateData.caregiver?.idNumber || 'N/A'}</span>
+                        </div>
+                      </div>
+                    ` : ''}
+                  </div>
+
+                  <!-- Clinical Details Card -->
+                  <div class="details-card">
+                    <h3>Clinical Records</h3>
+                    <div class="details-row">
+                      <span class="label">Diagnosis:</span>
+                      <span class="val">${diagnosis}</span>
+                    </div>
+                    ${certificateData.medical.symptoms ? `
+                      <div class="details-row">
+                        <span class="label">Key Symptoms:</span>
+                        <span class="val">${certificateData.medical.symptoms}</span>
+                      </div>
+                    ` : ''}
+                    ${certificateData.medical.treatment ? `
+                      <div class="details-row">
+                        <span class="label">Treatment Plan:</span>
+                        <span class="val">${certificateData.medical.treatment}</span>
+                      </div>
+                    ` : ''}
+                    ${certificateData.medical.recommendations ? `
+                      <div class="details-row">
+                        <span class="label">Recommendations:</span>
+                        <span class="val">${certificateData.medical.recommendations}</span>
+                      </div>
+                    ` : ''}
+                    ${certificateData.medical.followUpDate ? `
+                      <div class="details-row">
+                        <span class="label">Follow-up Date:</span>
+                        <span class="val">${certificateData.medical.followUpDate}</span>
+                      </div>
+                    ` : ''}
                   </div>
                 </div>
-                <div class="certificate-section">
-                  <h3>Medical Information</h3>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 0.85rem;">
-                    <div>
-                      <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 2px;" class="info-label">DIAGNOSIS</div>
-                      <div style="margin-bottom: 8px;">${certificateData.medical.diagnosis}</div>
-                      ${certificateData.medical.symptoms ? `
-                      <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 2px;" class="info-label">SYMPTOMS</div>
-                      <div style="margin-bottom: 8px;">${certificateData.medical.symptoms}</div>
-                      ` : ''}
-                      ${certificateData.medical.treatment ? `
-                      <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 2px;" class="info-label">TREATMENT</div>
-                      <div style="margin-bottom: 8px;">${certificateData.medical.treatment}</div>
-                      ` : ''}
-                      ${certificateData.medical.prescription ? `
-                      <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 2px;" class="info-label">PRESCRIPTION</div>
-                      <div>${certificateData.medical.prescription}</div>
-                      ` : ''}
-                    </div>
-                    <div>
-                      ${certificateData.medical.recommendations ? `
-                      <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 2px;" class="info-label">RECOMMENDATIONS</div>
-                      <div style="margin-bottom: 8px;">${certificateData.medical.recommendations}</div>
-                      ` : ''}
-                      ${certificateData.medical.restPeriod ? `
-                      <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 2px;" class="info-label">REST PERIOD</div>
-                      <div style="margin-bottom: 8px;">${certificateData.medical.restPeriod}</div>
-                      ` : ''}
-                      ${certificateData.medical.workRestriction ? `
-                      <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 2px;" class="info-label">WORK RESTRICTIONS</div>
-                      <div style="margin-bottom: 8px;">${certificateData.medical.workRestriction}</div>
-                      ` : ''}
-                      <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 2px;" class="info-label">FOLLOW-UP DATE</div>
-                      <div>${certificateData.medical.followUpDate || 'Not specified'}</div>
-                    </div>
+
+                <!-- Prescription (if exists) -->
+                ${certificateData.medical.prescription ? `
+                  <div class="details-card" style="margin-bottom: 8px;">
+                    <h3 style="font-size: 8.5px; color: #d69e2e; border-bottom-color: #f6e05e;">Prescribed Medication (Rx)</h3>
+                    <p style="font-size: 8.5px; margin: 2px 0 0 0; color: #2d3748; white-space: pre-wrap;">${certificateData.medical.prescription}</p>
                   </div>
-                </div>
-                ${certificateData.notes ? `
-                <div class="certificate-section">
-                  <h3>Additional Notes</h3>
-                  <div style="white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem; line-height: 1.5;">${certificateData.notes}</div>
-                </div>
                 ` : ''}
-              </div>
-              <div class="certificate-footer">
-                <div class="signature-section">
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <div style="text-align: left;">
-                      <div style="font-size: 0.8rem; font-weight: 600;" class="info-label">PRESCRIBER: Dr. ${certificateData.doctor.name}</div>
-                      <div style="font-size: 0.75rem;">License: ${certificateData.doctor.licenseNumber}</div>
+
+                <!-- Additional Notes (if exists) -->
+                ${certificateData.notes ? `
+                  <div class="notes-card">
+                    <h3>Additional Physician Notes</h3>
+                    <p>${certificateData.notes}</p>
+                  </div>
+                ` : ''}
+
+                <!-- Footer / Signatures -->
+                <div class="footer-signature-section">
+                  <!-- Doctor Signature details -->
+                  <div class="doctor-info-block">
+                    <p style="margin: 0; font-size: 8px; color: #718096; text-transform: uppercase;">Attending Practitioner</p>
+                    <div class="signature-box">
+                      ${signatureBase64 ? `
+                        <img src="${signatureBase64}" alt="Doctor Signature" class="signature-image">
+                      ` : `
+                        <div class="signature-placeholder"></div>
+                      `}
                     </div>
-                    <div style="text-align: right;">
-                      <div style="font-size: 0.8rem; font-weight: 600;" class="info-label">DATE: ${certificateData.dateIssued}</div>
-                      <div style="font-size: 0.75rem;">Specialization: ${certificateData.doctor.specialization || 'General Medicine'}</div>
+                    <h4 class="doctor-name-title">Dr. ${certificateData.doctor.name}</h4>
+                    <p class="doctor-license">${certificateData.doctor.specialization || 'General Practitioner'} | Lic: ${certificateData.doctor.licenseNumber}</p>
+                  </div>
+
+                  <!-- Security Verification block -->
+                  <div class="security-verification-block">
+                    <img src="${qrCodeUrl}" alt="Verification QR" class="qr-code-img">
+                    <div class="qr-details">
+                      <strong>SECURE VERIFY</strong><br>
+                      Scan QR code to verify this medical record online.<br>
+                      <em>System Ref: ${certificateData.certificateNumber}</em>
                     </div>
                   </div>
-                  ${signatureBase64 ? `
-                  <div style="margin: 10px 0; text-align: center;">
-                    <img src="${signatureBase64}" 
-                         alt="Doctor Signature" 
-                         style="max-height: 60px; max-width: 200px; border: 1px solid #ddd; background: white;"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    <div style="display: none; border-bottom: 1px solid #333; width: 150px; margin: 10px auto 3px; height: 1px;"></div>
-                  </div>
-                  ` : `
-                  <div class="signature-line"></div>
-                  `}
-                  <p style="margin-top: 5px; font-weight: 600; font-size: 0.8rem;">DOCTOR SIGNATURE</p>
                 </div>
-              </div>
-              
-              <div class="footer-info">
-                <p><strong>${certificateData.clinic.name || 'New Life Medium Clinic PLC'} - Medical Certificate System</strong></p>
-                <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()} | Valid for 30 days from issue date</p>
-              </div>
               </div>
             </body>
             </html>
@@ -1743,6 +1792,77 @@ const MedicalCertificates: React.FC = () => {
               </div>
             </div>
 
+            {/* Caregiver Information (conditionally rendered) */}
+            {formData.certificateType === 'Caregiver Leave Certificate' && (
+              <div className="border rounded-lg p-4 bg-muted/5 border-primary/20">
+                <h3 className="text-lg font-medium mb-4 text-primary flex items-center gap-2">
+                  <span>Caregiver / Parent Information</span>
+                  <span className="text-xs font-normal text-muted-foreground bg-primary/10 px-2 py-0.5 rounded-full">Required for nursing leave</span>
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
+                      Caregiver Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.caregiverName}
+                      onChange={(e) => setFormData(prev => ({ ...prev, caregiverName: e.target.value }))}
+                      required={formData.certificateType === 'Caregiver Leave Certificate'}
+                      placeholder="e.g. Mother's or Father's Name"
+                      className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
+                      Relationship to Patient *
+                    </label>
+                    <select
+                      value={formData.caregiverRelation}
+                      onChange={(e) => setFormData(prev => ({ ...prev, caregiverRelation: e.target.value }))}
+                      required={formData.certificateType === 'Caregiver Leave Certificate'}
+                      className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Relation</option>
+                      <option value="Mother">Mother</option>
+                      <option value="Father">Father</option>
+                      <option value="Guardian">Guardian</option>
+                      <option value="Spouse">Spouse</option>
+                      <option value="Sibling">Sibling</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
+                      Caregiver Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.caregiverPhone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, caregiverPhone: e.target.value }))}
+                      className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
+                      Caregiver ID Number (National ID / Passport)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.caregiverIdNumber}
+                      onChange={(e) => setFormData(prev => ({ ...prev, caregiverIdNumber: e.target.value }))}
+                      placeholder="Optional identification number"
+                      className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Medical Information */}
             <div className="border rounded-lg p-4">
               <h3 className="text-lg font-medium mb-4">Medical Information</h3>
@@ -1762,6 +1882,7 @@ const MedicalCertificates: React.FC = () => {
                     <option value="Sick Leave Certificate">Sick Leave Certificate</option>
                     <option value="Fitness Certificate">Fitness Certificate</option>
                     <option value="Treatment Certificate">Treatment Certificate</option>
+                    <option value="Caregiver Leave Certificate">Caregiver Leave Certificate</option>
                   </select>
                 </div>
                 

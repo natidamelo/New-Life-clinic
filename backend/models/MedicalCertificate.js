@@ -98,10 +98,28 @@ const medicalCertificateSchema = new mongoose.Schema({
     trim: true
   },
 
+  // Caregiver Information (for sick family members requiring nursing/care)
+  caregiverName: {
+    type: String,
+    trim: true
+  },
+  caregiverRelation: {
+    type: String,
+    trim: true
+  },
+  caregiverPhone: {
+    type: String,
+    trim: true
+  },
+  caregiverIdNumber: {
+    type: String,
+    trim: true
+  },
+
   // Certificate Details
   certificateType: {
     type: String,
-    enum: ['Medical Certificate', 'Sick Leave Certificate', 'Fitness Certificate', 'Treatment Certificate'],
+    enum: ['Medical Certificate', 'Sick Leave Certificate', 'Fitness Certificate', 'Treatment Certificate', 'Caregiver Leave Certificate'],
     default: 'Medical Certificate'
   },
   certificateNumber: {
