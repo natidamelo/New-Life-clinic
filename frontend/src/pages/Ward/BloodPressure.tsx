@@ -56,6 +56,89 @@ interface VitalSigns {
   type?: string;
 }
 
+const BPSparkline: React.FC<{ records: VitalSigns[] }> = ({ records }) => {
+  // Sort records by date ascending
+  const sorted = [...records]
+    .filter(r => r.systolic && r.diastolic)
+    .sort((a, b) => new Date(a.measurementDate || a.createdAt || '').getTime() - new Date(b.measurementDate || b.createdAt || '').getTime());
+
+  if (sorted.length < 2) {
+    return <div className="text-xs text-muted-foreground text-center py-4">Insufficient history data to plot trend line.</div>;
+  }
+
+  const padding = 20;
+  const width = 300;
+  const height = 120;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+
+  const systolics = sorted.map(r => r.systolic || 0);
+  const diastolics = sorted.map(r => r.diastolic || 0);
+
+  const maxBP = Math.max(...systolics, 180);
+  const minBP = Math.min(...diastolics, 60);
+  const bpRange = maxBP - minBP || 1;
+
+  const pointsSystolic = sorted.map((r, i) => {
+    const x = padding + (i / (sorted.length - 1)) * chartWidth;
+    const y = padding + chartHeight - (((r.systolic || 0) - minBP) / bpRange) * chartHeight;
+    return `${x},${y}`;
+  }).join(' ');
+
+  const pointsDiastolic = sorted.map((r, i) => {
+    const x = padding + (i / (sorted.length - 1)) * chartWidth;
+    const y = padding + chartHeight - (((r.diastolic || 0) - minBP) / bpRange) * chartHeight;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <div className="bg-muted/10 p-3 rounded-lg border border-border/30">
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+          <Activity className="h-3.5 w-3.5 text-primary" /> BP Trends (Last {sorted.length} readings)
+        </span>
+        <div className="flex gap-2 text-[10px]">
+          <span className="flex items-center gap-1 text-red-500 font-medium">● Systolic</span>
+          <span className="flex items-center gap-1 text-blue-500 font-medium">● Diastolic</span>
+        </div>
+      </div>
+      <div className="relative">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto overflow-visible">
+          {/* Y Axis grid lines */}
+          {[120, 80].map((val, idx) => {
+            const y = padding + chartHeight - ((val - minBP) / bpRange) * chartHeight;
+            if (y >= padding && y <= height - padding) {
+              return (
+                <g key={idx}>
+                  <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="rgba(156, 163, 175, 0.15)" strokeDasharray="3,3" />
+                  <text x={padding - 5} y={y + 3} fill="rgba(156, 163, 175, 0.6)" fontSize="8" textAnchor="end">{val}</text>
+                </g>
+              );
+            }
+            return null;
+          })}
+          {/* Systolic Line */}
+          <polyline fill="none" stroke="#ef4444" strokeWidth="2.5" points={pointsSystolic} strokeLinecap="round" strokeLinejoin="round" />
+          {/* Diastolic Line */}
+          <polyline fill="none" stroke="#3b82f6" strokeWidth="2.5" points={pointsDiastolic} strokeLinecap="round" strokeLinejoin="round" />
+          {/* Points */}
+          {sorted.map((r, i) => {
+            const x = padding + (i / (sorted.length - 1)) * chartWidth;
+            const ySystolic = padding + chartHeight - (((r.systolic || 0) - minBP) / bpRange) * chartHeight;
+            const yDiastolic = padding + chartHeight - (((r.diastolic || 0) - minBP) / bpRange) * chartHeight;
+            return (
+              <g key={i}>
+                <circle cx={x} cy={ySystolic} r="3.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1" />
+                <circle cx={x} cy={yDiastolic} r="3.5" fill="#3b82f6" stroke="#ffffff" strokeWidth="1" />
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+};
+
 const BloodPressure: React.FC = () => {
   const { user, getToken } = useAuth();
   const [pendingVitalSigns, setPendingVitalSigns] = useState<VitalSigns[]>([]);
@@ -135,6 +218,11 @@ const BloodPressure: React.FC = () => {
   const [aiAnalysisMap, setAIAnalysisMap] = useState<Record<string, AIAnalysis>>({});
   const [loadingAnalysis, setLoadingAnalysis] = useState<string | null>(null);
   const [expandedAnalysis, setExpandedAnalysis] = useState<string | null>(null);
+  const [selectedPatientForDetails, setSelectedPatientForDetails] = useState<{
+    id: string;
+    name: string;
+    records: VitalSigns[];
+  } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const quickChatPrompts = [
@@ -995,9 +1083,98 @@ const BloodPressure: React.FC = () => {
     }
   };
 
+  // Smart pending grouping
+  const getGroupedPendingTasks = () => {
+    const groups: Record<string, {
+      patientId: string;
+      patientName: string;
+      tasks: any[];
+      _id: string;
+      type: string;
+      status: string;
+      measurementDate: string | null;
+      recorded: string;
+      arm?: string;
+      position?: string;
+      fileType?: string;
+    }> = {};
+
+    pendingVitalSigns.forEach(task => {
+      let patientIdVal = '';
+      if (typeof task.patientId === 'object' && task.patientId !== null) {
+        patientIdVal = (task.patientId as any)._id || (task.patientId as any).id || '';
+      } else if (typeof task.patientId === 'string') {
+        patientIdVal = task.patientId;
+      }
+
+      if (!patientIdVal) return;
+
+      let patientNameVal = '';
+      if (typeof task.patientName === 'string') {
+        patientNameVal = task.patientName;
+      } else if (typeof task.patientName === 'object' && task.patientName !== null) {
+        patientNameVal = (task.patientName as any).fullName || 
+                         (task.patientName as any).name || 
+                         `${(task.patientName as any).firstName || ''} ${(task.patientName as any).lastName || ''}`.trim() ||
+                         '';
+      } else if (typeof task.name === 'string') {
+        patientNameVal = task.name;
+      } else if (typeof task.name === 'object' && task.name !== null) {
+        patientNameVal = (task.name as any).fullName || 
+                         (task.name as any).name || 
+                         `${(task.name as any).firstName || ''} ${(task.name as any).lastName || ''}`.trim() ||
+                         '';
+      }
+
+      if (!groups[patientIdVal]) {
+        groups[patientIdVal] = {
+          patientId: patientIdVal,
+          patientName: patientNameVal || 'Unknown Patient',
+          tasks: [],
+          _id: task._id || patientIdVal,
+          type: 'VITAL_SIGNS',
+          status: 'PENDING',
+          measurementDate: task.measurementDate || null,
+          recorded: 'Pending',
+          arm: task.arm || 'left',
+          position: task.position || 'sitting',
+          fileType: task.fileType || 'single'
+        };
+      }
+      groups[patientIdVal].tasks.push(task);
+    });
+
+    return Object.values(groups);
+  };
+
+  const calculateAvgBP = () => {
+    const records = completedVitalSigns.filter(r => r.systolic && r.diastolic);
+    if (records.length === 0) return '120/80';
+    const avgSystolic = Math.round(records.reduce((sum, r) => sum + (r.systolic || 0), 0) / records.length);
+    const avgDiastolic = Math.round(records.reduce((sum, r) => sum + (r.diastolic || 0), 0) / records.length);
+    return `${avgSystolic}/${avgDiastolic}`;
+  };
+
+  const calculateAlertRate = () => {
+    const records = completedVitalSigns.filter(r => r.systolic && r.diastolic);
+    if (records.length === 0) return 0;
+    const alertCount = records.filter(r => {
+      const status = getBPStatus(r.systolic, r.diastolic);
+      return status === 'warning' || status === 'critical';
+    }).length;
+    return Math.round((alertCount / records.length) * 100);
+  };
+
+  const calculateAICoverage = () => {
+    const total = completedVitalSigns.length;
+    if (total === 0) return 0;
+    const analyzedCount = Object.keys(aiAnalysisMap).length;
+    return Math.round((analyzedCount / total) * 100);
+  };
+
   // Pagination logic
   const getCurrentPageRecords = () => {
-    const allRecords = activeTab === 'pending' ? pendingVitalSigns : completedVitalSigns;
+    const allRecords = activeTab === 'pending' ? getGroupedPendingTasks() : completedVitalSigns;
     const startIndex = (pagination.page - 1) * pagination.limit;
     const endIndex = startIndex + pagination.limit;
     return allRecords.slice(startIndex, endIndex);
@@ -1005,7 +1182,7 @@ const BloodPressure: React.FC = () => {
 
   // Update pagination when records change
   useEffect(() => {
-    const allRecords = activeTab === 'pending' ? pendingVitalSigns : completedVitalSigns;
+    const allRecords = activeTab === 'pending' ? getGroupedPendingTasks() : completedVitalSigns;
     const totalPages = Math.ceil(allRecords.length / pagination.limit);
     setPagination(prev => ({
       ...prev,
@@ -1074,6 +1251,57 @@ const BloodPressure: React.FC = () => {
                 <FileText className="h-4 w-4 mr-1.5" />
                 <span className="text-sm font-medium">Generate Eating Plan</span>
               </button>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI Stats Cards Panel */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* Card 1: Pending Measurements */}
+          <div className="bg-primary-foreground border border-border/30 rounded-xl p-4 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow duration-200">
+            <div className="p-3 bg-amber-500/10 text-amber-600 rounded-lg">
+              <Clock className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Patients Pending</p>
+              <h3 className="text-2xl font-bold text-muted-foreground mt-0.5">{getGroupedPendingTasks().length}</h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Awaiting vitals entry</p>
+            </div>
+          </div>
+
+          {/* Card 2: Average BP */}
+          <div className="bg-primary-foreground border border-border/30 rounded-xl p-4 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow duration-200">
+            <div className="p-3 bg-blue-500/10 text-blue-600 rounded-lg">
+              <Activity className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Average BP (30d)</p>
+              <h3 className="text-2xl font-bold text-muted-foreground mt-0.5">{calculateAvgBP()}</h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Mean history reading</p>
+            </div>
+          </div>
+
+          {/* Card 3: Alert Rate */}
+          <div className="bg-primary-foreground border border-border/30 rounded-xl p-4 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow duration-200">
+            <div className="p-3 bg-red-500/10 text-red-600 rounded-lg">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">BP Alert Rate</p>
+              <h3 className="text-2xl font-bold text-muted-foreground mt-0.5">{calculateAlertRate()}%</h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Warning or Critical status</p>
+            </div>
+          </div>
+
+          {/* Card 4: AI Coverage */}
+          <div className="bg-primary-foreground border border-border/30 rounded-xl p-4 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow duration-200">
+            <div className="p-3 bg-purple-500/10 text-purple-600 rounded-lg">
+              <Bot className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">AI Insight Coverage</p>
+              <h3 className="text-2xl font-bold text-muted-foreground mt-0.5">{calculateAICoverage()}%</h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Analyzed by AI Cardiologist</p>
             </div>
           </div>
         </div>
@@ -1373,8 +1601,11 @@ const BloodPressure: React.FC = () => {
         </div>
       )}
 
-        {/* Records Section with Tabs */}
-        <div className="bg-primary-foreground rounded-xl shadow-sm border border-border/30 overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Side: Table List */}
+          <div className={`${selectedPatientForDetails ? 'lg:col-span-8' : 'lg:col-span-12'} transition-all duration-300`}>
+            {/* Records Section with Tabs */}
+            <div className="bg-primary-foreground rounded-xl shadow-sm border border-border/30 overflow-hidden">
           {/* Tab Navigation */}
           <div className="border-b border-border/30">
             <div className="px-6 py-4 bg-muted/10">
@@ -1478,124 +1709,152 @@ const BloodPressure: React.FC = () => {
                    const recordAnalysis = aiAnalysisMap[recordKey];
 
                    return (
-                     <React.Fragment key={record._id}>
-                     <tr className={`hover:bg-muted/10 transition-colors duration-150 ${isPendingTask ? 'bg-accent/10 border-l-4 border-l-yellow-400' : ''}`}>
-                       <td className="px-3 py-2 whitespace-nowrap">
-                         <div>
-                           <div className="text-xs font-semibold text-muted-foreground">
-                             {(() => {
-                               // Handle both string and object formats for patient name
-                               if (typeof record?.patientName === 'string') {
-                                 return record.patientName;
-                               } else if (typeof record?.patientName === 'object' && record?.patientName !== null) {
-                                // If patientName is an object, extract the name
-                                return (record.patientName as any).fullName || 
-                                       (record.patientName as any).name || 
-                                       `${(record.patientName as any).firstName || ''} ${(record.patientName as any).lastName || ''}`.trim() ||
-                                        'Unknown Patient';
-                               } else if (typeof record?.name === 'string') {
-                                 return record.name;
-                               } else if (typeof record?.name === 'object' && record?.name !== null) {
-                                // If name is an object, extract the name
-                                return (record.name as any).fullName || 
-                                       (record.name as any).name || 
-                                       `${(record.name as any).firstName || ''} ${(record.name as any).lastName || ''}`.trim() ||
-                                        'Unknown Patient';
-                               }
-                               return 'Unknown Patient';
-                             })()}
-                           </div>
-                           <div className="text-xs text-muted-foreground font-mono">
-                             ID: {(() => {
-                               // Handle both string and object formats for patient ID
-                               if (typeof record?.patientId === 'string') {
-                                 return record.patientId;
-                               } else if (typeof record?.patientId === 'object' && record?.patientId !== null) {
-                                 return (record.patientId as any)._id || (record.patientId as any).id || 'Unknown ID';
-                               } else if (typeof record?.id === 'string') {
-                                 return record.id;
-                               } else if (typeof record?.id === 'object' && record?.id !== null) {
-                                 return (record.id as any)._id || (record.id as any).id || 'Unknown ID';
-                               }
-                               return 'Unknown ID';
-                             })()}
-                           </div>
-                         </div>
-                       </td>
-                       <td className="px-3 py-2 whitespace-nowrap">
-                         {isPendingTask ? (
-                           <div className="text-sm font-semibold text-muted-foreground/50">
-                             Pending
-                           </div>
-                         ) : (
-                           <div className="text-sm font-bold text-muted-foreground">
-                             {record.systolic}/{record.diastolic}
-                           </div>
-                         )}
-                         <div className="text-xs text-muted-foreground font-medium">mmHg</div>
-                       </td>
-                       <td className="px-3 py-2 whitespace-nowrap">
-                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${isPendingTask ? 'text-accent-foreground bg-accent/20 border border-yellow-200' : getBPStatusColor(status)}`}>
-                           {isPendingTask ? 'Pending' : status.charAt(0).toUpperCase() + status.slice(1)}
-                         </span>
-                       </td>
-                       <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
-                         {isPendingTask ? 'Not measured' : `${(record?.position || 'sitting').charAt(0).toUpperCase() + (record?.position || 'sitting').slice(1)} / ${(record?.arm || 'left').charAt(0).toUpperCase() + (record?.arm || 'left').slice(1)}`}
-                       </td>
-                       <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
-                         {isPendingTask ? 'Not set' : (record?.fileType || 'single').charAt(0).toUpperCase() + (record?.fileType || 'single').slice(1)}
-                       </td>
-                       <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
-                         {isPendingTask ? 'Pending' : new Date(record?.measurementDate || record?.recordedAt || record?.createdAt || new Date()).toLocaleDateString()}
-                       </td>
-                       <td className="px-3 py-2 whitespace-nowrap text-xs font-medium">
-                         <div className="flex space-x-1 flex-wrap gap-1">
-                           {isPendingTask ? (
-                             <button
-                               onClick={() => handleCompleteTask(record)}
-                               className="p-1 text-primary hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
-                               title="Complete Blood Pressure Check"
-                             >
-                               <Plus className="h-4 w-4" />
-                             </button>
-                           ) : (
-                             <>
-                              <button
-                                onClick={() => handleAIAnalyze(record)}
-                                disabled={loadingAnalysis === record._id}
-                                className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded-md transition-colors disabled:opacity-50"
-                                title="AI Analysis"
-                              >
-                                {loadingAnalysis === record._id
-                                  ? <RefreshCw className="h-4 w-4 animate-spin" />
-                                  : <Bot className="h-4 w-4" />
+                      <React.Fragment key={record._id}>
+                      <tr 
+                        className={`hover:bg-muted/10 transition-colors duration-150 cursor-pointer ${isPendingTask ? 'bg-accent/10 border-l-4 border-l-yellow-400' : ''} ${selectedPatientForDetails?.id === recordPatientId ? 'bg-muted/15 font-semibold border-l-4 border-l-primary' : ''}`}
+                        onClick={() => {
+                          if (isPendingTask) {
+                            handleCompleteTask(record.tasks && record.tasks.length > 0 ? record.tasks[0] : record);
+                            return;
+                          }
+                          const patientRecords = completedVitalSigns.filter(r => {
+                            const pid = r.patientId;
+                            const pidStr = pid && typeof pid === 'object' 
+                              ? (pid as any)._id?.toString() || (pid as any).id?.toString() 
+                              : pid;
+                            return pidStr === recordPatientId;
+                          });
+                          const nameVal = (() => {
+                            if (typeof record?.patientName === 'string') return record.patientName;
+                            if (typeof record?.patientName === 'object' && record?.patientName !== null) {
+                              return (record.patientName as any).fullName || (record.patientName as any).name || '';
+                            }
+                            if (typeof record?.name === 'string') return record.name;
+                            return 'Unknown Patient';
+                          })();
+                          setSelectedPatientForDetails({
+                            id: recordPatientId,
+                            name: nameVal,
+                            records: patientRecords
+                          });
+                        }}
+                      >
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <div>
+                            <div className="text-xs font-semibold text-muted-foreground">
+                              {(() => {
+                                // Handle both string and object formats for patient name
+                                if (typeof record?.patientName === 'string') {
+                                  return record.patientName;
+                                } else if (typeof record?.patientName === 'object' && record?.patientName !== null) {
+                                 // If patientName is an object, extract the name
+                                 return (record.patientName as any).fullName || 
+                                        (record.patientName as any).name || 
+                                        `${(record.patientName as any).firstName || ''} ${(record.patientName as any).lastName || ''}`.trim() ||
+                                         'Unknown Patient';
+                                } else if (typeof record?.name === 'string') {
+                                  return record.name;
+                                } else if (typeof record?.name === 'object' && record?.name !== null) {
+                                 // If name is an object, extract the name
+                                 return (record.name as any).fullName || 
+                                        (record.name as any).name || 
+                                        `${(record.name as any).firstName || ''} ${(record.name as any).lastName || ''}`.trim() ||
+                                         'Unknown Patient';
                                 }
+                                return 'Unknown Patient';
+                              })()}
+                            </div>
+                            <div className="text-xs text-muted-foreground font-mono">
+                              ID: {(() => {
+                                // Handle both string and object formats for patient ID
+                                if (typeof record?.patientId === 'string') {
+                                  return record.patientId;
+                                } else if (typeof record?.patientId === 'object' && record?.patientId !== null) {
+                                  return (record.patientId as any)._id || (record.patientId as any).id || 'Unknown ID';
+                                } else if (typeof record?.id === 'string') {
+                                  return record.id;
+                                } else if (typeof record?.id === 'object' && record?.id !== null) {
+                                  return (record.id as any)._id || (record.id as any).id || 'Unknown ID';
+                                }
+                                return 'Unknown ID';
+                              })()}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {isPendingTask ? (
+                            <div className="text-sm font-semibold text-muted-foreground/50">
+                              Pending
+                            </div>
+                          ) : (
+                            <div className="text-sm font-bold text-muted-foreground">
+                              {record.systolic}/{record.diastolic}
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground font-medium">mmHg</div>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${isPendingTask ? 'text-accent-foreground bg-accent/20 border border-yellow-200' : getBPStatusColor(status)}`}>
+                            {isPendingTask ? `Pending (${record.tasks?.length || 1})` : status.charAt(0).toUpperCase() + status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
+                          {isPendingTask ? 'Not measured' : `${(record?.position || 'sitting').charAt(0).toUpperCase() + (record?.position || 'sitting').slice(1)} / ${(record?.arm || 'left').charAt(0).toUpperCase() + (record?.arm || 'left').slice(1)}`}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
+                          {isPendingTask ? 'Not set' : (record?.fileType || 'single').charAt(0).toUpperCase() + (record?.fileType || 'single').slice(1)}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
+                          {isPendingTask ? 'Pending' : new Date(record?.measurementDate || record?.recordedAt || record?.createdAt || new Date()).toLocaleDateString()}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs font-medium">
+                          <div className="flex space-x-1 flex-wrap gap-1">
+                            {isPendingTask ? (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleCompleteTask(record.tasks && record.tasks.length > 0 ? record.tasks[0] : record); }}
+                                className="p-1 text-primary hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+                                title="Complete Blood Pressure Check"
+                              >
+                                <Plus className="h-4 w-4" />
                               </button>
+                            ) : (
+                              <>
                                <button
-                                 onClick={() => { setActiveChatRecord(record); setShowAIChat(true); }}
-                                 className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded-md transition-colors"
-                                 title="Ask AI about this patient"
+                                 onClick={(e) => { e.stopPropagation(); handleAIAnalyze(record); }}
+                                 disabled={loadingAnalysis === record._id}
+                                 className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded-md transition-colors disabled:opacity-50"
+                                 title="AI Analysis"
                                >
-                                 <Sparkles className="h-4 w-4" />
+                                 {loadingAnalysis === record._id
+                                   ? <RefreshCw className="h-4 w-4 animate-spin" />
+                                   : <Bot className="h-4 w-4" />
+                                 }
                                </button>
-                               <button
-                                 onClick={() => handleEdit(record)}
-                                 className="p-1 text-primary hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
-                                 title="Edit Record"
-                               >
-                                 <Edit className="h-4 w-4" />
-                               </button>
-                               <button
-                                 onClick={() => handleDelete(record._id)}
-                                 className="p-1 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-                                 title="Delete Record"
-                               >
-                                 <Trash2 className="h-4 w-4" />
-                               </button>
-                             </>
-                           )}
-                         </div>
-                       </td>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setActiveChatRecord(record); setShowAIChat(true); }}
+                                  className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded-md transition-colors"
+                                  title="Ask AI about this patient"
+                                >
+                                  <Sparkles className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleEdit(record); }}
+                                  className="p-1 text-primary hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+                                  title="Edit Record"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDelete(record._id); }}
+                                  className="p-1 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                                  title="Delete Record"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     {/* AI Analysis Expandable Row */}
                     {!isPendingTask && recordAnalysis && expandedAnalysis === recordKey && (
@@ -1876,7 +2135,118 @@ const BloodPressure: React.FC = () => {
             )}
           </div>
         )}
-       </div>
+        </div>
+      </div>
+
+      {/* Right Side: Details Side Panel */}
+      {selectedPatientForDetails && (
+        <div className="lg:col-span-4 bg-primary-foreground border border-border/30 rounded-xl p-4 shadow-sm space-y-4 sticky top-6 animate-in slide-in-from-right duration-300">
+          {/* Panel Header */}
+          <div className="flex justify-between items-start border-b pb-3">
+            <div>
+              <h3 className="font-bold text-sm text-muted-foreground flex items-center gap-1.5">
+                <User className="h-4.5 w-4.5 text-primary" /> Patient Details
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">ID: {selectedPatientForDetails.id}</p>
+            </div>
+            <button
+              onClick={() => setSelectedPatientForDetails(null)}
+              className="p-1 rounded-md hover:bg-muted/15 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+            >
+              <XCircle className="h-4.5 w-4.5" />
+            </button>
+          </div>
+
+          {/* Patient Basic Info */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs py-1 border-b border-border/10">
+              <span className="text-muted-foreground">Name:</span>
+              <span className="font-semibold text-muted-foreground">{selectedPatientForDetails.name}</span>
+            </div>
+            <div className="flex justify-between text-xs py-1 border-b border-border/10">
+              <span className="text-muted-foreground">Total Readings:</span>
+              <span className="font-semibold text-muted-foreground">{selectedPatientForDetails.records.length}</span>
+            </div>
+          </div>
+
+          {/* Sparkline Chart */}
+          <BPSparkline records={selectedPatientForDetails.records} />
+
+          {/* Latest AI Analysis Card */}
+          {(() => {
+            const latestRecord = selectedPatientForDetails.records[0];
+            if (!latestRecord) return null;
+
+            const analysis = aiAnalysisMap[latestRecord._id];
+
+            return (
+              <div className="border border-border/30 rounded-lg p-3 bg-muted/5">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-xs font-bold text-muted-foreground flex items-center gap-1">
+                    <Bot className="h-3.5 w-3.5 text-purple-600 animate-pulse" /> AI Cardiology Insights
+                  </h4>
+                  {!analysis ? (
+                    <button
+                      onClick={() => handleAIAnalyze(latestRecord)}
+                      disabled={loadingAnalysis === latestRecord._id}
+                      className="text-[9px] bg-purple-600 text-white px-1.5 py-0.5 rounded hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {loadingAnalysis === latestRecord._id ? (
+                        <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+                      ) : (
+                        'Analyze Vitals'
+                      )}
+                    </button>
+                  ) : (
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase ${getRiskBadgeColor(analysis.riskLevel)}`}>
+                      {analysis.riskLevel} Risk
+                    </span>
+                  )}
+                </div>
+
+                {analysis ? (
+                  <div className="space-y-2">
+                    <div className="p-1.5 bg-purple-500/5 rounded border border-purple-500/10">
+                      <p className="text-[11px] font-semibold text-purple-700 flex flex-wrap items-center gap-1">
+                        BP Status: <span className={`px-1 rounded text-[9px] ${getClassificationColor(analysis.classification)}`}>{analysis.classification}</span>
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed italic">"{analysis.summary}"</p>
+                    
+                    {/* Recommendations */}
+                    {analysis.recommendations && analysis.recommendations.length > 0 && (
+                      <div className="pt-1">
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Key Recommendations:</p>
+                        <ul className="text-[11px] text-muted-foreground space-y-0.5 list-disc pl-4">
+                          {analysis.recommendations.slice(0, 3).map((rec, i) => (
+                            <li key={i}>{rec}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {/* Action buttons */}
+                    <div className="pt-1 flex gap-2">
+                      <button
+                        onClick={() => {
+                          setActiveChatRecord(latestRecord);
+                          setShowAIChat(true);
+                        }}
+                        className="w-full text-center text-[11px] py-1 bg-purple-600 hover:bg-purple-700 text-white rounded font-medium transition-colors flex items-center justify-center gap-1"
+                      >
+                        <Sparkles className="h-3 w-3" /> Ask Cardiology AI
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">No AI analysis generated for the latest reading. Click analyze above to get insights.</p>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+    </div>
 
        {/* Search Modal */}
        {showSearchModal && (
