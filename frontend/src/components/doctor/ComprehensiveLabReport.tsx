@@ -5,15 +5,20 @@ import { Copy, Printer, Download, Search, RefreshCw, X, FlaskConical, User, Cale
 import { toast } from 'react-hot-toast';
 import { useClinic } from '../../context/ClinicContext';
 
+import { useAuth } from '../../context/AuthContext';
+import { api } from '../../services/api';
+
 interface ComprehensiveLabReportProps {
   patientResults: PatientLabResults;
   onClose: () => void;
+  onRefresh?: () => void;
 }
 
 const LOGO_PATH = '/assets/images/logo.jpg';
 const LOGO_FALLBACK = '/assets/images/logo-placeholder.svg';
 
-const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patientResults, onClose }) => {
+const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patientResults, onClose, onRefresh }) => {
+  const { user } = useAuth();
   const { clinic } = useClinic();
   const [searchTerm, setSearchTerm] = useState('');
   const [isExporting, setIsExporting] = useState(false);
@@ -1889,6 +1894,34 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
           </button>
         </div>
       </div>
+
+      {/* Admin Deletion Bar */}
+      {user?.role === 'admin' && patientResults.tests && patientResults.tests.length > 0 && (
+        <div className="flex items-center gap-2 bg-red-50 px-6 py-2 border-b border-red-100 shrink-0 flex-wrap">
+          <span className="text-xs font-bold text-red-800">Delete individual test:</span>
+          {patientResults.tests.map(test => (
+            <button
+              key={test._id || test.id}
+              onClick={async () => {
+                if (window.confirm(`Are you sure you want to delete the lab order for "${test.testName}"? All associated invoices, payments, and notifications will also be deleted.`)) {
+                  try {
+                    await api.delete(`/api/lab-orders/${test._id || test.id}`);
+                    toast.success(`Deleted lab order: ${test.testName}`);
+                    onClose();
+                    if (onRefresh) onRefresh();
+                  } catch (err: any) {
+                    console.error('Error deleting lab test:', err);
+                    toast.error(err.response?.data?.message || 'Failed to delete lab test');
+                  }
+                }
+              }}
+              className="px-2 py-1 text-[11px] font-semibold text-red-700 bg-white border border-red-200 rounded hover:bg-red-50 transition-colors cursor-pointer animate-fade-in"
+            >
+              {test.testName} ✕
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Tests Results Section */}
       <div id="lab-report-content" className="bg-gray-50/50 overflow-y-auto flex-1">

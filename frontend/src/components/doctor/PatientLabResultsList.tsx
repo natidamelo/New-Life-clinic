@@ -251,6 +251,7 @@ const PatientLabResultsList: React.FC<PatientLabResultsListProps> = ({
             <ComprehensiveLabReport
               patientResults={selectedPatient}
               onClose={() => setSelectedPatient(null)}
+              onRefresh={onRefresh}
             />
           )}
         </DialogContent>
