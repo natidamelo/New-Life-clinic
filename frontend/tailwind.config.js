@@ -8,6 +8,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        forest: "var(--forest)",
+        sage: "var(--sage)",
+        sun: "var(--sun)",
+        clay: "var(--clay)",
+        linen: "var(--linen)",
+        ink: "var(--ink)",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -56,6 +62,10 @@ module.exports = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      fontFamily: {
+        fraunces: ["var(--font-fraunces)", "serif"],
+        worksans: ["var(--font-worksans)", "sans-serif"],
       },
       keyframes: {
         "fade-in": {

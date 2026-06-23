@@ -11,6 +11,17 @@
 /* Import comprehensive theme color overrides — must be last to win specificity */
 @import './theme-color-overrides.css';
 
+:root {
+  --forest: #2F5233;
+  --sage: #8BAA91;
+  --sun: #E8954A;
+  --clay: #C1543F;
+  --linen: #F6F8F2;
+  --ink: #1F2B22;
+  --font-fraunces: 'Fraunces', serif;
+  --font-worksans: 'Work Sans', sans-serif;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

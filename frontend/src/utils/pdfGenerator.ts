@@ -26,45 +26,55 @@ export const generatePDF = (content: PDFContent) => {
     <head>
       <title>${content.title} - ${content.patientName}</title>
       <style>
+        :root {
+          --forest: #2F5233;
+          --sage: #8BAA91;
+          --sun: #E8954A;
+          --clay: #C1543F;
+          --linen: #F6F8F2;
+          --ink: #1F2B22;
+        }
+
         @media print {
           @page {
             margin: 0.5in;
             size: A4;
           }
-          * {
-            color: #000000 !important;
-            border-color: #000000 !important;
-            background-color: transparent !important;
+          body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            background-color: #ffffff !important;
           }
           .disclaimer {
-            background-color: white !important;
-            border-color: black !important;
-            color: black !important;
+            background-color: var(--linen) !important;
+            border-color: var(--sage) !important;
+            color: var(--ink) !important;
           }
           .patient-info {
-            background-color: white !important;
-            border: 1px solid black !important;
+            background-color: var(--linen) !important;
+            border: 1px solid var(--sage) !important;
           }
           .goals-list li:before {
-            color: black !important;
+            color: var(--forest) !important;
           }
           .restrictions-list li:before {
-            color: black !important;
+            color: var(--clay) !important;
           }
         }
         
         body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          font-family: 'Work Sans', 'Segoe UI', sans-serif;
           line-height: 1.6;
-          color: #333;
+          color: var(--ink);
           max-width: 800px;
           margin: 0 auto;
           padding: 20px;
+          background-color: #ffffff;
         }
         
         .header {
           text-align: center;
-          border-bottom: 3px solid #dc2626;
+          border-bottom: 3px solid var(--forest);
           padding-bottom: 20px;
           margin-bottom: 30px;
         }
@@ -72,32 +82,33 @@ export const generatePDF = (content: PDFContent) => {
         .clinic-name {
           font-size: 24px;
           font-weight: bold;
-          color: #dc2626;
+          color: var(--forest);
           margin-bottom: 5px;
         }
         
         .clinic-subtitle {
           font-size: 14px;
-          color: #666;
+          color: var(--sage);
           margin-bottom: 10px;
         }
         
         .document-title {
           font-size: 20px;
           font-weight: bold;
-          color: #333;
+          color: var(--ink);
         }
         
         .patient-info {
-          background-color: #f8f9fa;
+          background-color: var(--linen);
           padding: 15px;
           border-radius: 8px;
           margin-bottom: 20px;
+          border: 1px solid var(--sage);
         }
         
         .patient-info h3 {
           margin: 0 0 10px 0;
-          color: #dc2626;
+          color: var(--forest);
           font-size: 16px;
         }
         
@@ -114,11 +125,11 @@ export const generatePDF = (content: PDFContent) => {
         
         .info-label {
           font-weight: 600;
-          color: #666;
+          color: var(--sage);
         }
         
         .info-value {
-          color: #333;
+          color: var(--ink);
         }
         
         .section {
@@ -128,15 +139,15 @@ export const generatePDF = (content: PDFContent) => {
         .section-title {
           font-size: 18px;
           font-weight: bold;
-          color: #dc2626;
+          color: var(--forest);
           margin-bottom: 15px;
-          border-bottom: 2px solid #e5e7eb;
+          border-bottom: 2px solid var(--sage);
           padding-bottom: 5px;
         }
         
         .meal-plan {
-          background-color: #f9fafb;
-          border: 1px solid #e5e7eb;
+          background-color: var(--linen);
+          border: 1px solid var(--sage);
           border-radius: 8px;
           padding: 15px;
           margin-bottom: 15px;
@@ -144,7 +155,7 @@ export const generatePDF = (content: PDFContent) => {
         
         .day-title {
           font-weight: bold;
-          color: #dc2626;
+          color: var(--forest);
           margin-bottom: 10px;
           font-size: 16px;
         }
@@ -156,11 +167,11 @@ export const generatePDF = (content: PDFContent) => {
         
         .meal-type {
           font-weight: 600;
-          color: #374151;
+          color: var(--ink);
         }
         
         .meal-description {
-          color: #6b7280;
+          color: var(--ink);
         }
         
         .goals-list, .restrictions-list {
@@ -178,7 +189,7 @@ export const generatePDF = (content: PDFContent) => {
           content: "✓";
           position: absolute;
           left: 0;
-          color: #10b981;
+          color: var(--forest);
           font-weight: bold;
         }
         
@@ -186,28 +197,28 @@ export const generatePDF = (content: PDFContent) => {
           content: "✗";
           position: absolute;
           left: 0;
-          color: #ef4444;
+          color: var(--clay);
           font-weight: bold;
         }
         
         .footer {
           margin-top: 40px;
           padding-top: 20px;
-          border-top: 1px solid #e5e7eb;
+          border-top: 1px solid var(--sage);
           text-align: center;
           font-size: 12px;
-          color: #666;
+          color: var(--sage);
         }
         
         .disclaimer {
-          background-color: #fef3c7;
-          border: 1px solid #f59e0b;
+          background-color: var(--linen);
+          border: 1px solid var(--sage);
           border-radius: 6px;
           padding: 10px;
           margin-top: 20px;
           font-size: 12px;
-          color: #92400e;
-        }
+          color: var(--ink);
+        }   }
       </style>
     </head>
     <body>
