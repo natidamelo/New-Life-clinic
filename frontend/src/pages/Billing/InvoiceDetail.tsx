@@ -592,14 +592,17 @@ const InvoiceDetail: React.FC = () => {
   body * { visibility: hidden; }
   .invoice-print-root, .invoice-print-root * { visibility: visible; }
   .invoice-watermark { visibility: visible !important; }
-  .invoice-print-root { position: static !important; width: 100% !important; padding: 0 !important; margin: 0 !important; background: white !important; page-break-after: avoid !important; }
+  .invoice-print-root { position: static !important; width: 100% !important; padding: 0 !important; margin: 0 !important; background: white !important; }
   .no-print, nav, aside, header, footer, .sidebar, .left-sidebar, .topbar { display: none !important; }
-  .invoice-print-container { max-width: 100% !important; padding: 0 !important; margin: 0 !important; width: 100% !important; position: relative !important; page-break-after: avoid !important; }
-  .print-only { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; position: relative !important; page-break-after: avoid !important; }
-  .std-invoice { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; font-family: Arial, Helvetica, sans-serif !important; color: #000 !important; background: white !important; position: relative !important; page-break-after: avoid !important; page-break-inside: avoid !important; }
-  .std-invoice * { page-break-inside: avoid; break-inside: avoid; }
-  .std-invoice table.items tr { page-break-inside: avoid; }
-  .std-invoice .section { page-break-inside: avoid; }
+  .invoice-print-container { max-width: 100% !important; padding: 0 !important; margin: 0 !important; width: 100% !important; position: relative !important; }
+  .print-only { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; position: relative !important; }
+  .std-invoice { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; font-family: Arial, Helvetica, sans-serif !important; color: #000 !important; background: white !important; position: relative !important; page-break-inside: auto !important; break-inside: auto !important; }
+  .std-invoice .header { page-break-inside: avoid !important; break-inside: avoid !important; }
+  .std-invoice .meta { page-break-inside: avoid !important; break-inside: avoid !important; }
+  .std-invoice .section { page-break-inside: avoid !important; break-inside: avoid !important; }
+  .std-invoice table.items tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+  .std-invoice .totals { page-break-inside: avoid !important; break-inside: avoid !important; }
+  .std-invoice .footer { page-break-inside: avoid !important; break-inside: avoid !important; }
   html, body { height: auto !important; overflow: visible !important; }
   @page { margin: 5mm; }
   .invoice-watermark { 
@@ -1351,26 +1354,79 @@ const InvoiceDetail: React.FC = () => {
 .std-invoice .totals .grand { font-weight: 700; border-top: 1px solid #ccc; padding-top: 4px; }
 .std-invoice .footer { margin-top: 8px; font-size: 11px; text-align: center; color: #444; }
 @media print {
+  .std-invoice { 
+    font-size: 10px !important; 
+    line-height: 1.2 !important; 
+  }
   .std-invoice .header {
     background: #f8fafc !important;
     border: 1px solid #cbd5e1 !important;
     border-radius: 4px !important;
-    padding: 8px 12px !important;
+    padding: 6px 10px !important;
   }
   .std-invoice .clinic-name {
     color: #0f172a !important;
+    font-size: 12px !important;
+    letter-spacing: 1px !important;
+    margin-bottom: 1px !important;
   }
   .std-invoice .clinic-subtitle {
     color: #475569 !important;
+    font-size: 9px !important;
   }
   .std-invoice .clinic-contact-right {
     color: #475569 !important;
+    font-size: 8px !important;
+    line-height: 1.4 !important;
   }
   .std-invoice .clinic-logo {
+    width: 32px !important;
+    height: 32px !important;
     border: 1px solid #cbd5e1 !important;
   }
   .std-invoice .header::after {
     display: none !important;
+  }
+  .std-invoice .document-type-badge {
+    padding: 4px 0 2px !important;
+    margin-bottom: 6px !important;
+  }
+  .std-invoice .document-type-badge span {
+    font-size: 10px !important;
+    padding: 2px 10px !important;
+  }
+  .std-invoice .meta { 
+    margin: 4px 0 6px !important; 
+    font-size: 10px !important; 
+  }
+  .std-invoice .meta td {
+    padding: 1px 0 !important;
+  }
+  .std-invoice .section-title { 
+    margin: 4px 0 2px !important; 
+    font-size: 11px !important; 
+  }
+  .std-invoice .section { 
+    margin-bottom: 4px !important; 
+    font-size: 10px !important; 
+  }
+  .std-invoice table.items { 
+    font-size: 9.5px !important; 
+  }
+  .std-invoice table.items th, .std-invoice table.items td { 
+    padding: 2px 4px !important; 
+  }
+  .std-invoice .totals { 
+    width: 50% !important;
+    font-size: 10px !important; 
+    margin-top: 4px !important;
+  }
+  .std-invoice .totals td { 
+    padding: 2px 0 !important; 
+  }
+  .std-invoice .footer { 
+    margin-top: 6px !important; 
+    font-size: 9px !important; 
   }
 }
           `}
