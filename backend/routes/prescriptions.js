@@ -1331,6 +1331,157 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+// Helper function to sync associated invoices when a prescription is updated or deleted
+async function syncInvoiceForPrescription(prescriptionId, activeMedications = []) {
+  try {
+    const MedicalInvoice = require('../models/MedicalInvoice');
+    const Payment = require('../models/Payment');
+
+    console.log(`[SYNC INVOICE] Starting sync for prescription ${prescriptionId}. Active medications:`, activeMedications);
+
+    // Find all invoices associated with this prescription
+    const invoiceIds = new Set();
+    
+    // Look up by prescriptionId in invoice item metadata or originalPrescriptionId
+    const matchingInvoices = await MedicalInvoice.find({
+      $or: [
+        { originalPrescriptionId: prescriptionId },
+        { 'items.metadata.prescriptionId': prescriptionId }
+      ]
+    });
+
+    matchingInvoices.forEach(inv => invoiceIds.add(inv._id.toString()));
+
+    const invoiceIdsArray = Array.from(invoiceIds);
+    console.log(`[SYNC INVOICE] Found associated invoices:`, invoiceIdsArray);
+
+    const invoicesToDelete = [];
+
+    for (const invoiceId of invoiceIdsArray) {
+      const invoice = await MedicalInvoice.findById(invoiceId);
+      if (!invoice) continue;
+
+      const otherItems = [];
+      const removedItems = [];
+
+      for (const item of invoice.items) {
+        const itemPrescriptionId = item.metadata?.prescriptionId || item.prescriptionId;
+        if (itemPrescriptionId && itemPrescriptionId.toString() === prescriptionId.toString()) {
+          const medName = item.metadata?.medicationName || item.description || '';
+          
+          // Check if this medication is still active
+          const isStillActive = activeMedications.some(activeName => {
+            if (!activeName) return false;
+            const normActive = activeName.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normItem = medName.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return normItem.includes(normActive) || normActive.includes(normItem);
+          });
+
+          if (isStillActive) {
+            otherItems.push(item);
+          } else {
+            removedItems.push(item);
+          }
+        } else {
+          otherItems.push(item);
+        }
+      }
+
+      console.log(`[SYNC INVOICE] Invoice ${invoice._id}: keeping ${otherItems.length} items, removing ${removedItems.length} items.`);
+
+      if (otherItems.length === 0) {
+        // If no items remain, we delete the invoice
+        invoicesToDelete.push(invoice._id);
+      } else if (removedItems.length > 0) {
+        // If some items were removed but others remain, update the invoice
+        invoice.items = otherItems;
+
+        // Recalculate totals
+        const newTotal = otherItems.reduce((sum, item) => sum + (item.total || (item.quantity * item.unitPrice || 0)), 0);
+        
+        // Sum all payments
+        const rawAmountPaid = (invoice.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0) + 
+                             (invoice.paymentHistory || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+        
+        const newAmountPaid = Math.min(rawAmountPaid, newTotal);
+        const newBalance = Math.max(0, newTotal - newAmountPaid);
+
+        invoice.subtotal = newTotal;
+        invoice.total = newTotal;
+        invoice.amountPaid = newAmountPaid;
+        invoice.balance = newBalance;
+
+        if (newBalance === 0 && newTotal > 0) {
+          invoice.status = 'paid';
+          if (invoice.paymentStatus) {
+            invoice.paymentStatus.current = 'fully_paid';
+            invoice.paymentStatus.percentage = 100;
+          }
+        } else if (newAmountPaid > 0) {
+          invoice.status = 'partial';
+          if (invoice.paymentStatus) {
+            invoice.paymentStatus.current = 'partial';
+            invoice.paymentStatus.percentage = Math.round((newAmountPaid / newTotal) * 100);
+          }
+        } else {
+          invoice.status = 'pending';
+          if (invoice.paymentStatus) {
+            invoice.paymentStatus.current = 'unpaid';
+            invoice.paymentStatus.percentage = 0;
+          }
+        }
+
+        await invoice.save();
+        console.log(`[SYNC INVOICE] Invoice ${invoice._id} updated successfully. New total: ${newTotal}, Balance: ${newBalance}`);
+      }
+    }
+
+    if (invoicesToDelete.length > 0) {
+      // Cascade delete payments only for the deleted invoices
+      const paymentDeleteResult = await Payment.deleteMany({
+        invoice: { $in: invoicesToDelete }
+      });
+      console.log(`[SYNC INVOICE] Deleted ${paymentDeleteResult.deletedCount} payments associated with deleted invoices`);
+
+      // Delete the invoices
+      const invoiceDeleteResult = await MedicalInvoice.deleteMany({
+        _id: { $in: invoicesToDelete }
+      });
+      console.log(`[SYNC INVOICE] Deleted ${invoiceDeleteResult.deletedCount} invoices`);
+    }
+  } catch (err) {
+    console.error('[SYNC INVOICE] Error syncing invoices:', err);
+  }
+}
+
+// Helper function to sync associated nurse tasks when a prescription is updated
+async function syncNurseTasksForPrescription(prescriptionId, activeMedications = []) {
+  try {
+    const NurseTask = require('../models/NurseTask');
+    console.log(`[SYNC NURSE TASKS] Starting sync for prescription ${prescriptionId}. Active medications:`, activeMedications);
+
+    const nurseTasks = await NurseTask.find({ prescriptionId });
+    
+    for (const task of nurseTasks) {
+      const taskMedName = task.medicationDetails?.medicationName || task.description || '';
+      
+      const isStillActive = activeMedications.some(activeName => {
+        if (!activeName) return false;
+        const normActive = activeName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const normTask = taskMedName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return normTask.includes(normActive) || normActive.includes(normTask);
+      });
+
+      if (!isStillActive) {
+        await NurseTask.findByIdAndDelete(task._id);
+        console.log(`[SYNC NURSE TASKS] Deleted task ${task._id} for medication ${taskMedName} as it was removed from prescription ${prescriptionId}`);
+      }
+    }
+  } catch (err) {
+    console.error('[SYNC NURSE TASKS] Error syncing nurse tasks:', err);
+  }
+}
+
 // PUT update prescription
 router.put('/:id', [auth,
   checkPermission('doctor', 'admin'),
@@ -1352,6 +1503,14 @@ router.put('/:id', [auth,
       return res.status(404).json({ msg: 'Prescription not found' });
     }
 
+    // Sync invoices and nurse tasks to reflect active medications
+    const activeMedNames = prescription.medications && prescription.medications.length > 0 
+      ? prescription.medications.map(m => m.name || m.medication || m.medicationName) 
+      : [prescription.medicationName];
+      
+    await syncInvoiceForPrescription(prescription._id, activeMedNames);
+    await syncNurseTasksForPrescription(prescription._id, activeMedNames);
+
     res.json(prescription);
   } catch (err) {
     console.error('Error updating prescription:', err);
@@ -1370,8 +1529,6 @@ router.delete('/:id', auth, checkRole('admin'), async (req, res) => {
       return res.status(404).json({ msg: 'Prescription not found' });
     }
 
-    const MedicalInvoice = require('../models/MedicalInvoice');
-    const Payment = require('../models/Payment');
     const Notification = require('../models/Notification');
     const NurseTask = require('../models/NurseTask');
 
@@ -1381,38 +1538,8 @@ router.delete('/:id', auth, checkRole('admin'), async (req, res) => {
     });
     console.log(`[DELETE PRESCRIPTION] Deleted ${nurseTaskDeleteResult.deletedCount} nurse tasks`);
 
-    // 2. Identify associated invoices
-    const invoiceIds = new Set();
-    if (prescription.invoiceId) {
-      invoiceIds.add(prescription.invoiceId.toString());
-    }
-
-    // Also look for invoices where originalPrescriptionId = id or items have metadata.prescriptionId = id
-    const matchingInvoices = await MedicalInvoice.find({
-      $or: [
-        { originalPrescriptionId: id },
-        { 'items.metadata.prescriptionId': id }
-      ]
-    }).select('_id');
-
-    matchingInvoices.forEach(inv => invoiceIds.add(inv._id.toString()));
-
-    const invoiceIdsArray = Array.from(invoiceIds);
-    console.log(`[DELETE PRESCRIPTION] Found associated invoices to delete:`, invoiceIdsArray);
-
-    if (invoiceIdsArray.length > 0) {
-      // Cascade delete payments
-      const paymentDeleteResult = await Payment.deleteMany({
-        invoice: { $in: invoiceIdsArray }
-      });
-      console.log(`[DELETE PRESCRIPTION] Deleted ${paymentDeleteResult.deletedCount} payments`);
-
-      // Delete invoices
-      const invoiceDeleteResult = await MedicalInvoice.deleteMany({
-        _id: { $in: invoiceIdsArray }
-      });
-      console.log(`[DELETE PRESCRIPTION] Deleted ${invoiceDeleteResult.deletedCount} invoices`);
-    }
+    // 2. Sync associated invoices (this handles both updating daily consolidated invoices and deleting dedicated ones)
+    await syncInvoiceForPrescription(id, []);
 
     // 3. Cascade delete notifications
     const notificationDeleteResult = await Notification.deleteMany({
