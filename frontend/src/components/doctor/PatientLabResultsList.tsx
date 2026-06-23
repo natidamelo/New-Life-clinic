@@ -8,6 +8,9 @@ import { Input } from '../ui/input';
 import { Card, CardContent } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Dialog, DialogContent } from '../ui/dialog';
+import { useAuth } from '../../context/AuthContext';
+import { api } from '../../services/api';
+import { toast } from 'react-hot-toast';
 
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const cfg: Record<string, { label: string; className: string }> = {
@@ -44,6 +47,7 @@ const PatientLabResultsList: React.FC<PatientLabResultsListProps> = ({
   viewedLabOrders = [],
   onViewReport
 }) => {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<PatientLabResults | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -157,22 +161,50 @@ const PatientLabResultsList: React.FC<PatientLabResultsListProps> = ({
                   <TableCell>
                     <StatusBadge status={patient?.status || 'Ordered'} />
                   </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedPatient(patient);
-                        if (onViewReport) {
-                          const ids = patient.tests.map(t => t._id || t.id).filter(Boolean);
-                          onViewReport(ids);
-                        }
-                      }}
-                      className="flex items-center gap-1"
-                    >
-                      <FileText size={16} />
-                      View Report
-                    </Button>
+                   <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedPatient(patient);
+                          if (onViewReport) {
+                            const ids = patient.tests.map(t => t._id || t.id).filter(Boolean);
+                            onViewReport(ids);
+                          }
+                        }}
+                        className="flex items-center gap-1"
+                      >
+                        <FileText size={16} />
+                        View Report
+                      </Button>
+                      {user?.role === 'admin' && patient.tests && patient.tests.length > 0 && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={async () => {
+                            const testNames = patient.tests.map(t => t.testName || 'Unknown Test').join(', ');
+                            if (window.confirm(`Are you sure you want to delete these lab orders (${testNames}) for ${patient.patientName}? All associated invoices, payments, and notifications will also be deleted.`)) {
+                              try {
+                                for (const test of patient.tests) {
+                                  const idToDelete = test._id || test.id;
+                                  if (idToDelete) {
+                                    await api.delete(`/api/lab-orders/${idToDelete}`);
+                                  }
+                                }
+                                toast.success('Lab orders deleted successfully');
+                                onRefresh();
+                              } catch (err: any) {
+                                console.error('Error deleting lab orders:', err);
+                                toast.error(err.response?.data?.message || 'Failed to delete lab orders');
+                              }
+                            }
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

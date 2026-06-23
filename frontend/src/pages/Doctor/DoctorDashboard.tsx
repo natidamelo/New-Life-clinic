@@ -3679,47 +3679,74 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                               </span>
                             </td>
                             <td className="px-4 py-2">
-                              <Button variant="outline" size="sm" onClick={async () => {
-                                // Use current group meds directly (no need to refetch)
-                                const meds = group.meds;
+                              <div className="flex items-center gap-2">
+                                <Button variant="outline" size="sm" onClick={async () => {
+                                  // Use current group meds directly (no need to refetch)
+                                  const meds = group.meds;
 
-                                // Extract the patient ID from the first prescription
-                                const firstMed = meds[0] as any;
-                                const patientObjId =
-                                  (firstMed?.patient && typeof firstMed.patient === 'object' ? firstMed.patient._id || firstMed.patient.id : null)
-                                  || (typeof firstMed?.patient === 'string' ? firstMed.patient : null)
-                                  || (firstMed?.patientId && typeof firstMed.patientId === 'object' ? firstMed.patientId._id || firstMed.patientId.id : null)
-                                  || (typeof firstMed?.patientId === 'string' ? firstMed.patientId : null);
+                                  // Extract the patient ID from the first prescription
+                                  const firstMed = meds[0] as any;
+                                  const patientObjId =
+                                    (firstMed?.patient && typeof firstMed.patient === 'object' ? firstMed.patient._id || firstMed.patient.id : null)
+                                    || (typeof firstMed?.patient === 'string' ? firstMed.patient : null)
+                                    || (firstMed?.patientId && typeof firstMed.patientId === 'object' ? firstMed.patientId._id || firstMed.patientId.id : null)
+                                    || (typeof firstMed?.patientId === 'string' ? firstMed.patientId : null);
 
-                                // Check if patient data is already populated
-                                const alreadyHasPatient = firstMed?.patient && typeof firstMed.patient === 'object' && firstMed.patient.firstName;
+                                  // Check if patient data is already populated
+                                  const alreadyHasPatient = firstMed?.patient && typeof firstMed.patient === 'object' && firstMed.patient.firstName;
 
-                                let patientData: any = alreadyHasPatient ? firstMed.patient : null;
+                                  let patientData: any = alreadyHasPatient ? firstMed.patient : null;
 
-                                // Try patients array first
-                                if (!patientData && patientObjId) {
-                                  patientData = patients.find((p: any) => p.id === patientObjId || p._id === patientObjId) || null;
-                                }
-
-                                // Fetch directly from API if still not found
-                                if (!patientData && patientObjId) {
-                                  try {
-                                    const res = await patientService.getPatientById(patientObjId);
-                                    if (res) patientData = res;
-                                  } catch {
-                                    // ignore fetch error, will show what we have
+                                  // Try patients array first
+                                  if (!patientData && patientObjId) {
+                                    patientData = patients.find((p: any) => p.id === patientObjId || p._id === patientObjId) || null;
                                   }
-                                }
 
-                                // Attach patient data to all meds
-                                const enrichedMeds = patientData
-                                  ? meds.map((med: any) => ({ ...med, patient: patientData }))
-                                  : meds;
+                                  // Fetch directly from API if still not found
+                                  if (!patientData && patientObjId) {
+                                    try {
+                                      const res = await patientService.getPatientById(patientObjId);
+                                      if (res) patientData = res;
+                                    } catch {
+                                      // ignore fetch error, will show what we have
+                                    }
+                                  }
 
-                                setSelectedPatientPrescriptions(enrichedMeds);
-                              }}>
-                                View
-                              </Button>
+                                  // Attach patient data to all meds
+                                  const enrichedMeds = patientData
+                                    ? meds.map((med: any) => ({ ...med, patient: patientData }))
+                                    : meds;
+
+                                  setSelectedPatientPrescriptions(enrichedMeds);
+                                }}>
+                                  View
+                                </Button>
+                                {user?.role === 'admin' && group.meds && group.meds.length > 0 && (
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={async () => {
+                                      if (window.confirm(`Are you sure you want to delete this prescription group for ${group.patientName}? All associated invoices, payments, and notifications will also be deleted.`)) {
+                                        try {
+                                          for (const med of group.meds) {
+                                            const idToDelete = med._id || med.id;
+                                            if (idToDelete) {
+                                              await api.delete(`/api/prescriptions/${idToDelete}`);
+                                            }
+                                          }
+                                          toast.success('Prescription group deleted successfully');
+                                          fetchAllPrescriptions();
+                                        } catch (err: any) {
+                                          console.error('Error deleting prescription group:', err);
+                                          toast.error(err.response?.data?.message || 'Failed to delete prescription group');
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    Delete
+                                  </Button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
