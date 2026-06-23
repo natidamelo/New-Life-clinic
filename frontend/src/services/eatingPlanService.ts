@@ -129,6 +129,7 @@ export interface EatingPlanResponse {
   medicationInfo: MedicationInfo;
   nutritionCalculations: NutritionCalculations;
   eatingPlan: EatingPlan;
+  isAIAvailable?: boolean;
   generatedAt: string;
   generatedBy: string;
 }

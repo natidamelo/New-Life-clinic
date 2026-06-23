@@ -95,6 +95,23 @@ const PrintableEatingPlan: React.FC<PrintableEatingPlanProps> = ({
     
     return `
       <div class="section">
+        <div class="section-title">Patient Profile</div>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">Age & Gender:</span>
+            <span class="info-value">${data.patient.age || 'N/A'} years, ${data.patient.gender || 'N/A'}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Plan Type:</span>
+            <span class="info-value">
+              ${data.patient.age >= 60 ? 'Geriatric Care Plan (60+)' : data.patient.age < 18 ? 'Pediatric Care Plan (<18)' : 'Adult Care Plan'}
+              ${data.isAIAvailable !== false ? ' | AI-Optimized' : ''}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
         <div class="section-title">Current Vital Signs</div>
         <div class="info-grid">
           <div class="info-item">
@@ -383,6 +400,28 @@ const PrintableEatingPlan: React.FC<PrintableEatingPlanProps> = ({
                 <p className="font-semibold">{eatingPlanData?.patient?.age || 'N/A'} years, {eatingPlanData?.patient?.gender || 'N/A'}</p>
               </div>
             </div>
+            {eatingPlanData?.patient?.age !== undefined && (
+              <div className="mt-4 pt-3 border-t border-border/10 flex flex-wrap gap-2">
+                {eatingPlanData.patient.age >= 60 ? (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                    👵 Geriatric Care Plan (Age 60+)
+                  </span>
+                ) : eatingPlanData.patient.age < 18 ? (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                    👶 Pediatric Care Plan (Age &lt; 18)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
+                    🧑 Adult Care Plan
+                  </span>
+                )}
+                {eatingPlanData?.isAIAvailable !== false && (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 animate-pulse">
+                    ✨ AI-Optimized Diet
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Vital Signs */}

@@ -1,8 +1,26 @@
 const express = require('express');
 const router = express.Router();
+const axios = require('axios');
 const VitalSigns = require('../models/VitalSigns');
 const Patient = require('../models/Patient');
 const { auth } = require('../middleware/auth');
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+async function callGemini(prompt) {
+  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_api_key_here') return null;
+  try {
+    const response = await axios.post(GEMINI_URL, {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
+    }, { timeout: 25000 });
+    return response.data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  } catch (err) {
+    console.error('Gemini API error:', err.message);
+    return null;
+  }
+}
 
 // Generate personalized eating plan based on patient's vital signs
 router.post('/generate/:patientId', auth, async (req, res) => {
@@ -54,6 +72,215 @@ router.post('/generate/:patientId', auth, async (req, res) => {
       medicationsCount: patient.medications?.length || 0,
       recentVitalsCount: recentVitals.length
     });
+
+    // Attempt Gemini AI generation first
+    if (GEMINI_API_KEY && GEMINI_API_KEY !== 'your_gemini_api_key_here') {
+      try {
+        console.log('🤖 [Eating Plan] Attempting Gemini AI generation...');
+        const bpString = latestVitals.systolic && latestVitals.diastolic ? 
+          `${latestVitals.systolic}/${latestVitals.diastolic} mmHg` : 'N/A';
+        
+        const historyList = (patient.medicalHistory || []).map(h => 
+          `- ${h.condition || h}: Diagnosis: ${h.diagnosis || 'N/A'}, Notes: ${h.notes || 'N/A'}`
+        ).join('\n');
+        
+        const medsList = (patient.medications || []).map(m => 
+          `- ${m.name || m}: Dosage: ${m.dosage || 'N/A'}, Frequency: ${m.frequency || 'N/A'}`
+        ).join('\n');
+
+        const allergiesList = (patient.allergies || []).map(a => 
+          `- ${a.allergen || a}: Severity: ${a.severity || 'N/A'}, Reaction: ${a.reaction || 'N/A'}`
+        ).join('\n');
+
+        const aiPrompt = `You are a clinical dietitian and expert nutritionist at New Life Clinic. 
+Generate a comprehensive, highly personalized eating plan for a patient based on their age, vital signs, medical history, allergies, and active medications.
+
+PATIENT PROFILE:
+- Name: ${patient.firstName} ${patient.lastName}
+- Age: ${patient.age || 'N/A'} years old
+- Gender: ${patient.gender || 'N/A'}
+
+VITAL SIGNS (LATEST MEASUREMENTS):
+- Blood Pressure: ${bpString}
+- Blood Sugar: ${latestVitals.bloodSugar || 'N/A'} mg/dL
+- Weight: ${latestVitals.weight || 'N/A'} kg
+- Height: ${latestVitals.height || 'N/A'} cm
+- BMI: ${latestVitals.bmi || 'N/A'}
+- Pulse: ${latestVitals.pulse || 'N/A'} bpm
+- Temperature: ${latestVitals.temperature || 'N/A'} °C
+
+MEDICAL HISTORY:
+${historyList || 'None recorded'}
+
+ACTIVE MEDICATIONS:
+${medsList || 'None recorded'}
+
+ALLERGIES:
+${allergiesList || 'None recorded'}
+
+DIETARY GOAL / PLAN TYPE REQUESTED:
+- Plan Type: ${planType.toUpperCase()} (e.g. DASH, Mediterranean, Balanced)
+
+CRITICAL REQUIREMENTS:
+1. **Age Consideration:** If the patient is elderly (60+ years), tailor the plan to support geriatric needs (e.g., higher protein density to counter sarcopenia, bone health nutrients like calcium and vitamin D, and lower sodium). If the patient is a child, prioritize growth and caloric stability.
+2. **Medical History Synthesis:** Analyze all chronic conditions. For Hypertension, restrict sodium strictly. For Diabetes, restrict carbohydrates and specify low-glycemic index foods. For High Cholesterol, restrict saturated/trans fats and promote soluble fiber. For obesity/overweight, target safe weight loss. For Chronic Kidney Disease (CKD), restrict protein, potassium, and phosphorus as appropriate.
+3. **Medication Safety & Food Interactions:** Analyze the patient's medications and identify any specific food-drug interactions. For example, if on Warfarin, mandate consistent vitamin K intake. If on Statins, prohibit grapefruit. If on Lisinopril/ACE inhibitors, warn against excess potassium. If on Levothyroxine, specify empty stomach morning guidelines. Identify any other relevant interactions for any listed medication.
+4. **Hydration & Caloric Calculations:** Calculate caloric requirements (BMR, TDEE, adjusted Target Calories) and macro splits. Ensure these align with the patient's age, BMI, and clinical conditions.
+
+You must respond ONLY with a JSON object. No other text, no markdown block quotes. The JSON must match the following EXACT structure:
+{
+  "conditions": {
+    "hypertension": boolean,
+    "diabetes": boolean,
+    "highCholesterol": boolean,
+    "obesity": boolean,
+    "overweight": boolean,
+    "underweight": boolean,
+    "preDiabetes": boolean,
+    "metabolicSyndrome": boolean,
+    "riskLevel": "low" | "moderate" | "high",
+    "trends": {
+      "bloodPressure": "stable" | "increasing" | "decreasing",
+      "weight": "stable" | "increasing" | "decreasing",
+      "bloodSugar": "stable" | "increasing" | "decreasing"
+    }
+  },
+  "allergyInfo": {
+    "hasAllergies": boolean,
+    "allergyList": [string],
+    "foodAllergies": [string],
+    "restrictions": [string]
+  },
+  "medicationInfo": {
+    "hasMedications": boolean,
+    "medicationNames": [string],
+    "foodInteractions": [string],
+    "warnings": [string]
+  },
+  "nutritionCalculations": {
+    "caloricNeeds": {
+      "bmr": number,
+      "tdee": number,
+      "targetCalories": number,
+      "weightGoal": "lose" | "maintain" | "gain"
+    },
+    "hydrationNeeds": {
+      "liters": string,
+      "cups": string,
+      "ml": string
+    },
+    "macronutrients": {
+      "protein": {
+        "grams": number,
+        "percentage": string,
+        "calories": number
+      },
+      "carbohydrates": {
+        "grams": number,
+        "percentage": string,
+        "calories": number
+      },
+      "fats": {
+        "grams": number,
+        "percentage": string,
+        "calories": number
+      }
+    }
+  },
+  "eatingPlan": {
+    "planName": string,
+    "duration": "4 weeks",
+    "targetCalories": number,
+    "weightGoal": "lose" | "maintain" | "gain",
+    "goals": [string],
+    "restrictions": [string],
+    "foodsToEat": [string],
+    "foodsToAvoid": [string],
+    "weeklyMealPlan": {
+      "monday": { "breakfast": string, "lunch": string, "dinner": string, "snack": string },
+      "tuesday": { "breakfast": string, "lunch": string, "dinner": string, "snack": string },
+      "wednesday": { "breakfast": string, "lunch": string, "dinner": string, "snack": string },
+      "thursday": { "breakfast": string, "lunch": string, "dinner": string, "snack": string },
+      "friday": { "breakfast": string, "lunch": string, "dinner": string, "snack": string },
+      "saturday": { "breakfast": string, "lunch": string, "dinner": string, "snack": string },
+      "sunday": { "breakfast": string, "lunch": string, "dinner": string, "snack": string }
+    },
+    "nutritionalGuidelines": {
+      "calories": string,
+      "protein": string,
+      "carbohydrates": string,
+      "fats": string,
+      "fiber": string,
+      "sodium": string,
+      "potassium": string,
+      "calcium": string
+    },
+    "lifestyleRecommendations": [string],
+    "allergyConsiderations": [string],
+    "medicationInteractions": [string]
+  }
+}
+`;
+
+        const aiText = await callGemini(aiPrompt);
+        if (aiText) {
+          const cleaned = aiText.replace(/```json\n?|\n?```/g, '').trim();
+          const parsed = JSON.parse(cleaned);
+          
+          const conditions = parsed.conditions;
+          const allergyInfo = parsed.allergyInfo;
+          const medicationInfo = parsed.medicationInfo;
+          const caloricNeeds = parsed.nutritionCalculations.caloricNeeds;
+          const hydrationNeeds = parsed.nutritionCalculations.hydrationNeeds;
+          const macronutrients = parsed.nutritionCalculations.macronutrients;
+          const eatingPlan = parsed.eatingPlan;
+
+          console.log('✅ [Eating Plan] Gemini AI successfully generated plan for patient:', patientId);
+
+          return res.json({
+            success: true,
+            isAIAvailable: true,
+            data: {
+              patient: {
+                id: patient._id,
+                name: `${patient.firstName} ${patient.lastName}`,
+                age: patient.age,
+                gender: patient.gender,
+                patientId: patient.patientId,
+                diabetic: patient.diabetic,
+                allergies: allergyInfo.allergyList || [],
+                medications: medicationInfo.medicationNames || []
+              },
+              vitalSigns: {
+                bloodPressure: latestVitals.systolic && latestVitals.diastolic ? 
+                  `${latestVitals.systolic}/${latestVitals.diastolic}` : 'Not measured',
+                bloodSugar: latestVitals.bloodSugar || 'Not measured',
+                weight: latestVitals.weight || 'Not measured',
+                height: latestVitals.height || 'Not measured',
+                bmi: latestVitals.bmi || 'Not calculated',
+                pulse: latestVitals.pulse || 'Not measured',
+                temperature: latestVitals.temperature || 'Not measured',
+                measurementDate: latestVitals.measurementDate
+              },
+              conditions,
+              allergyInfo,
+              medicationInfo,
+              nutritionCalculations: {
+                caloricNeeds,
+                hydrationNeeds,
+                macronutrients
+              },
+              eatingPlan,
+              isAIAvailable: true,
+              generatedAt: new Date(),
+              generatedBy: req.user.name
+            }
+          });
+        }
+      } catch (err) {
+        console.error('⚠️ [Eating Plan] Gemini AI generation failed or parsed incorrectly, falling back to rule-based generation:', err.message);
+      }
+    }
 
     // Analyze patient's condition comprehensively
     const conditions = analyzePatientCondition(patient, latestVitals, recentVitals);
@@ -128,6 +355,7 @@ router.post('/generate/:patientId', auth, async (req, res) => {
           }
         },
         eatingPlan,
+        isAIAvailable: false,
         generatedAt: new Date(),
         generatedBy: req.user.name
       }
