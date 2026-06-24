@@ -209,6 +209,83 @@ router.post('/book-appointment', async (req, res) => {
       }
     }
 
+    // Subscribe patient to health package and create invoice if packageId is supplied
+    let patientPackageDoc;
+    let medicalInvoiceDoc;
+
+    if (appointmentData.packageId) {
+      try {
+        const HealthPackage = require('../models/HealthPackage');
+        const PatientPackage = require('../models/PatientPackage');
+        const MedicalInvoice = require('../models/MedicalInvoice');
+
+        const healthPackage = await HealthPackage.findById(appointmentData.packageId);
+        if (healthPackage) {
+          const now = new Date();
+          const startDate = now;
+          const expiryDate = new Date(startDate);
+          expiryDate.setDate(expiryDate.getDate() + healthPackage.validity_days);
+
+          // Create PatientPackage subscription
+          patientPackageDoc = new PatientPackage({
+            clinicId: 'new-life',
+            patient_id: patientId,
+            package_id: healthPackage._id,
+            purchased_date: startDate,
+            expiry_date: expiryDate,
+            total_visits: healthPackage.total_visits,
+            visits_used: 0,
+            visits_remaining: healthPackage.total_visits,
+            status: 'active',
+            payment_status: 'pending',
+            amount_paid: 0,
+            balance_due: healthPackage.price
+          });
+          await patientPackageDoc.save();
+
+          // Create MedicalInvoice for the package subscription
+          const invoiceNumber = await MedicalInvoice.generateInvoiceNumber();
+          medicalInvoiceDoc = new MedicalInvoice({
+            clinicId: 'new-life',
+            invoiceNumber,
+            patient: patientId,
+            patientId: patientDoc.patientId || `PAT${String(Date.now()).slice(-6)}`,
+            patientName: `${patientDoc.firstName} ${patientDoc.lastName}`.trim(),
+            issueDate: startDate,
+            dueDate: expiryDate,
+            items: [{
+              itemType: 'service',
+              category: 'service',
+              description: `Health Package Subscription: ${healthPackage.name}`,
+              quantity: 1,
+              unitPrice: healthPackage.price,
+              total: healthPackage.price,
+              notes: `Predefined package containing ${healthPackage.total_visits} visits, valid for ${healthPackage.validity_days} days.`
+            }],
+            subtotal: healthPackage.price,
+            total: healthPackage.price,
+            amountPaid: 0,
+            balance: healthPackage.price,
+            status: 'pending',
+            paymentStatus: {
+              current: 'unpaid',
+              percentage: 0,
+              history: []
+            },
+            source: 'reception',
+            notes: `Public self-booking package subscription: ${healthPackage.name}`
+          });
+          await medicalInvoiceDoc.save();
+          console.log(`✅ [PUBLIC BOOKING] Created PatientPackage and MedicalInvoice for package: ${healthPackage.name}`);
+        } else {
+          console.warn(`⚠️ [PUBLIC BOOKING] Health package template not found for ID: ${appointmentData.packageId}`);
+        }
+      } catch (err) {
+        console.error('❌ [PUBLIC BOOKING] Failed to assign health package or generate invoice:', err);
+        // Do not crash the booking process; proceed with creating the appointment
+      }
+    }
+
     // Book appointment
     const appointment = new Appointment({
       clinicId: 'new-life',

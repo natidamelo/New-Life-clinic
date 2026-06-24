@@ -217,7 +217,8 @@ const Login: React.FC = () => {
     appointmentDateTime: '',
     type: 'Consultation',
     reason: '',
-    department: 'General Medicine'
+    department: 'General Medicine',
+    packageId: ''
   });
   const [bookingResult, setBookingResult] = useState<any>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
@@ -441,7 +442,8 @@ const Login: React.FC = () => {
           appointmentDateTime: bookingDetails.appointmentDateTime,
           type: bookingDetails.type,
           reason: bookingDetails.reason,
-          durationMinutes: 30
+          durationMinutes: 30,
+          packageId: bookingDetails.packageId || undefined
         }
       };
 
@@ -1150,7 +1152,8 @@ const Login: React.FC = () => {
                           setBookingDetails(prev => ({
                             ...prev,
                             type: 'Check-up',
-                            reason: `Interested in Package: ${pkg.name}`
+                            reason: `Interested in Package: ${pkg.name}`,
+                            packageId: pkg._id
                           }));
                         }}
                         className={`w-full py-3 rounded-2xl text-xs font-bold shadow-lg transition-all duration-300 hover:scale-[1.01] ${
