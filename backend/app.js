@@ -1106,6 +1106,9 @@ const createApp = () => {
   // Health Packages routes
   app.use('/api', require('./routes/healthPackages'));
 
+  // Public Patient Portal routes
+  app.use('/api/public', require('./routes/public'));
+
   // Depo Injection routes
   app.use('/api/depo-injections', require('./routes/depoInjectionRoutes'));
 
