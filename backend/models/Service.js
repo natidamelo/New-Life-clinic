@@ -22,7 +22,7 @@ const ServiceSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['consultation', 'procedure', 'lab', 'imaging', 'injection', 'ultrasound', 'blood_test', 'rbs', 'vital_signs', 'other'],
+    enum: ['consultation', 'procedure', 'lab', 'imaging', 'injection', 'ultrasound', 'blood_test', 'rbs', 'vital_signs', 'nursing', 'pharmacy', 'other'],
     default: 'other',
   },
   price: {

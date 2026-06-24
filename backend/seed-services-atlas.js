@@ -1,17 +1,16 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+const path = require('path');
 
-// Load environment variables from .env
+// Load environment variables from backend/.env
 dotenv.config();
 
-// MongoDB connection string from environment
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
 if (!MONGO_URI) {
-  console.error('ERROR: MONGO_URI env variable is missing.');
+  console.error('ERROR: MONGODB_URI/MONGO_URI env variable is missing in backend/.env.');
   process.exit(1);
 }
 
-// Comprehensive list of medical services matching frontend categories: lab, imaging, consultation, nursing, pharmacy
 const defaultServices = [
   // Pharmacy Services
   {
@@ -164,40 +163,32 @@ const defaultServices = [
   }
 ];
 
-// Connect to MongoDB and seed services
-async function seedServices() {
+async function seed() {
   console.log('Connecting to database: ' + MONGO_URI.substring(0, 30) + '...');
   try {
-    // Disable buffering globally on mongoose to fail fast if connection issue
-    mongoose.set('bufferCommands', false);
-
-    // Connect to MongoDB
+    // Connect to database
     await mongoose.connect(MONGO_URI);
     console.log('Connected to MongoDB successfully!');
 
-    // Require the model AFTER connection is established
-    const Service = require('./backend/models/Service');
+    // Require model (now resolves to the exact same mongoose instance)
+    const Service = require('./models/Service');
 
-    // Remove existing services
     console.log('Clearing existing services catalog...');
     await Service.deleteMany({});
     console.log('Existing services catalog cleared.');
 
-    // Insert new services
-    const insertedServices = await Service.insertMany(defaultServices);
-    console.log(`Seeded ${insertedServices.length} services successfully:`);
-    insertedServices.forEach(service => {
-      console.log(`- ${service.name} (${service.category})`);
+    const inserted = await Service.insertMany(defaultServices);
+    console.log(`Successfully seeded ${inserted.length} services:`);
+    inserted.forEach(s => {
+      console.log(`- ${s.name} (${s.category})`);
     });
 
-    // Close the connection
     await mongoose.connection.close();
-    console.log('MongoDB connection closed.');
-  } catch (error) {
-    console.error('Error seeding services:', error);
+    console.log('Database connection closed.');
+  } catch (err) {
+    console.error('Seeding failed:', err);
     process.exit(1);
   }
 }
 
-// Run the seeding function
-seedServices();
+seed();
