@@ -244,7 +244,7 @@ const Login: React.FC = () => {
   const fetchServices = async () => {
     setServicesLoading(true);
     try {
-      const res = await api.get('/public/services');
+      const res = await api.get('/api/public/services');
       if (res.data && res.data.success && res.data.data.length > 0) {
         setServices(res.data.data);
       } else {
@@ -261,7 +261,7 @@ const Login: React.FC = () => {
   const fetchPackages = async () => {
     setPackagesLoading(true);
     try {
-      const res = await api.get('/public/packages');
+      const res = await api.get('/api/public/packages');
       if (res.data && res.data.success && res.data.data.length > 0) {
         setPackages(res.data.data);
       } else {
@@ -277,7 +277,7 @@ const Login: React.FC = () => {
 
   const fetchDoctors = async () => {
     try {
-      const res = await api.get('/public/doctors');
+      const res = await api.get('/api/public/doctors');
       if (res.data && res.data.success && res.data.data.length > 0) {
         setDoctors(res.data.data);
       } else {
@@ -403,7 +403,7 @@ const Login: React.FC = () => {
     }
     setBookingLoading(true);
     try {
-      const res = await api.post('/public/find-patient', {
+      const res = await api.post('/api/public/find-patient', {
         patientId: returningId.trim(),
         contactNumber: returningPhone.trim()
       });
@@ -440,7 +440,7 @@ const Login: React.FC = () => {
         }
       };
 
-      const res = await api.post('/public/book-appointment', payload);
+      const res = await api.post('/api/public/book-appointment', payload);
       if (res.data && res.data.success) {
         setBookingResult(res.data.data);
         toast.success('Appointment scheduled successfully!');
@@ -461,7 +461,7 @@ const Login: React.FC = () => {
     }
     setCardLoading(true);
     try {
-      const res = await api.post('/public/register-patient', cardForm);
+      const res = await api.post('/api/public/register-patient', cardForm);
       if (res.data && res.data.success) {
         setCardResult(res.data.data);
         toast.success('Patient Card registered successfully!');
