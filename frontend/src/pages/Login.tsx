@@ -89,6 +89,8 @@ const FALLBACK_PACKAGES = [
     price: 3000,
     total_visits: 6,
     validity_days: 180,
+    featured: false,
+    featuredLabel: 'MOST BOOKED',
     services: [
       'FBS (Fasting Blood Sugar)',
       'RBS (Random Blood Sugar)',
@@ -105,6 +107,8 @@ const FALLBACK_PACKAGES = [
     price: 1800,
     total_visits: 4,
     validity_days: 90,
+    featured: false,
+    featuredLabel: 'MOST BOOKED',
     services: [
       'Blood Pressure Monitor',
       'ECG (Electrocardiogram)',
@@ -119,6 +123,8 @@ const FALLBACK_PACKAGES = [
     price: 4500,
     total_visits: 3,
     validity_days: 365,
+    featured: false,
+    featuredLabel: 'MOST BOOKED',
     services: [
       'CBC (Complete Blood Count)',
       'Urinalysis',
@@ -351,6 +357,115 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ category, price, title, descr
     </div>
   );
 };
+
+interface PrimaryButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+}
+
+const PrimaryButton: React.FC<PrimaryButtonProps> = ({ children, className = '', ...props }) => {
+  return (
+    <button
+      {...props}
+      className={`w-full py-2.5 px-4 rounded-xl text-xs font-mono font-bold uppercase tracking-widest border border-ink bg-ink text-paper hover:bg-pulse hover:border-pulse dark:border-paper dark:bg-paper dark:text-ink dark:hover:bg-pulse dark:hover:text-paper dark:hover:border-pulse transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 ${className}`}
+    >
+      {children}
+    </button>
+  );
+};
+
+interface PackageCardProps {
+  name: string;
+  price: number;
+  description: string;
+  validityDays: number;
+  totalVisits: number;
+  services: string[];
+  featured?: boolean;
+  featuredLabel?: string;
+  onBook: () => void;
+}
+
+const PackageCard: React.FC<PackageCardProps> = ({
+  name,
+  price,
+  description,
+  validityDays,
+  totalVisits,
+  services,
+  featured = false,
+  featuredLabel = 'MOST BOOKED',
+  onBook,
+}) => {
+  return (
+    <div
+      className={`relative p-6 border flex flex-col justify-between hover:translate-y-[-4px] hover:shadow-md transition-all duration-300 bg-paper dark:bg-slate-900 rounded-b-xl rounded-tr-xl rounded-tl-none ${
+        featured
+          ? 'border-ink/10 dark:border-slate-800 border-t-2 border-t-pulse dark:border-t-pulse'
+          : 'border-ink/10 dark:border-slate-800'
+      }`}
+    >
+      {featured && (
+        <div className="absolute -top-3.5 left-6">
+          <span className="px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider bg-pulse/5 text-pulse border border-pulse/35 rounded">
+            {featuredLabel}
+          </span>
+        </div>
+      )}
+
+      {/* Main content wrapper */}
+      <div className="flex-grow flex flex-col">
+        {/* Title row */}
+        <div className="flex justify-between items-start gap-4 mb-4">
+          <h3 className="font-sans font-bold text-xl tracking-tight leading-tight text-ink dark:text-paper">
+            {name}
+          </h3>
+          <DataValue value={`${price} ETB`} className="text-xl whitespace-nowrap text-ink dark:text-paper" />
+        </div>
+
+        {/* Description */}
+        <p className="font-sans text-xs leading-relaxed text-slate dark:text-slate-400 mb-6">
+          {description}
+        </p>
+
+        {/* Dashed divider */}
+        <div className="border-t border-dashed border-ink/15 dark:border-paper/15 my-4 -mx-6" />
+
+        {/* Validity & Total Visits */}
+        <div className="grid grid-cols-2 gap-4 mb-6 text-xs font-sans">
+          <div>
+            <span className="block font-mono uppercase text-[10px] text-slate dark:text-slate-400 tracking-wider">Validity</span>
+            <DataValue value={`${validityDays} days`} className="text-sm font-bold" />
+          </div>
+          <div>
+            <span className="block font-mono uppercase text-[10px] text-slate dark:text-slate-400 tracking-wider">Total Visits</span>
+            <DataValue value={`${totalVisits} visits`} className="text-sm font-bold" />
+          </div>
+        </div>
+
+        {/* Covered Services */}
+        <div className="space-y-3 mb-8">
+          <p className="font-mono uppercase text-[10px] tracking-wider text-slate dark:text-slate-400">SERVICES INCLUDED:</p>
+          <div className="grid gap-2">
+            {services.map((srv) => (
+              <div key={srv} className="flex items-start gap-2 text-xs">
+                <Check className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-pulse dark:text-pulse" />
+                <span className="text-ink dark:text-slate-300 font-sans">{srv}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Button wrapper sits flush at bottom */}
+      <div className="mt-auto pt-2">
+        <PrimaryButton onClick={onBook}>
+          Select Package & Book
+        </PrimaryButton>
+      </div>
+    </div>
+  );
+};
+
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -857,11 +972,11 @@ const Login: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('home')}>
             <div className="h-9 w-9 rounded-xl flex items-center justify-center overflow-hidden bg-white border border-slate-200/50">
-              <img src="/assets/images/logo.jpg" alt="New Life Clinic Logo" className="h-full w-full object-cover" />
+              <img src={clinic?.logo || "/assets/images/logo.jpg"} alt={`${clinic?.name || CLINIC_INFO.name} Logo`} className="h-full w-full object-cover" />
             </div>
             <div>
-              <span className="font-extrabold text-md tracking-tight uppercase text-ink dark:text-paper">New Life Clinic</span>
-              <span className="block text-[9px] tracking-widest uppercase text-pulse font-bold">Smart Healthcare</span>
+              <span className="font-extrabold text-md tracking-tight uppercase text-ink dark:text-paper">{clinic?.name || CLINIC_INFO.name}</span>
+              <span className="block text-[9px] tracking-widest uppercase text-pulse font-bold">{clinic?.tagline || CLINIC_INFO.tagline}</span>
             </div>
           </div>
 
@@ -1141,22 +1256,28 @@ const Login: React.FC = () => {
                       <BookOpen className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
                       <div>
                         <p className={`text-xs uppercase tracking-wider font-bold ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Address</p>
-                        <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{CLINIC_INFO.address}</p>
+                        <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{clinic?.address || CLINIC_INFO.address}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
                       <Phone className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
                       <div>
                         <p className={`text-xs uppercase tracking-wider font-bold ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Phone</p>
-                        <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{CLINIC_INFO.phone}</p>
-                        <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{CLINIC_INFO.mobile}</p>
+                        {clinic?.contactPhone ? (
+                          <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{clinic.contactPhone}</p>
+                        ) : (
+                          <>
+                            <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{CLINIC_INFO.phone}</p>
+                            <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{CLINIC_INFO.mobile}</p>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
                       <Mail className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
                       <div>
                         <p className={`text-xs uppercase tracking-wider font-bold ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Email</p>
-                        <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{CLINIC_INFO.email}</p>
+                        <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{clinic?.contactEmail || CLINIC_INFO.email}</p>
                       </div>
                     </div>
                   </div>
@@ -1278,7 +1399,7 @@ const Login: React.FC = () => {
               <div className="text-center space-y-2">
                 <h2 className="text-3xl font-black tracking-tight">Our Health Packages</h2>
                 <p className={`max-w-[560px] mx-auto text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Choose a tailored health package designed for chronic monitoring, regular review cycles, and all-inclusive testing.
+                  Choose a <span className="font-annotation italic text-pulse leading-none text-lg">tailored</span> health package designed for chronic monitoring, regular review cycles, and all-inclusive testing.
                 </p>
               </div>
 
@@ -1288,80 +1409,29 @@ const Login: React.FC = () => {
                   <p className="text-xs text-slate-400 mt-4">Loading health packages...</p>
                 </div>
               ) : packages.length > 0 ? (
-                <div className="grid md:grid-cols-3 gap-8">
+                <div className="grid md:grid-cols-3 gap-8 items-stretch">
                   {packages.map(pkg => (
-                    <div
+                    <PackageCard
                       key={pkg._id}
-                      className={`relative rounded-3xl p-6 border flex flex-col justify-between hover:shadow-xl transition-all duration-300 ${
-                        isDarkMode 
-                          ? 'border-slate-800 bg-slate-900/30 hover:border-cyan-500/25' 
-                          : 'border-slate-200 bg-white hover:border-teal-500/25'
-                      }`}
-                    >
-                      <div>
-                        {/* Title block */}
-                        <div className="flex justify-between items-start gap-4 mb-4">
-                          <h3 className="font-extrabold text-xl tracking-tight leading-tight">{pkg.name}</h3>
-                          <div className="text-right">
-                            <span className={`block font-black text-2xl ${isDarkMode ? 'text-cyan-300' : 'text-teal-600'}`}>
-                              {pkg.price} ETB
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Description */}
-                        <p className={`text-xs leading-relaxed mb-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                          {pkg.description}
-                        </p>
-
-                        <div className="border-t border-dashed my-4 opacity-30" />
-
-                        {/* Stats/Details */}
-                        <div className="grid grid-cols-2 gap-4 mb-6 text-xs">
-                          <div>
-                            <span className="block text-slate-400 font-medium">Validity</span>
-                            <span className="font-bold">{pkg.validity_days} days</span>
-                          </div>
-                          <div>
-                            <span className="block text-slate-400 font-medium">Total Visits</span>
-                            <span className="font-bold">{pkg.total_visits} visits</span>
-                          </div>
-                        </div>
-
-                        {/* Covered Services */}
-                        <div className="space-y-2 mb-8">
-                          <p className="text-xs uppercase font-bold tracking-wider text-slate-400">Services Included:</p>
-                          <div className="grid gap-1.5">
-                            {pkg.services.map((srv: string) => (
-                              <div key={srv} className="flex items-start gap-2 text-xs">
-                                <Check className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'}`} />
-                                <span className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>{srv}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          setActiveTab('appointment');
-                          setBookingStep(1);
-                          setBookingDetails(prev => ({
-                            ...prev,
-                            type: 'Check-up',
-                            reason: `Interested in Package: ${pkg.name}`,
-                            packageId: pkg._id
-                          }));
-                        }}
-                        className={`w-full py-3 rounded-2xl text-xs font-bold shadow-lg transition-all duration-300 hover:scale-[1.01] ${
-                          isDarkMode
-                            ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 hover:shadow-cyan-500/10'
-                            : 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white hover:shadow-teal-600/10'
-                        }`}
-                      >
-                        Select Package & Book
-                      </button>
-                    </div>
+                      name={pkg.name}
+                      price={pkg.price}
+                      description={pkg.description}
+                      validityDays={pkg.validity_days}
+                      totalVisits={pkg.total_visits}
+                      services={pkg.services}
+                      featured={pkg.featured || false}
+                      featuredLabel={pkg.featuredLabel || 'MOST BOOKED'}
+                      onBook={() => {
+                        setActiveTab('appointment');
+                        setBookingStep(1);
+                        setBookingDetails(prev => ({
+                          ...prev,
+                          type: 'Check-up',
+                          reason: `Interested in Package: ${pkg.name}`,
+                          packageId: pkg._id
+                        }));
+                      }}
+                    />
                   ))}
                 </div>
               ) : (
@@ -2364,26 +2434,30 @@ const Login: React.FC = () => {
       <PulseDivider animate={false} />
 
       {/* Footer */}
-      <footer className="py-12 bg-ink text-paper mt-auto text-xs font-sans border-t border-paper/10 dark:border-slate-800">
+      <footer className="py-12 bg-mist dark:bg-slate-900/60 text-ink dark:text-paper mt-auto text-xs font-sans border-t border-ink/10 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid md:grid-cols-3 gap-8 mb-6">
             {/* Clinic Info */}
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <div className="h-5 w-5 rounded-md overflow-hidden bg-white flex items-center justify-center border border-slate-200/20">
-                  <img src="/assets/images/logo.jpg" alt="New Life Clinic Logo" className="h-full w-full object-cover" />
+                  <img src={clinic?.logo || "/assets/images/logo.jpg"} alt={`${clinic?.name || CLINIC_INFO.name} Logo`} className="h-full w-full object-cover" />
                 </div>
-                <span className="font-extrabold text-sm uppercase tracking-tight text-paper">{CLINIC_INFO.name}</span>
+                <span className="font-extrabold text-sm uppercase tracking-tight text-ink dark:text-paper">{clinic?.name || CLINIC_INFO.name}</span>
               </div>
-              <p className="text-xs leading-relaxed text-slate-300">
-                {CLINIC_INFO.address}
+              <p className="text-xs leading-relaxed text-slate dark:text-slate-400">
+                {clinic?.address || CLINIC_INFO.address}
               </p>
-              <p className="text-xs mt-1 text-slate-300">{CLINIC_INFO.phone} • {CLINIC_INFO.mobile}</p>
-              <p className="text-xs text-slate-300">{CLINIC_INFO.email}</p>
+              {clinic?.contactPhone ? (
+                <p className="text-xs mt-1 text-slate dark:text-slate-400">{clinic.contactPhone}</p>
+              ) : (
+                <p className="text-xs mt-1 text-slate dark:text-slate-400">{CLINIC_INFO.phone} • {CLINIC_INFO.mobile}</p>
+              )}
+              <p className="text-xs text-slate dark:text-slate-400">{clinic?.contactEmail || CLINIC_INFO.email}</p>
             </div>
             {/* Quick Links */}
             <div>
-              <p className="font-bold text-xs uppercase tracking-wider mb-3 text-paper">Quick Links</p>
+              <p className="font-bold text-xs uppercase tracking-wider mb-3 text-ink dark:text-paper">Quick Links</p>
               <div className="space-y-1.5">
                 {[
                   { id: 'services' as Tab, label: 'Our Services' },
@@ -2394,7 +2468,7 @@ const Login: React.FC = () => {
                   <button 
                     key={link.id} 
                     onClick={() => setActiveTab(link.id)} 
-                    className="block text-xs transition-colors text-slate-300 hover:text-pulse focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 rounded"
+                    className="block text-xs transition-colors text-slate dark:text-slate-400 hover:text-pulse focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 rounded"
                   >
                     {link.label}
                   </button>
@@ -2403,10 +2477,10 @@ const Login: React.FC = () => {
             </div>
             {/* Hours Summary */}
             <div>
-              <p className="font-bold text-xs uppercase tracking-wider mb-3 text-paper">Hours</p>
+              <p className="font-bold text-xs uppercase tracking-wider mb-3 text-ink dark:text-paper">Hours</p>
               <div className="space-y-1">
                 {CLINIC_INFO.hours.map(h => (
-                  <div key={h.day} className="flex justify-between text-xs text-slate-300">
+                  <div key={h.day} className="flex justify-between text-xs text-slate dark:text-slate-400">
                     <span>{h.day}</span>
                     <span className="font-medium">{h.time}</span>
                   </div>
@@ -2414,7 +2488,7 @@ const Login: React.FC = () => {
               </div>
             </div>
           </div>
-          <div className="pt-4 border-t border-paper/10 text-center text-slate-400">
+          <div className="pt-4 border-t border-ink/10 dark:border-slate-800 text-center text-slate dark:text-slate-500">
             © {new Date().getFullYear()} {clinic?.name || CLINIC_INFO.name}. Smart Health Management. All rights reserved.
           </div>
         </div>
