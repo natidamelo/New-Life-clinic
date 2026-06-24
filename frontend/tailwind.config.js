@@ -11,9 +11,24 @@ module.exports = {
         forest: "var(--forest)",
         sage: "var(--sage)",
         sun: "var(--sun)",
-        clay: "var(--clay)",
-        linen: "var(--linen)",
-        ink: "var(--ink)",
+        ink: "var(--chart-ink)",
+        paper: "var(--chart-paper)",
+        pulse: "var(--chart-pulse)",
+        mist: "var(--chart-mist)",
+        slate: {
+          DEFAULT: "var(--chart-slate)",
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          900: '#0f172a',
+          950: '#020617',
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -66,6 +81,10 @@ module.exports = {
       fontFamily: {
         fraunces: ["var(--font-fraunces)", "serif"],
         worksans: ["var(--font-worksans)", "sans-serif"],
+        /* ── Chart & Pulse fonts ── */
+        sans: ['"IBM Plex Sans"', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'monospace'],
+        annotation: ['"Instrument Serif"', 'serif'],
       },
       keyframes: {
         "fade-in": {

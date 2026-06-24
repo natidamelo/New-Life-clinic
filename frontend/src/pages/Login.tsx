@@ -22,12 +22,7 @@ const LoginSchema = Yup.object().shape({
   clinicId: Yup.string().trim(),
 });
 
-const stats = [
-  { value: '10K+', label: 'Patients Served', icon: Users },
-  { value: '50+', label: 'Staff Members', icon: ShieldCheck },
-  { value: '99.9%', label: 'Uptime', icon: Activity },
-  { value: '24/7', label: 'Support', icon: Clock },
-];
+
 
 // ─── Real clinic information ───────────────────────────────────────
 const CLINIC_INFO = {
@@ -43,17 +38,14 @@ const CLINIC_INFO = {
     { day: 'Sunday', time: '9:00 AM – 2:00 PM' },
     { day: 'Emergency', time: '24/7 Available' },
   ],
-};
-
-const CLINIC_DEPARTMENTS = [
-  { name: 'General Medicine', desc: 'Primary care and internal medicine consultations for adults and adolescents.', icon: Stethoscope },
-  { name: 'Pediatrics', desc: 'Comprehensive child healthcare including vaccinations, growth monitoring, and acute care.', icon: Users },
-  { name: 'Laboratory & Diagnostics', desc: 'Full-service clinical lab with CBC, urinalysis, chemistry panels, RBS, and more.', icon: Activity },
-  { name: 'Imaging & Ultrasound', desc: 'Diagnostic imaging including standard and detailed ultrasound examinations.', icon: FileText },
-  { name: 'Pharmacy', desc: 'In-house pharmacy dispensing prescribed medications with patient counselling.', icon: ShieldCheck },
-  { name: 'Nursing & Injection', desc: 'IV, IM, and SC injections, wound care, vital-sign monitoring, and patient follow-up.', icon: Award },
+};const CLINIC_DEPARTMENTS = [
+  { name: 'General Medicine', desc: 'Primary care and internal medicine consultations for adults and adolescents.', icon: Stethoscope, abbr: 'GEN' },
+  { name: 'Pediatrics', desc: 'Comprehensive child healthcare including vaccinations, growth monitoring, and acute care.', icon: Users, abbr: 'PED' },
+  { name: 'Laboratory & Diagnostics', desc: 'Full-service clinical lab with CBC, urinalysis, chemistry panels, RBS, and more.', icon: Activity, abbr: 'LAB' },
+  { name: 'Imaging & Ultrasound', desc: 'Diagnostic imaging including standard and detailed ultrasound examinations.', icon: FileText, abbr: 'IMG' },
+  { name: 'Pharmacy', desc: 'In-house pharmacy dispensing prescribed medications with patient counselling.', icon: ShieldCheck, abbr: 'PHAR' },
+  { name: 'Nursing & Injection', desc: 'IV, IM, and SC injections, wound care, vital-sign monitoring, and patient follow-up.', icon: Award, abbr: 'NURS' },
 ];
-
 // Fallback services (used when API returns empty)
 const FALLBACK_SERVICES = [
   { _id: '694260a993403d86226af87d', name: 'Complete Blood Count (CBC)', category: 'lab', price: 300, description: 'Laboratory test for Complete Blood Count (CBC).' },
@@ -173,6 +165,92 @@ const WARMUP_MAX_SECONDS = 300;
 
 type Tab = 'home' | 'services' | 'packages' | 'appointment' | 'card' | 'login';
 
+const CountUp: React.FC<{ to: number; duration?: number; animate?: boolean }> = ({ to, duration = 1500, animate = true }) => {
+  const [value, setValue] = useState(animate ? 0 : to);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!animate) {
+      setValue(to);
+      return;
+    }
+    let started = false;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !started) {
+          started = true;
+          let startTimestamp: number | null = null;
+          const step = (timestamp: number) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+            setValue(Math.floor(progress * to));
+            if (progress < 1) {
+              window.requestAnimationFrame(step);
+            }
+          };
+          window.requestAnimationFrame(step);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    if (ref.current) {
+      observer.observe(ref.current);
+    }
+    return () => observer.disconnect();
+  }, [to, duration, animate]);
+
+  return <span ref={ref}>{value.toLocaleString()}</span>;
+};
+
+interface PulseDividerProps {
+  animate?: boolean;
+}
+
+const PulseDivider: React.FC<PulseDividerProps> = ({ animate = false }) => {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mediaQuery.matches);
+    const listener = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    mediaQuery.addEventListener('change', listener);
+    return () => mediaQuery.removeEventListener('change', listener);
+  }, []);
+
+  const jaggedPath = "M 0 30 L 200 15 L 400 45 L 600 10 L 800 50 L 920 30 L 930 6 L 940 50 L 945 10 L 955 54 L 965 6 L 972 40 L 985 20 L 995 30 L 1440 30";
+  const steadyPath = "M 0 30 L 200 30 L 400 30 L 600 30 L 800 30 L 920 30 L 930 26 L 940 30 L 945 34 L 955 6 L 965 54 L 972 30 L 985 22 L 995 30 L 1440 30";
+
+  const shouldAnimate = animate && !prefersReducedMotion;
+
+  return (
+    <div className="w-full overflow-hidden flex items-center h-[60px] my-6 opacity-85">
+      <svg className="w-full h-[60px]" viewBox="0 0 1440 60" preserveAspectRatio="none">
+        {shouldAnimate ? (
+          <motion.path
+            d={steadyPath}
+            initial={{ pathLength: 0, d: jaggedPath }}
+            animate={{ pathLength: 1, d: steadyPath }}
+            transition={{ 
+              pathLength: { duration: 1.2, ease: "easeOut" },
+              d: { delay: 0.3, duration: 0.9, ease: "easeInOut" }
+            }}
+            stroke="var(--chart-pulse)"
+            strokeWidth="1.5"
+            fill="none"
+          />
+        ) : (
+          <path
+            d={steadyPath}
+            stroke="var(--chart-pulse)"
+            strokeWidth="1.5"
+            fill="none"
+          />
+        )}
+      </svg>
+    </div>
+  );
+};
+
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, login, getRoleBasedRoute } = useAuth();
@@ -187,6 +265,15 @@ const Login: React.FC = () => {
   const warmupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mediaQuery.matches);
+    const listener = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    mediaQuery.addEventListener('change', listener);
+    return () => mediaQuery.removeEventListener('change', listener);
+  }, []);
 
   // Landing page public data states
   const [services, setServices] = useState<any[]>(FALLBACK_SERVICES);
@@ -657,30 +744,14 @@ const Login: React.FC = () => {
   });
 
   return (
-    <div className={`min-h-screen relative overflow-x-hidden flex flex-col transition-colors duration-500 ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-gradient-to-tr from-slate-50 via-slate-100 to-cyan-50/30 text-slate-800'}`}>
-      {isDarkMode ? (
-        <>
-          <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 12% 18%, rgba(59,130,246,0.22), transparent 40%), radial-gradient(circle at 85% 75%, rgba(14,165,233,0.14), transparent 45%), linear-gradient(140deg, #020617 0%, #050d1e 50%, #081126 100%)' }} />
-          <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'linear-gradient(rgba(148,163,184,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.15) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
-          <div className="absolute top-[20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none" />
-          <div className="absolute bottom-[20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
-        </>
-      ) : (
-        <>
-          <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-gradient-to-r from-teal-200/20 to-cyan-200/20 rounded-full blur-3xl animate-float-slow pointer-events-none" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-200/10 to-teal-200/20 rounded-full blur-3xl animate-float-delayed pointer-events-none" />
-        </>
-      )}
-
-      {/* Floating Medical Crosses */}
-      <div className={`absolute top-20 right-[15%] text-8xl font-thin select-none pointer-events-none animate-float-slow transition-colors duration-500 ${isDarkMode ? 'text-cyan-500/5' : 'text-slate-200/40'}`}>+</div>
-      <div className={`absolute bottom-20 left-[15%] text-6xl font-thin select-none pointer-events-none animate-float-delayed transition-colors duration-500 ${isDarkMode ? 'text-indigo-500/5' : 'text-slate-300/30'}`}>+</div>
+    <div className={`min-h-screen relative overflow-x-hidden flex flex-col transition-colors duration-500 bg-paper dark:bg-ink text-ink dark:text-paper font-sans`}>
+      <div className="absolute inset-0 chart-grid pointer-events-none" />
 
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b backdrop-blur-md transition-all duration-300"
+      <header className="sticky top-0 z-50 w-full border-b backdrop-blur-md transition-all duration-300 font-sans"
         style={{
-          background: isDarkMode ? 'rgba(8,15,30,0.7)' : 'rgba(255,255,255,0.75)',
-          borderColor: isDarkMode ? 'rgba(148,163,184,0.12)' : 'rgba(226,232,240,0.8)'
+          background: isDarkMode ? 'rgba(16, 23, 42, 0.8)' : 'rgba(250, 250, 247, 0.8)',
+          borderColor: isDarkMode ? 'rgba(243, 241, 236, 0.1)' : 'rgba(21, 32, 59, 0.1)'
         }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('home')}>
@@ -688,8 +759,8 @@ const Login: React.FC = () => {
               <img src="/assets/images/logo.jpg" alt="New Life Clinic Logo" className="h-full w-full object-cover" />
             </div>
             <div>
-              <span className="font-extrabold text-md tracking-tight uppercase">New Life Clinic</span>
-              <span className={`block text-[9px] tracking-widest uppercase ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'} font-bold`}>Smart Healthcare</span>
+              <span className="font-extrabold text-md tracking-tight uppercase text-ink dark:text-paper">New Life Clinic</span>
+              <span className="block text-[9px] tracking-widest uppercase text-pulse font-bold">Smart Healthcare</span>
             </div>
           </div>
 
@@ -709,10 +780,10 @@ const Login: React.FC = () => {
                   if (tab.id === 'appointment') setBookingStep(1);
                   if (tab.id === 'card') setCardStep(1);
                 }}
-                className={`px-4 py-2 rounded-xl transition-all duration-200 ${
+                className={`px-4 py-2 rounded-xl transition-all duration-200 font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 ${
                   activeTab === tab.id
-                    ? isDarkMode ? 'bg-cyan-500/10 text-cyan-300 font-semibold' : 'bg-teal-500/10 text-teal-700 font-semibold'
-                    : isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-pulse/10 text-pulse font-semibold'
+                    : 'text-slate hover:text-ink hover:bg-mist dark:text-slate-400 dark:hover:text-paper dark:hover:bg-slate-800/40'
                 }`}
               >
                 {tab.label}
@@ -726,18 +797,18 @@ const Login: React.FC = () => {
               onClick={() => {
                 setActiveTab(activeTab === 'login' ? 'home' : 'login');
               }}
-              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 border ${
+              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 border font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 ${
                 activeTab === 'login'
-                  ? isDarkMode ? 'bg-cyan-400 text-slate-950 border-cyan-400' : 'bg-teal-600 text-white border-teal-600'
-                  : isDarkMode ? 'border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10' : 'border-teal-500/30 text-teal-600 hover:bg-teal-50'
+                  ? 'bg-pulse text-paper border-pulse'
+                  : 'bg-ink text-paper border-ink hover:bg-pulse hover:border-pulse dark:bg-paper dark:text-ink dark:border-paper dark:hover:bg-pulse dark:hover:text-paper dark:hover:border-pulse'
               }`}
             >
               Staff Portal
             </button>
             <button
               onClick={toggleTheme}
-              className={`p-2 rounded-xl border transition-all duration-200 ${
-                isDarkMode ? 'bg-slate-900 border-slate-800 text-amber-300' : 'bg-white border-slate-200 text-teal-600'
+              className={`p-2 rounded-xl border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 ${
+                isDarkMode ? 'bg-slate-900 border-slate-800 text-amber-300' : 'bg-white border-slate-200 text-pulse'
               }`}
               aria-label="Toggle Theme"
             >
@@ -759,38 +830,48 @@ const Login: React.FC = () => {
               transition={{ duration: 0.4 }}
               className="space-y-16"
             >
-              {/* Hero */}
-              <div className="grid lg:grid-cols-2 gap-12 items-center">
-                <div className="space-y-6">
-                  <div className={`inline-flex items-center gap-2 rounded-2xl border ${isDarkMode ? 'border-cyan-400/25 bg-cyan-400/10 text-cyan-200' : 'border-teal-400/25 bg-teal-400/10 text-teal-700'} px-4 py-1.5`}>
-                    <Sparkles className="h-4 w-4 animate-pulse" />
-                    <span className="text-[10px] font-bold tracking-widest uppercase">Clinical Excellence Always</span>
+              {/* Pulse Divider (Top of Hero, animated) */}
+              <PulseDivider animate={true} />
+
+              {/* Hero & Vitals Section */}
+              <div className="grid lg:grid-cols-12 gap-12 items-center">
+                {/* Hero Text Content */}
+                <div className="lg:col-span-7 space-y-6">
+                  {/* Kicker */}
+                  <div className="font-mono text-xs tracking-[0.2em] text-pulse uppercase font-semibold">
+                    SYSTEM STATUS — STEADY
                   </div>
-                  <h1 className={`font-black tracking-tight leading-[1.08] text-[clamp(2.5rem,5vw,4.5rem)] ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                    Smart healthcare
-                    <span className={`block text-transparent bg-clip-text bg-gradient-to-r ${isDarkMode ? 'from-cyan-400 via-blue-400 to-indigo-400' : 'from-teal-600 to-cyan-600'}`}>
-                      designed for life
+                  
+                  {/* Headline */}
+                  <h1 className="font-sans font-bold tracking-tight leading-[1.1] text-4xl sm:text-5xl lg:text-6xl text-ink dark:text-paper">
+                    Smart healthcare<br />
+                    designed for{' '}
+                    <span className="relative inline-block font-annotation italic text-pulse leading-none pb-1">
+                      life
+                      {/* Squiggly hand-drawn style underline */}
+                      <svg className="absolute left-0 bottom-[-6px] w-full h-[8px]" viewBox="0 0 100 8" preserveAspectRatio="none">
+                        <path d="M 2,4 C 20,1 40,6 60,3 C 80,1 94,5 98,4" stroke="var(--chart-pulse)" strokeWidth="2" fill="none" strokeLinecap="round" />
+                      </svg>
                     </span>
                   </h1>
-                  <p className={`text-base md:text-lg leading-relaxed max-w-[560px] ${isDarkMode ? 'text-slate-300/80' : 'text-slate-600'}`}>
+
+                  {/* Paragraph */}
+                  <p className="text-base md:text-lg leading-relaxed max-w-[560px] text-slate font-sans">
                     Welcome to New Life Clinic. Explore our curated health packages, view professional clinical services, self-schedule clinical appointments, and generate your custom patient cards online instantly.
                   </p>
                   
+                  {/* CTAs */}
                   <div className="flex flex-wrap gap-4 pt-2">
                     <button
                       onClick={() => { setActiveTab('appointment'); setBookingStep(1); }}
-                      className={`h-12 px-6 rounded-xl font-bold text-sm tracking-wide shadow-lg flex items-center gap-2 transition-all duration-300 hover:scale-[1.02] ${
-                        isDarkMode ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-cyan-500/20' : 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-teal-600/20'
-                      }`}
+                      className="h-12 px-6 rounded-xl font-sans font-bold text-sm tracking-wide bg-ink text-paper hover:bg-pulse dark:bg-paper dark:text-ink dark:hover:bg-pulse dark:hover:text-paper shadow-lg shadow-ink/5 dark:shadow-none flex items-center gap-2 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2"
                     >
                       Book Self-Appointment
                       <ArrowRight className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => { setActiveTab('card'); setCardStep(1); }}
-                      className={`h-12 px-6 rounded-xl font-bold text-sm tracking-wide border transition-all duration-300 hover:bg-white/5 flex items-center gap-2 ${
-                        isDarkMode ? 'border-cyan-500/30 text-cyan-300' : 'border-slate-300 text-slate-700 hover:bg-slate-50'
-                      }`}
+                      className="h-12 px-6 rounded-xl font-sans font-bold text-sm tracking-wide border border-ink text-ink hover:bg-mist dark:border-paper dark:text-paper dark:hover:bg-slate-800 flex items-center gap-2 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2"
                     >
                       Get Patient Card
                       <CreditCard className="h-4 w-4" />
@@ -798,79 +879,118 @@ const Login: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="relative flex justify-center lg:justify-end">
-                  {/* Decorative Logo / Graphics */}
-                  <div className="relative w-80 h-80 sm:w-96 sm:h-96 flex items-center justify-center">
-                    <div className={`absolute inset-0 rounded-full blur-[80px] opacity-25 bg-gradient-to-tr ${isDarkMode ? 'from-cyan-500 to-indigo-500' : 'from-teal-400 to-blue-400'}`} />
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
-                      className="absolute inset-0 rounded-full border border-dashed border-cyan-500/20"
-                    />
-                    <motion.div
-                      animate={{ rotate: -360 }}
-                      transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-                      className="absolute inset-6 rounded-full border border-dashed border-indigo-500/10"
-                    />
-                    <div className={`absolute inset-16 rounded-3xl backdrop-blur-xl border flex flex-col items-center justify-center p-8 shadow-2xl ${
-                      isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white/60 border-slate-100'
-                    }`}>
-                      <div className="h-16 w-16 rounded-2xl overflow-hidden mb-4 border border-slate-200/50 bg-white shadow-md flex items-center justify-center">
-                        <img src="/assets/images/logo.jpg" alt="New Life Clinic Logo" className="h-full w-full object-cover" />
+                {/* Right Side: Live Vitals Panel */}
+                <div className="lg:col-span-5">
+                  <div className="bg-paper dark:bg-slate-900 border border-ink/10 dark:border-slate-800 p-8 rounded-2xl shadow-sm space-y-6 font-sans">
+                    {/* Header Row */}
+                    <div className="flex items-center justify-between border-b border-ink/8 dark:border-slate-800 pb-4">
+                      <span className="font-mono text-xs tracking-wider text-slate uppercase">VITALS — LIVE</span>
+                      <span className={`h-2.5 w-2.5 rounded-full bg-pulse ${prefersReducedMotion ? '' : 'animate-pulse'}`} />
+                    </div>
+
+                    {/* Vitals Rows */}
+                    <div className="space-y-4">
+                      {/* Row 1 */}
+                      <div className="flex items-center justify-between py-2">
+                        <div className="space-y-1">
+                          <span className="block font-mono text-[10px] uppercase tracking-wider text-slate">Patients Served</span>
+                          <span className="block font-sans font-bold text-2xl text-ink dark:text-paper">
+                            <CountUp to={10482} animate={!prefersReducedMotion} />
+                          </span>
+                        </div>
+                        <div className="flex items-center pr-2">
+                          <svg className="w-10 h-6 text-pulse" viewBox="0 0 40 16" fill="none">
+                            <path d="M0,8 Q10,0 20,16 T40,8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
                       </div>
-                      <p className="font-extrabold text-xl tracking-tight text-center">New Life Clinic</p>
-                      <p className={`text-[10px] uppercase tracking-widest font-bold mt-1 text-center ${isDarkMode ? 'text-cyan-400/80' : 'text-teal-600/80'}`}>Smart Platform</p>
+                      <div className="h-px bg-ink/8 dark:bg-slate-800/60" />
+
+                      {/* Row 2 */}
+                      <div className="flex items-center justify-between py-2">
+                        <div className="space-y-1">
+                          <span className="block font-mono text-[10px] uppercase tracking-wider text-slate">Staff On Duty</span>
+                          <span className="block font-sans font-bold text-2xl text-ink dark:text-paper">50+</span>
+                        </div>
+                        <div className="flex items-center pr-2">
+                          <svg className="w-10 h-6 text-pulse" viewBox="0 0 40 16" fill="none">
+                            <path d="M0,8 L8,4 L16,12 L24,2 L32,14 L40,8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="h-px bg-ink/8 dark:bg-slate-800/60" />
+
+                      {/* Row 3 */}
+                      <div className="flex items-center justify-between py-2">
+                        <div className="space-y-1">
+                          <span className="block font-mono text-[10px] uppercase tracking-wider text-slate">Uptime</span>
+                          <span className="block font-sans font-bold text-2xl text-ink dark:text-paper">99.9%</span>
+                        </div>
+                        <div className="flex items-center pr-2">
+                          <svg className="w-10 h-6 text-pulse" viewBox="0 0 40 16" fill="none">
+                            <path d="M0,8 Q8,14 16,4 T32,10 L40,8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="h-px bg-ink/8 dark:bg-slate-800/60" />
+
+                      {/* Row 4 */}
+                      <div className="flex items-center justify-between py-2">
+                        <div className="space-y-1">
+                          <span className="block font-mono text-[10px] uppercase tracking-wider text-slate">Support</span>
+                          <span className="block font-sans font-bold text-2xl text-ink dark:text-paper">24/7</span>
+                        </div>
+                        <div className="flex items-center pr-2">
+                          <svg className="w-10 h-6 text-pulse" viewBox="0 0 40 16" fill="none">
+                            <path d="M0,8 L10,2 L20,14 L30,4 L40,8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Statistics Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {stats.map(({ value, label, icon: Icon }) => (
-                  <div
-                    key={label}
-                    className={`rounded-2xl border p-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 ${
-                      isDarkMode 
-                        ? 'border-slate-800 bg-slate-900/35 hover:border-cyan-500/30' 
-                        : 'border-slate-200 bg-white/60 hover:border-teal-500/30 hover:shadow-lg'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className={`block font-black text-3xl tracking-tight ${isDarkMode ? 'text-cyan-300' : 'text-teal-600'}`}>{value}</span>
-                        <span className={`block text-xs font-semibold mt-1 uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{label}</span>
-                      </div>
-                      <div className={`p-3 rounded-xl border ${isDarkMode ? 'bg-slate-800/40 border-slate-700 text-cyan-300' : 'bg-slate-100 border-slate-200 text-teal-600'}`}>
-                        <Icon className="h-5 w-5" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {/* Pulse Divider after Hero/Vitals */}
+              <PulseDivider animate={false} />
 
               {/* Departments */}
-              <div className="space-y-6">
-                <div className="text-center">
-                  <h2 className="text-2xl font-black tracking-tight">Our Departments</h2>
-                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Comprehensive medical services under one roof</p>
+              <div className="w-full bg-mist dark:bg-[#1B2A28] p-8 md:p-12 rounded-3xl border border-ink/5 dark:border-white/5 space-y-8">
+                <div className="text-center space-y-2">
+                  <h2 className="text-3xl font-bold tracking-tight text-ink dark:text-paper font-sans">Our Departments</h2>
+                  <p className="text-sm text-slate font-sans">
+                    Comprehensive medical services{' '}
+                    <span className="font-annotation italic text-pulse text-lg leading-none">
+                      under one roof
+                    </span>
+                  </p>
                 </div>
-                <div className="grid md:grid-cols-3 gap-6">
-                  {CLINIC_DEPARTMENTS.map(({ name, desc, icon: Icon }) => (
-                    <div key={name} className={`p-6 rounded-2xl border backdrop-blur-md transition-all duration-300 hover:-translate-y-1 ${
-                      isDarkMode ? 'bg-slate-900/20 border-slate-800 hover:border-cyan-500/20' : 'bg-white/50 border-slate-200 hover:shadow-lg hover:border-teal-500/20'
-                    }`}>
-                      <div className={`h-10 w-10 rounded-xl mb-4 flex items-center justify-center ${
-                        isDarkMode ? 'bg-cyan-500/10 text-cyan-400' : 'bg-teal-500/10 text-teal-600'
-                      }`}>
-                        <Icon className="h-5 w-5" />
+                <div className="grid md:grid-cols-3 gap-6 pt-4">
+                  {CLINIC_DEPARTMENTS.map(({ name, desc, abbr }) => (
+                    <div key={name} className="relative pt-6 font-sans">
+                      {/* Folder tab */}
+                      <div className="absolute top-0 left-0 bg-pulse text-paper font-mono text-[9px] uppercase tracking-widest font-bold h-6 px-3 flex items-center justify-center rounded-t-md">
+                        {abbr || 'GEN'}
                       </div>
-                      <h3 className="font-bold text-lg mb-2">{name}</h3>
-                      <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{desc}</p>
+                      {/* Card */}
+                      <div 
+                        className="bg-paper dark:bg-slate-900 border border-ink/10 dark:border-slate-800 p-6 rounded-b-xl rounded-tr-xl rounded-tl-none hover:translate-y-[-4px] hover:shadow-md transition-all duration-300 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2"
+                        tabIndex={0}
+                      >
+                        <h3 className="font-sans font-bold text-lg text-ink dark:text-paper group-hover:text-pulse transition-colors duration-300 mb-2">
+                          {name}
+                        </h3>
+                        <p className="font-sans text-sm text-slate leading-relaxed">
+                          {desc}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
+
+              {/* Pulse Divider after departments */}
+              <PulseDivider animate={false} />
 
               {/* Operating Hours & Contact */}
               <div className="grid md:grid-cols-2 gap-6">
@@ -2165,13 +2285,11 @@ const Login: React.FC = () => {
           )}
         </AnimatePresence>
       </main>
+      {/* Pulse Divider above Footer */}
+      <PulseDivider animate={false} />
 
       {/* Footer */}
-      <footer className="py-8 border-t mt-auto text-xs"
-        style={{
-          borderColor: isDarkMode ? 'rgba(148,163,184,0.08)' : 'rgba(226,232,240,1)',
-          background: isDarkMode ? 'rgba(1,5,15,0.4)' : 'rgba(255,255,255,0.4)'
-        }}>
+      <footer className="py-12 bg-ink text-paper mt-auto text-xs font-sans border-t border-paper/10 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid md:grid-cols-3 gap-8 mb-6">
             {/* Clinic Info */}
@@ -2180,17 +2298,17 @@ const Login: React.FC = () => {
                 <div className="h-5 w-5 rounded-md overflow-hidden bg-white flex items-center justify-center border border-slate-200/20">
                   <img src="/assets/images/logo.jpg" alt="New Life Clinic Logo" className="h-full w-full object-cover" />
                 </div>
-                <span className="font-extrabold text-sm uppercase tracking-tight">{CLINIC_INFO.name}</span>
+                <span className="font-extrabold text-sm uppercase tracking-tight text-paper">{CLINIC_INFO.name}</span>
               </div>
-              <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              <p className="text-xs leading-relaxed text-slate-300">
                 {CLINIC_INFO.address}
               </p>
-              <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{CLINIC_INFO.phone} • {CLINIC_INFO.mobile}</p>
-              <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{CLINIC_INFO.email}</p>
+              <p className="text-xs mt-1 text-slate-300">{CLINIC_INFO.phone} • {CLINIC_INFO.mobile}</p>
+              <p className="text-xs text-slate-300">{CLINIC_INFO.email}</p>
             </div>
             {/* Quick Links */}
             <div>
-              <p className="font-bold text-xs uppercase tracking-wider mb-3">Quick Links</p>
+              <p className="font-bold text-xs uppercase tracking-wider mb-3 text-paper">Quick Links</p>
               <div className="space-y-1.5">
                 {[
                   { id: 'services' as Tab, label: 'Our Services' },
@@ -2198,7 +2316,11 @@ const Login: React.FC = () => {
                   { id: 'appointment' as Tab, label: 'Book Appointment' },
                   { id: 'card' as Tab, label: 'Get Patient Card' },
                 ].map(link => (
-                  <button key={link.id} onClick={() => setActiveTab(link.id)} className={`block text-xs transition-colors ${isDarkMode ? 'text-slate-400 hover:text-cyan-300' : 'text-slate-500 hover:text-teal-600'}`}>
+                  <button 
+                    key={link.id} 
+                    onClick={() => setActiveTab(link.id)} 
+                    className="block text-xs transition-colors text-slate-300 hover:text-pulse focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 rounded"
+                  >
                     {link.label}
                   </button>
                 ))}
@@ -2206,23 +2328,22 @@ const Login: React.FC = () => {
             </div>
             {/* Hours Summary */}
             <div>
-              <p className="font-bold text-xs uppercase tracking-wider mb-3">Hours</p>
+              <p className="font-bold text-xs uppercase tracking-wider mb-3 text-paper">Hours</p>
               <div className="space-y-1">
                 {CLINIC_INFO.hours.map(h => (
-                  <div key={h.day} className="flex justify-between text-xs">
-                    <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>{h.day}</span>
-                    <span className={`font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{h.time}</span>
+                  <div key={h.day} className="flex justify-between text-xs text-slate-300">
+                    <span>{h.day}</span>
+                    <span className="font-medium">{h.time}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
-          <div className={`pt-4 border-t text-center ${isDarkMode ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400'}`}>
+          <div className="pt-4 border-t border-paper/10 text-center text-slate-400">
             © {new Date().getFullYear()} {clinic?.name || CLINIC_INFO.name}. Smart Health Management. All rights reserved.
           </div>
         </div>
-      </footer>
-    </div>
+      </footer>    </div>
   );
 };
 

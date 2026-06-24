@@ -20,11 +20,35 @@
   --ink: #1F2B22;
   --font-fraunces: 'Fraunces', serif;
   --font-worksans: 'Work Sans', sans-serif;
+
+  /* ── Chart & Pulse light mode tokens ── */
+  --chart-ink: #15203B;
+  --chart-paper: #FAFAF7;
+  --chart-pulse: #C73E2E;
+  --chart-mist: #EEF1EC;
+  --chart-slate: #5B6066;
 }
 
-@tailwind base;
-@tailwind components;
+.dark {
+  /* ── Chart & Pulse dark mode tokens ── */
+  --chart-ink: #10172A;
+  --chart-paper: #F3F1EC;
+  --chart-pulse: #E2614C;
+  --chart-mist: #1B2A28;
+  --chart-slate: #94A3B8;
+}
+
 @tailwind utilities;
+
+.chart-grid {
+  background-size: 40px 40px;
+  background-image: linear-gradient(to right, rgba(91, 96, 102, 0.06) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(91, 96, 102, 0.06) 1px, transparent 1px);
+}
+.dark .chart-grid {
+  background-image: linear-gradient(to right, rgba(243, 241, 236, 0.03) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(243, 241, 236, 0.03) 1px, transparent 1px);
+}
 
 /* ===== GLOBAL MICRO-INTERACTIONS & POLISH ===== */
 
