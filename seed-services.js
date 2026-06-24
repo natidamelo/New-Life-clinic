@@ -1,198 +1,142 @@
 const mongoose = require('mongoose');
-const dotenv = require('dotenv');
+const Service = require('./backend/models/Service');
 
-// Load environment variables from .env
-dotenv.config();
+// MongoDB connection string
+const MONGO_URI = 'mongodb://localhost:27017/clinic-cms';
 
-// MongoDB connection string from environment
-const MONGO_URI = process.env.MONGO_URI;
-if (!MONGO_URI) {
-  console.error('ERROR: MONGO_URI env variable is missing.');
-  process.exit(1);
-}
-
-// Comprehensive list of medical services matching frontend categories: lab, imaging, consultation, nursing, pharmacy
+// Comprehensive list of medical services
 const defaultServices = [
-  // Pharmacy Services
+  // Injection Services
   {
-    name: 'Prescription Filling & Dispensing',
-    category: 'pharmacy',
+    name: 'IV Injection - 75 ETB',
+    category: 'injection',
+    price: 75,
+    description: 'Intravenous (IV) medication administration',
+    isActive: true
+  },
+  {
+    name: 'IM Injection - 60 ETB',
+    category: 'injection',
+    price: 60,
+    description: 'Intramuscular (IM) medication administration',
+    isActive: true
+  },
+  {
+    name: 'Subcutaneous Injection - 50 ETB',
+    category: 'injection',
     price: 50,
-    description: 'Review and dispensing of physician-prescribed medications with dosage counseling.',
+    description: 'Subcutaneous (SC) medication administration',
+    isActive: true
+  },
+  
+  // Blood Tests
+  {
+    name: 'Fasting Glucose Test - 100 ETB',
+    category: 'blood_test',
+    price: 100,
+    description: 'Blood sugar test after fasting',
     isActive: true
   },
   {
-    name: 'Chronic Disease Medication Therapy Management',
-    category: 'pharmacy',
+    name: 'HbA1c Test - 150 ETB',
+    category: 'blood_test',
     price: 150,
-    description: 'Comprehensive medication review, drug interaction check, and alignment counseling for diabetes, hypertension, or asthma.',
+    description: 'Glycated hemoglobin test for diabetes management',
     isActive: true
   },
   {
-    name: 'Over-The-Counter Medication Consultation',
-    category: 'pharmacy',
-    price: 30,
-    description: 'Pharmacist consultation for minor ailments and over-the-counter medicine recommendation.',
-    isActive: true
-  },
-  {
-    name: 'Vaccination / Immunization Service',
-    category: 'pharmacy',
-    price: 100,
-    description: 'On-site administration of routine vaccines (Flu, Tetanus, Hepatitis, etc.) by a licensed pharmacist/nurse.',
-    isActive: true
-  },
-  {
-    name: 'Home Medication Delivery Setup',
-    category: 'pharmacy',
-    price: 80,
-    description: 'Setup and enrollment in periodic home delivery of recurring clinical prescription renewals.',
-    isActive: true
-  },
-
-  // Lab Services
-  {
-    name: 'Complete Blood Count (CBC)',
-    category: 'lab',
+    name: 'Complete Blood Count (CBC) - 200 ETB',
+    category: 'blood_test',
     price: 200,
-    description: 'Comprehensive blood cells analysis (RBC, WBC, platelets) to screen for anemia, infections, or leukemia.',
+    description: 'Comprehensive blood cell analysis',
     isActive: true
   },
   {
-    name: 'Fasting Blood Sugar (FBS)',
-    category: 'lab',
-    price: 100,
-    description: 'Measures blood glucose levels after fasting to screen for diabetes or prediabetes.',
-    isActive: true
-  },
-  {
-    name: 'HbA1c (Glycated Hemoglobin)',
-    category: 'lab',
-    price: 180,
-    description: 'Three-month average blood glucose level test for tracking diabetes control.',
-    isActive: true
-  },
-  {
-    name: 'Lipid Profile',
-    category: 'lab',
+    name: 'Lipid Profile - 250 ETB',
+    category: 'blood_test',
     price: 250,
-    description: 'Measures cholesterol and triglyceride levels to assess cardiovascular risk.',
+    description: 'Cholesterol and triglyceride level test',
     isActive: true
   },
-  {
-    name: 'Urinalysis',
-    category: 'lab',
-    price: 120,
-    description: 'Chemical and microscopic examination of urine to detect kidney disease or urinary tract infections.',
-    isActive: true
-  },
-
-  // Imaging Services
-  {
-    name: 'Basic Ultrasound Scan',
-    category: 'imaging',
-    price: 300,
-    description: 'Ultrasonic sound wave imaging for abdominal, pelvic, or soft tissue evaluations.',
-    isActive: true
-  },
-  {
-    name: 'Electrocardiogram (ECG)',
-    category: 'imaging',
-    price: 200,
-    description: 'Records electrical activity of the heart to monitor heart rhythm and cardiovascular health.',
-    isActive: true
-  },
-  {
-    name: 'Chest X-Ray',
-    category: 'imaging',
-    price: 250,
-    description: 'Standard radiographic check of the lungs, heart, and chest wall bones.',
-    isActive: true
-  },
-
+  
   // Consultation Services
   {
-    name: 'General Practitioner Consultation',
+    name: 'General Consultation - 150 ETB',
     category: 'consultation',
     price: 150,
-    description: 'Standard medical consultation and checkup with a general practitioner doctor.',
+    description: 'Standard medical consultation',
     isActive: true
   },
   {
-    name: 'Specialist Medical Consultation',
-    category: 'consultation',
-    price: 300,
-    description: 'In-depth consultation with a specialized medical consultant (Cardiologist, Pediatrician, Gynecologist).',
-    isActive: true
-  },
-  {
-    name: 'Follow-up Review Consultation',
+    name: 'Follow-up Consultation - 100 ETB',
     category: 'consultation',
     price: 100,
-    description: 'Review session to track treatment outcomes or adjust medication prescriptions.',
-    isActive: true
-  },
-
-  // Nursing Services
-  {
-    name: 'Intravenous (IV) Injection & Fluid Setup',
-    category: 'nursing',
-    price: 120,
-    description: 'Clinical administration of IV medications, fluids, or saline.',
+    description: 'Follow-up medical consultation',
     isActive: true
   },
   {
-    name: 'Intramuscular (IM) Injection',
-    category: 'nursing',
-    price: 80,
-    description: 'Administration of intramuscular injections (e.g. pain relief, Depo contraceptives).',
+    name: 'Specialist Consultation - 250 ETB',
+    category: 'consultation',
+    price: 250,
+    description: 'Consultation with a medical specialist',
     isActive: true
   },
+  
+  // Imaging Services
   {
-    name: 'Standard Wound Dressing',
-    category: 'nursing',
-    price: 100,
-    description: 'Clinical cleaning, disinfecting, and dressing of cuts, surgical wounds, or ulcers.',
-    isActive: true
-  },
-  {
-    name: 'Vital Signs Baseline Check',
-    category: 'nursing',
+    name: 'Blood Pressure Check - 50 ETB',
+    category: 'imaging',
     price: 50,
-    description: 'Measures blood pressure, pulse rate, oxygen levels, body temperature, and BMI calculation.',
+    description: 'Basic blood pressure measurement',
+    isActive: true
+  },
+  {
+    name: 'ECG - 200 ETB',
+    category: 'imaging',
+    price: 200,
+    description: 'Electrocardiogram heart test',
+    isActive: true
+  },
+  {
+    name: 'Ultrasound - Basic - 200 ETB',
+    category: 'ultrasound',
+    price: 200,
+    description: 'Standard ultrasound imaging',
+    isActive: true
+  },
+  {
+    name: 'Ultrasound - Detailed - 350 ETB',
+    category: 'ultrasound',
+    price: 350,
+    description: 'Comprehensive ultrasound imaging',
     isActive: true
   }
 ];
 
 // Connect to MongoDB and seed services
 async function seedServices() {
-  console.log('Connecting to database: ' + MONGO_URI.substring(0, 30) + '...');
   try {
-    // Disable buffering globally on mongoose to fail fast if connection issue
-    mongoose.set('bufferCommands', false);
-
     // Connect to MongoDB
-    await mongoose.connect(MONGO_URI);
-    console.log('Connected to MongoDB successfully!');
-
-    // Require the model AFTER connection is established
-    const Service = require('./backend/models/Service');
+    await mongoose.connect(MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log('Connected to MongoDB');
 
     // Remove existing services
-    console.log('Clearing existing services catalog...');
     await Service.deleteMany({});
-    console.log('Existing services catalog cleared.');
+    console.log('Existing services cleared');
 
     // Insert new services
     const insertedServices = await Service.insertMany(defaultServices);
-    console.log(`Seeded ${insertedServices.length} services successfully:`);
+    console.log('Services seeded successfully:');
     insertedServices.forEach(service => {
       console.log(`- ${service.name} (${service.category})`);
     });
 
     // Close the connection
     await mongoose.connection.close();
-    console.log('MongoDB connection closed.');
+    console.log('MongoDB connection closed');
   } catch (error) {
     console.error('Error seeding services:', error);
     process.exit(1);
@@ -200,4 +144,5 @@ async function seedServices() {
 }
 
 // Run the seeding function
-seedServices();
+seedServices(); 
+seedServices(); 

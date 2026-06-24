@@ -29,6 +29,123 @@ const stats = [
   { value: '24/7', label: 'Support', icon: Clock },
 ];
 
+// ─── Real clinic information ───────────────────────────────────────
+const CLINIC_INFO = {
+  name: 'New Life Clinic',
+  tagline: 'Smart Healthcare',
+  address: 'Bole Sub-City, Woreda 03, Addis Ababa, Ethiopia',
+  phone: '+251 11 661 2345',
+  mobile: '+251 911 22 33 44',
+  email: 'info@newlifeclinic.et',
+  hours: [
+    { day: 'Monday – Friday', time: '8:00 AM – 8:00 PM' },
+    { day: 'Saturday', time: '8:00 AM – 5:00 PM' },
+    { day: 'Sunday', time: '9:00 AM – 2:00 PM' },
+    { day: 'Emergency', time: '24/7 Available' },
+  ],
+};
+
+const CLINIC_DEPARTMENTS = [
+  { name: 'General Medicine', desc: 'Primary care and internal medicine consultations for adults and adolescents.', icon: Stethoscope },
+  { name: 'Pediatrics', desc: 'Comprehensive child healthcare including vaccinations, growth monitoring, and acute care.', icon: Users },
+  { name: 'Laboratory & Diagnostics', desc: 'Full-service clinical lab with CBC, urinalysis, chemistry panels, RBS, and more.', icon: Activity },
+  { name: 'Imaging & Ultrasound', desc: 'Diagnostic imaging including standard and detailed ultrasound examinations.', icon: FileText },
+  { name: 'Pharmacy', desc: 'In-house pharmacy dispensing prescribed medications with patient counselling.', icon: ShieldCheck },
+  { name: 'Nursing & Injection', desc: 'IV, IM, and SC injections, wound care, vital-sign monitoring, and patient follow-up.', icon: Award },
+];
+
+// Fallback services (used when API returns empty)
+const FALLBACK_SERVICES = [
+  { _id: 'fs-1', name: 'General Consultation', category: 'consultation', price: 150, description: 'Standard medical consultation with a licensed physician for diagnosis and treatment planning.' },
+  { _id: 'fs-2', name: 'Specialist Consultation', category: 'consultation', price: 250, description: 'In-depth consultation with a medical specialist for complex or chronic conditions.' },
+  { _id: 'fs-3', name: 'Follow-up Consultation', category: 'consultation', price: 100, description: 'Follow-up visit for ongoing treatment evaluation and medication review.' },
+  { _id: 'fs-4', name: 'Complete Blood Count (CBC)', category: 'lab', price: 200, description: 'Comprehensive blood cell analysis including WBC, RBC, hemoglobin, hematocrit, and platelet count.' },
+  { _id: 'fs-5', name: 'Fasting Blood Glucose', category: 'lab', price: 100, description: 'Blood sugar measurement after 8-12 hours of fasting for diabetes screening.' },
+  { _id: 'fs-6', name: 'HbA1c (Glycated Hemoglobin)', category: 'lab', price: 150, description: 'Measures average blood sugar over the past 2-3 months for diabetes management.' },
+  { _id: 'fs-7', name: 'Lipid Profile', category: 'lab', price: 250, description: 'Total cholesterol, LDL, HDL, and triglyceride levels for cardiovascular risk assessment.' },
+  { _id: 'fs-8', name: 'Urinalysis', category: 'lab', price: 80, description: 'Complete urine analysis for kidney function, infections, and metabolic conditions.' },
+  { _id: 'fs-9', name: 'Liver Function Test (LFT)', category: 'lab', price: 300, description: 'ALT, AST, bilirubin, albumin, and ALP measurement for liver health evaluation.' },
+  { _id: 'fs-10', name: 'Renal Function Test (RFT)', category: 'lab', price: 280, description: 'Creatinine, BUN, and electrolyte levels to assess kidney performance.' },
+  { _id: 'fs-11', name: 'Thyroid Function Test (TFT)', category: 'lab', price: 350, description: 'TSH, T3, and T4 levels for thyroid gland evaluation and hormone balance.' },
+  { _id: 'fs-12', name: 'Urine HCG (Pregnancy Test)', category: 'lab', price: 60, description: 'Qualitative pregnancy detection test using urine sample.' },
+  { _id: 'fs-13', name: 'Blood Group & Rh Factor', category: 'lab', price: 80, description: 'ABO and Rh blood type determination for transfusion compatibility.' },
+  { _id: 'fs-14', name: 'ESR (Erythrocyte Sedimentation Rate)', category: 'lab', price: 70, description: 'Non-specific inflammation marker used for infection and autoimmune screening.' },
+  { _id: 'fs-15', name: 'Random Blood Sugar (RBS)', category: 'lab', price: 50, description: 'Point-of-care blood glucose measurement without fasting requirement.' },
+  { _id: 'fs-16', name: 'Widal Test', category: 'lab', price: 120, description: 'Serological test for Salmonella typhi/paratyphi (typhoid fever) antibody detection.' },
+  { _id: 'fs-17', name: 'Stool Examination', category: 'lab', price: 60, description: 'Microscopic stool analysis for parasites, ova, and occult blood.' },
+  { _id: 'fs-18', name: 'Malaria Blood Film', category: 'lab', price: 50, description: 'Thick and thin blood smear for Plasmodium species identification.' },
+  { _id: 'fs-19', name: 'IV Injection', category: 'injection', price: 75, description: 'Intravenous medication administration by a certified nurse under clinical supervision.' },
+  { _id: 'fs-20', name: 'IM Injection', category: 'injection', price: 60, description: 'Intramuscular medication injection for antibiotics, vitamins, and hormonal treatments.' },
+  { _id: 'fs-21', name: 'Subcutaneous Injection', category: 'injection', price: 50, description: 'Subcutaneous injection for insulin, anticoagulants, and vaccine administration.' },
+  { _id: 'fs-22', name: 'Wound Dressing', category: 'procedure', price: 100, description: 'Professional wound cleaning, debridement, and sterile dressing application.' },
+  { _id: 'fs-23', name: 'Minor Surgical Procedure', category: 'procedure', price: 500, description: 'Outpatient minor surgical procedures including suturing, abscess drainage, and biopsies.' },
+  { _id: 'fs-24', name: 'ECG (Electrocardiogram)', category: 'imaging', price: 200, description: '12-lead ECG recording for cardiac rhythm analysis and heart disease screening.' },
+  { _id: 'fs-25', name: 'Ultrasound – Basic', category: 'imaging', price: 200, description: 'Standard ultrasound imaging for abdominal, pelvic, or obstetric evaluation.' },
+  { _id: 'fs-26', name: 'Ultrasound – Detailed', category: 'imaging', price: 350, description: 'Comprehensive ultrasound with detailed measurements and anatomical assessment.' },
+  { _id: 'fs-27', name: 'Blood Pressure Monitoring', category: 'imaging', price: 50, description: 'Manual and digital blood pressure measurement with clinical recording.' },
+  { _id: 'fs-28', name: 'Vital Signs Check', category: 'imaging', price: 30, description: 'Comprehensive vitals: temperature, pulse, respiration rate, oxygen saturation, and BP.' },
+  { _id: 'fs-29', name: 'Nebulization Therapy', category: 'procedure', price: 80, description: 'Aerosolized medication delivery for asthma, bronchitis, and respiratory conditions.' },
+  { _id: 'fs-30', name: 'IV Fluid Infusion', category: 'procedure', price: 150, description: 'Intravenous fluid therapy for dehydration, electrolyte imbalance, and medication delivery.' },
+];
+
+// Fallback health packages (used when API returns empty)
+const FALLBACK_PACKAGES = [
+  {
+    _id: 'fp-1',
+    name: 'Basic Health Screening',
+    description: 'Essential health check package for routine monitoring. Ideal for yearly health assessment including vital checks, basic blood work, and physician consultation.',
+    price: 800,
+    total_visits: 2,
+    validity_days: 30,
+    services: ['General Consultation', 'Complete Blood Count (CBC)', 'Fasting Blood Glucose', 'Urinalysis', 'Blood Pressure Monitoring', 'Vital Signs Check'],
+  },
+  {
+    _id: 'fp-2',
+    name: 'Comprehensive Wellness Package',
+    description: 'Full body health screening with extended lab work and imaging. Recommended for adults above 35 or patients with family history of chronic disease.',
+    price: 2500,
+    total_visits: 4,
+    validity_days: 90,
+    services: ['Specialist Consultation', 'CBC', 'Lipid Profile', 'Liver Function Test', 'Renal Function Test', 'Thyroid Function Test', 'Fasting Blood Glucose', 'HbA1c', 'Urinalysis', 'ECG', 'Ultrasound – Basic'],
+  },
+  {
+    _id: 'fp-3',
+    name: 'Diabetes Care Plan',
+    description: 'Specialized management package for diabetic patients. Includes regular glucose monitoring, HbA1c tracking, and dietary counselling sessions.',
+    price: 1500,
+    total_visits: 6,
+    validity_days: 180,
+    services: ['Follow-up Consultation (×6)', 'Fasting Blood Glucose (×6)', 'HbA1c (×2)', 'Renal Function Test', 'Lipid Profile', 'Urinalysis (×3)', 'Blood Pressure Monitoring (×6)'],
+  },
+  {
+    _id: 'fp-4',
+    name: 'Prenatal Care Package',
+    description: 'Complete antenatal care package covering all trimesters. Includes serial ultrasounds, routine lab work, and obstetrician consultations.',
+    price: 3500,
+    total_visits: 8,
+    validity_days: 270,
+    services: ['Specialist Consultation (×8)', 'Ultrasound – Detailed (×3)', 'CBC (×3)', 'Blood Group & Rh Factor', 'Urinalysis (×4)', 'Urine HCG', 'Fasting Blood Glucose (×2)', 'Blood Pressure Monitoring (×8)'],
+  },
+  {
+    _id: 'fp-5',
+    name: 'Cardiac Risk Assessment',
+    description: 'Targeted cardiovascular screening for patients at risk. Covers lipid analysis, ECG, and cardiology consultation with follow-up.',
+    price: 1800,
+    total_visits: 3,
+    validity_days: 60,
+    services: ['Specialist Consultation (×2)', 'ECG', 'Lipid Profile', 'Fasting Blood Glucose', 'Renal Function Test', 'Blood Pressure Monitoring (×3)', 'Vital Signs Check'],
+  },
+  {
+    _id: 'fp-6',
+    name: 'Family Wellness Bundle',
+    description: 'Affordable health screening for the whole family (up to 4 members). Covers basic labs, consultation, and vital signs for each member.',
+    price: 2800,
+    total_visits: 4,
+    validity_days: 60,
+    services: ['General Consultation (×4)', 'CBC (×4)', 'Fasting Blood Glucose (×4)', 'Urinalysis (×4)', 'Blood Pressure Monitoring (×4)', 'Vital Signs Check (×4)'],
+  },
+];
+
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -69,8 +186,8 @@ const Login: React.FC = () => {
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Landing page public data states
-  const [services, setServices] = useState<any[]>([]);
-  const [packages, setPackages] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>(FALLBACK_SERVICES);
+  const [packages, setPackages] = useState<any[]>(FALLBACK_PACKAGES);
   const [doctors, setDoctors] = useState<any[]>([]);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [packagesLoading, setPackagesLoading] = useState(false);
@@ -130,11 +247,14 @@ const Login: React.FC = () => {
     setServicesLoading(true);
     try {
       const res = await api.get('/public/services');
-      if (res.data && res.data.success) {
+      if (res.data && res.data.success && res.data.data.length > 0) {
         setServices(res.data.data);
+      } else {
+        setServices(FALLBACK_SERVICES);
       }
     } catch (err) {
       console.error('Error fetching public services:', err);
+      setServices(FALLBACK_SERVICES);
     } finally {
       setServicesLoading(false);
     }
@@ -144,11 +264,14 @@ const Login: React.FC = () => {
     setPackagesLoading(true);
     try {
       const res = await api.get('/public/packages');
-      if (res.data && res.data.success) {
+      if (res.data && res.data.success && res.data.data.length > 0) {
         setPackages(res.data.data);
+      } else {
+        setPackages(FALLBACK_PACKAGES);
       }
     } catch (err) {
       console.error('Error fetching public health packages:', err);
+      setPackages(FALLBACK_PACKAGES);
     } finally {
       setPackagesLoading(false);
     }
@@ -516,7 +639,7 @@ const Login: React.FC = () => {
     '--input-focus-bg': isDarkMode ? 'rgba(15, 23, 42, 0.75)' : 'rgba(255, 255, 255, 0.95)',
   } as React.CSSProperties;
 
-  const categories = ['All', 'lab', 'imaging', 'consultation', 'nursing', 'pharmacy'];
+  const categories = ['All', 'lab', 'imaging', 'consultation', 'injection', 'procedure'];
 
   const filteredServices = services.filter(service => {
     const matchesSearch = service.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -716,17 +839,103 @@ const Login: React.FC = () => {
                 ))}
               </div>
 
-              {/* Value Cards */}
+              {/* Departments */}
               <div className="space-y-6">
-                <h2 className="text-2xl font-black tracking-tight text-center">Why choose our services?</h2>
+                <div className="text-center">
+                  <h2 className="text-2xl font-black tracking-tight">Our Departments</h2>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Comprehensive medical services under one roof</p>
+                </div>
+                <div className="grid md:grid-cols-3 gap-6">
+                  {CLINIC_DEPARTMENTS.map(({ name, desc, icon: Icon }) => (
+                    <div key={name} className={`p-6 rounded-2xl border backdrop-blur-md transition-all duration-300 hover:-translate-y-1 ${
+                      isDarkMode ? 'bg-slate-900/20 border-slate-800 hover:border-cyan-500/20' : 'bg-white/50 border-slate-200 hover:shadow-lg hover:border-teal-500/20'
+                    }`}>
+                      <div className={`h-10 w-10 rounded-xl mb-4 flex items-center justify-center ${
+                        isDarkMode ? 'bg-cyan-500/10 text-cyan-400' : 'bg-teal-500/10 text-teal-600'
+                      }`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <h3 className="font-bold text-lg mb-2">{name}</h3>
+                      <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Operating Hours & Contact */}
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Operating Hours */}
+                <div className={`p-6 rounded-2xl border backdrop-blur-md ${
+                  isDarkMode ? 'bg-slate-900/20 border-slate-800' : 'bg-white/50 border-slate-200'
+                }`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${
+                      isDarkMode ? 'bg-cyan-500/10 text-cyan-400' : 'bg-teal-500/10 text-teal-600'
+                    }`}>
+                      <Clock className="h-5 w-5" />
+                    </div>
+                    <h3 className="font-bold text-lg">Operating Hours</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {CLINIC_INFO.hours.map(h => (
+                      <div key={h.day} className="flex justify-between items-center">
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>{h.day}</span>
+                        <span className={`text-sm font-bold ${h.day === 'Emergency' ? (isDarkMode ? 'text-emerald-400' : 'text-emerald-600') : (isDarkMode ? 'text-cyan-300' : 'text-teal-600')}`}>{h.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Contact Information */}
+                <div className={`p-6 rounded-2xl border backdrop-blur-md ${
+                  isDarkMode ? 'bg-slate-900/20 border-slate-800' : 'bg-white/50 border-slate-200'
+                }`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${
+                      isDarkMode ? 'bg-cyan-500/10 text-cyan-400' : 'bg-teal-500/10 text-teal-600'
+                    }`}>
+                      <Phone className="h-5 w-5" />
+                    </div>
+                    <h3 className="font-bold text-lg">Contact Us</h3>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <BookOpen className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                      <div>
+                        <p className={`text-xs uppercase tracking-wider font-bold ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Address</p>
+                        <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{CLINIC_INFO.address}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Phone className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                      <div>
+                        <p className={`text-xs uppercase tracking-wider font-bold ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Phone</p>
+                        <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{CLINIC_INFO.phone}</p>
+                        <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{CLINIC_INFO.mobile}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Mail className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                      <div>
+                        <p className={`text-xs uppercase tracking-wider font-bold ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Email</p>
+                        <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{CLINIC_INFO.email}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Why Choose Us */}
+              <div className="space-y-6">
+                <h2 className="text-2xl font-black tracking-tight text-center">Why choose New Life Clinic?</h2>
                 <div className="grid md:grid-cols-3 gap-6">
                   {[
-                    { title: 'Experienced Staff', desc: 'Our clinic includes experienced doctors, nurses, and lab scientists delivering clinical excellence.', icon: ShieldCheck },
-                    { title: 'Modern Facilities', desc: 'State-of-the-art diagnostics lab and clinical suites for comprehensive testing and evaluation.', icon: Activity },
-                    { title: 'Patient-Centric Care', desc: 'Online portal for appointments, registration, and health monitoring putting you in control.', icon: Users },
+                    { title: 'Experienced Medical Team', desc: 'Licensed physicians, specialist doctors, certified lab scientists, and experienced nursing staff delivering clinical excellence every day.', icon: ShieldCheck },
+                    { title: 'Modern Diagnostics Lab', desc: 'State-of-the-art clinical laboratory offering CBC, chemistry panels, urinalysis, serology, microbiology, and point-of-care testing.', icon: Activity },
+                    { title: 'Smart Patient Portal', desc: 'Online self-service platform for appointment booking, patient card registration, health package purchase, and real-time health monitoring.', icon: Users },
                   ].map(({ title, desc, icon: Icon }) => (
-                    <div key={title} className={`p-6 rounded-2xl border backdrop-blur-md ${
-                      isDarkMode ? 'bg-slate-900/20 border-slate-800' : 'bg-white/50 border-slate-200'
+                    <div key={title} className={`p-6 rounded-2xl border backdrop-blur-md transition-all duration-300 hover:-translate-y-1 ${
+                      isDarkMode ? 'bg-slate-900/20 border-slate-800 hover:border-cyan-500/20' : 'bg-white/50 border-slate-200 hover:shadow-lg hover:border-teal-500/20'
                     }`}>
                       <div className={`h-10 w-10 rounded-xl mb-4 flex items-center justify-center ${
                         isDarkMode ? 'bg-cyan-500/10 text-cyan-400' : 'bg-teal-500/10 text-teal-600'
@@ -1899,13 +2108,57 @@ const Login: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="py-6 border-t mt-auto text-center text-xs"
+      <footer className="py-8 border-t mt-auto text-xs"
         style={{
           borderColor: isDarkMode ? 'rgba(148,163,184,0.08)' : 'rgba(226,232,240,1)',
           background: isDarkMode ? 'rgba(1,5,15,0.4)' : 'rgba(255,255,255,0.4)'
         }}>
-        <div className="max-w-7xl mx-auto px-4 text-slate-400 font-medium">
-          © {new Date().getFullYear()} {clinic?.name || "New Life Clinic"}. Smart Health Management. All rights reserved.
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="grid md:grid-cols-3 gap-8 mb-6">
+            {/* Clinic Info */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Stethoscope className={`h-5 w-5 ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'}`} />
+                <span className="font-extrabold text-sm uppercase tracking-tight">{CLINIC_INFO.name}</span>
+              </div>
+              <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                {CLINIC_INFO.address}
+              </p>
+              <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{CLINIC_INFO.phone} • {CLINIC_INFO.mobile}</p>
+              <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{CLINIC_INFO.email}</p>
+            </div>
+            {/* Quick Links */}
+            <div>
+              <p className="font-bold text-xs uppercase tracking-wider mb-3">Quick Links</p>
+              <div className="space-y-1.5">
+                {[
+                  { id: 'services' as Tab, label: 'Our Services' },
+                  { id: 'packages' as Tab, label: 'Health Packages' },
+                  { id: 'appointment' as Tab, label: 'Book Appointment' },
+                  { id: 'card' as Tab, label: 'Get Patient Card' },
+                ].map(link => (
+                  <button key={link.id} onClick={() => setActiveTab(link.id)} className={`block text-xs transition-colors ${isDarkMode ? 'text-slate-400 hover:text-cyan-300' : 'text-slate-500 hover:text-teal-600'}`}>
+                    {link.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Hours Summary */}
+            <div>
+              <p className="font-bold text-xs uppercase tracking-wider mb-3">Hours</p>
+              <div className="space-y-1">
+                {CLINIC_INFO.hours.map(h => (
+                  <div key={h.day} className="flex justify-between text-xs">
+                    <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>{h.day}</span>
+                    <span className={`font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{h.time}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className={`pt-4 border-t text-center ${isDarkMode ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400'}`}>
+            © {new Date().getFullYear()} {clinic?.name || CLINIC_INFO.name}. Smart Health Management. All rights reserved.
+          </div>
         </div>
       </footer>
     </div>
