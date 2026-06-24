@@ -48,8 +48,7 @@ router.post('/packages', auth, async (req, res) => {
 // @access  Private
 router.get('/packages', auth, async (req, res) => {
   try {
-    const clinicId = req.user?.clinicId || 'default';
-    const packages = await HealthPackage.find({ clinicId, is_active: true });
+    const packages = await HealthPackage.find({ is_active: true });
     res.json({ success: true, data: packages });
   } catch (error) {
     console.error('Error listing package templates:', error);
@@ -167,8 +166,7 @@ router.post('/patients/:id/packages', auth, async (req, res) => {
 // @access  Private
 router.get('/patient-packages', auth, async (req, res) => {
   try {
-    const clinicId = req.user?.clinicId || 'default';
-    const patientPackages = await PatientPackage.find({ clinicId })
+    const patientPackages = await PatientPackage.find()
       .populate('patient_id', 'firstName lastName patientId age gender contactNumber')
       .populate('package_id', 'name description price services')
       .sort({ createdAt: -1 });

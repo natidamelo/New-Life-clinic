@@ -11,7 +11,8 @@ const { runWithTenantContext, bindTenantRequest } = require('../config/tenantCon
  * ignores it for non-super-admin roles.
  */
 function tenantContextMiddleware(req, res, next) {
-  runWithTenantContext('default', () => {
+  const defaultTenant = process.env.PRIMARY_CLINIC_ID || 'default';
+  runWithTenantContext(defaultTenant, () => {
     bindTenantRequest(req);
     next();
   });
