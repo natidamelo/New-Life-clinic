@@ -139,9 +139,14 @@ const FALLBACK_PACKAGES = [
   }
 ];
 
-// Fallback doctors (used when API returns empty)
+// Fallback doctors/staff (used when API returns empty)
 const FALLBACK_DOCTORS = [
-  { id: '6823301cdefc7776bf7537b3', firstName: 'DR', lastName: 'Natan', specialization: 'General Medicine' }
+  { id: '6823301cdefc7776bf7537b3', firstName: 'DR', lastName: 'Natan', role: 'doctor', specialization: 'General Medicine' },
+  { id: '684591465e30c62e5dc23a55', firstName: 'Mahlet', lastName: 'Yohannes', role: 'imaging', specialization: 'Ultrasound Specialist' },
+  { id: '6823859485e2a37d8cb420ed', firstName: 'Semhal', lastName: 'Melaku', role: 'nurse', specialization: 'Nursing Services' },
+  { id: '6895c62e640a5abe8c3d5bbd', firstName: 'Nuhamin', lastName: 'Yohannes', role: 'nurse', specialization: 'Nursing Vitals' },
+  { id: '69663118cf5b28506cba063e', firstName: 'Medina', lastName: 'Negash', role: 'lab', specialization: 'Lab Technician' },
+  { id: '6969f6493bd7375c22fc4c90', firstName: 'Almaz', lastName: 'girmaye', role: 'lab', specialization: 'Lab Technician' }
 ];
 
 const containerVariants = {
@@ -1433,17 +1438,65 @@ const Login: React.FC = () => {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Assign Doctor</label>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          {(() => {
+                            const dept = (bookingDetails.department || '').toLowerCase();
+                            const type = (bookingDetails.type || '').toLowerCase();
+                            const reason = (bookingDetails.reason || '').toLowerCase();
+                            if (dept.includes('imaging') || dept.includes('ultrasound') || type.includes('imaging') || reason.includes('ultrasound') || reason.includes('x-ray')) {
+                              return 'Assign Imaging Specialist';
+                            }
+                            if (dept.includes('lab') || dept.includes('diagnostic') || type.includes('lab') || reason.includes('cbc') || reason.includes('blood') || reason.includes('urine')) {
+                              return 'Assign Lab Technician';
+                            }
+                            if (dept.includes('nurse') || dept.includes('vital') || type.includes('procedure') || reason.includes('wound') || reason.includes('injection') || reason.includes('vaccine') || reason.includes('dressing')) {
+                              return 'Assign Nurse';
+                            }
+                            return 'Assign Doctor';
+                          })()}
+                        </label>
                         <select
                           value={bookingDetails.doctorId}
                           onChange={e => setBookingDetails({...bookingDetails, doctorId: e.target.value})}
                           style={inputStyle}
                           className="auth-login-input w-full h-10 px-3 text-xs rounded-xl outline-none"
                         >
-                          <option value="">Choose Doctor (or leave blank)</option>
-                          {doctors.map(doc => (
-                            <option key={doc.id} value={doc.id}>Dr. {doc.firstName} {doc.lastName} ({doc.specialization || 'GP'})</option>
-                          ))}
+                          {(() => {
+                            const dept = (bookingDetails.department || '').toLowerCase();
+                            const type = (bookingDetails.type || '').toLowerCase();
+                            const reason = (bookingDetails.reason || '').toLowerCase();
+                            let targetRole = 'doctor';
+                            let placeholder = 'Choose Doctor (or leave blank)';
+
+                            if (dept.includes('imaging') || dept.includes('ultrasound') || type.includes('imaging') || reason.includes('ultrasound') || reason.includes('x-ray')) {
+                              targetRole = 'imaging';
+                              placeholder = 'Choose Specialist (or leave blank)';
+                            } else if (dept.includes('lab') || dept.includes('diagnostic') || type.includes('lab') || reason.includes('cbc') || reason.includes('blood') || reason.includes('urine')) {
+                              targetRole = 'lab';
+                              placeholder = 'Choose Technician (or leave blank)';
+                            } else if (dept.includes('nurse') || dept.includes('vital') || type.includes('procedure') || reason.includes('wound') || reason.includes('injection') || reason.includes('vaccine') || reason.includes('dressing')) {
+                              targetRole = 'nurse';
+                              placeholder = 'Choose Nurse (or leave blank)';
+                            }
+
+                            const filtered = doctors.filter(doc => (doc.role || 'doctor') === targetRole);
+                            
+                            return (
+                              <>
+                                <option value="">{placeholder}</option>
+                                {filtered.map(member => {
+                                  const prefix = member.role === 'doctor' ? 'Dr. ' : '';
+                                  const nameDisplay = `${prefix}${member.firstName} ${member.lastName}`;
+                                  const specDisplay = member.specialization || (member.role === 'nurse' ? 'Nurse' : member.role === 'lab' ? 'Lab Technician' : 'Specialist');
+                                  return (
+                                    <option key={member.id} value={member.id}>
+                                      {nameDisplay} ({specDisplay})
+                                    </option>
+                                  );
+                                })}
+                              </>
+                            );
+                          })()}
                         </select>
                       </div>
 

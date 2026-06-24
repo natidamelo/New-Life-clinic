@@ -7,25 +7,29 @@ const PatientCard = require('../models/PatientCard');
 const Appointment = require('../models/Appointment');
 const User = require('../models/User');
 
-// GET /api/public/doctors - Get active doctors for booking
+// GET /api/public/doctors - Get active staff for booking (doctors, nurses, lab, imaging)
 router.get('/doctors', async (req, res) => {
   try {
-    const doctors = await User.find({ role: 'doctor', isActive: true })
-      .select('firstName lastName specialization')
+    const staff = await User.find({ 
+      role: { $in: ['doctor', 'nurse', 'lab', 'imaging'] }, 
+      isActive: true 
+    })
+      .select('firstName lastName role specialization')
       .sort({ firstName: 1 })
       .lean();
 
-    const formatted = doctors.map(doc => ({
-      id: doc._id,
-      firstName: doc.firstName || '',
-      lastName: doc.lastName || '',
-      specialization: doc.specialization || 'General Practitioner',
+    const formatted = staff.map(member => ({
+      id: member._id,
+      firstName: member.firstName || '',
+      lastName: member.lastName || '',
+      role: member.role || 'doctor',
+      specialization: member.specialization || (member.role === 'nurse' ? 'Nurse' : member.role === 'lab' ? 'Lab Technician' : member.role === 'imaging' ? 'Imaging Specialist' : 'General Practitioner'),
     }));
 
     res.json({ success: true, count: formatted.length, data: formatted });
   } catch (error) {
-    console.error('Error fetching public doctors:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch doctors', error: error.message });
+    console.error('Error fetching public staff:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch staff', error: error.message });
   }
 });
 
