@@ -251,6 +251,107 @@ const PulseDivider: React.FC<PulseDividerProps> = ({ animate = false }) => {
   );
 };
 
+interface FilterPillProps {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}
+
+const FilterPill: React.FC<FilterPillProps> = ({ label, active, onClick }) => {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3.5 py-1.5 text-[10px] font-mono uppercase tracking-widest transition-all duration-200 border rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 ${
+        active
+          ? 'bg-pulse border-pulse text-paper font-bold shadow-sm'
+          : 'border-ink/20 text-ink dark:border-paper/20 dark:text-paper hover:bg-mist dark:hover:bg-slate-800/45 font-medium'
+      }`}
+    >
+      {label}
+    </button>
+  );
+};
+
+interface CategoryTagProps {
+  category: string;
+}
+
+const CategoryTag: React.FC<CategoryTagProps> = ({ category }) => {
+  return (
+    <span className="px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider border border-ink/20 text-ink dark:border-paper/20 dark:text-paper rounded">
+      {category}
+    </span>
+  );
+};
+
+interface DataValueProps {
+  value: string | number;
+  className?: string;
+}
+
+const DataValue: React.FC<DataValueProps> = ({ value, className = '' }) => {
+  return (
+    <span className={`font-mono font-bold text-ink dark:text-paper ${className}`}>
+      {value}
+    </span>
+  );
+};
+
+interface SecondaryButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+}
+
+const SecondaryButton: React.FC<SecondaryButtonProps> = ({ children, className = '', ...props }) => {
+  return (
+    <button
+      {...props}
+      className={`w-full py-2 px-4 rounded-xl text-xs font-mono font-bold uppercase tracking-widest border border-ink text-ink dark:border-paper dark:text-paper hover:bg-mist dark:hover:bg-slate-800 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 ${className}`}
+    >
+      {children}
+    </button>
+  );
+};
+
+interface ServiceCardProps {
+  category: string;
+  price: string | number;
+  title: string;
+  description: string;
+  onBook: () => void;
+}
+
+const ServiceCard: React.FC<ServiceCardProps> = ({ category, price, title, description, onBook }) => {
+  return (
+    <div className="bg-paper dark:bg-slate-900 border border-ink/10 dark:border-slate-800 p-5 rounded-b-xl rounded-tr-xl rounded-tl-none hover:translate-y-[-4px] hover:shadow-md transition-all duration-300 flex flex-col justify-between group font-sans">
+      <div>
+        {/* Header Row */}
+        <div className="flex justify-between items-center gap-2 mb-3">
+          <CategoryTag category={category} />
+          <DataValue value={`${price} ETB`} className="text-sm" />
+        </div>
+        
+        {/* Thin dashed divider */}
+        <div className="border-t border-dashed border-ink/15 dark:border-paper/15 my-3 -mx-5" />
+
+        {/* Title */}
+        <h3 className="font-sans font-bold text-base mb-1 tracking-tight text-ink dark:text-paper group-hover:text-pulse transition-colors duration-300">
+          {title}
+        </h3>
+        
+        {/* Description */}
+        <p className="font-sans text-xs leading-relaxed text-slate mb-4 line-clamp-3">
+          {description || 'Professional clinical service offered under clinic management by certified medical practitioners.'}
+        </p>
+      </div>
+
+      {/* Button */}
+      <SecondaryButton onClick={onBook}>
+        Book This Service
+      </SecondaryButton>
+    </div>
+  );
+};
+
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, login, getRoleBasedRoute } = useAuth();
@@ -1087,7 +1188,6 @@ const Login: React.FC = () => {
               </div>
             </motion.div>
           )}
-
           {activeTab === 'services' && (
             <motion.div
               key="services"
@@ -1097,8 +1197,10 @@ const Login: React.FC = () => {
               className="space-y-8"
             >
               <div className="text-center space-y-2">
-                <h2 className="text-3xl font-black tracking-tight">Our Clinical Services</h2>
-                <p className={`max-w-[560px] mx-auto text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                <h1 className="text-3xl font-bold tracking-tight text-ink dark:text-paper font-sans">
+                  Our <span className="font-annotation italic text-pulse leading-none">Clinical</span> Services
+                </h1>
+                <p className="max-w-[560px] mx-auto text-sm text-slate font-sans">
                   Browse our full list of clinic services, lab tests, and imaging procedures available at New Life Clinic.
                 </p>
               </div>
@@ -1107,31 +1209,25 @@ const Login: React.FC = () => {
               <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                 {/* Search Bar */}
                 <div className="relative w-full md:max-w-xs group">
-                  <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate" />
                   <input
                     type="text"
                     placeholder="Search services..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    style={inputStyle}
-                    className="auth-login-input w-full h-11 pl-10 pr-4 text-sm rounded-xl outline-none"
+                    className="w-full h-11 pl-10 pr-4 text-sm rounded-xl outline-none font-sans bg-paper dark:bg-slate-900 border border-ink/10 dark:border-slate-800 text-ink dark:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 transition-all duration-200"
                   />
                 </div>
 
-                {/* Category Buttons */}
+                {/* Category Buttons (FilterPills) */}
                 <div className="flex flex-wrap gap-2 w-full md:w-auto justify-start md:justify-end">
                   {categories.map(cat => (
-                    <button
+                    <FilterPill
                       key={cat}
+                      label={cat === 'All' ? 'All categories' : cat}
+                      active={selectedCategory === cat}
                       onClick={() => setSelectedCategory(cat)}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-xl uppercase tracking-wider transition-all duration-200 border ${
-                        selectedCategory === cat
-                          ? isDarkMode ? 'bg-cyan-400 border-cyan-400 text-slate-950 font-bold' : 'bg-teal-600 border-teal-600 text-white font-bold'
-                          : isDarkMode ? 'border-slate-800 text-slate-400 hover:bg-slate-900' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      {cat === 'All' ? 'All categories' : cat}
-                    </button>
+                    />
                   ))}
                 </div>
               </div>
@@ -1139,61 +1235,33 @@ const Login: React.FC = () => {
               {/* Services Grid */}
               {servicesLoading ? (
                 <div className="flex flex-col items-center justify-center py-20">
-                  <div className={`animate-spin rounded-full h-10 w-10 border-t-2 ${isDarkMode ? 'border-cyan-400' : 'border-teal-600'}`} />
+                  <div className={`animate-spin rounded-full h-10 w-10 border-t-2 ${isDarkMode ? 'border-pulse' : 'border-pulse'}`} />
                   <p className="text-xs text-slate-400 mt-4">Loading clinical catalog...</p>
                 </div>
               ) : filteredServices.length > 0 ? (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredServices.map(service => (
-                    <div
+                    <ServiceCard
                       key={service._id}
-                      className={`p-5 rounded-2xl border transition-all duration-300 flex flex-col justify-between hover:shadow-lg ${
-                        isDarkMode 
-                          ? 'border-slate-800 bg-slate-900/30 hover:border-cyan-500/20' 
-                          : 'border-slate-200 bg-white hover:border-teal-500/20'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex justify-between items-start gap-2 mb-3">
-                          <span className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase tracking-wider ${
-                            isDarkMode ? 'bg-slate-800 text-cyan-300' : 'bg-slate-100 text-teal-700'
-                          }`}>
-                            {service.category}
-                          </span>
-                          <span className={`font-black text-lg ${isDarkMode ? 'text-cyan-300' : 'text-teal-600'}`}>
-                            {service.price} ETB
-                          </span>
-                        </div>
-                        <h3 className="font-extrabold text-base mb-1 tracking-tight">{service.name}</h3>
-                        <p className={`text-xs leading-relaxed line-clamp-3 mb-4 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                          {service.description || 'Professional clinical service offered under clinic management by certified medical practitioners.'}
-                        </p>
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          setActiveTab('appointment');
-                          setBookingStep(1);
-                          setBookingDetails(prev => ({
-                            ...prev,
-                            type: service.category.includes('lab') ? 'lab-test' : service.category.includes('imaging') ? 'imaging' : 'Consultation',
-                            reason: `Booked service: ${service.name}`
-                          }));
-                        }}
-                        className={`w-full py-2 rounded-xl text-xs font-bold transition-all duration-200 border ${
-                          isDarkMode
-                            ? 'border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10'
-                            : 'border-teal-500/30 text-teal-600 hover:bg-teal-50'
-                        }`}
-                      >
-                        Book This Service
-                      </button>
-                    </div>
+                      category={service.category}
+                      price={service.price}
+                      title={service.name}
+                      description={service.description}
+                      onBook={() => {
+                        setActiveTab('appointment');
+                        setBookingStep(1);
+                        setBookingDetails(prev => ({
+                          ...prev,
+                          type: service.category.toLowerCase().includes('lab') ? 'lab-test' : service.category.toLowerCase().includes('imaging') ? 'imaging' : 'Consultation',
+                          reason: `Booked service: ${service.name}`
+                        }));
+                      }}
+                    />
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-20 border border-dashed rounded-2xl">
-                  <p className="text-slate-400 text-sm">No services matches your filters. Try search filters.</p>
+                <div className="text-center py-20 border border-dashed rounded-2xl border-ink/10 dark:border-slate-800">
+                  <p className="text-slate text-sm font-sans">No services matches your filters. Try search filters.</p>
                 </div>
               )}
             </motion.div>
