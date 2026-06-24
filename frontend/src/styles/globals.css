@@ -466,3 +466,24 @@ velt-notifications-panel:not([panel-open-mode='sidebar']) {
   max-width: min(24rem, calc(100vw - 2rem));
 }
 
+/* ── Live Vitals Scrolling Waveform Animation ── */
+@keyframes scrollWave {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll-wave {
+  animation: scrollWave 3s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-scroll-wave,
+  .animate-pulse {
+    animation-play-state: paused !important;
+  }
+}
+

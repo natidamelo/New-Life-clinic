@@ -883,9 +883,9 @@ const Login: React.FC = () => {
                 <div className="lg:col-span-5">
                   <div className="bg-paper dark:bg-slate-900 border border-ink/10 dark:border-slate-800 p-8 rounded-2xl shadow-sm space-y-6 font-sans">
                     {/* Header Row */}
-                    <div className="flex items-center justify-between border-b border-ink/8 dark:border-slate-800 pb-4">
+                    <div className="flex items-center justify-between border-b border-ink/8 dark:border-slate-800 pb-4 animate-parent-no-flicker">
                       <span className="font-mono text-xs tracking-wider text-slate uppercase">VITALS — LIVE</span>
-                      <span className={`h-2.5 w-2.5 rounded-full bg-pulse ${prefersReducedMotion ? '' : 'animate-pulse'}`} />
+                      <span className="h-2.5 w-2.5 rounded-full bg-pulse animate-pulse" />
                     </div>
 
                     {/* Vitals Rows */}
@@ -899,9 +899,11 @@ const Login: React.FC = () => {
                           </span>
                         </div>
                         <div className="flex items-center pr-2">
-                          <svg className="w-10 h-6 text-pulse" viewBox="0 0 40 16" fill="none">
-                            <path d="M0,8 Q10,0 20,16 T40,8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
+                          <div className="w-10 h-4 overflow-hidden relative" style={{ minWidth: '40px' }}>
+                            <svg className="absolute left-0 top-0 h-full w-[80px] text-pulse animate-scroll-wave" viewBox="0 0 80 16" fill="none" preserveAspectRatio="none">
+                              <path d="M 0 8 L 15 8 L 17 8 L 18 6 L 20 8 L 21 10 L 23 2 L 25 14 L 26 8 L 28 6 L 30 8 L 40 8 L 55 8 L 57 8 L 58 6 L 60 8 L 61 10 L 63 2 L 65 14 L 66 8 L 68 6 L 70 8 L 80 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </div>
                         </div>
                       </div>
                       <div className="h-px bg-ink/8 dark:bg-slate-800/60" />
@@ -913,9 +915,11 @@ const Login: React.FC = () => {
                           <span className="block font-sans font-bold text-2xl text-ink dark:text-paper">50+</span>
                         </div>
                         <div className="flex items-center pr-2">
-                          <svg className="w-10 h-6 text-pulse" viewBox="0 0 40 16" fill="none">
-                            <path d="M0,8 L8,4 L16,12 L24,2 L32,14 L40,8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
+                          <div className="w-10 h-4 overflow-hidden relative" style={{ minWidth: '40px' }}>
+                            <svg className="absolute left-0 top-0 h-full w-[80px] text-pulse animate-scroll-wave" viewBox="0 0 80 16" fill="none" preserveAspectRatio="none">
+                              <path d="M 0 8 L 15 8 L 17 8 L 18 6 L 20 8 L 21 10 L 23 2 L 25 14 L 26 8 L 28 6 L 30 8 L 40 8 L 55 8 L 57 8 L 58 6 L 60 8 L 61 10 L 63 2 L 65 14 L 66 8 L 68 6 L 70 8 L 80 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </div>
                         </div>
                       </div>
                       <div className="h-px bg-ink/8 dark:bg-slate-800/60" />
@@ -927,9 +931,11 @@ const Login: React.FC = () => {
                           <span className="block font-sans font-bold text-2xl text-ink dark:text-paper">99.9%</span>
                         </div>
                         <div className="flex items-center pr-2">
-                          <svg className="w-10 h-6 text-pulse" viewBox="0 0 40 16" fill="none">
-                            <path d="M0,8 Q8,14 16,4 T32,10 L40,8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
+                          <div className="w-10 h-4 overflow-hidden relative" style={{ minWidth: '40px' }}>
+                            <svg className="absolute left-0 top-0 h-full w-[80px] text-pulse animate-scroll-wave" viewBox="0 0 80 16" fill="none" preserveAspectRatio="none">
+                              <path d="M 0 4 Q 10 2 20 4 Q 30 6 40 4 Q 50 2 60 4 Q 70 6 80 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </div>
                         </div>
                       </div>
                       <div className="h-px bg-ink/8 dark:bg-slate-800/60" />
@@ -941,13 +947,14 @@ const Login: React.FC = () => {
                           <span className="block font-sans font-bold text-2xl text-ink dark:text-paper">24/7</span>
                         </div>
                         <div className="flex items-center pr-2">
-                          <svg className="w-10 h-6 text-pulse" viewBox="0 0 40 16" fill="none">
-                            <path d="M0,8 L10,2 L20,14 L30,4 L40,8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
+                          <div className="w-10 h-4 overflow-hidden relative" style={{ minWidth: '40px' }}>
+                            <svg className="absolute left-0 top-0 h-full w-[80px] text-pulse animate-scroll-wave" viewBox="0 0 80 16" fill="none" preserveAspectRatio="none">
+                              <path d="M 0 4 Q 10 2 20 4 Q 30 6 40 4 Q 50 2 60 4 Q 70 6 80 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
+                    </div>                  </div>
                 </div>
               </div>
 
