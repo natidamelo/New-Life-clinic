@@ -7,6 +7,28 @@ const PatientCard = require('../models/PatientCard');
 const Appointment = require('../models/Appointment');
 const User = require('../models/User');
 
+// GET /api/public/doctors - Get active doctors for booking
+router.get('/doctors', async (req, res) => {
+  try {
+    const doctors = await User.find({ role: 'doctor', isActive: true })
+      .select('firstName lastName specialization')
+      .sort({ firstName: 1 })
+      .lean();
+
+    const formatted = doctors.map(doc => ({
+      id: doc._id,
+      firstName: doc.firstName || '',
+      lastName: doc.lastName || '',
+      specialization: doc.specialization || 'General Practitioner',
+    }));
+
+    res.json({ success: true, count: formatted.length, data: formatted });
+  } catch (error) {
+    console.error('Error fetching public doctors:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch doctors', error: error.message });
+  }
+});
+
 // GET /api/public/services - Get all active services
 router.get('/services', async (req, res) => {
   try {

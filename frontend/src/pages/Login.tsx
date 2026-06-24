@@ -146,6 +146,15 @@ const FALLBACK_PACKAGES = [
   },
 ];
 
+// Fallback doctors (used when API returns empty)
+const FALLBACK_DOCTORS = [
+  { id: 'fd-1', firstName: 'Abebe', lastName: 'Kebede', specialization: 'General Practitioner' },
+  { id: 'fd-2', firstName: 'Selam', lastName: 'Tesfaye', specialization: 'Internal Medicine' },
+  { id: 'fd-3', firstName: 'Daniel', lastName: 'Haile', specialization: 'Pediatrics' },
+  { id: 'fd-4', firstName: 'Hanna', lastName: 'Girma', specialization: 'OB/GYN' },
+  { id: 'fd-5', firstName: 'Yonas', lastName: 'Assefa', specialization: 'General Practitioner' },
+];
+
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -188,7 +197,7 @@ const Login: React.FC = () => {
   // Landing page public data states
   const [services, setServices] = useState<any[]>(FALLBACK_SERVICES);
   const [packages, setPackages] = useState<any[]>(FALLBACK_PACKAGES);
-  const [doctors, setDoctors] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<any[]>(FALLBACK_DOCTORS);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [packagesLoading, setPackagesLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -279,12 +288,15 @@ const Login: React.FC = () => {
 
   const fetchDoctors = async () => {
     try {
-      const res = await api.get('/doctors/all');
-      if (Array.isArray(res.data)) {
-        setDoctors(res.data);
+      const res = await api.get('/public/doctors');
+      if (res.data && res.data.success && res.data.data.length > 0) {
+        setDoctors(res.data.data);
+      } else {
+        setDoctors(FALLBACK_DOCTORS);
       }
     } catch (err) {
       console.error('Error fetching doctors list:', err);
+      setDoctors(FALLBACK_DOCTORS);
     }
   };
 
