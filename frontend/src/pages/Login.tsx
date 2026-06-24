@@ -684,8 +684,8 @@ const Login: React.FC = () => {
         }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('home')}>
-            <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white font-black overflow-hidden bg-gradient-to-br from-teal-500 to-cyan-500">
-              <Stethoscope className="h-5 w-5" />
+            <div className="h-9 w-9 rounded-xl flex items-center justify-center overflow-hidden bg-white border border-slate-200/50">
+              <img src="/assets/images/logo.jpg" alt="New Life Clinic Logo" className="h-full w-full object-cover" />
             </div>
             <div>
               <span className="font-extrabold text-md tracking-tight uppercase">New Life Clinic</span>
@@ -815,7 +815,9 @@ const Login: React.FC = () => {
                     <div className={`absolute inset-16 rounded-3xl backdrop-blur-xl border flex flex-col items-center justify-center p-8 shadow-2xl ${
                       isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white/60 border-slate-100'
                     }`}>
-                      <Stethoscope className={`h-16 w-16 mb-4 ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'}`} />
+                      <div className="h-16 w-16 rounded-2xl overflow-hidden mb-4 border border-slate-200/50 bg-white shadow-md flex items-center justify-center">
+                        <img src="/assets/images/logo.jpg" alt="New Life Clinic Logo" className="h-full w-full object-cover" />
+                      </div>
                       <p className="font-extrabold text-xl tracking-tight text-center">New Life Clinic</p>
                       <p className={`text-[10px] uppercase tracking-widest font-bold mt-1 text-center ${isDarkMode ? 'text-cyan-400/80' : 'text-teal-600/80'}`}>Smart Platform</p>
                     </div>
@@ -2175,7 +2177,9 @@ const Login: React.FC = () => {
             {/* Clinic Info */}
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <Stethoscope className={`h-5 w-5 ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'}`} />
+                <div className="h-5 w-5 rounded-md overflow-hidden bg-white flex items-center justify-center border border-slate-200/20">
+                  <img src="/assets/images/logo.jpg" alt="New Life Clinic Logo" className="h-full w-full object-cover" />
+                </div>
                 <span className="font-extrabold text-sm uppercase tracking-tight">{CLINIC_INFO.name}</span>
               </div>
               <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
