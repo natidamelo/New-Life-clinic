@@ -37,7 +37,8 @@
   --chart-mist: #1B2A28;
   --chart-slate: #94A3B8;
 }
-
+@tailwind base;
+@tailwind components;
 @tailwind utilities;
 
 .chart-grid {
