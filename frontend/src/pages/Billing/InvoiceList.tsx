@@ -13,11 +13,12 @@ import { Alert, AlertDescription } from '../../components/ui/alert';
 import {
   PlusIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon,
   DocumentIcon, CurrencyDollarIcon, ArrowPathIcon, CheckCircleIcon,
-  FunnelIcon
+  FunnelIcon, TrashIcon, XCircleIcon
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import billingService, { Invoice } from '../../services/billingService';
 import { safeArray } from '../../utils/formatters';
+import { useAuth } from '../../context/AuthContext';
 
 type StatusFilter = 'all' | 'pending' | 'partial' | 'overdue' | 'paid' | 'cancelled';
 
@@ -32,6 +33,12 @@ const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string;
 
 const InvoiceList: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const isFinance = user?.role === 'finance';
+  const canCancel = isAdmin || isFinance;
+  const canDelete = isAdmin;
+
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +51,13 @@ const InvoiceList: React.FC = () => {
   const [paymentForm, setPaymentForm] = useState({ amountPaid: 0, paymentMethod: 'cash', notes: '' });
   const [processingPayment, setProcessingPayment] = useState(false);
   const [confirmFinalize, setConfirmFinalize] = useState<Invoice | null>(null);
+
+  const [confirmCancel, setConfirmCancel] = useState<Invoice | null>(null);
+  const [cancelReason, setCancelReason] = useState<string>('');
+  const [cancellingInvoice, setCancellingInvoice] = useState<boolean>(false);
+
+  const [confirmDelete, setConfirmDelete] = useState<Invoice | null>(null);
+  const [deletingInvoice, setDeletingInvoice] = useState<boolean>(false);
 
   const formatCurrency = (amount: number | undefined | null) => {
     if (amount === undefined || amount === null || isNaN(amount)) return 'ETB 0.00';
@@ -185,6 +199,39 @@ const InvoiceList: React.FC = () => {
       fetchData();
     } catch (error: any) {
       toast.error(`Failed to finalize: ${error.response?.data?.message || error.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleCancelInvoice = async (invoice: Invoice) => {
+    if (!invoice._id) return;
+    setCancellingInvoice(true);
+    try {
+      await billingService.cancelInvoice(invoice._id, cancelReason);
+      toast.success(`Invoice ${invoice.invoiceNumber} cancelled successfully`);
+      setConfirmCancel(null);
+      setCancelReason('');
+      fetchData();
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error.message || 'Unknown error';
+      toast.error(`Failed to cancel: ${msg}`);
+    } finally {
+      setCancellingInvoice(false);
+    }
+  };
+
+  const handleDeleteInvoice = async (invoice: Invoice) => {
+    if (!invoice._id) return;
+    setDeletingInvoice(true);
+    try {
+      await billingService.deleteInvoice(invoice._id);
+      toast.success(`Invoice ${invoice.invoiceNumber} deleted successfully`);
+      setConfirmDelete(null);
+      fetchData();
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error.message || 'Unknown error';
+      toast.error(`Failed to delete: ${msg}`);
+    } finally {
+      setDeletingInvoice(false);
     }
   };
 
@@ -547,6 +594,23 @@ const InvoiceList: React.FC = () => {
                               <CheckCircleIcon className="h-3.5 w-3.5" />
                             </Button>
                           )}
+                          {canCancel && invoice.status !== 'cancelled' && (
+                            <Button variant="ghost" size="sm"
+                              className="h-7 w-7 p-0 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                              onClick={() => {
+                                setConfirmCancel(invoice);
+                                setCancelReason('');
+                              }} title="Cancel Invoice">
+                              <XCircleIcon className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button variant="ghost" size="sm"
+                              className="h-7 w-7 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => setConfirmDelete(invoice)} title="Delete Invoice">
+                              <TrashIcon className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -683,6 +747,65 @@ const InvoiceList: React.FC = () => {
             <Button onClick={() => confirmFinalize && handleFinalizeInvoice(confirmFinalize)}
               className="bg-indigo-600 hover:bg-indigo-700 text-white">
               Finalize
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Confirmation Dialog */}
+      <Dialog open={!!confirmCancel} onOpenChange={() => setConfirmCancel(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cancel Invoice</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel invoice <strong>{confirmCancel?.invoiceNumber}</strong>? 
+              This will void the invoice, delete associated payments, delete corresponding nurse tasks, and reset prescription payment statuses to unpaid.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5 py-2">
+            <Label htmlFor="cancelReason">Reason for Cancellation</Label>
+            <Input
+              id="cancelReason"
+              placeholder="e.g., Patient decided not to proceed, duplicate billing..."
+              value={cancelReason}
+              onChange={e => setCancelReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setConfirmCancel(null); setCancelReason(''); }} disabled={cancellingInvoice}>
+              Go Back
+            </Button>
+            <Button
+              onClick={() => confirmCancel && handleCancelInvoice(confirmCancel)}
+              disabled={cancellingInvoice}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {cancellingInvoice ? 'Cancelling...' : 'Cancel Invoice'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!confirmDelete} onOpenChange={() => setConfirmDelete(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Delete Invoice Permanently</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete invoice <strong>{confirmDelete?.invoiceNumber}</strong>?
+              <span className="block mt-2 font-semibold text-red-500">Warning: This action cannot be undone. Associated payments, lab/imaging orders, and nurse tasks will be deleted.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={deletingInvoice}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => confirmDelete && handleDeleteInvoice(confirmDelete)}
+              disabled={deletingInvoice}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deletingInvoice ? 'Deleting...' : 'Delete Permanently'}
             </Button>
           </DialogFooter>
         </DialogContent>

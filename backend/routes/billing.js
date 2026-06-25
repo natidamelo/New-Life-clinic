@@ -6162,10 +6162,156 @@ router.get('/insurance-patient-report', auth, checkRole('admin', 'finance'), asy
       totalBalance: patients.reduce((s, p) => s + p.balance, 0),
     };
 
-    res.json({ success: true, data: { summary, patients, dateRange: { startDate, endDate } } });
+// PUT /api/billing/invoices/:id/cancel (Admin/Finance only)
+// Cancels/voids an invoice and reverts associated payment status on prescriptions/nurse tasks
+router.put('/invoices/:id/cancel', auth, checkRole('admin', 'finance'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason = '' } = req.body;
+    console.log(`[CANCEL INVOICE] Cancelling invoice ${id}. Reason: ${reason}`);
+
+    const invoice = await MedicalInvoice.findById(id);
+    if (!invoice) {
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+
+    const NurseTask = require('../models/NurseTask');
+    const LabOrder = require('../models/LabOrder');
+    const ImagingOrder = require('../models/ImagingOrder');
+    const Prescription = require('../models/Prescription');
+    const Payment = require('../models/Payment');
+
+    // 1. Revert payment status for associated items in the invoice
+    if (invoice.items && invoice.items.length > 0) {
+      for (const item of invoice.items) {
+        const metadata = item.metadata || {};
+        
+        // Reset Prescription paymentStatus and delete associated NurseTasks
+        if (metadata.prescriptionId) {
+          await Prescription.findByIdAndUpdate(metadata.prescriptionId, { paymentStatus: 'unpaid' });
+          await NurseTask.deleteMany({ prescriptionId: metadata.prescriptionId });
+        }
+        
+        // Delete associated LabOrders (since payment is cancelled)
+        if (metadata.labOrderId || item.itemType === 'lab') {
+          await LabOrder.deleteMany({ 
+            $or: [
+              { _id: metadata.labOrderId },
+              { patientId: invoice.patient, testName: item.description }
+            ]
+          });
+        }
+        
+        // Delete associated ImagingOrders
+        if (metadata.imagingOrderId || item.itemType === 'imaging') {
+          await ImagingOrder.deleteMany({
+            $or: [
+              { _id: metadata.imagingOrderId },
+              { patientId: invoice.patient, imagingType: item.description }
+            ]
+          });
+        }
+
+        // Delete associated NurseTasks for general services/procedures/injections
+        if (metadata.nurseTaskId) {
+          await NurseTask.findByIdAndDelete(metadata.nurseTaskId);
+        }
+      }
+    }
+
+    // 2. Delete associated payments
+    await Payment.deleteMany({ invoice: id });
+
+    // 3. Update invoice status to Cancelled and balance details
+    invoice.status = 'cancelled';
+    invoice.amountPaid = 0;
+    invoice.balance = invoice.total;
+    invoice.notes = invoice.notes 
+      ? `${invoice.notes}\n[Cancelled on ${new Date().toLocaleDateString()} - Reason: ${reason}]`
+      : `[Cancelled on ${new Date().toLocaleDateString()} - Reason: ${reason}]`;
+    
+    await invoice.save();
+    console.log(`[CANCEL INVOICE] Successfully cancelled invoice ${id}`);
+
+    res.json({ success: true, message: 'Invoice cancelled and associated records reverted successfully', data: invoice });
   } catch (error) {
-    console.error('Error getting insurance patient report:', error);
-    res.status(500).json({ success: false, message: 'Failed to get insurance patient report', error: error.message });
+    console.error('Error cancelling invoice:', error);
+    res.status(500).json({ success: false, message: 'Failed to cancel invoice', error: error.message });
+  }
+});
+
+// DELETE /api/billing/invoices/:id (Admin only)
+// Deletes an invoice completely and cleans up associated records
+router.delete('/invoices/:id', auth, checkRole('admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`[DELETE INVOICE] Deleting invoice ${id}`);
+
+    const invoice = await MedicalInvoice.findById(id);
+    if (!invoice) {
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+
+    const Payment = require('../models/Payment');
+    const Notification = require('../models/Notification');
+    const NurseTask = require('../models/NurseTask');
+    const LabOrder = require('../models/LabOrder');
+    const ImagingOrder = require('../models/ImagingOrder');
+    const Prescription = require('../models/Prescription');
+
+    // 1. Revert payment status for associated items in the invoice
+    if (invoice.items && invoice.items.length > 0) {
+      for (const item of invoice.items) {
+        const metadata = item.metadata || {};
+        
+        // Reset Prescription paymentStatus and delete associated NurseTasks
+        if (metadata.prescriptionId) {
+          await Prescription.findByIdAndUpdate(metadata.prescriptionId, { paymentStatus: 'unpaid' });
+          await NurseTask.deleteMany({ prescriptionId: metadata.prescriptionId });
+        }
+        
+        // Delete associated LabOrders
+        if (metadata.labOrderId || item.itemType === 'lab') {
+          await LabOrder.deleteMany({ 
+            $or: [
+              { _id: metadata.labOrderId },
+              { patientId: invoice.patient, testName: item.description }
+            ]
+          });
+        }
+        
+        // Delete associated ImagingOrders
+        if (metadata.imagingOrderId || item.itemType === 'imaging') {
+          await ImagingOrder.deleteMany({
+            $or: [
+              { _id: metadata.imagingOrderId },
+              { patientId: invoice.patient, imagingType: item.description }
+            ]
+          });
+        }
+
+        // Delete associated NurseTasks for general services/procedures/injections
+        if (metadata.nurseTaskId) {
+          await NurseTask.findByIdAndDelete(metadata.nurseTaskId);
+        }
+      }
+    }
+
+    // 2. Delete associated payments
+    const paymentDeleteResult = await Payment.deleteMany({ invoice: id });
+    console.log(`[DELETE INVOICE] Deleted ${paymentDeleteResult.deletedCount} payments`);
+
+    // 3. Delete notifications related to this invoice
+    await Notification.deleteMany({ 'data.invoiceId': id });
+
+    // 4. Delete the invoice itself
+    await MedicalInvoice.findByIdAndDelete(id);
+    console.log(`[DELETE INVOICE] Successfully deleted invoice ${id}`);
+
+    res.json({ success: true, message: 'Invoice and associated records deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting invoice:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete invoice', error: error.message });
   }
 });
 

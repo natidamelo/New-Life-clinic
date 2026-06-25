@@ -222,7 +222,12 @@ class BillingService {
 
   async cancelInvoice(id: string, reason: string) {
     const response = await api.put(`/api/billing/invoices/${id}/cancel`, { reason });
-    return response.data.data;
+    return response.data;
+  }
+
+  async deleteInvoice(id: string) {
+    const response = await api.delete(`/api/billing/invoices/${id}`);
+    return response.data;
   }
 
   async finalizeInvoice(id: string) {
