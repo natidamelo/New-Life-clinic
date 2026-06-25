@@ -484,6 +484,28 @@ const SecondaryButton: React.FC<SecondaryButtonProps> = ({ children, className =
   );
 };
 
+const getServiceImage = (category: string, title: string): string => {
+  const cat = (category || '').toLowerCase();
+  const name = (title || '').toLowerCase();
+  
+  if (cat.includes('lab') || name.includes('blood') || name.includes('cbc') || name.includes('glucose') || name.includes('urine') || name.includes('widal') || name.includes('stool') || name.includes('crp') || name.includes('esr') || name.includes('hiv') || name.includes('fecal') || name.includes('sgpt') || name.includes('malaria') || name.includes('hcg') || name.includes('wbc') || name.includes('hemoglobin') || name.includes('rheumatoid')) {
+    return 'https://images.unsplash.com/photo-1579165466541-74e2b490270b?auto=format&fit=crop&w=300&q=80'; // lab tubes/microscope
+  }
+  if (cat.includes('imaging') || cat.includes('ultrasound') || name.includes('pelvic') || name.includes('abdominal') || name.includes('scan') || name.includes('obstetrics') || name.includes('x-ray')) {
+    return 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=300&q=80'; // ultrasound
+  }
+  if (cat.includes('injection') || name.includes('depo') || name.includes('implanon') || name.includes('im ') || name.includes('iv ') || name.includes('im injection') || name.includes('iv injection')) {
+    return 'https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?auto=format&fit=crop&w=300&q=80'; // syringe/vial
+  }
+  if (cat.includes('procedure') || name.includes('wound') || name.includes('suturing') || name.includes('dressing') || name.includes('blood pressure') || name.includes('switching')) {
+    return 'https://images.unsplash.com/photo-1579684389782-64d84b5e9053?auto=format&fit=crop&w=300&q=80'; // care/stitches
+  }
+  if (cat.includes('consultation') || name.includes('doctor') || name.includes('checkup') || name.includes('consultation')) {
+    return 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=300&q=80'; // doctor consulting
+  }
+  return 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=300&q=80'; // general medical
+};
+
 interface ServiceCardProps {
   category: string;
   price: string | number;
@@ -493,33 +515,42 @@ interface ServiceCardProps {
 }
 
 const ServiceCard: React.FC<ServiceCardProps> = ({ category, price, title, description, onBook }) => {
+  const imageUrl = getServiceImage(category, title);
+  
   return (
-    <div className="bg-paper/85 dark:bg-slate-900/60 backdrop-blur-md border border-ink/8 dark:border-slate-800/80 p-5 rounded-2xl hover:-translate-y-1.5 hover:shadow-xl transition-all duration-500 flex flex-col justify-between group font-sans">
-      <div>
-        {/* Header Row */}
-        <div className="flex justify-between items-center gap-2 mb-3">
-          <CategoryTag category={category} />
-          <DataValue value={`${price} ETB`} className="text-sm text-pulse font-mono" />
-        </div>
-        
-        {/* Thin dashed divider */}
-        <div className="border-t border-dashed border-ink/10 dark:border-slate-800/60 my-3 -mx-5" />
-
-        {/* Title */}
-        <h3 className="font-sans font-bold text-base mb-1.5 tracking-tight text-ink dark:text-paper group-hover:text-pulse transition-colors duration-300">
-          {title}
-        </h3>
-        
-        {/* Description */}
-        <p className="font-sans text-xs leading-relaxed text-slate dark:text-slate-400 mb-4 line-clamp-3">
-          {description || 'Professional clinical service offered under clinic management by certified medical practitioners.'}
-        </p>
+    <div className="bg-paper/85 dark:bg-slate-900/60 backdrop-blur-md border border-ink/8 dark:border-slate-800/80 p-4 rounded-2xl hover:-translate-y-1 hover:shadow-lg transition-all duration-300 flex gap-4 items-center group font-sans">
+      {/* Service Image */}
+      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden flex-shrink-0 bg-slate-100 dark:bg-slate-800 border border-ink/5 dark:border-slate-800/60 relative">
+        <img src={imageUrl} alt={title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <div className="absolute inset-0 bg-ink/5 dark:bg-black/10 pointer-events-none" />
       </div>
 
-      {/* Button */}
-      <SecondaryButton onClick={onBook}>
-        Book This Service
-      </SecondaryButton>
+      {/* Service Info */}
+      <div className="flex-grow flex flex-col justify-between h-20 sm:h-24 min-w-0">
+        <div>
+          <div className="flex justify-between items-center gap-2 mb-1.5">
+            <span className="px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider border border-ink/20 text-slate dark:border-paper/20 dark:text-slate-400 rounded">
+              {category}
+            </span>
+            <span className="font-mono font-bold text-[11px] text-pulse">
+              {price} ETB
+            </span>
+          </div>
+          <h3 className="font-sans font-bold text-xs sm:text-sm text-ink dark:text-paper group-hover:text-pulse transition-colors duration-300 truncate leading-tight">
+            {title}
+          </h3>
+          <p className="font-sans text-[10px] sm:text-[11px] leading-snug text-slate dark:text-slate-400 line-clamp-2 mt-0.5">
+            {description || 'Professional clinical service offered under clinic management by certified medical practitioners.'}
+          </p>
+        </div>
+
+        <button
+          onClick={onBook}
+          className="w-full mt-1.5 py-1 px-3 rounded-lg text-[9px] font-mono font-bold uppercase tracking-wider border border-ink text-ink dark:border-paper dark:text-paper hover:bg-pulse hover:border-pulse hover:text-paper dark:hover:bg-pulse dark:hover:border-pulse dark:hover:text-paper transition-all duration-200 focus-visible:outline-none"
+        >
+          Book Service
+        </button>
+      </div>
     </div>
   );
 };
