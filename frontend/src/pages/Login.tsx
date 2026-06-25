@@ -488,22 +488,126 @@ const getServiceImage = (category: string, title: string): string => {
   const cat = (category || '').toLowerCase();
   const name = (title || '').toLowerCase();
   
-  if (cat.includes('lab') || name.includes('blood') || name.includes('cbc') || name.includes('glucose') || name.includes('urine') || name.includes('widal') || name.includes('stool') || name.includes('crp') || name.includes('esr') || name.includes('hiv') || name.includes('fecal') || name.includes('sgpt') || name.includes('malaria') || name.includes('hcg') || name.includes('wbc') || name.includes('hemoglobin') || name.includes('rheumatoid')) {
-    return 'https://images.unsplash.com/photo-1579165466541-74e2b490270b?auto=format&fit=crop&w=300&q=80'; // lab tubes/microscope
+  // 1. SPECIFIC TITLE KEYWORD MATCHES (High priority for clinical accuracy)
+  // Injection & Fluids
+  if (
+    name.includes('injection') ||
+    name.includes('syringe') ||
+    name.includes('depo') ||
+    name.includes('implanon') ||
+    name.includes('im ') ||
+    name.includes('iv ') ||
+    name.includes('vial') ||
+    name.includes('vaccine') ||
+    name.includes('tetanus') ||
+    name.includes('cannula') ||
+    name.includes('ringer') ||
+    name.includes('lactate') ||
+    name.includes('saline') ||
+    name.includes('fluid') ||
+    name.includes('dexamethasone') ||
+    name.includes('ceftriaxone') ||
+    name.includes('diclofenac')
+  ) {
+    return 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=300&q=80'; // vial and syringe preparation (200 OK)
   }
-  if (cat.includes('imaging') || cat.includes('ultrasound') || name.includes('pelvic') || name.includes('abdominal') || name.includes('scan') || name.includes('obstetrics') || name.includes('x-ray')) {
-    return 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=300&q=80'; // ultrasound
+
+  // Lab Tests & Panels
+  if (
+    name.includes('blood') ||
+    name.includes('cbc') ||
+    name.includes('glucose') ||
+    name.includes('urine') ||
+    name.includes('widal') ||
+    name.includes('stool') ||
+    name.includes('crp') ||
+    name.includes('esr') ||
+    name.includes('hiv') ||
+    name.includes('fecal') ||
+    name.includes('sgpt') ||
+    name.includes('malaria') ||
+    name.includes('hcg') ||
+    name.includes('wbc') ||
+    name.includes('hemoglobin') ||
+    name.includes('rheumatoid') ||
+    name.includes('factor') ||
+    name.includes('renal') ||
+    name.includes('liver') ||
+    name.includes('lipid') ||
+    name.includes('glycated') ||
+    name.includes('hba1c') ||
+    name.includes('sputum') ||
+    name.includes('analysis') ||
+    name.includes('test') ||
+    name.includes('culture') ||
+    name.includes('h. pylori') ||
+    name.includes('h-pylori') ||
+    name.includes('reagent')
+  ) {
+    return 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=300&q=80'; // clinical laboratory scientist (200 OK)
   }
-  if (cat.includes('injection') || name.includes('depo') || name.includes('implanon') || name.includes('im ') || name.includes('iv ') || name.includes('im injection') || name.includes('iv injection')) {
-    return 'https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?auto=format&fit=crop&w=300&q=80'; // syringe/vial
+
+  // Imaging / Ultrasounds
+  if (
+    name.includes('ultrasound') ||
+    name.includes('x-ray') ||
+    name.includes('scan') ||
+    name.includes('mri') ||
+    name.includes('ct') ||
+    name.includes('pelvic') ||
+    name.includes('abdominal') ||
+    name.includes('obstetrics') ||
+    name.includes('echo')
+  ) {
+    return 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=300&q=80'; // ultrasound display (200 OK)
   }
-  if (cat.includes('procedure') || name.includes('wound') || name.includes('suturing') || name.includes('dressing') || name.includes('blood pressure') || name.includes('switching')) {
-    return 'https://images.unsplash.com/photo-1579684389782-64d84b5e9053?auto=format&fit=crop&w=300&q=80'; // care/stitches
+
+  // Procedures & Clinical Care
+  if (
+    name.includes('wound') ||
+    name.includes('suturing') ||
+    name.includes('dressing') ||
+    name.includes('blood pressure') ||
+    name.includes('switching') ||
+    name.includes('removal') ||
+    name.includes('insertion') ||
+    name.includes('surgery') ||
+    name.includes('ecg')
+  ) {
+    return 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?auto=format&fit=crop&w=300&q=80'; // medical vital check/pressure cuff (200 OK)
   }
-  if (cat.includes('consultation') || name.includes('doctor') || name.includes('checkup') || name.includes('consultation')) {
-    return 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=300&q=80'; // doctor consulting
+
+  // Consultations & Visits
+  if (
+    name.includes('consultation') ||
+    name.includes('doctor') ||
+    name.includes('checkup') ||
+    name.includes('visit') ||
+    name.includes('counseling') ||
+    name.includes('examination')
+  ) {
+    return 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=300&q=80'; // consultation room (200 OK)
   }
-  return 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=300&q=80'; // general medical
+
+  // 2. CATEGORY-BASED FALLBACKS
+  if (cat.includes('lab')) {
+    return 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=300&q=80';
+  }
+  if (cat.includes('imaging') || cat.includes('ultrasound')) {
+    return 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=300&q=80';
+  }
+  if (cat.includes('injection')) {
+    return 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=300&q=80';
+  }
+  if (cat.includes('procedure')) {
+    return 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?auto=format&fit=crop&w=300&q=80';
+  }
+  if (cat.includes('consultation')) {
+    return 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=300&q=80';
+  }
+
+  // Default Medical
+  return 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=300&q=80'; // general clean medical equipment (200 OK)
 };
 
 interface ServiceCardProps {
