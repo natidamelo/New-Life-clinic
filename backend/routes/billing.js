@@ -6230,17 +6230,25 @@ router.put('/invoices/:id/cancel', auth, checkRole('admin', 'finance'), async (r
     await Payment.deleteMany({ invoice: id });
 
     // 3. Update invoice status to Cancelled and balance details
-    invoice.status = 'cancelled';
-    invoice.amountPaid = 0;
-    invoice.balance = invoice.total;
-    invoice.notes = invoice.notes 
+    const updatedNotes = invoice.notes 
       ? `${invoice.notes}\n[Cancelled on ${new Date().toLocaleDateString()} - Reason: ${reason}]`
       : `[Cancelled on ${new Date().toLocaleDateString()} - Reason: ${reason}]`;
     
-    await invoice.save();
+    const updatedInvoice = await MedicalInvoice.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          status: 'cancelled',
+          amountPaid: 0,
+          balance: invoice.total,
+          notes: updatedNotes
+        }
+      },
+      { new: true, runValidators: false }
+    );
     console.log(`[CANCEL INVOICE] Successfully cancelled invoice ${id}`);
 
-    res.json({ success: true, message: 'Invoice cancelled and associated records reverted successfully', data: invoice });
+    res.json({ success: true, message: 'Invoice cancelled and associated records reverted successfully', data: updatedInvoice });
   } catch (error) {
     console.error('Error cancelling invoice:', error);
     res.status(500).json({ success: false, message: 'Failed to cancel invoice', error: error.message });
