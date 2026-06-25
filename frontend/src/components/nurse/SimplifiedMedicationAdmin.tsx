@@ -283,6 +283,19 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
         } catch (e) { throw new Error('Unable to verify user permissions. Please log in again.'); }
       }
 
+      let adminName = 'Current User';
+      let userObjStr = localStorage.getItem('user_data') || localStorage.getItem('user') || localStorage.getItem('USER_DATA_KEY');
+      if (userObjStr) {
+        try {
+          const userObj = JSON.parse(userObjStr);
+          if (userObj.firstName || userObj.lastName) {
+            adminName = `${userObj.firstName || ''} ${userObj.lastName || ''}`.trim();
+          } else if (userObj.name) {
+            adminName = userObj.name;
+          }
+        } catch (_) {}
+      }
+
       const response = await medicationAdministrationService.administerDose({
         taskId: task._id || task.id, day, timeSlot, notes: 'Administered via nurse interface'
       });
@@ -290,7 +303,7 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
       setFailedAttempts(prev => { const u = { ...prev }; delete u[doseKey]; return u; });
       setDoseStatuses(prev => prev.map(dose =>
         dose.day === day && dose.timeSlot === timeSlot
-          ? { ...dose, administered: true, administeredAt: new Date().toISOString(), administeredBy: 'Current User' }
+          ? { ...dose, administered: true, administeredAt: new Date().toISOString(), administeredBy: adminName }
           : dose
       ));
       setForceUpdate(prev => prev + 1);
@@ -429,10 +442,11 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
     const dateStr = format(dose.date, 'MMM d');
 
     if (dose.administered) {
+      const administeredByText = dose.administeredBy ? ` by ${dose.administeredBy}` : '';
       return (
         <div
           key={doseKey}
-          title={`✅ Administered at ${dose.timeSlot}${dose.administeredAt ? ' on ' + format(new Date(dose.administeredAt), 'MMM d') : ''}`}
+          title={`✅ Administered at ${dose.timeSlot}${dose.administeredAt ? ' on ' + format(new Date(dose.administeredAt), 'MMM d') : ''}${administeredByText}`}
           className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-emerald-500 shadow-sm shadow-emerald-200 cursor-default select-none"
         >
           <CheckCircle size={18} className="text-white" />
