@@ -5302,6 +5302,7 @@ router.get('/invoice-analytics/:invoiceId', auth, async (req, res) => {
         issueDate: invoice.issueDate,
         dueDate: invoice.dueDate,
         paidDate: invoice.paidDate,
+        notes: invoice.notes,
         isOverdue: invoice.isOverdue(),
         overdueDays: invoice.getOverdueDays()
       },

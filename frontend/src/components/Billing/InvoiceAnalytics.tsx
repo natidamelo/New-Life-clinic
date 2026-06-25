@@ -171,6 +171,36 @@ const InvoiceAnalytics: React.FC<InvoiceAnalyticsProps> = ({ invoiceId }) => {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Cancellation Notice Banner */}
+      {invoice.status === 'cancelled' && (
+        <Card className="border border-red-200 bg-red-50/50 shadow-sm relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500" />
+          <CardContent className="p-4 flex items-start gap-3">
+            <div className="p-1.5 bg-red-100 rounded-full text-red-600">
+              <AlertCircle className="h-5 w-5" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="font-bold text-red-900 text-sm">Invoice Cancelled</h4>
+              <p className="text-xs text-red-700 leading-relaxed font-medium">
+                {(() => {
+                  if (!invoice.notes) return 'No cancellation details specified.';
+                  const lines = invoice.notes.split('\n');
+                  const cancelLine = lines.find((line: string) => line.includes('[Cancelled on'));
+                  if (cancelLine) {
+                    const match = cancelLine.match(/Reason:\s*(.*)\]/);
+                    if (match && match[1]) {
+                      return `Reason: ${match[1]} (${cancelLine.split(' - ')[0].replace('[', '')})`;
+                    }
+                    return cancelLine.replace('[', '').replace(']', '');
+                  }
+                  return invoice.notes;
+                })()}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Overview Dashboard */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
