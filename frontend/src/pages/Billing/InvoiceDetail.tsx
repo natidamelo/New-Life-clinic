@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/card';
-import { ArrowLeft, FileText, Printer, CreditCard, BarChart3, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, FileText, Printer, CreditCard, BarChart3, Plus, Trash2, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import billingService, { InvoiceStatus } from '../../services/billingService';
 import RecordPaymentForm from '../../components/Billing/RecordPaymentForm';
@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import inventoryService from '../../services/inventoryService';
 import { useClinic } from '../../context/ClinicContext';
+import { useAuth } from '../../context/AuthContext';
 
 const getStatusColor = (status: InvoiceStatus | string | undefined) => {
   switch (status) {
@@ -139,9 +140,15 @@ const normalizeInvoiceText = (text: any): string => {
 const InvoiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { clinic } = useClinic();
   const queryClient = useQueryClient();
+  const { clinic } = useClinic();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const isFinance = user?.role === 'finance';
   const [showPaymentForm, setShowPaymentForm] = useState<boolean>(false);
+  const [showRefundModal, setShowRefundModal] = useState<boolean>(false);
+  const [refundReason, setRefundReason] = useState<string>('');
+  const [isRefunding, setIsRefunding] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'details' | 'analytics'>('details');
   const [isEditingInvoice, setIsEditingInvoice] = useState<boolean>(false);
   const [editedItems, setEditedItems] = useState<any[]>([]);
@@ -197,6 +204,22 @@ const InvoiceDetail: React.FC = () => {
       toast.error(err?.response?.data?.message || err?.message || 'Failed to update status.');
     },
   });
+
+  const handleRefundInvoice = async () => {
+    if (!id) return;
+    setIsRefunding(true);
+    try {
+      await billingService.refundInvoice(id, refundReason);
+      toast.success('Invoice refunded successfully');
+      setShowRefundModal(false);
+      setRefundReason('');
+      queryClient.invalidateQueries({ queryKey: ['invoice', id] });
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message || 'Failed to refund invoice');
+    } finally {
+      setIsRefunding(false);
+    }
+  };
 
   useEffect(() => {
     if (error) toast.error((error as any).message || 'Failed to load invoice details.');
@@ -673,6 +696,14 @@ const InvoiceDetail: React.FC = () => {
                 onClick={() => setShowPaymentForm(true)}
               >
                 <CreditCard className="w-5 h-5 mr-2" /> Record Payment
+              </button>
+            )}
+            {invoice && invoice.amountPaid > 0 && !['cancelled', 'refunded'].includes((invoice.status || '').toLowerCase()) && (isAdmin || isFinance) && (
+              <button
+                className="px-4 py-2 text-sm font-medium text-primary-foreground bg-amber-600 rounded-lg hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 flex items-center"
+                onClick={() => setShowRefundModal(true)}
+              >
+                <RotateCcw className="w-5 h-5 mr-2" /> Refund Invoice
               </button>
             )}
           </div>
@@ -1203,6 +1234,52 @@ const InvoiceDetail: React.FC = () => {
               onSuccess={handlePaymentSuccess}
               onClose={() => setShowPaymentForm(false)}
             />
+          )}
+          {showRefundModal && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+              <div className="bg-card border border-border/40 rounded-lg max-w-md w-full p-6 shadow-lg relative">
+                <h3 className="text-lg font-bold text-foreground mb-4">Refund Invoice</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Are you sure you want to refund this invoice? This will refund all recorded payments (ETB {invoice.amountPaid}) and revert any associated prescriptions, nurse tasks, lab orders, or imaging orders.
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="refundReason" className="block text-sm font-medium text-muted-foreground mb-1">
+                      Reason for Refund
+                    </label>
+                    <textarea
+                      id="refundReason"
+                      rows={3}
+                      value={refundReason}
+                      onChange={(e) => setRefundReason(e.target.value)}
+                      placeholder="Enter reason for the refund..."
+                      className="w-full px-3 py-2 border border-border/40 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 bg-background text-foreground"
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRefundModal(false);
+                        setRefundReason('');
+                      }}
+                      className="px-4 py-2 bg-muted/30 text-muted-foreground rounded-md hover:bg-muted/40 transition-colors text-foreground"
+                      disabled={isRefunding}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRefundInvoice}
+                      disabled={isRefunding || !refundReason.trim()}
+                      className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors disabled:bg-amber-600/50"
+                    >
+                      {isRefunding ? 'Processing...' : 'Confirm Refund'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

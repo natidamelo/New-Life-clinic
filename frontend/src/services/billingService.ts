@@ -225,6 +225,11 @@ class BillingService {
     return response.data;
   }
 
+  async refundInvoice(id: string, reason: string) {
+    const response = await api.put(`/api/billing/invoices/${id}/refund`, { reason });
+    return response.data;
+  }
+
   async deleteInvoice(id: string) {
     const response = await api.delete(`/api/billing/invoices/${id}`);
     return response.data;

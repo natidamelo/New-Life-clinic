@@ -6268,6 +6268,99 @@ router.put('/invoices/:id/cancel', auth, checkRole('admin', 'finance'), async (r
   }
 });
 
+// PUT /api/billing/invoices/:id/refund (Admin/Finance only)
+// Refunds a paid/partially paid invoice, deletes/reverts associated payments, and resets related items
+router.put('/invoices/:id/refund', auth, checkRole('admin', 'finance'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason = '' } = req.body;
+    console.log(`[REFUND INVOICE] Refunding invoice ${id}. Reason: ${reason}`);
+
+    const invoice = await MedicalInvoice.findById(id);
+    if (!invoice) {
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+
+    if (invoice.amountPaid === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot refund an invoice with no recorded payments.' 
+      });
+    }
+
+    const NurseTask = require('../models/NurseTask');
+    const LabOrder = require('../models/LabOrder');
+    const ImagingOrder = require('../models/ImagingOrder');
+    const Prescription = require('../models/Prescription');
+    const Payment = require('../models/Payment');
+
+    // 1. Revert payment status for associated items in the invoice
+    if (invoice.items && invoice.items.length > 0) {
+      for (const item of invoice.items) {
+        const metadata = item.metadata || {};
+        
+        // Reset Prescription paymentStatus and delete associated NurseTasks
+        if (metadata.prescriptionId) {
+          await Prescription.findByIdAndUpdate(metadata.prescriptionId, { paymentStatus: 'unpaid' });
+          await NurseTask.deleteMany({ prescriptionId: metadata.prescriptionId });
+        }
+        
+        // Delete associated LabOrders (since payment is cancelled/refunded)
+        if (metadata.labOrderId || item.itemType === 'lab') {
+          await LabOrder.deleteMany({ 
+            $or: [
+              { _id: metadata.labOrderId },
+              { patientId: invoice.patient, testName: item.description }
+            ]
+          });
+        }
+        
+        // Delete associated ImagingOrders
+        if (metadata.imagingOrderId || item.itemType === 'imaging') {
+          await ImagingOrder.deleteMany({
+            $or: [
+              { _id: metadata.imagingOrderId },
+              { patientId: invoice.patient, imagingType: item.description }
+            ]
+          });
+        }
+
+        // Delete associated NurseTasks for general services/procedures/injections
+        if (metadata.nurseTaskId) {
+          await NurseTask.findByIdAndDelete(metadata.nurseTaskId);
+        }
+      }
+    }
+
+    // 2. Delete associated payments
+    await Payment.deleteMany({ invoice: id });
+
+    // 3. Update invoice status to refunded and balance details
+    const updatedNotes = invoice.notes 
+      ? `${invoice.notes}\n[Refunded on ${new Date().toLocaleDateString()} - Reason: ${reason}]`
+      : `[Refunded on ${new Date().toLocaleDateString()} - Reason: ${reason}]`;
+    
+    const updatedInvoice = await MedicalInvoice.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          status: 'refunded',
+          amountPaid: 0,
+          balance: invoice.total,
+          notes: updatedNotes
+        }
+      },
+      { new: true, runValidators: false }
+    );
+    console.log(`[REFUND INVOICE] Successfully refunded invoice ${id}`);
+
+    res.json({ success: true, message: 'Invoice refunded and associated records reverted successfully', data: updatedInvoice });
+  } catch (error) {
+    console.error('Error refunding invoice:', error);
+    res.status(500).json({ success: false, message: 'Failed to refund invoice', error: error.message });
+  }
+});
+
 // DELETE /api/billing/invoices/:id (Admin only)
 // Deletes an invoice completely and cleans up associated records
 router.delete('/invoices/:id', auth, checkRole('admin'), async (req, res) => {
