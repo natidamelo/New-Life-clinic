@@ -6162,6 +6162,13 @@ router.get('/insurance-patient-report', auth, checkRole('admin', 'finance'), asy
       totalBalance: patients.reduce((s, p) => s + p.balance, 0),
     };
 
+    res.json({ success: true, data: { summary, patients, dateRange: { startDate, endDate } } });
+  } catch (error) {
+    console.error('Error getting insurance patient report:', error);
+    res.status(500).json({ success: false, message: 'Failed to get insurance patient report', error: error.message });
+  }
+});
+
 // PUT /api/billing/invoices/:id/cancel (Admin/Finance only)
 // Cancels/voids an invoice and reverts associated payment status on prescriptions/nurse tasks
 router.put('/invoices/:id/cancel', auth, checkRole('admin', 'finance'), async (req, res) => {
