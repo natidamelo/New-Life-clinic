@@ -494,24 +494,24 @@ interface ServiceCardProps {
 
 const ServiceCard: React.FC<ServiceCardProps> = ({ category, price, title, description, onBook }) => {
   return (
-    <div className="bg-paper dark:bg-slate-900 border border-ink/10 dark:border-slate-800 p-5 rounded-b-xl rounded-tr-xl rounded-tl-none hover:translate-y-[-4px] hover:shadow-md transition-all duration-300 flex flex-col justify-between group font-sans">
+    <div className="bg-paper/85 dark:bg-slate-900/60 backdrop-blur-md border border-ink/8 dark:border-slate-800/80 p-5 rounded-2xl hover:-translate-y-1.5 hover:shadow-xl transition-all duration-500 flex flex-col justify-between group font-sans">
       <div>
         {/* Header Row */}
         <div className="flex justify-between items-center gap-2 mb-3">
           <CategoryTag category={category} />
-          <DataValue value={`${price} ETB`} className="text-sm" />
+          <DataValue value={`${price} ETB`} className="text-sm text-pulse font-mono" />
         </div>
         
         {/* Thin dashed divider */}
-        <div className="border-t border-dashed border-ink/15 dark:border-paper/15 my-3 -mx-5" />
+        <div className="border-t border-dashed border-ink/10 dark:border-slate-800/60 my-3 -mx-5" />
 
         {/* Title */}
-        <h3 className="font-sans font-bold text-base mb-1 tracking-tight text-ink dark:text-paper group-hover:text-pulse transition-colors duration-300">
+        <h3 className="font-sans font-bold text-base mb-1.5 tracking-tight text-ink dark:text-paper group-hover:text-pulse transition-colors duration-300">
           {title}
         </h3>
         
         {/* Description */}
-        <p className="font-sans text-xs leading-relaxed text-slate mb-4 line-clamp-3">
+        <p className="font-sans text-xs leading-relaxed text-slate dark:text-slate-400 mb-4 line-clamp-3">
           {description || 'Professional clinical service offered under clinic management by certified medical practitioners.'}
         </p>
       </div>
@@ -564,15 +564,15 @@ const PackageCard: React.FC<PackageCardProps> = ({
 }) => {
   return (
     <div
-      className={`relative p-6 border flex flex-col justify-between hover:translate-y-[-4px] hover:shadow-md transition-all duration-300 bg-paper dark:bg-slate-900 rounded-b-xl rounded-tr-xl rounded-tl-none ${
+      className={`relative p-6 border flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-xl transition-all duration-500 bg-paper/85 dark:bg-slate-900/60 backdrop-blur-md rounded-2xl ${
         featured
-          ? 'border-ink/10 dark:border-slate-800 border-t-2 border-t-pulse dark:border-t-pulse'
-          : 'border-ink/10 dark:border-slate-800'
+          ? 'border-pulse shadow-lg shadow-pulse/5 border-t-4'
+          : 'border-ink/10 dark:border-slate-800/80 shadow-sm'
       }`}
     >
       {featured && (
         <div className="absolute -top-3.5 left-6">
-          <span className="px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider bg-pulse/5 text-pulse border border-pulse/35 rounded">
+          <span className="px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider bg-pulse text-paper font-bold border border-pulse rounded shadow-sm">
             {featuredLabel}
           </span>
         </div>
@@ -585,7 +585,7 @@ const PackageCard: React.FC<PackageCardProps> = ({
           <h3 className="font-sans font-bold text-xl tracking-tight leading-tight text-ink dark:text-paper">
             {name}
           </h3>
-          <DataValue value={`${price} ETB`} className="text-xl whitespace-nowrap text-ink dark:text-paper" />
+          <DataValue value={`${price} ETB`} className="text-xl whitespace-nowrap text-pulse font-mono font-extrabold" />
         </div>
 
         {/* Description */}
@@ -594,23 +594,23 @@ const PackageCard: React.FC<PackageCardProps> = ({
         </p>
 
         {/* Dashed divider */}
-        <div className="border-t border-dashed border-ink/15 dark:border-paper/15 my-4 -mx-6" />
+        <div className="border-t border-dashed border-ink/10 dark:border-slate-800/60 my-4 -mx-6" />
 
         {/* Validity & Total Visits */}
         <div className="grid grid-cols-2 gap-4 mb-6 text-xs font-sans">
           <div>
-            <span className="block font-mono uppercase text-[10px] text-slate dark:text-slate-400 tracking-wider">Validity</span>
-            <DataValue value={`${validityDays} days`} className="text-sm font-bold" />
+            <span className="block font-mono uppercase text-[9px] text-slate dark:text-slate-400 tracking-wider">Validity</span>
+            <DataValue value={`${validityDays} days`} className="text-sm font-bold text-ink dark:text-paper" />
           </div>
           <div>
-            <span className="block font-mono uppercase text-[10px] text-slate dark:text-slate-400 tracking-wider">Total Visits</span>
-            <DataValue value={`${totalVisits} visits`} className="text-sm font-bold" />
+            <span className="block font-mono uppercase text-[9px] text-slate dark:text-slate-400 tracking-wider">Total Visits</span>
+            <DataValue value={`${totalVisits} visits`} className="text-sm font-bold text-ink dark:text-paper" />
           </div>
         </div>
 
         {/* Covered Services */}
         <div className="space-y-3 mb-8">
-          <p className="font-mono uppercase text-[10px] tracking-wider text-slate dark:text-slate-400">SERVICES INCLUDED:</p>
+          <p className="font-mono uppercase text-[9px] tracking-wider text-slate dark:text-slate-400">SERVICES INCLUDED:</p>
           <div className="grid gap-2">
             {services.map((srv) => (
               <div key={srv} className="flex items-start gap-2 text-xs">
@@ -1129,25 +1129,30 @@ const Login: React.FC = () => {
     <div className={`min-h-screen relative overflow-x-hidden flex flex-col transition-colors duration-500 bg-paper dark:bg-ink text-ink dark:text-paper font-sans`}>
       <div className="absolute inset-0 chart-grid pointer-events-none" />
 
+      {/* Floating Ambient Glow Orbs */}
+      <div className="bg-glow-orb bg-glow-orb-1" />
+      <div className="bg-glow-orb bg-glow-orb-2" />
+      <div className="bg-glow-orb bg-glow-orb-3" />
+
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b backdrop-blur-md transition-all duration-300 font-sans"
         style={{
-          background: isDarkMode ? 'rgba(16, 23, 42, 0.8)' : 'rgba(250, 250, 247, 0.8)',
-          borderColor: isDarkMode ? 'rgba(243, 241, 236, 0.1)' : 'rgba(21, 32, 59, 0.1)'
+          background: isDarkMode ? 'rgba(16, 23, 42, 0.75)' : 'rgba(250, 250, 247, 0.75)',
+          borderColor: isDarkMode ? 'rgba(243, 241, 236, 0.08)' : 'rgba(21, 32, 59, 0.08)'
         }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('home')}>
-            <div className="h-9 w-9 rounded-xl flex items-center justify-center overflow-hidden bg-white border border-slate-200/50">
+          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setActiveTab('home')}>
+            <div className="h-9.5 w-9.5 rounded-xl flex items-center justify-center overflow-hidden bg-white border border-slate-200/50 shadow-sm group-hover:scale-105 transition-transform duration-300">
               <img src={clinic?.logo || "/assets/images/logo.jpg"} alt={`${clinic?.name || CLINIC_INFO.name} Logo`} className="h-full w-full object-cover" />
             </div>
             <div>
-              <span className="font-extrabold text-md tracking-tight uppercase text-ink dark:text-paper">{clinic?.name || CLINIC_INFO.name}</span>
+              <span className="font-extrabold text-md tracking-tight uppercase text-ink dark:text-paper group-hover:text-pulse transition-colors duration-300">{clinic?.name || CLINIC_INFO.name}</span>
               <span className="block text-[9px] tracking-widest uppercase text-pulse font-bold">{clinic?.tagline || CLINIC_INFO.tagline}</span>
             </div>
           </div>
 
           {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1.5 text-sm font-medium">
+          <nav className="hidden md:flex items-center gap-1.5 text-sm font-medium relative">
             {[
               { id: 'home', label: 'Home' },
               { id: 'services', label: 'Our Services' },
@@ -1162,13 +1167,20 @@ const Login: React.FC = () => {
                   if (tab.id === 'appointment') setBookingStep(1);
                   if (tab.id === 'card') setCardStep(1);
                 }}
-                className={`px-4 py-2 rounded-xl transition-all duration-200 font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 ${
+                className={`px-4 py-2 rounded-xl transition-all duration-300 font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 relative ${
                   activeTab === tab.id
-                    ? 'bg-pulse/10 text-pulse font-semibold'
+                    ? 'text-pulse font-bold bg-pulse/8 dark:bg-pulse/12'
                     : 'text-slate hover:text-ink hover:bg-mist dark:text-slate-400 dark:hover:text-paper dark:hover:bg-slate-800/40'
                 }`}
               >
                 {tab.label}
+                {activeTab === tab.id && (
+                  <motion.span 
+                    layoutId="activeTabUnderline"
+                    className="absolute bottom-1.5 left-4 right-4 h-0.5 bg-pulse rounded-full"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
               </button>
             ))}
           </nav>
@@ -1181,16 +1193,16 @@ const Login: React.FC = () => {
               }}
               className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 border font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 ${
                 activeTab === 'login'
-                  ? 'bg-pulse text-paper border-pulse'
-                  : 'bg-ink text-paper border-ink hover:bg-pulse hover:border-pulse dark:bg-paper dark:text-ink dark:border-paper dark:hover:bg-pulse dark:hover:text-paper dark:hover:border-pulse'
+                  ? 'bg-pulse text-paper border-pulse shadow-md shadow-pulse/20'
+                  : 'bg-ink text-paper border-ink hover:bg-pulse hover:border-pulse dark:bg-paper dark:text-ink dark:border-paper dark:hover:bg-pulse dark:hover:text-paper dark:hover:border-pulse hover:scale-102 active:scale-98'
               }`}
             >
               Staff Portal
             </button>
             <button
               onClick={toggleTheme}
-              className={`p-2 rounded-xl border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 ${
-                isDarkMode ? 'bg-slate-900 border-slate-800 text-amber-300' : 'bg-white border-slate-200 text-pulse'
+              className={`p-2 rounded-xl border transition-all duration-300 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 ${
+                isDarkMode ? 'bg-slate-900 border-slate-800 text-amber-300 shadow-sm' : 'bg-white border-slate-200 text-pulse shadow-sm'
               }`}
               aria-label="Toggle Theme"
             >
@@ -1220,12 +1232,15 @@ const Login: React.FC = () => {
                 {/* Hero Text Content */}
                 <div className="lg:col-span-7 space-y-6">
                   {/* Kicker */}
-                  <div className="font-mono text-xs tracking-[0.2em] text-pulse uppercase font-semibold">
-                    SYSTEM STATUS — STEADY
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-pulse animate-pulse" />
+                    <div className="font-mono text-xs tracking-[0.25em] text-pulse uppercase font-semibold">
+                      SYSTEM STATUS — OPERATIONAL
+                    </div>
                   </div>
                   
                   {/* Headline */}
-                  <h1 className="font-sans font-bold tracking-tight leading-[1.1] text-4xl sm:text-5xl lg:text-6xl text-ink dark:text-paper">
+                  <h1 className="font-sans font-extrabold tracking-tight leading-[1.1] text-4xl sm:text-5xl lg:text-6xl text-ink dark:text-paper">
                     Smart healthcare<br />
                     designed for{' '}
                     <span className="relative inline-block font-annotation italic text-pulse leading-none pb-1">
@@ -1238,7 +1253,7 @@ const Login: React.FC = () => {
                   </h1>
 
                   {/* Paragraph */}
-                  <p className="text-base md:text-lg leading-relaxed max-w-[560px] text-slate font-sans">
+                  <p className="text-base md:text-lg leading-relaxed max-w-[560px] text-slate dark:text-slate-300 font-sans">
                     Welcome to New Life Clinic. Explore our curated health packages, view professional clinical services, self-schedule clinical appointments, and generate your custom patient cards online instantly.
                   </p>
                   
@@ -1246,14 +1261,14 @@ const Login: React.FC = () => {
                   <div className="flex flex-wrap gap-4 pt-2">
                     <button
                       onClick={() => { setActiveTab('appointment'); setBookingStep(1); }}
-                      className="h-12 px-6 rounded-xl font-sans font-bold text-sm tracking-wide bg-ink text-paper hover:bg-pulse dark:bg-paper dark:text-ink dark:hover:bg-pulse dark:hover:text-paper shadow-lg shadow-ink/5 dark:shadow-none flex items-center gap-2 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2"
+                      className="h-12 px-6 rounded-xl font-sans font-bold text-sm tracking-wide bg-ink text-paper hover:bg-pulse dark:bg-paper dark:text-ink dark:hover:bg-pulse dark:hover:text-paper shadow-lg shadow-ink/10 dark:shadow-none flex items-center gap-2 transition-all duration-300 hover:scale-102 active:scale-98 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2"
                     >
                       Book Self-Appointment
                       <ArrowRight className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => { setActiveTab('card'); setCardStep(1); }}
-                      className="h-12 px-6 rounded-xl font-sans font-bold text-sm tracking-wide border border-ink text-ink hover:bg-mist dark:border-paper dark:text-paper dark:hover:bg-slate-800 flex items-center gap-2 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2"
+                      className="h-12 px-6 rounded-xl font-sans font-bold text-sm tracking-wide border border-ink text-ink hover:bg-mist dark:border-paper dark:text-paper dark:hover:bg-slate-800/60 flex items-center gap-2 transition-all duration-300 hover:scale-102 active:scale-98 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2"
                     >
                       Get Patient Card
                       <CreditCard className="h-4 w-4" />
@@ -1263,80 +1278,90 @@ const Login: React.FC = () => {
 
                 {/* Right Side: Live Vitals Panel */}
                 <div className="lg:col-span-5">
-                  <div className="bg-paper dark:bg-slate-900 border border-ink/10 dark:border-slate-800 p-8 rounded-2xl shadow-sm space-y-6 font-sans">
+                  <div className="bg-paper/70 dark:bg-slate-900/50 backdrop-blur-md border border-ink/10 dark:border-slate-800/80 p-6 sm:p-8 rounded-3xl shadow-xl space-y-6 font-sans">
                     {/* Header Row */}
                     <div className="flex items-center justify-between border-b border-ink/8 dark:border-slate-800 pb-4 animate-parent-no-flicker">
-                      <span className="font-mono text-xs tracking-wider text-slate uppercase">VITALS — LIVE</span>
+                      <span className="font-mono text-xs tracking-wider text-slate uppercase">VITALS — CLINICAL METRICS</span>
                       <span className="h-2.5 w-2.5 rounded-full bg-pulse animate-pulse" />
                     </div>
 
-                    {/* Vitals Rows */}
-                    <div className="space-y-4">
-                      {/* Row 1 */}
-                      <div className="flex items-center justify-between py-2">
+                    {/* Vitals Grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Stat Card 1 */}
+                      <div className={`p-4 rounded-2xl border flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] ${
+                        isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'
+                      }`}>
                         <div className="space-y-1">
-                          <span className="block font-mono text-[10px] uppercase tracking-wider text-slate">Patients Served</span>
-                          <span className="block font-sans font-bold text-2xl text-ink dark:text-paper">
+                          <span className="block font-mono text-[9px] uppercase tracking-widest text-slate">Patients Served</span>
+                          <span className={`block font-sans font-extrabold text-2xl ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'}`}>
                             <CountUp to={10482} animate={!prefersReducedMotion} />
                           </span>
                         </div>
-                        <div className="flex items-center pr-2">
-                          <div className="w-10 h-4 overflow-hidden relative" style={{ minWidth: '40px' }}>
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-ink/5 dark:border-slate-800">
+                          <span className="text-[9px] text-slate font-mono">Live Count</span>
+                          <div className="w-10 h-3 overflow-hidden relative" style={{ minWidth: '40px' }}>
                             <svg className="absolute left-0 top-0 h-full w-[80px] text-pulse animate-scroll-wave" viewBox="0 0 80 16" fill="none" preserveAspectRatio="none">
                               <path d="M 0 8 L 15 8 L 17 8 L 18 6 L 20 8 L 21 10 L 23 2 L 25 14 L 26 8 L 28 6 L 30 8 L 40 8 L 55 8 L 57 8 L 58 6 L 60 8 L 61 10 L 63 2 L 65 14 L 66 8 L 68 6 L 70 8 L 80 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           </div>
                         </div>
                       </div>
-                      <div className="h-px bg-ink/8 dark:bg-slate-800/60" />
 
-                      {/* Row 2 */}
-                      <div className="flex items-center justify-between py-2">
+                      {/* Stat Card 2 */}
+                      <div className={`p-4 rounded-2xl border flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] ${
+                        isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'
+                      }`}>
                         <div className="space-y-1">
-                          <span className="block font-mono text-[10px] uppercase tracking-wider text-slate">Staff On Duty</span>
-                          <span className="block font-sans font-bold text-2xl text-ink dark:text-paper">50+</span>
+                          <span className="block font-mono text-[9px] uppercase tracking-widest text-slate">Staff On Duty</span>
+                          <span className="block font-sans font-extrabold text-2xl text-ink dark:text-paper">50+</span>
                         </div>
-                        <div className="flex items-center pr-2">
-                          <div className="w-10 h-4 overflow-hidden relative" style={{ minWidth: '40px' }}>
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-ink/5 dark:border-slate-800">
+                          <span className="text-[9px] text-slate font-mono">Duty Rota</span>
+                          <div className="w-10 h-3 overflow-hidden relative" style={{ minWidth: '40px' }}>
                             <svg className="absolute left-0 top-0 h-full w-[80px] text-pulse animate-scroll-wave" viewBox="0 0 80 16" fill="none" preserveAspectRatio="none">
                               <path d="M 0 8 L 15 8 L 17 8 L 18 6 L 20 8 L 21 10 L 23 2 L 25 14 L 26 8 L 28 6 L 30 8 L 40 8 L 55 8 L 57 8 L 58 6 L 60 8 L 61 10 L 63 2 L 65 14 L 66 8 L 68 6 L 70 8 L 80 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           </div>
                         </div>
                       </div>
-                      <div className="h-px bg-ink/8 dark:bg-slate-800/60" />
 
-                      {/* Row 3 */}
-                      <div className="flex items-center justify-between py-2">
+                      {/* Stat Card 3 */}
+                      <div className={`p-4 rounded-2xl border flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] ${
+                        isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'
+                      }`}>
                         <div className="space-y-1">
-                          <span className="block font-mono text-[10px] uppercase tracking-wider text-slate">Uptime</span>
-                          <span className="block font-sans font-bold text-2xl text-ink dark:text-paper">99.9%</span>
+                          <span className="block font-mono text-[9px] uppercase tracking-widest text-slate">Portal Uptime</span>
+                          <span className={`block font-sans font-extrabold text-2xl ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'}`}>99.9%</span>
                         </div>
-                        <div className="flex items-center pr-2">
-                          <div className="w-10 h-4 overflow-hidden relative" style={{ minWidth: '40px' }}>
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-ink/5 dark:border-slate-800">
+                          <span className="text-[9px] text-slate font-mono">Secure SLA</span>
+                          <div className="w-10 h-3 overflow-hidden relative" style={{ minWidth: '40px' }}>
                             <svg className="absolute left-0 top-0 h-full w-[80px] text-pulse animate-scroll-wave" viewBox="0 0 80 16" fill="none" preserveAspectRatio="none">
                               <path d="M 0 4 Q 10 2 20 4 Q 30 6 40 4 Q 50 2 60 4 Q 70 6 80 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           </div>
                         </div>
                       </div>
-                      <div className="h-px bg-ink/8 dark:bg-slate-800/60" />
 
-                      {/* Row 4 */}
-                      <div className="flex items-center justify-between py-2">
+                      {/* Stat Card 4 */}
+                      <div className={`p-4 rounded-2xl border flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] ${
+                        isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'
+                      }`}>
                         <div className="space-y-1">
-                          <span className="block font-mono text-[10px] uppercase tracking-wider text-slate">Support</span>
-                          <span className="block font-sans font-bold text-2xl text-ink dark:text-paper">24/7</span>
+                          <span className="block font-mono text-[9px] uppercase tracking-widest text-slate">Clinic Support</span>
+                          <span className="block font-sans font-extrabold text-2xl text-ink dark:text-paper">24/7</span>
                         </div>
-                        <div className="flex items-center pr-2">
-                          <div className="w-10 h-4 overflow-hidden relative" style={{ minWidth: '40px' }}>
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-ink/5 dark:border-slate-800">
+                          <span className="text-[9px] text-slate font-mono">Available</span>
+                          <div className="w-10 h-3 overflow-hidden relative" style={{ minWidth: '40px' }}>
                             <svg className="absolute left-0 top-0 h-full w-[80px] text-pulse animate-scroll-wave" viewBox="0 0 80 16" fill="none" preserveAspectRatio="none">
                               <path d="M 0 4 Q 10 2 20 4 Q 30 6 40 4 Q 50 2 60 4 Q 70 6 80 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           </div>
                         </div>
                       </div>
-                    </div>                  </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1344,13 +1369,14 @@ const Login: React.FC = () => {
               <PulseDivider animate={false} />
 
               {/* ── Whole-System Care Section ── */}
-              <section className="w-full bg-vital-tint rounded-3xl border border-ink/5 dark:border-white/5 p-8 md:p-12">
-                <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+              <section className="w-full bg-vital-tint/80 dark:bg-slate-900/40 rounded-3xl border border-ink/5 dark:border-slate-800/60 p-8 md:p-12 shadow-md relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-vital/3 to-transparent opacity-60 pointer-events-none" />
+                <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center relative z-10">
                   {/* Left column: text content */}
                   <div className="lg:col-span-7 space-y-5">
                     {/* Kicker */}
                     <div className="font-mono text-xs tracking-[0.2em] text-vital uppercase font-semibold">
-                      WHOLE-SYSTEM CARE
+                      WHOLE-SYSTEM CLINICAL APPROACH
                     </div>
                     {/* Heading */}
                     <h2 className="font-sans font-bold tracking-tight leading-[1.15] text-2xl sm:text-3xl lg:text-4xl text-ink dark:text-paper">
@@ -1360,7 +1386,7 @@ const Login: React.FC = () => {
                       </span>.
                     </h2>
                     {/* Paragraph */}
-                    <p className="text-base leading-relaxed max-w-[520px] text-slate font-sans">
+                    <p className="text-base leading-relaxed max-w-[520px] text-slate dark:text-slate-300 font-sans">
                       Every diagnosis connects to a larger picture. Our team coordinates across departments so nothing is missed — from first reading to follow-up.
                     </p>
                   </div>
@@ -1375,10 +1401,10 @@ const Login: React.FC = () => {
               <PulseDivider animate={false} />
 
               {/* Departments */}
-              <div className="w-full bg-mist dark:bg-[#1B2A28] p-8 md:p-12 rounded-3xl border border-ink/5 dark:border-white/5 space-y-8">
+              <div className="w-full bg-mist/60 dark:bg-[#1B2A28]/30 backdrop-blur-sm p-8 md:p-12 rounded-3xl border border-ink/5 dark:border-white/5 space-y-8 shadow-sm">
                 <div className="text-center space-y-2">
                   <h2 className="text-3xl font-bold tracking-tight text-ink dark:text-paper font-sans">Our Departments</h2>
-                  <p className="text-sm text-slate font-sans">
+                  <p className="text-sm text-slate dark:text-slate-400 font-sans">
                     Comprehensive medical services{' '}
                     <span className="font-annotation italic text-pulse text-lg leading-none">
                       under one roof
@@ -1389,18 +1415,18 @@ const Login: React.FC = () => {
                   {CLINIC_DEPARTMENTS.map(({ name, desc, abbr }) => (
                     <div key={name} className="relative pt-6 font-sans">
                       {/* Folder tab */}
-                      <div className="absolute top-0 left-0 bg-pulse text-paper font-mono text-[9px] uppercase tracking-widest font-bold h-6 px-3 flex items-center justify-center rounded-t-md">
+                      <div className="absolute top-0 left-0 bg-pulse text-paper font-mono text-[9px] uppercase tracking-widest font-bold h-6 px-3 flex items-center justify-center rounded-t-md shadow-sm">
                         {abbr || 'GEN'}
                       </div>
                       {/* Card */}
                       <div 
-                        className="bg-paper dark:bg-slate-900 border border-ink/10 dark:border-slate-800 p-6 rounded-b-xl rounded-tr-xl rounded-tl-none hover:translate-y-[-4px] hover:shadow-md transition-all duration-300 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2"
+                        className="bg-paper dark:bg-slate-900 border border-ink/10 dark:border-slate-800/80 p-6 rounded-b-xl rounded-tr-xl rounded-tl-none hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2"
                         tabIndex={0}
                       >
                         <h3 className="font-sans font-bold text-lg text-ink dark:text-paper group-hover:text-pulse transition-colors duration-300 mb-2">
                           {name}
                         </h3>
-                        <p className="font-sans text-sm text-slate leading-relaxed">
+                        <p className="font-sans text-sm text-slate dark:text-slate-400 leading-relaxed">
                           {desc}
                         </p>
                       </div>
@@ -1415,8 +1441,8 @@ const Login: React.FC = () => {
               {/* Operating Hours & Contact */}
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Operating Hours */}
-                <div className={`p-6 rounded-2xl border backdrop-blur-md ${
-                  isDarkMode ? 'bg-slate-900/20 border-slate-800' : 'bg-white/50 border-slate-200'
+                <div className={`p-6 rounded-2xl border backdrop-blur-md shadow-sm ${
+                  isDarkMode ? 'bg-slate-900/20 border-slate-800/80' : 'bg-white/50 border-slate-200'
                 }`}>
                   <div className="flex items-center gap-2 mb-4">
                     <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${
@@ -1437,8 +1463,8 @@ const Login: React.FC = () => {
                 </div>
 
                 {/* Contact Information */}
-                <div className={`p-6 rounded-2xl border backdrop-blur-md ${
-                  isDarkMode ? 'bg-slate-900/20 border-slate-800' : 'bg-white/50 border-slate-200'
+                <div className={`p-6 rounded-2xl border backdrop-blur-md shadow-sm ${
+                  isDarkMode ? 'bg-slate-900/20 border-slate-800/80' : 'bg-white/50 border-slate-200'
                 }`}>
                   <div className="flex items-center gap-2 mb-4">
                     <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${
@@ -1491,7 +1517,7 @@ const Login: React.FC = () => {
                     { title: 'Smart Patient Portal', desc: 'Online self-service platform for appointment booking, patient card registration, health package purchase, and real-time health monitoring.', icon: Users },
                   ].map(({ title, desc, icon: Icon }) => (
                     <div key={title} className={`p-6 rounded-2xl border backdrop-blur-md transition-all duration-300 hover:-translate-y-1 ${
-                      isDarkMode ? 'bg-slate-900/20 border-slate-800 hover:border-cyan-500/20' : 'bg-white/50 border-slate-200 hover:shadow-lg hover:border-teal-500/20'
+                      isDarkMode ? 'bg-slate-900/20 border-slate-800/80 hover:border-cyan-500/20' : 'bg-white/50 border-slate-200 hover:shadow-lg hover:border-teal-500/20'
                     }`}>
                       <div className={`h-10 w-10 rounded-xl mb-4 flex items-center justify-center ${
                         isDarkMode ? 'bg-cyan-500/10 text-cyan-400' : 'bg-teal-500/10 text-teal-600'
@@ -1501,6 +1527,115 @@ const Login: React.FC = () => {
                       <h3 className="font-bold text-lg mb-2">{title}</h3>
                       <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{desc}</p>
                     </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Testimonials Section */}
+              <PulseDivider animate={false} />
+              <div className="space-y-8">
+                <div className="text-center space-y-2">
+                  <h2 className="text-3xl font-black tracking-tight text-ink dark:text-paper font-sans">What Our Patients Say</h2>
+                  <p className="text-sm text-slate dark:text-slate-400 font-sans">
+                    Real reviews from individuals and families who trust us with their{' '}
+                    <span className="font-annotation italic text-pulse text-lg leading-none">healthcare</span>
+                  </p>
+                </div>
+                <div className="grid md:grid-cols-3 gap-6">
+                  {[
+                    {
+                      name: 'Samuel Kebede',
+                      role: 'Regular Patient',
+                      stars: 5,
+                      text: 'New Life Clinic has completely transformed my healthcare experience. The smart portal allowed me to register and generate my card in seconds, and the doctors are incredibly thorough.',
+                      avatar: 'S'
+                    },
+                    {
+                      name: 'Helen Tekle',
+                      role: 'Mother of two',
+                      stars: 5,
+                      text: 'As a mother, convenience is everything. Booking self-appointments for my kids is simple, and the pediatric department is outstanding. Highly recommended!',
+                      avatar: 'H'
+                    },
+                    {
+                      name: 'Dr. Nataniel Girma',
+                      role: 'Visiting Medical Specialist',
+                      stars: 5,
+                      text: 'I am thoroughly impressed by the integration of clinical services, lab diagnostics, and patient portal workflows. It is a highly professional system that respects patient time.',
+                      avatar: 'N'
+                    }
+                  ].map((t, idx) => (
+                    <div key={idx} className={`p-6 rounded-2xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+                      isDarkMode ? 'bg-slate-900/20 border-slate-800/80' : 'bg-white/60 border-slate-200'
+                    }`}>
+                      <div className="flex items-center gap-3.5 mb-4">
+                        <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm ${
+                          isDarkMode ? 'bg-cyan-500/10 text-cyan-400' : 'bg-teal-500/10 text-teal-600'
+                        }`}>
+                          {t.avatar}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm text-ink dark:text-paper">{t.name}</h4>
+                          <span className="text-[10px] text-slate-400 uppercase tracking-wider block">{t.role}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-0.5 text-amber-500 mb-3">
+                        {Array.from({ length: t.stars }).map((_, i) => (
+                          <span key={i}>★</span>
+                        ))}
+                      </div>
+                      <p className="text-xs leading-relaxed text-slate dark:text-slate-300 italic">"{t.text}"</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* FAQ Section */}
+              <PulseDivider animate={false} />
+              <div className="space-y-8 max-w-4xl mx-auto">
+                <div className="text-center space-y-2">
+                  <h2 className="text-3xl font-black tracking-tight text-ink dark:text-paper font-sans">Frequently Asked Questions</h2>
+                  <p className="text-sm text-slate dark:text-slate-400 font-sans">Got questions? We have answers to help you navigate our clinical services.</p>
+                </div>
+                <div className="space-y-4">
+                  {[
+                    {
+                      q: 'How do I register as a new patient?',
+                      a: 'Click on the "Self-Appointment" tab and choose "No, I am a new patient" to register. You can also visit the "Get Patient Card" tab to instantly generate your official clinical ID card.'
+                    },
+                    {
+                      q: 'What is the benefit of the Patient Card?',
+                      a: 'The Patient Card contains your unique Patient ID and QR code. Depending on your chosen card tier (Basic, Premium, VIP, Family), it grants you direct service discounts of up to 25%, free clinical consultations, and priority appointment booking.'
+                    },
+                    {
+                      q: 'How do I check in for my self-appointment?',
+                      a: 'When you arrive at the clinic, present your digital or printed Patient Card (with barcode/QR code) at the reception desk, or scan it at our check-in kiosk for immediate queue integration.'
+                    },
+                    {
+                      q: 'Can I choose my specific physician or specialist?',
+                      a: 'Yes, in Step 3 of the Self-Appointment wizard, you can select your preferred practitioner or specialist depending on the selected medical department.'
+                    },
+                    {
+                      q: 'Are clinical laboratory results accessible online?',
+                      a: 'Yes, clinic staff record laboratory results securely. Patients can verify their credentials or scan their QR code on the patient portal to view their active clinical records instantly.'
+                    }
+                  ].map((faq, idx) => (
+                    <details
+                      key={idx}
+                      className={`group rounded-2xl border transition-all duration-300 ${
+                        isDarkMode ? 'border-slate-800 bg-slate-900/10' : 'border-slate-200 bg-white/40'
+                      }`}
+                    >
+                      <summary className="flex justify-between items-center font-bold text-sm p-5 cursor-pointer select-none text-ink dark:text-paper group-open:text-pulse transition-colors duration-300">
+                        {faq.q}
+                        <span className="transition-transform duration-300 group-open:rotate-180 text-slate">
+                          ▼
+                        </span>
+                      </summary>
+                      <div className="px-5 pb-5 text-xs leading-relaxed text-slate dark:text-slate-300 border-t border-dashed border-ink/10 dark:border-slate-800/60 pt-4">
+                        {faq.a}
+                      </div>
+                    </details>
                   ))}
                 </div>
               </div>
@@ -1655,25 +1790,32 @@ const Login: React.FC = () => {
               </div>
 
               {/* Step indicator */}
-              <div className="flex items-center justify-between px-4 py-2 rounded-xl"
-                style={{ background: isDarkMode ? 'rgba(15,23,42,0.3)' : 'rgba(255,255,255,0.4)', border: isDarkMode ? '1px solid rgba(148,163,184,0.08)' : '1px solid rgba(226,232,240,1)' }}>
+              <div className="relative flex items-center justify-between px-2 py-4 rounded-2xl border bg-paper/50 dark:bg-slate-900/40 backdrop-blur-sm border-ink/10 dark:border-slate-800/80">
+                {/* Horizontal line running behind circles */}
+                <div className="absolute top-1/2 left-[10%] right-[10%] h-0.5 -translate-y-1/2 bg-ink/5 dark:bg-slate-800 pointer-events-none z-0" />
+                
+                {/* Active progress color overlay */}
+                <div className="absolute top-1/2 left-[10%] h-0.5 -translate-y-1/2 bg-pulse transition-all duration-500 pointer-events-none z-0"
+                  style={{ width: `${((bookingStep - 1) / 3) * 80}%` }}
+                />
+
                 {[1, 2, 3, 4].map(s => (
-                  <div key={s} className="flex items-center gap-1.5">
-                    <span className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  <div key={s} className="flex flex-col items-center gap-1.5 relative z-10 flex-1">
+                    <span className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 shadow-sm border ${
                       bookingStep === s
-                        ? isDarkMode ? 'bg-cyan-400 text-slate-950' : 'bg-teal-600 text-white'
+                        ? 'bg-pulse text-paper border-pulse scale-110 shadow-pulse/25'
                         : bookingStep > s
-                        ? isDarkMode ? 'bg-cyan-500/25 text-cyan-300' : 'bg-teal-500/25 text-teal-700'
-                        : isDarkMode ? 'bg-slate-800 text-slate-500' : 'bg-slate-200 text-slate-500'
+                        ? 'bg-pulse/15 text-pulse border-pulse/30'
+                        : isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
                     }`}>
-                      {s}
+                      {bookingStep > s ? '✓' : s}
                     </span>
-                    <span className={`hidden sm:inline text-[10px] font-bold uppercase tracking-wider ${
+                    <span className={`text-[9px] font-extrabold uppercase tracking-widest transition-opacity duration-300 ${
                       bookingStep === s 
-                        ? 'opacity-100' 
-                        : 'opacity-50'
+                        ? 'text-pulse opacity-100' 
+                        : 'text-slate opacity-60'
                     }`}>
-                      {s === 1 ? 'Status' : s === 2 ? 'Patient Info' : s === 3 ? 'Schedule' : 'Finished'}
+                      {s === 1 ? 'Status' : s === 2 ? 'Details' : s === 3 ? 'Schedule' : 'Done'}
                     </span>
                   </div>
                 ))}
@@ -1689,31 +1831,33 @@ const Login: React.FC = () => {
                     <div className="grid sm:grid-cols-2 gap-4">
                       <button
                         onClick={() => { setIsNewPatient(false); setBookingStep(2); }}
-                        className={`p-6 rounded-2xl border text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg flex flex-col items-center justify-center gap-3 ${
+                        className={`p-6 rounded-2xl border text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg flex flex-col items-center justify-center gap-3 relative overflow-hidden group ${
                           isDarkMode 
                             ? 'border-slate-800 bg-slate-900/20 hover:border-cyan-500/30' 
                             : 'border-slate-200 bg-white hover:border-teal-500/30'
                         }`}
                       >
-                        <Users className={`h-8 w-8 ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'}`} />
+                        <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                        <Users className={`h-8 w-8 transition-transform duration-300 group-hover:scale-110 ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'}`} />
                         <div>
-                          <span className="block font-extrabold text-sm">Yes, I am a returning patient</span>
-                          <span className="block text-[10px] text-slate-400 mt-1">I have my Patient ID</span>
+                          <span className="block font-extrabold text-sm text-ink dark:text-paper group-hover:text-pulse transition-colors duration-300">Returning Patient</span>
+                          <span className="block text-[10px] text-slate dark:text-slate-400 mt-1 font-mono">I have my Patient ID</span>
                         </div>
                       </button>
 
                       <button
                         onClick={() => { setIsNewPatient(true); setBookingStep(2); }}
-                        className={`p-6 rounded-2xl border text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg flex flex-col items-center justify-center gap-3 ${
+                        className={`p-6 rounded-2xl border text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg flex flex-col items-center justify-center gap-3 relative overflow-hidden group ${
                           isDarkMode 
                             ? 'border-slate-800 bg-slate-900/20 hover:border-cyan-500/30' 
                             : 'border-slate-200 bg-white hover:border-teal-500/30'
                         }`}
                       >
-                        <User className={`h-8 w-8 ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'}`} />
+                        <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                        <User className={`h-8 w-8 transition-transform duration-300 group-hover:scale-110 ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'}`} />
                         <div>
-                          <span className="block font-extrabold text-sm">No, I am a new patient</span>
-                          <span className="block text-[10px] text-slate-400 mt-1">First-time registration</span>
+                          <span className="block font-extrabold text-sm text-ink dark:text-paper group-hover:text-pulse transition-colors duration-300">New Patient</span>
+                          <span className="block text-[10px] text-slate dark:text-slate-400 mt-1 font-mono">First-time registration</span>
                         </div>
                       </button>
                     </div>
@@ -2118,25 +2262,32 @@ const Login: React.FC = () => {
               </div>
 
               {/* Step indicator */}
-              <div className="flex items-center justify-between px-4 py-2 rounded-xl"
-                style={{ background: isDarkMode ? 'rgba(15,23,42,0.3)' : 'rgba(255,255,255,0.4)', border: isDarkMode ? '1px solid rgba(148,163,184,0.08)' : '1px solid rgba(226,232,240,1)' }}>
+              <div className="relative flex items-center justify-between px-2 py-4 rounded-2xl border bg-paper/50 dark:bg-slate-900/40 backdrop-blur-sm border-ink/10 dark:border-slate-800/80">
+                {/* Horizontal line running behind circles */}
+                <div className="absolute top-1/2 left-[15%] right-[15%] h-0.5 -translate-y-1/2 bg-ink/5 dark:bg-slate-800 pointer-events-none z-0" />
+                
+                {/* Active progress color overlay */}
+                <div className="absolute top-1/2 left-[15%] h-0.5 -translate-y-1/2 bg-pulse transition-all duration-500 pointer-events-none z-0"
+                  style={{ width: `${((cardStep - 1) / 2) * 70}%` }}
+                />
+
                 {[1, 2, 3].map(s => (
-                  <div key={s} className="flex items-center gap-1.5">
-                    <span className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  <div key={s} className="flex flex-col items-center gap-1.5 relative z-10 flex-1">
+                    <span className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 shadow-sm border ${
                       cardStep === s
-                        ? isDarkMode ? 'bg-cyan-400 text-slate-950' : 'bg-teal-600 text-white'
+                        ? 'bg-pulse text-paper border-pulse scale-110 shadow-pulse/25'
                         : cardStep > s
-                        ? isDarkMode ? 'bg-cyan-500/25 text-cyan-300' : 'bg-teal-500/25 text-teal-700'
-                        : isDarkMode ? 'bg-slate-800 text-slate-500' : 'bg-slate-200 text-slate-500'
+                        ? 'bg-pulse/15 text-pulse border-pulse/30'
+                        : isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
                     }`}>
-                      {s}
+                      {cardStep > s ? '✓' : s}
                     </span>
-                    <span className={`hidden sm:inline text-[10px] font-bold uppercase tracking-wider ${
+                    <span className={`text-[9px] font-extrabold uppercase tracking-widest transition-opacity duration-300 ${
                       cardStep === s 
-                        ? 'opacity-100' 
-                        : 'opacity-50'
+                        ? 'text-pulse opacity-100' 
+                        : 'text-slate opacity-60'
                     }`}>
-                      {s === 1 ? 'Personal Info' : s === 2 ? 'Card Type' : 'Digital Card'}
+                      {s === 1 ? 'Details' : s === 2 ? 'Tier' : 'Smartcard'}
                     </span>
                   </div>
                 ))}
@@ -2345,24 +2496,27 @@ const Login: React.FC = () => {
                     </div>
 
                     {/* Patient Smartcard Render */}
-                    <div id="digital-patient-card-print" className="relative w-[340px] sm:w-[380px] h-[220px] rounded-2xl p-5 text-white overflow-hidden shadow-2xl transition-all duration-500 hover:scale-[1.01]"
+                    {/* Patient Smartcard Render */}
+                    <div id="digital-patient-card-print" className="relative w-[340px] sm:w-[380px] h-[220px] rounded-2xl p-5 text-white overflow-hidden shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-cyan-500/10 group cursor-pointer"
                       style={{
                         background: cardResult.patientCard.type === 'VIP' 
-                          ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' 
+                          ? 'linear-gradient(135deg, #111827 0%, #030712 100%)' 
                           : cardResult.patientCard.type === 'Premium'
-                          ? 'linear-gradient(135deg, #b45309 0%, #78350f 100%)' 
+                          ? 'linear-gradient(135deg, #7c2d12 0%, #431407 100%)' 
                           : cardResult.patientCard.type === 'Family'
-                          ? 'linear-gradient(135deg, #047857 0%, #064e3b 100%)' 
-                          : 'linear-gradient(135deg, #0d9488 0%, #115e59 100%)',
+                          ? 'linear-gradient(135deg, #064e3b 0%, #022c22 100%)' 
+                          : 'linear-gradient(135deg, #0f766e 0%, #115e59 100%)',
                         border: cardResult.patientCard.type === 'VIP' 
-                          ? '2px solid rgba(226, 232, 240, 0.2)' 
-                          : '1px solid rgba(255, 255, 255, 0.2)'
+                          ? '2px solid rgba(229, 231, 235, 0.25)' 
+                          : '1px solid rgba(255, 255, 255, 0.25)'
                       }}>
-                      <div className="absolute -right-16 -top-16 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
-                      <div className="absolute -left-16 -bottom-16 w-40 h-40 rounded-full bg-cyan-400/20 blur-2xl" />
+                      {/* Holographic light reflection strip */}
+                      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+                      <div className="absolute -right-16 -top-16 w-40 h-40 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+                      <div className="absolute -left-16 -bottom-16 w-40 h-40 rounded-full bg-cyan-400/15 blur-2xl pointer-events-none" />
                       
                       {/* Chip representation */}
-                      <div className="absolute top-12 left-5 w-10 h-8 rounded bg-gradient-to-br from-amber-300 via-yellow-200 to-amber-400 opacity-80 border border-amber-500/20 shadow-inner flex items-center justify-center overflow-hidden">
+                      <div className="absolute top-12 left-5 w-10.5 h-8 rounded-lg bg-gradient-to-br from-amber-300 via-yellow-100 to-amber-400 opacity-90 border border-amber-500/35 shadow-inner flex items-center justify-center overflow-hidden">
                         <div className="w-full h-px bg-amber-600/30 absolute top-1/4" />
                         <div className="w-full h-px bg-amber-600/30 absolute top-1/2" />
                         <div className="w-full h-px bg-amber-600/30 absolute top-3/4" />
@@ -2371,24 +2525,28 @@ const Login: React.FC = () => {
                       </div>
 
                       <div className="header flex justify-between items-start">
-                        <div>
-                          <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-white/70">New Life Clinic</p>
-                          <p className="text-[9px] uppercase tracking-widest text-white/50">Patient Card</p>
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] uppercase tracking-[0.2em] font-extrabold text-white/90">New Life Clinic</p>
+                          <p className="text-[8px] uppercase tracking-widest text-white/50 font-mono">Clinical Smart Card</p>
                         </div>
-                        <div className="px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-white/20">
+                        <div className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-white/20 ${
+                          cardResult.patientCard.type === 'VIP'
+                            ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-black'
+                            : ''
+                        }`}>
                           {cardResult.patientCard.type}
                         </div>
                       </div>
 
                       <div className="details mt-14 flex justify-between items-end">
                         <div className="space-y-1">
-                          <p className="text-[13px] font-mono tracking-wider font-bold">{cardResult.patientCard.cardNumber}</p>
-                          <p className="text-sm font-semibold truncate max-w-[200px]">{cardResult.patient.firstName} {cardResult.patient.lastName}</p>
-                          <p className="text-[9px] text-white/75">Patient ID: <span className="font-mono">{cardResult.patient.patientId}</span></p>
-                          <p className="text-[8px] text-white/60">Expires: {new Date(cardResult.patientCard.expiryDate).toLocaleDateString()}</p>
+                          <p className="text-[12px] font-mono tracking-widest font-extrabold text-white/90">{cardResult.patientCard.cardNumber}</p>
+                          <p className="text-sm font-bold truncate max-w-[200px] text-white tracking-tight">{cardResult.patient.firstName} {cardResult.patient.lastName}</p>
+                          <p className="text-[9px] text-white/70">Patient ID: <span className="font-mono font-bold">{cardResult.patient.patientId}</span></p>
+                          <p className="text-[8px] text-white/55 font-mono">Expires: {new Date(cardResult.patientCard.expiryDate).toLocaleDateString()}</p>
                         </div>
                         
-                        <div className="qr bg-white p-1 rounded-lg shadow-md flex-shrink-0">
+                        <div className="qr bg-white p-1 rounded-lg shadow-lg flex-shrink-0 transition-transform duration-300 group-hover:scale-105">
                           <img 
                             src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(`NEWLIFE-CARD:${cardResult.patientCard.cardNumber}|PATIENT:${cardResult.patient.patientId}`)}`} 
                             alt="QR Code" 
@@ -2631,13 +2789,13 @@ const Login: React.FC = () => {
       <PulseDivider animate={false} />
 
       {/* Footer */}
-      <footer className="py-12 bg-mist dark:bg-slate-900/60 text-ink dark:text-paper mt-auto text-xs font-sans border-t border-ink/10 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-8 mb-6">
-            {/* Clinic Info */}
-            <div>
+      <footer className="py-16 bg-mist/40 dark:bg-slate-900/60 text-ink dark:text-paper mt-auto text-xs font-sans border-t border-ink/10 dark:border-slate-800/80 backdrop-blur-sm relative z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-4 gap-8 mb-12">
+            {/* Column 1: Clinic Info */}
+            <div className="space-y-4">
               <div className="flex items-center gap-2 mb-3">
-                <div className="h-5 w-5 rounded-md overflow-hidden bg-white flex items-center justify-center border border-slate-200/20">
+                <div className="h-6 w-6 rounded-md overflow-hidden bg-white flex items-center justify-center border border-slate-200/20 shadow-sm">
                   <img src={clinic?.logo || "/assets/images/logo.jpg"} alt={`${clinic?.name || CLINIC_INFO.name} Logo`} className="h-full w-full object-cover" />
                 </div>
                 <span className="font-extrabold text-sm uppercase tracking-tight text-ink dark:text-paper">{clinic?.name || CLINIC_INFO.name}</span>
@@ -2645,17 +2803,20 @@ const Login: React.FC = () => {
               <p className="text-xs leading-relaxed text-slate dark:text-slate-400">
                 {clinic?.address || CLINIC_INFO.address}
               </p>
-              {clinic?.contactPhone ? (
-                <p className="text-xs mt-1 text-slate dark:text-slate-400">{clinic.contactPhone}</p>
-              ) : (
-                <p className="text-xs mt-1 text-slate dark:text-slate-400">{CLINIC_INFO.phone} • {CLINIC_INFO.mobile}</p>
-              )}
-              <p className="text-xs text-slate dark:text-slate-400">{clinic?.contactEmail || CLINIC_INFO.email}</p>
+              <div className="space-y-1 text-slate dark:text-slate-400">
+                {clinic?.contactPhone ? (
+                  <p className="text-xs font-semibold">{clinic.contactPhone}</p>
+                ) : (
+                  <p className="text-xs font-semibold">{CLINIC_INFO.phone} • {CLINIC_INFO.mobile}</p>
+                )}
+                <p className="text-xs">{clinic?.contactEmail || CLINIC_INFO.email}</p>
+              </div>
             </div>
-            {/* Quick Links */}
+
+            {/* Column 2: Quick Links */}
             <div>
-              <p className="font-bold text-xs uppercase tracking-wider mb-3 text-ink dark:text-paper">Quick Links</p>
-              <div className="space-y-1.5">
+              <p className="font-extrabold text-xs uppercase tracking-wider mb-4 text-ink dark:text-paper">Quick Links</p>
+              <div className="space-y-2">
                 {[
                   { id: 'services' as Tab, label: 'Our Services' },
                   { id: 'packages' as Tab, label: 'Health Packages' },
@@ -2672,20 +2833,37 @@ const Login: React.FC = () => {
                 ))}
               </div>
             </div>
-            {/* Hours Summary */}
+
+            {/* Column 3: Hours Summary */}
             <div>
-              <p className="font-bold text-xs uppercase tracking-wider mb-3 text-ink dark:text-paper">Hours</p>
-              <div className="space-y-1">
+              <p className="font-extrabold text-xs uppercase tracking-wider mb-4 text-ink dark:text-paper">Clinic Hours</p>
+              <div className="space-y-2">
                 {CLINIC_INFO.hours.map(h => (
                   <div key={h.day} className="flex justify-between text-xs text-slate dark:text-slate-400">
                     <span>{h.day}</span>
-                    <span className="font-medium">{h.time}</span>
+                    <span className="font-bold">{h.time}</span>
                   </div>
                 ))}
               </div>
             </div>
+
+            {/* Column 4: Trust Badge Summary */}
+            <div className="space-y-4">
+              <p className="font-extrabold text-xs uppercase tracking-wider mb-1 text-ink dark:text-paper">Security & Standards</p>
+              <p className="text-slate dark:text-slate-400 text-xs leading-relaxed">
+                Our database systems comply with international standards of secure records keeping.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {['SSL Secured', 'HIPAA compliant', 'ISO 9001'].map(tag => (
+                  <span key={tag} className="px-2 py-0.5 rounded font-mono text-[9px] font-bold uppercase tracking-wider border border-ink/15 text-slate dark:border-slate-800 dark:text-slate-400">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="pt-4 border-t border-ink/10 dark:border-slate-800 text-center text-slate dark:text-slate-500">
+          
+          <div className="pt-6 border-t border-ink/10 dark:border-slate-800/80 text-center text-slate dark:text-slate-500 font-mono text-[10px]">
             © {new Date().getFullYear()} {clinic?.name || CLINIC_INFO.name}. Smart Health Management. All rights reserved.
           </div>
         </div>
