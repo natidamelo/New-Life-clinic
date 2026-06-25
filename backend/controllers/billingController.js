@@ -146,7 +146,10 @@ exports.getBillingStats = asyncHandler(async (req, res) => {
     const [invoiceStats, invoicesByStatus, recentInvoices, monthlyRevenue] = await Promise.all([
         // 1. General invoice statistics: total, balance, amountPaid (no lookup needed!)
         MedicalInvoice.aggregate([
-            { $match: { issueDate: { $gte: start, $lte: end } } },
+            { $match: { 
+                issueDate: { $gte: start, $lte: end },
+                status: { $nin: ['cancelled', 'refunded'] }
+            } },
             {
                 $group: {
                     _id: null,
@@ -206,6 +209,7 @@ exports.getBillingStats = asyncHandler(async (req, res) => {
         MedicalInvoice.aggregate([
             {
                 $match: {
+                    status: { $nin: ['cancelled', 'refunded'] },
                     issueDate: {
                         $gte: new Date(new Date().getFullYear() - 1, new Date().getMonth(), 1),
                         $lte: new Date()

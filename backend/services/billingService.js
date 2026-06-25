@@ -1550,6 +1550,7 @@ const billingService = {
       console.log('=======================================');
       
       const matchCriteria = {
+        status: { $nin: ['cancelled', 'refunded'] },
         issueDate: {
           $gte: new Date(startDate),
           $lte: new Date(endDate)
@@ -1591,12 +1592,14 @@ const billingService = {
         // Sum of payments stored inside invoice.payments by payment date
         // Sum of payments stored inside invoice.payments by payment date (regardless of invoice issueDate)
         MedicalInvoice.aggregate([
+          { $match: { status: { $nin: ['cancelled', 'refunded'] } } },
           { $unwind: { path: '$payments', preserveNullAndEmptyArrays: false } },
           { $match: { 'payments.date': { $gte: new Date(startDate), $lte: new Date(endDate) } } },
           { $group: { _id: null, totalCollections: { $sum: '$payments.amount' } } }
         ]),
         // Sum of payments stored in invoice.paymentHistory by payment date
         MedicalInvoice.aggregate([
+          { $match: { status: { $nin: ['cancelled', 'refunded'] } } },
           { $unwind: { path: '$paymentHistory', preserveNullAndEmptyArrays: false } },
           { $match: { 'paymentHistory.date': { $gte: new Date(startDate), $lte: new Date(endDate) } } },
           { $group: { _id: null, totalCollections: { $sum: '$paymentHistory.amount' } } }

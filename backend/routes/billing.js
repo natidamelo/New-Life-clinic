@@ -3044,6 +3044,7 @@ router.get('/stats', auth, async (req, res) => {
     const collectionsResult = await MedicalInvoice.aggregate([
       {
         $match: {
+          status: { $nin: ['cancelled', 'refunded'] },
           issueDate: { $gte: start, $lte: end }
         }
       },
@@ -3075,6 +3076,7 @@ router.get('/stats', auth, async (req, res) => {
     const outstandingResult = await MedicalInvoice.aggregate([
       {
         $match: {
+          status: { $nin: ['cancelled', 'refunded'] },
           issueDate: { $gte: start, $lte: end }
         }
       },
@@ -3104,7 +3106,10 @@ router.get('/stats', auth, async (req, res) => {
     // Get monthly revenue for the last 12 months
     const monthlyRevenue = await MedicalInvoice.aggregate([
       {
-        $match: { issueDate: { $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), $lte: new Date() } }
+        $match: {
+          status: { $nin: ['cancelled', 'refunded'] },
+          issueDate: { $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), $lte: new Date() }
+        }
       },
       {
         $group: {
