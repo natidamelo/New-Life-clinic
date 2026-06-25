@@ -1832,9 +1832,12 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
     loadFallback();
   }, [historyDialogOpen, patientHistory.length, patientId, user?.id]);
 
-  // Debounced auto-save function
-  const autoSaveDraft = useRef(
-    debounce(async (draftData: typeof formData) => {
+  // Ref to hold the latest save function to avoid stale closures
+  const saveDraftRef = useRef<(draftData: typeof formData) => Promise<void>>();
+  
+  // Update the ref on every render to ensure we always have the latest state values
+  useEffect(() => {
+    saveDraftRef.current = async (draftData: typeof formData) => {
       try {
         setAutoSaveStatus('saving');
         
@@ -1884,12 +1887,22 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
           setAutoSaveStatus('idle');
         }
       } catch (err) {
-        // Optionally show a toast or log
         console.warn('Auto-save draft failed:', err);
         setAutoSaveStatus('idle');
       }
-    }, 1000)
-  ).current;
+    };
+  }, [user, patientId]);
+
+  // Debounced auto-save function using useMemo for stability, with a 3000ms delay to wait until user stops typing
+  const autoSaveDraft = useMemo(
+    () =>
+      debounce(async (draftData: typeof formData) => {
+        if (saveDraftRef.current) {
+          await saveDraftRef.current(draftData);
+        }
+      }, 3000),
+    []
+  );
 
   // Helper function to calculate age from date of birth
   const calculateAge = (dob: string | undefined): number => {
