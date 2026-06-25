@@ -568,10 +568,12 @@ const InvoiceList: React.FC = () => {
                             onClick={() => navigate(`/app/billing/invoices/${invoice._id}`)} title="View">
                             <EyeIcon className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-500 hover:bg-gray-50"
-                            onClick={() => navigate(`/app/billing/invoices/${invoice._id}/edit`)} title="Edit">
-                            <PencilIcon className="h-3.5 w-3.5" />
-                          </Button>
+                          {!['paid', 'cancelled', 'refunded'].includes((invoice.status || '').toLowerCase()) && (
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-500 hover:bg-gray-50"
+                              onClick={() => navigate(`/app/billing/invoices/${invoice._id}/edit`)} title="Edit">
+                              <PencilIcon className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-500 hover:bg-gray-50"
                             onClick={() => handleDownloadInvoice(invoice)} title="Download PDF">
                             <DocumentIcon className="h-3.5 w-3.5" />

@@ -11,7 +11,7 @@ import {
   Plus as PlusIcon,
   Trash2 as TrashIcon
 } from 'lucide-react';
-import billingService, { Invoice, InvoiceItem as CoreInvoiceItem } from '../../services/billingService';
+import billingService, { Invoice, InvoiceItem as CoreInvoiceItem, ItemType } from '../../services/billingService';
 
 interface InvoiceItem {
   id: string;
@@ -45,6 +45,12 @@ const EditInvoice: React.FC = () => {
       setError(null);
       try {
         const fetched = await billingService.getInvoiceById(id);
+        const status = (fetched.status || '').toLowerCase();
+        if (['paid', 'cancelled', 'refunded'].includes(status)) {
+          setError(`Cannot edit a ${status} invoice`);
+          setLoading(false);
+          return;
+        }
         setInvoice(fetched);
 
         setFormData({
@@ -154,7 +160,7 @@ const EditInvoice: React.FC = () => {
     try {
       const updatePayload = {
         items: items.map(item => ({
-          itemType: item.itemType || 'service',
+          itemType: (item.itemType || 'service') as ItemType,
           description: item.description,
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
@@ -217,141 +223,155 @@ const EditInvoice: React.FC = () => {
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Invoice Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {invoice && (
-              <div className="p-4 bg-muted rounded-lg space-y-1 text-sm text-muted-foreground">
-                <p>
-                  <strong>Patient:</strong>{' '}
-                  {invoice.patientName ||
-                    (typeof invoice.patient === 'object'
-                      ? `${invoice.patient.firstName} ${invoice.patient.lastName}`
-                      : invoice.patientId ||
-                        (typeof invoice.patient === 'string' ? invoice.patient : 'Unknown'))}
-                </p>
-                <p>
-                  <strong>Current Status:</strong> {invoice.status}
-                </p>
+      {invoice && !['paid', 'cancelled', 'refunded'].includes((invoice.status || '').toLowerCase()) ? (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Invoice Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {invoice && (
+                <div className="p-4 bg-muted rounded-lg space-y-1 text-sm text-muted-foreground">
+                  <p>
+                    <strong>Patient:</strong>{' '}
+                    {invoice.patientName ||
+                      (typeof invoice.patient === 'object'
+                        ? `${invoice.patient.firstName} ${invoice.patient.lastName}`
+                        : invoice.patientId ||
+                          (typeof invoice.patient === 'string' ? invoice.patient : 'Unknown'))}
+                  </p>
+                  <p>
+                    <strong>Current Status:</strong> {invoice.status}
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="dueDate">Due Date</Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={e => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                />
               </div>
-            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="dueDate">Due Date</Label>
-              <Input
-                id="dueDate"
-                type="date"
-                value={formData.dueDate}
-                onChange={e => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  rows={3}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                rows={3}
-              />
-            </div>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Invoice Items</CardTitle>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addItem}
+                  className="flex items-center gap-2"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  Add Item
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {items.map(item => (
+                <div key={item.id} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                  <div className="md:col-span-2 space-y-1">
+                    <Label>Description</Label>
+                    <Input
+                      value={item.description}
+                      onChange={e => handleItemChange(item.id, 'description', e.target.value)}
+                      placeholder="Service description"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Quantity</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={e => handleItemChange(item.id, 'quantity', Number(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Unit Price</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.unitPrice}
+                      onChange={e => handleItemChange(item.id, 'unitPrice', Number(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Total</Label>
+                    <Input value={item.total.toFixed(2)} readOnly />
+                  </div>
+                  <div className="flex justify-end md:col-span-4">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeItem(item.id)}
+                      disabled={items.length <= 1}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      title="Remove item"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Invoice Items</CardTitle>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addItem}
-                className="flex items-center gap-2"
-              >
-                <PlusIcon className="w-4 h-4" />
-                Add Item
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {items.map(item => (
-              <div key={item.id} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                <div className="md:col-span-2 space-y-1">
-                  <Label>Description</Label>
-                  <Input
-                    value={item.description}
-                    onChange={e => handleItemChange(item.id, 'description', e.target.value)}
-                    placeholder="Service description"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Quantity</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={e => handleItemChange(item.id, 'quantity', Number(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Unit Price</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.unitPrice}
-                    onChange={e => handleItemChange(item.id, 'unitPrice', Number(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Total</Label>
-                  <Input value={item.total.toFixed(2)} readOnly />
-                </div>
-                <div className="flex justify-end md:col-span-4">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeItem(item.id)}
-                    disabled={items.length <= 1}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    title="Remove item"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </Button>
+              <div className="flex justify-end border-t pt-4 mt-2">
+                <div className="text-right">
+                  <div className="text-sm text-muted-foreground">Subtotal</div>
+                  <div className="text-2xl font-bold">
+                    ETB {calculateSubtotal().toFixed(2)}
+                  </div>
                 </div>
               </div>
-            ))}
+            </CardContent>
+          </Card>
 
-            <div className="flex justify-end border-t pt-4 mt-2">
-              <div className="text-right">
-                <div className="text-sm text-muted-foreground">Subtotal</div>
-                <div className="text-2xl font-bold">
-                  ETB {calculateSubtotal().toFixed(2)}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-end gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate('/app/billing/invoices')}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </div>
-      </form>
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate('/app/billing/invoices')}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </form>
+      ) : (
+        !loading && (
+          <div className="flex justify-start mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate('/app/billing/invoices')}
+            >
+              Back to Invoices
+            </Button>
+          </div>
+        )
+      )}
     </div>
   );
 };
