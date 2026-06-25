@@ -6183,6 +6183,13 @@ router.put('/invoices/:id/cancel', auth, checkRole('admin', 'finance'), async (r
       return res.status(404).json({ success: false, message: 'Invoice not found' });
     }
 
+    if (invoice.amountPaid > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot cancel a partially paid invoice. Please edit the invoice to remove the unpaid items instead, or refund the payments first.' 
+      });
+    }
+
     const NurseTask = require('../models/NurseTask');
     const LabOrder = require('../models/LabOrder');
     const ImagingOrder = require('../models/ImagingOrder');
@@ -6266,6 +6273,13 @@ router.delete('/invoices/:id', auth, checkRole('admin'), async (req, res) => {
     const invoice = await MedicalInvoice.findById(id);
     if (!invoice) {
       return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+
+    if (invoice.amountPaid > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot delete an invoice with recorded payments. Please edit the invoice to remove the unpaid items instead, or refund the payments first.' 
+      });
     }
 
     const Payment = require('../models/Payment');

@@ -758,55 +758,83 @@ const InvoiceList: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Cancel Invoice</DialogTitle>
             <DialogDescription>
-              Are you sure you want to cancel invoice <strong>{confirmCancel?.invoiceNumber}</strong>? 
-              This will void the invoice, delete associated payments, delete corresponding nurse tasks, and reset prescription payment statuses to unpaid.
+              {confirmCancel && (confirmCancel.amountPaid || 0) > 0 ? (
+                <span className="block p-3.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs leading-relaxed font-medium">
+                  <strong>Notice:</strong> This invoice has recorded payments of {formatCurrency(confirmCancel.amountPaid)}. 
+                  You cannot cancel a partially paid invoice because deleting the financial records violates audit guidelines. 
+                  Please close this modal and click the <strong>Edit Invoice</strong> (pencil icon) to remove the unpaid items the patient refused to pay.
+                </span>
+              ) : (
+                <>
+                  Are you sure you want to cancel invoice <strong>{confirmCancel?.invoiceNumber}</strong>? 
+                  This will void the invoice, delete associated payments, delete corresponding nurse tasks, and reset prescription payment statuses to unpaid.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-1.5 py-2">
-            <Label htmlFor="cancelReason">Reason for Cancellation</Label>
-            <Input
-              id="cancelReason"
-              placeholder="e.g., Patient decided not to proceed, duplicate billing..."
-              value={cancelReason}
-              onChange={e => setCancelReason(e.target.value)}
-            />
-          </div>
+          {confirmCancel && !(confirmCancel.amountPaid > 0) && (
+            <div className="space-y-1.5 py-2">
+              <Label htmlFor="cancelReason">Reason for Cancellation</Label>
+              <Input
+                id="cancelReason"
+                placeholder="e.g., Patient decided not to proceed, duplicate billing..."
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+              />
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => { setConfirmCancel(null); setCancelReason(''); }} disabled={cancellingInvoice}>
-              Go Back
+              {confirmCancel && confirmCancel.amountPaid > 0 ? 'Close' : 'Go Back'}
             </Button>
-            <Button
-              onClick={() => confirmCancel && handleCancelInvoice(confirmCancel)}
-              disabled={cancellingInvoice}
-              className="bg-amber-600 hover:bg-amber-700 text-white"
-            >
-              {cancellingInvoice ? 'Cancelling...' : 'Cancel Invoice'}
-            </Button>
+            {confirmCancel && !(confirmCancel.amountPaid > 0) && (
+              <Button
+                onClick={() => confirmCancel && handleCancelInvoice(confirmCancel)}
+                disabled={cancellingInvoice}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                {cancellingInvoice ? 'Cancelling...' : 'Cancel Invoice'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!confirmDelete} onOpenChange={() => setConfirmDelete(null)}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-red-600">Delete Invoice Permanently</DialogTitle>
+            <DialogTitle className={confirmDelete && confirmDelete.amountPaid > 0 ? 'text-foreground' : 'text-red-600'}>
+              Delete Invoice Permanently
+            </DialogTitle>
             <DialogDescription>
-              Are you sure you want to permanently delete invoice <strong>{confirmDelete?.invoiceNumber}</strong>?
-              <span className="block mt-2 font-semibold text-red-500">Warning: This action cannot be undone. Associated payments, lab/imaging orders, and nurse tasks will be deleted.</span>
+              {confirmDelete && (confirmDelete.amountPaid || 0) > 0 ? (
+                <span className="block p-3.5 bg-red-50 border border-red-200 text-red-800 rounded-lg text-xs leading-relaxed font-medium">
+                  <strong>Error:</strong> This invoice has recorded payments of {formatCurrency(confirmDelete.amountPaid)}. 
+                  Deleting this invoice is blocked to preserve auditing logs. 
+                  If the patient refuses to pay the remaining balance, please <strong>Edit</strong> the invoice to remove the unpaid items instead.
+                </span>
+              ) : (
+                <>
+                  Are you sure you want to permanently delete invoice <strong>{confirmDelete?.invoiceNumber}</strong>?
+                  <span className="block mt-2 font-semibold text-red-500">Warning: This action cannot be undone. Associated payments, lab/imaging orders, and nurse tasks will be deleted.</span>
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={deletingInvoice}>
-              Cancel
+              {confirmDelete && confirmDelete.amountPaid > 0 ? 'Close' : 'Cancel'}
             </Button>
-            <Button
-              onClick={() => confirmDelete && handleDeleteInvoice(confirmDelete)}
-              disabled={deletingInvoice}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              {deletingInvoice ? 'Deleting...' : 'Delete Permanently'}
-            </Button>
+            {confirmDelete && !(confirmDelete.amountPaid > 0) && (
+              <Button
+                onClick={() => confirmDelete && handleDeleteInvoice(confirmDelete)}
+                disabled={deletingInvoice}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deletingInvoice ? 'Deleting...' : 'Delete Permanently'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

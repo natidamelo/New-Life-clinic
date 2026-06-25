@@ -422,6 +422,66 @@ const billingService = {
           }
         }
         
+        // Find removed items to revert their associated records
+        const oldItems = invoice.items || [];
+        const newItems = updateData.items || [];
+        const removedItems = [];
+
+        for (const oldItem of oldItems) {
+          const isStillPresent = newItems.some(newItem => 
+            newItem.description === oldItem.description && 
+            newItem.itemType === oldItem.itemType &&
+            String(newItem.serviceId || '') === String(oldItem.serviceId || '')
+          );
+          if (!isStillPresent) {
+            removedItems.push(oldItem);
+          }
+        }
+
+        if (removedItems.length > 0) {
+          console.log(`🔍 [updateInvoice] Found ${removedItems.length} removed items. Reverting associated records.`);
+          
+          const NurseTask = require('../models/NurseTask');
+          const LabOrder = require('../models/LabOrder');
+          const ImagingOrder = require('../models/ImagingOrder');
+          const Prescription = require('../models/Prescription');
+
+          for (const item of removedItems) {
+            const metadata = item.metadata || {};
+            
+            // Revert prescription
+            if (metadata.prescriptionId) {
+              await Prescription.findByIdAndUpdate(metadata.prescriptionId, { paymentStatus: 'unpaid' });
+              await NurseTask.deleteMany({ prescriptionId: metadata.prescriptionId });
+            }
+            
+            // Revert lab order
+            if (metadata.labOrderId || item.itemType === 'lab') {
+              await LabOrder.deleteMany({ 
+                $or: [
+                  { _id: metadata.labOrderId },
+                  { patientId: invoice.patient, testName: item.description }
+                ]
+              });
+            }
+            
+            // Revert imaging order
+            if (metadata.imagingOrderId || item.itemType === 'imaging') {
+              await ImagingOrder.deleteMany({
+                $or: [
+                  { _id: metadata.imagingOrderId },
+                  { patientId: invoice.patient, imagingType: item.description }
+                ]
+              });
+            }
+
+            // Revert general nurse task
+            if (metadata.nurseTaskId) {
+              await NurseTask.findByIdAndDelete(metadata.nurseTaskId);
+            }
+          }
+        }
+
         invoice.items = updateData.items;
         invoice.lastUpdatedBy = userId;
         
