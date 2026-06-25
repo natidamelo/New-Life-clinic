@@ -15,6 +15,8 @@ module.exports = {
         paper: "var(--chart-paper)",
         pulse: "var(--chart-pulse)",
         mist: "var(--chart-mist)",
+        vital: "var(--chart-vital)",
+        "vital-tint": "var(--chart-vital-tint)",
         slate: {
           DEFAULT: "var(--chart-slate)",
           50: '#f8fafc',

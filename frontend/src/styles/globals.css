@@ -27,6 +27,8 @@
   --chart-pulse: #C73E2E;
   --chart-mist: #EEF1EC;
   --chart-slate: #5B6066;
+  --chart-vital: #2C5F8A;
+  --chart-vital-tint: #EAF1F6;
 }
 
 .dark {
@@ -36,6 +38,8 @@
   --chart-pulse: #E2614C;
   --chart-mist: #1B2A28;
   --chart-slate: #94A3B8;
+  --chart-vital: #5B93BD;
+  --chart-vital-tint: #142734;
 }
 @tailwind base;
 @tailwind components;

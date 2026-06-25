@@ -257,6 +257,172 @@ const PulseDivider: React.FC<PulseDividerProps> = ({ animate = false }) => {
   );
 };
 
+/* ── SystemDiagram: schematic human torso with vital/pulse branching paths ── */
+const SystemDiagram: React.FC = () => (
+  <svg
+    viewBox="0 0 320 420"
+    className="w-full max-w-[320px] mx-auto"
+    aria-label="Schematic diagram of whole-system care approach"
+    role="img"
+  >
+    {/* ── Human silhouette outline (stroke-only, schematic/minimal) ── */}
+    <path
+      d="
+        M 160 32
+        C 142 32, 130 44, 130 62
+        C 130 80, 142 92, 160 92
+        C 178 92, 190 80, 190 62
+        C 190 44, 178 32, 160 32
+        Z
+      "
+      fill="none"
+      stroke="var(--chart-ink)"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+      opacity="0.55"
+    />
+    {/* Neck */}
+    <path
+      d="M 150 92 L 150 108 M 170 92 L 170 108"
+      fill="none"
+      stroke="var(--chart-ink)"
+      strokeWidth="1.8"
+      opacity="0.55"
+    />
+    {/* Shoulders + torso */}
+    <path
+      d="
+        M 150 108
+        C 140 108, 90 118, 72 138
+        L 62 174
+        L 68 176
+        L 82 148
+        L 96 200
+        L 100 280
+        L 108 340
+        L 122 340
+        L 132 280
+        L 140 340
+        L 148 400
+        L 172 400
+        L 180 340
+        L 188 280
+        L 198 340
+        L 212 340
+        L 220 280
+        L 224 200
+        L 238 148
+        L 252 176
+        L 258 174
+        L 248 138
+        C 230 118, 180 108, 170 108
+      "
+      fill="none"
+      stroke="var(--chart-ink)"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+      strokeLinecap="round"
+      opacity="0.55"
+    />
+
+    {/* ── Vital branch (systemic, branching left-outward from heart) ── */}
+    <g stroke="var(--chart-vital)" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      {/* Main trunk */}
+      <path d="M 160 155 L 140 175 L 118 200" />
+      {/* Fork 1: upper-left */}
+      <path d="M 140 175 L 122 168 L 104 158" />
+      {/* Fork 2: mid-left */}
+      <path d="M 118 200 L 100 210 L 90 230" />
+      {/* Fork 3: lower */}
+      <path d="M 118 200 L 125 230 L 120 260" />
+      {/* Fork 4: far reach */}
+      <path d="M 100 210 L 88 200 L 78 186" />
+    </g>
+
+    {/* ── Pulse branch (right side, resolving into EKG blip at heart) ── */}
+    <g stroke="var(--chart-pulse)" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      {/* EKG blip at heart position — matches PulseDivider's QRS complex shape */}
+      <path d="M 160 155 L 163 152 L 166 155 L 168 158 L 172 140 L 176 170 L 179 155 L 182 150 L 185 155" />
+      {/* Main trunk continuing from blip */}
+      <path d="M 185 155 L 200 175 L 220 200" />
+      {/* Fork 1: upper-right */}
+      <path d="M 200 175 L 216 168 L 232 158" />
+      {/* Fork 2: mid-right */}
+      <path d="M 220 200 L 236 210 L 244 230" />
+      {/* Fork 3: lower */}
+      <path d="M 220 200 L 212 230 L 218 260" />
+    </g>
+
+    {/* ── Heart center dot ── */}
+    <circle cx="160" cy="155" r="3.5" fill="none" stroke="var(--chart-pulse)" strokeWidth="1.5" />
+
+    {/* ── Leader-line annotations (chart-style, 1px ink lines + mono labels) ── */}
+    {/* Annotation 1: STEADY RHYTHM near heart */}
+    <line x1="160" y1="145" x2="160" y2="125" stroke="var(--chart-ink)" strokeWidth="0.75" opacity="0.45" />
+    <line x1="160" y1="125" x2="210" y2="125" stroke="var(--chart-ink)" strokeWidth="0.75" opacity="0.45" />
+    <circle cx="160" cy="145" r="1.5" fill="var(--chart-ink)" opacity="0.45" />
+    <text
+      x="214"
+      y="128"
+      className="font-mono"
+      fill="var(--chart-ink)"
+      fontSize="9"
+      fontWeight="500"
+      letterSpacing="0.1em"
+      opacity="0.6"
+    >
+      STEADY RHYTHM
+    </text>
+
+    {/* Annotation 2: WHOLE-PATIENT CARE near left silhouette edge */}
+    <line x1="90" y1="230" x2="90" y2="310" stroke="var(--chart-ink)" strokeWidth="0.75" opacity="0.45" />
+    <line x1="90" y1="310" x2="40" y2="310" stroke="var(--chart-ink)" strokeWidth="0.75" opacity="0.45" />
+    <circle cx="90" cy="230" r="1.5" fill="var(--chart-ink)" opacity="0.45" />
+    <text
+      x="36"
+      y="304"
+      className="font-mono"
+      fill="var(--chart-ink)"
+      fontSize="8"
+      fontWeight="500"
+      letterSpacing="0.1em"
+      textAnchor="end"
+      opacity="0.6"
+    >
+      WHOLE-PATIENT
+    </text>
+    <text
+      x="36"
+      y="316"
+      className="font-mono"
+      fill="var(--chart-ink)"
+      fontSize="8"
+      fontWeight="500"
+      letterSpacing="0.1em"
+      textAnchor="end"
+      opacity="0.6"
+    >
+      CARE
+    </text>
+
+    {/* Annotation 3: CONNECTED near right branch */}
+    <line x1="244" y1="230" x2="270" y2="280" stroke="var(--chart-ink)" strokeWidth="0.75" opacity="0.45" />
+    <circle cx="244" cy="230" r="1.5" fill="var(--chart-ink)" opacity="0.45" />
+    <text
+      x="274"
+      y="284"
+      className="font-mono"
+      fill="var(--chart-ink)"
+      fontSize="8.5"
+      fontWeight="500"
+      letterSpacing="0.1em"
+      opacity="0.6"
+    >
+      CONNECTED
+    </text>
+  </svg>
+);
+
 interface FilterPillProps {
   label: string;
   active: boolean;
@@ -1175,6 +1341,37 @@ const Login: React.FC = () => {
               </div>
 
               {/* Pulse Divider after Hero/Vitals */}
+              <PulseDivider animate={false} />
+
+              {/* ── Whole-System Care Section ── */}
+              <section className="w-full bg-vital-tint rounded-3xl border border-ink/5 dark:border-white/5 p-8 md:p-12">
+                <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+                  {/* Left column: text content */}
+                  <div className="lg:col-span-7 space-y-5">
+                    {/* Kicker */}
+                    <div className="font-mono text-xs tracking-[0.2em] text-vital uppercase font-semibold">
+                      WHOLE-SYSTEM CARE
+                    </div>
+                    {/* Heading */}
+                    <h2 className="font-sans font-bold tracking-tight leading-[1.15] text-2xl sm:text-3xl lg:text-4xl text-ink dark:text-paper">
+                      Care that sees the whole system, not just the{' '}
+                      <span className="font-annotation italic text-pulse">
+                        symptom
+                      </span>.
+                    </h2>
+                    {/* Paragraph */}
+                    <p className="text-base leading-relaxed max-w-[520px] text-slate font-sans">
+                      Every diagnosis connects to a larger picture. Our team coordinates across departments so nothing is missed — from first reading to follow-up.
+                    </p>
+                  </div>
+                  {/* Right column: SystemDiagram illustration */}
+                  <div className="lg:col-span-5 flex justify-center order-last lg:order-none">
+                    <SystemDiagram />
+                  </div>
+                </div>
+              </section>
+
+              {/* Pulse Divider after Whole-System Care */}
               <PulseDivider animate={false} />
 
               {/* Departments */}
