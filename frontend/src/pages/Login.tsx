@@ -1142,7 +1142,7 @@ const Login: React.FC = () => {
         }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setActiveTab('home')}>
-            <div className="h-9.5 w-9.5 rounded-xl flex items-center justify-center overflow-hidden bg-white border border-slate-200/50 shadow-sm group-hover:scale-105 transition-transform duration-300">
+            <div className="h-10 w-10 rounded-xl flex items-center justify-center overflow-hidden bg-white border border-slate-200/50 shadow-sm group-hover:scale-105 transition-transform duration-300">
               <img src={clinic?.logo || "/assets/images/logo.jpg"} alt={`${clinic?.name || CLINIC_INFO.name} Logo`} className="h-full w-full object-cover" />
             </div>
             <div>
