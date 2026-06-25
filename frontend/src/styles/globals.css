@@ -24,7 +24,7 @@
   /* ── Chart & Pulse light mode tokens ── */
   --chart-ink: #15203B;
   --chart-paper: #FAFAF7;
-  --chart-pulse: #C73E2E;
+  --chart-pulse: #0d9488;
   --chart-mist: #EEF1EC;
   --chart-slate: #5B6066;
   --chart-vital: #2C5F8A;
@@ -35,7 +35,7 @@
   /* ── Chart & Pulse dark mode tokens ── */
   --chart-ink: #10172A;
   --chart-paper: #F3F1EC;
-  --chart-pulse: #E2614C;
+  --chart-pulse: #2dd4bf;
   --chart-mist: #1B2A28;
   --chart-slate: #94A3B8;
   --chart-vital: #5B93BD;
