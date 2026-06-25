@@ -89,6 +89,11 @@ const healthPackageService = {
     return response.data.data;
   },
 
+  updatePackage: async (id: string, packageData: Partial<HealthPackage>): Promise<HealthPackage> => {
+    const response = await api.put<{ success: boolean; data: HealthPackage }>(`/api/packages/${id}`, packageData);
+    return response.data.data;
+  },
+
   // Subscriptions
   assignPackage: async (patientId: string, assignData: { package_id: string; start_date?: string; amount_paid: number }): Promise<PatientPackage> => {
     const response = await api.post<{ success: boolean; data: PatientPackage }>(`/api/patients/${patientId}/packages`, assignData);

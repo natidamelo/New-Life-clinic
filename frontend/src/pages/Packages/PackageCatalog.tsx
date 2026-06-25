@@ -6,7 +6,7 @@ import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Badge } from '../../components/ui/badge';
 import Dialog from '../../components/ui/dialog-wrapper';
-import { Plus, Award, Calendar, Layers, CheckCircle2, AlertCircle, X, DollarSign, Activity } from 'lucide-react';
+import { Plus, Award, Calendar, Layers, CheckCircle2, AlertCircle, X, DollarSign, Activity, Edit, Power } from 'lucide-react';
 import healthPackageService, { HealthPackage } from '../../services/healthPackageService';
 import toast from 'react-hot-toast';
 
@@ -18,6 +18,7 @@ const PackageCatalog: React.FC<PackageCatalogProps> = ({ canManage }) => {
   const [packages, setPackages] = useState<HealthPackage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
+  const [editingPackageId, setEditingPackageId] = useState<string | null>(null);
 
   // Form states
   const [name, setName] = useState<string>('');
@@ -74,6 +75,34 @@ const PackageCatalog: React.FC<PackageCatalogProps> = ({ canManage }) => {
     setServices([]);
   };
 
+  const handleOpenEdit = (pkg: HealthPackage) => {
+    setEditingPackageId(pkg._id || pkg.id || null);
+    setName(pkg.name);
+    setDescription(pkg.description || '');
+    setTotalVisits(pkg.total_visits);
+    setValidityDays(pkg.validity_days);
+    setPrice(pkg.price);
+    setServices(pkg.services || []);
+    setIsCreateOpen(true);
+  };
+
+  const handleToggleStatus = async (pkg: HealthPackage) => {
+    const newStatus = !pkg.is_active;
+    const pkgId = pkg._id || pkg.id;
+    if (!pkgId) return;
+
+    try {
+      await healthPackageService.updatePackage(pkgId, {
+        is_active: newStatus
+      });
+      toast.success(`Package template ${newStatus ? 'activated' : 'deactivated'} successfully!`);
+      fetchPackages();
+    } catch (error) {
+      console.error('Failed to toggle package status:', error);
+      toast.error('Failed to update package status.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -99,22 +128,35 @@ const PackageCatalog: React.FC<PackageCatalogProps> = ({ canManage }) => {
 
     setIsSubmitting(true);
     try {
-      await healthPackageService.createPackage({
-        name,
-        description,
-        total_visits: totalVisits,
-        validity_days: validityDays,
-        price,
-        services,
-        is_active: true
-      });
-      toast.success('Package template created successfully!');
+      if (editingPackageId) {
+        await healthPackageService.updatePackage(editingPackageId, {
+          name,
+          description,
+          total_visits: totalVisits,
+          validity_days: validityDays,
+          price,
+          services
+        });
+        toast.success('Package template updated successfully!');
+      } else {
+        await healthPackageService.createPackage({
+          name,
+          description,
+          total_visits: totalVisits,
+          validity_days: validityDays,
+          price,
+          services,
+          is_active: true
+        });
+        toast.success('Package template created successfully!');
+      }
       setIsCreateOpen(false);
       resetForm();
+      setEditingPackageId(null);
       fetchPackages();
     } catch (error) {
-      console.error('Failed to create package:', error);
-      toast.error('Failed to create package template.');
+      console.error(editingPackageId ? 'Failed to update package:' : 'Failed to create package:', error);
+      toast.error(editingPackageId ? 'Failed to update package template.' : 'Failed to create package template.');
     } finally {
       setIsSubmitting(false);
     }
@@ -220,26 +262,54 @@ const PackageCatalog: React.FC<PackageCatalogProps> = ({ canManage }) => {
                   </ul>
                 </div>
               </CardContent>
-              <CardFooter className="bg-muted/15 border-t border-border/30 px-6 py-4 flex gap-2 justify-end">
-                {/* Visual Premium Indicator */}
-                <div className="w-full flex justify-between items-center text-xs text-muted-foreground font-medium">
+              <CardFooter className="bg-muted/15 border-t border-border/30 px-6 py-4 flex items-center justify-between gap-4">
+                <div className="text-xs text-muted-foreground font-medium">
                   <span>Template Code: {pkg._id?.substring(18).toUpperCase()}</span>
                 </div>
+                {canManage && (
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenEdit(pkg)}
+                      className="h-8 px-2.5 flex items-center gap-1.5 hover:bg-muted text-foreground border-border/50"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleToggleStatus(pkg)}
+                      className={`h-8 px-2.5 flex items-center gap-1.5 border-border/50 ${
+                        pkg.is_active
+                          ? 'hover:bg-red-500/10 hover:text-red-600 hover:border-red-200'
+                          : 'hover:bg-emerald-500/10 hover:text-emerald-600 hover:border-emerald-200'
+                      }`}
+                    >
+                      <Power className="w-3.5 h-3.5" />
+                      <span>{pkg.is_active ? 'Deactivate' : 'Activate'}</span>
+                    </Button>
+                  </div>
+                )}
               </CardFooter>
             </Card>
           ))}
         </div>
       )}
 
-      {/* Create Dialog */}
+      {/* Create / Edit Dialog */}
       <Dialog 
         isOpen={isCreateOpen} 
         onClose={() => {
           setIsCreateOpen(false);
           resetForm();
+          setEditingPackageId(null);
         }}
-        title="Create New Package Template"
-        description="Configure a health package bundle including clinical service details, visits count, validity period, and pricing details."
+        title={editingPackageId ? "Edit Package Template" : "Create New Package Template"}
+        description={editingPackageId ? "Update the package template details like pricing, visits, duration, and services." : "Configure a health package bundle including clinical service details, visits count, validity period, and pricing details."}
       >
         <form onSubmit={handleSubmit} className="space-y-4 py-2 text-left">
           <div className="space-y-1">
@@ -348,6 +418,7 @@ const PackageCatalog: React.FC<PackageCatalogProps> = ({ canManage }) => {
               onClick={() => {
                 setIsCreateOpen(false);
                 resetForm();
+                setEditingPackageId(null);
               }}
               disabled={isSubmitting}
             >
@@ -358,7 +429,7 @@ const PackageCatalog: React.FC<PackageCatalogProps> = ({ canManage }) => {
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Creating...' : 'Create Template'}
+              {isSubmitting ? (editingPackageId ? 'Saving...' : 'Creating...') : (editingPackageId ? 'Save Changes' : 'Create Template')}
             </Button>
           </div>
         </form>

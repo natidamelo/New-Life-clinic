@@ -44,14 +44,43 @@ router.post('/packages', auth, async (req, res) => {
 });
 
 // @route   GET /api/packages
-// @desc    List all active package templates
+// @desc    List all package templates (both active and inactive)
 // @access  Private
 router.get('/packages', auth, async (req, res) => {
   try {
-    const packages = await HealthPackage.find({ is_active: true });
+    const packages = await HealthPackage.find();
     res.json({ success: true, data: packages });
   } catch (error) {
     console.error('Error listing package templates:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
+// @route   PUT /api/packages/:id
+// @desc    Update a package template
+// @access  Private (Admin)
+router.put('/packages/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, total_visits, validity_days, price, services, is_active } = req.body;
+
+    const healthPackage = await HealthPackage.findById(id);
+    if (!healthPackage) {
+      return res.status(404).json({ success: false, message: 'Package template not found' });
+    }
+
+    if (name !== undefined) healthPackage.name = name;
+    if (description !== undefined) healthPackage.description = description;
+    if (total_visits !== undefined) healthPackage.total_visits = total_visits;
+    if (validity_days !== undefined) healthPackage.validity_days = validity_days;
+    if (price !== undefined) healthPackage.price = price;
+    if (services !== undefined) healthPackage.services = services;
+    if (is_active !== undefined) healthPackage.is_active = is_active;
+
+    await healthPackage.save();
+    res.json({ success: true, message: 'Package template updated successfully', data: healthPackage });
+  } catch (error) {
+    console.error('Error updating package template:', error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
