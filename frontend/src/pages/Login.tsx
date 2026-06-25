@@ -472,7 +472,6 @@ const DataValue: React.FC<DataValueProps> = ({ value, className = '' }) => {
 interface SecondaryButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
 }
-
 const SecondaryButton: React.FC<SecondaryButtonProps> = ({ children, className = '', ...props }) => {
   return (
     <button
@@ -488,96 +487,119 @@ const getServiceImage = (category: string, title: string): string => {
   const cat = (category || '').toLowerCase();
   const name = (title || '').toLowerCase();
   
-  // 1. SPECIFIC TITLE KEYWORD MATCHES (High priority for clinical accuracy)
-  // Injection & Fluids
+  // 1. SPECIFIC CLINICAL PROCEDURES (Highest priority keyword matching)
+  
+  // IV fluids / Drip Bag (e.g. Ringer Lactate, Saline, Fluid Infusions)
   if (
-    name.includes('injection') ||
-    name.includes('syringe') ||
-    name.includes('depo') ||
-    name.includes('implanon') ||
-    name.includes('im ') ||
-    name.includes('iv ') ||
-    name.includes('vial') ||
-    name.includes('vaccine') ||
-    name.includes('tetanus') ||
-    name.includes('cannula') ||
     name.includes('ringer') ||
     name.includes('lactate') ||
     name.includes('saline') ||
+    name.includes('dextrose') ||
     name.includes('fluid') ||
-    name.includes('dexamethasone') ||
-    name.includes('ceftriaxone') ||
-    name.includes('diclofenac')
+    name.includes('drip bag') ||
+    name.includes('infusion')
   ) {
-    return 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=300&q=80'; // vial and syringe preparation (200 OK)
+    return 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&w=300&q=80'; // medical IV drip infusion bag (200 OK)
   }
 
-  // Lab Tests & Panels
+  // IV Catheter / Drip Hand / Cannula (e.g. IV Injection, Cannula)
+  if (
+    name.includes('cannula') ||
+    name.includes('iv injection') ||
+    name.includes('iv ')
+  ) {
+    return 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&w=300&q=80'; // IV catheter drip in patient hand (200 OK)
+  }
+
+  // IM Injection / Vaccine Vial / Syringe preparation (e.g. Depo, IM injection, syringe, vaccine)
+  if (
+    name.includes('depo') ||
+    name.includes('im injection') ||
+    name.includes('im ') ||
+    name.includes('syringe') ||
+    name.includes('vaccine') ||
+    name.includes('tetanus') ||
+    name.includes('vial') ||
+    name.includes('injection') ||
+    name.includes('implanon') ||
+    name.includes('ceftriaxone') ||
+    name.includes('dexamethasone') ||
+    name.includes('diclofenac')
+  ) {
+    return 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=300&q=80'; // doctor preparing vaccine syringe/vial (200 OK)
+  }
+
+  // Blood Sample Collection Tubes (e.g. CBC, ESR, Blood Group, ALT/SGPT, CRP, Malaria blood test, HIV, Rheumatoid Factor)
   if (
     name.includes('blood') ||
     name.includes('cbc') ||
-    name.includes('glucose') ||
-    name.includes('urine') ||
-    name.includes('widal') ||
-    name.includes('stool') ||
-    name.includes('crp') ||
+    name.includes('complete blood count') ||
+    name.includes('blood group') ||
     name.includes('esr') ||
-    name.includes('hiv') ||
-    name.includes('fecal') ||
-    name.includes('sgpt') ||
     name.includes('malaria') ||
-    name.includes('hcg') ||
-    name.includes('wbc') ||
-    name.includes('hemoglobin') ||
+    name.includes('hiv') ||
+    name.includes('sgpt') ||
+    name.includes('alt') ||
+    name.includes('crp') ||
+    name.includes('reagent') ||
     name.includes('rheumatoid') ||
     name.includes('factor') ||
-    name.includes('renal') ||
-    name.includes('liver') ||
-    name.includes('lipid') ||
-    name.includes('glycated') ||
     name.includes('hba1c') ||
-    name.includes('sputum') ||
-    name.includes('analysis') ||
-    name.includes('test') ||
-    name.includes('culture') ||
-    name.includes('h. pylori') ||
-    name.includes('h-pylori') ||
-    name.includes('reagent')
+    name.includes('hemoglobin') ||
+    name.includes('wbc') ||
+    name.includes('hgb') ||
+    name.includes('lipid') ||
+    name.includes('liver') ||
+    name.includes('renal') ||
+    name.includes('kidney') ||
+    name.includes('urea')
   ) {
-    return 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=300&q=80'; // clinical laboratory scientist (200 OK)
+    return 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=300&q=80'; // blood sample collection tubes (200 OK)
   }
 
-  // Imaging / Ultrasounds
+  // Urinalysis & Stool Chemistry Beakers (e.g. Urine, Urinalysis, Fecal, Stool, HCG pregnancy test, FOBT, Sputum)
+  if (
+    name.includes('urine') ||
+    name.includes('urinalysis') ||
+    name.includes('hcg') ||
+    name.includes('fecal') ||
+    name.includes('stool') ||
+    name.includes('fobt') ||
+    name.includes('sputum') ||
+    name.includes('glucose')
+  ) {
+    return 'https://images.unsplash.com/photo-1532187643603-ba119ca4109e?auto=format&fit=crop&w=300&q=80'; // laboratory chemical testing workspace (200 OK)
+  }
+
+  // Ultrasound display scans (e.g. Abdominal Ultrasound, Pelvic scan, Obstetrics, ECG/Echo, scan)
   if (
     name.includes('ultrasound') ||
-    name.includes('x-ray') ||
-    name.includes('scan') ||
-    name.includes('mri') ||
-    name.includes('ct') ||
     name.includes('pelvic') ||
     name.includes('abdominal') ||
     name.includes('obstetrics') ||
+    name.includes('scan') ||
+    name.includes('mri') ||
+    name.includes('ct') ||
+    name.includes('x-ray') ||
     name.includes('echo')
   ) {
-    return 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=300&q=80'; // ultrasound display (200 OK)
+    return 'https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&w=300&q=80'; // ultrasound scanner display screen (200 OK)
   }
 
-  // Procedures & Clinical Care
+  // Wound bandaging & suturing (e.g. dressing, suturing stitches, burn treatment)
   if (
     name.includes('wound') ||
     name.includes('suturing') ||
     name.includes('dressing') ||
-    name.includes('blood pressure') ||
-    name.includes('switching') ||
-    name.includes('removal') ||
-    name.includes('insertion') ||
-    name.includes('surgery') ||
-    name.includes('ecg')
+    name.includes('stitch') ||
+    name.includes('bandaging') ||
+    name.includes('plaster') ||
+    name.includes('burn')
   ) {
-    return 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?auto=format&fit=crop&w=300&q=80'; // medical vital check/pressure cuff (200 OK)
+    return 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?auto=format&fit=crop&w=300&q=80'; // doctor wrapping bandage dressing (200 OK)
   }
 
-  // Consultations & Visits
+  // Consultations & Doctor visits (e.g. consultation, checkup, counseling, examination)
   if (
     name.includes('consultation') ||
     name.includes('doctor') ||
@@ -586,28 +608,28 @@ const getServiceImage = (category: string, title: string): string => {
     name.includes('counseling') ||
     name.includes('examination')
   ) {
-    return 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=300&q=80'; // consultation room (200 OK)
+    return 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=300&q=80'; // doctor consultation room (200 OK)
   }
 
-  // 2. CATEGORY-BASED FALLBACKS
+  // 2. CATEGORY-BASED FALLBACKS (If no specific title keywords matched)
   if (cat.includes('lab')) {
-    return 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=300&q=80';
+    return 'https://images.unsplash.com/photo-1617155093730-a8bf47be792d?auto=format&fit=crop&w=300&q=80'; // lab scientist using pipette (200 OK)
   }
   if (cat.includes('imaging') || cat.includes('ultrasound')) {
-    return 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=300&q=80';
+    return 'https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&w=300&q=80'; // ultrasound screen (200 OK)
   }
   if (cat.includes('injection')) {
-    return 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=300&q=80';
+    return 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=300&q=80'; // vaccine preparation (200 OK)
   }
   if (cat.includes('procedure')) {
-    return 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?auto=format&fit=crop&w=300&q=80';
+    return 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?auto=format&fit=crop&w=300&q=80'; // dressing/checking vitals (200 OK)
   }
   if (cat.includes('consultation')) {
-    return 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=300&q=80';
+    return 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=300&q=80'; // doctor consultation (200 OK)
   }
 
   // Default Medical
-  return 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=300&q=80'; // general clean medical equipment (200 OK)
+  return 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=300&q=80'; // general medical equipment (200 OK)
 };
 
 interface ServiceCardProps {
