@@ -397,11 +397,12 @@ router.get('/universal-stats', auth, cacheMiddleware(STATS_CACHE_DURATION), asyn
 // @access  Private (Admin only)
 router.get('/admin/dashboard/stats', auth, cacheMiddleware(STATS_CACHE_DURATION), async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
+    // Check if user is staff (admin, doctor, nurse, reception, finance, lab, imaging, billing, mch)
+    const allowedRoles = ['admin', 'doctor', 'nurse', 'reception', 'finance', 'lab', 'imaging', 'billing', 'mch'];
+    if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Admin role required.'
+        message: 'Access denied. Staff role required.'
       });
     }
 
