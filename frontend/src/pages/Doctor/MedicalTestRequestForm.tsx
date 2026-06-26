@@ -1428,7 +1428,7 @@ const MedicalTestRequestForm: React.FC = () => {
       </div>
 
       {/* Patient Selection Card */}
-      <div className="bg-card rounded-2xl shadow-sm border border-border/80 overflow-hidden">
+      <div className="bg-card rounded-2xl shadow-sm border border-border/80">
         <div className="border-b border-border/60 bg-muted/20 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <User className="w-5 h-5 text-primary" />
@@ -1555,7 +1555,7 @@ const MedicalTestRequestForm: React.FC = () => {
       </div>
 
       {/* Tabs Container */}
-      <div className="bg-card rounded-2xl shadow-sm border border-border/80 overflow-hidden">
+      <div className="bg-card rounded-2xl shadow-sm border border-border/80">
         {/* Navigation Tabs */}
         <div className="border-b border-border/60 bg-muted/20 p-2 overflow-x-auto">
           <div className="flex space-x-1 min-w-max">
