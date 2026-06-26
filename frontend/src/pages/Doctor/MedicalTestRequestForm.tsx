@@ -1196,20 +1196,18 @@ const MedicalTestRequestForm: React.FC = () => {
             </div>
 
             <div class="request-footer">
-              <div class="signature-section" style="position: relative; display: flex; flex-direction: column; align-items: center;">
+              <div class="signature-section" style="position: relative; display: flex; flex-direction: column; align-items: center; min-height: 65px; justify-content: flex-end;">
                 ${(user as any)?.digitalSignature ? `
-                  <div style="height: 30px; display: flex; align-items: center; justify-content: center; margin-bottom: -15px;">
-                    <img src="${(user as any).digitalSignature}" alt="Signature" style="max-height: 50px; max-width: 160px; object-fit: contain; transform: rotate(-1deg); margin-top: -15px;" />
-                  </div>
+                  <img src="${(user as any).digitalSignature}" alt="Signature" style="position: absolute; bottom: 18px; max-height: 48px; max-width: 150px; object-fit: contain; transform: rotate(-2deg);" />
                 ` : `
-                  <div class="physician-signature">Dr. ${user?.firstName || ''} ${user?.lastName || ''}</div>
+                  <div class="physician-signature" style="position: absolute; bottom: 15px;">Dr. ${user?.firstName || ''} ${user?.lastName || ''}</div>
                 `}
-                <div class="signature-line"></div>
+                <div class="signature-line" style="margin-top: 0; margin-bottom: 4px;"></div>
                 <div class="signature-label">Physician Signature & Stamp</div>
               </div>
-              <div class="signature-section" style="position: relative; display: flex; flex-direction: column; align-items: center;">
-                <div class="authorization-date">${currentDate}</div>
-                <div class="signature-line"></div>
+              <div class="signature-section" style="position: relative; display: flex; flex-direction: column; align-items: center; min-height: 65px; justify-content: flex-end;">
+                <div class="authorization-date" style="position: absolute; bottom: 15px;">${currentDate}</div>
+                <div class="signature-line" style="margin-top: 0; margin-bottom: 4px;"></div>
                 <div class="signature-label">Authorization Date</div>
               </div>
               <div class="stamp-box">
