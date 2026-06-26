@@ -14,6 +14,7 @@ import userService from '../../services/userService';
 import { debounce } from 'lodash'; // Import debounce from lodash
 import { extractErrorMessage } from '../../utils/errorUtils';
 import { safeErrorToString } from '../../utils/errorHandler';
+import patientCardService, { PatientCardSimpleStatus } from '../../services/patientCardService';
 
 interface Patient {
   firstName: string;
@@ -63,6 +64,10 @@ const ServiceRequestForm: React.FC = () => {
   const [availableStaff, setAvailableStaff] = useState<Staff[]>([]);
   const [staffOptions, setStaffOptions] = useState<ComboboxOption[]>([]);
   const [selectedStaffId, setSelectedStaffId] = useState<string>('');
+  const [quantity, setQuantity] = useState<number>(1);
+  const [notes, setNotes] = useState<string>('');
+  const [cardStatus, setCardStatus] = useState<PatientCardSimpleStatus | null>(null);
+  const [loadingCardStatus, setLoadingCardStatus] = useState<boolean>(false);
 
   useEffect(() => {
     fetchData();
@@ -215,18 +220,47 @@ const ServiceRequestForm: React.FC = () => {
     }
   };
 
-  const handleSelectExistingPatient = (p: any) => {
+  const handleSelectExistingPatient = async (p: any) => {
     setPatient({
-      firstName: p.firstName,
-      lastName: p.lastName,
+      firstName: p.firstName || '',
+      lastName: p.lastName || '',
       age: p.age?.toString() || '',
-      gender: p.gender,
-      contactNumber: p.contactNumber,
+      gender: p.gender || '',
+      contactNumber: p.contactNumber || '',
     });
-    setSelectedPatientId(p._id || p.id);
-    setSearchQuery(`${p.firstName} ${p.lastName}`); // Set the full name in the search input
+    const pId = p._id || p.id;
+    setSelectedPatientId(pId);
+    setSearchQuery(`${p.firstName || ''} ${p.lastName || ''}`.trim()); // Set the full name in the search input
     setSearchResults([]); // Clear search results after selection
     setShowSearchResults(false); // Hide search results
+
+    // Fetch patient card status
+    setLoadingCardStatus(true);
+    try {
+      const status = await patientCardService.getPatientCardByPatientId(pId);
+      setCardStatus(status);
+    } catch (err) {
+      console.error('Error fetching card status:', err);
+      setCardStatus(null);
+    } finally {
+      setLoadingCardStatus(false);
+    }
+  };
+
+  const handleClearPatient = () => {
+    setSelectedPatientId('');
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearchResults(false);
+    setCardStatus(null);
+    setPatient({
+      firstName: '',
+      lastName: '',
+      age: '',
+      gender: '',
+      contactNumber: ''
+    });
+    setErrorMessage('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -252,10 +286,26 @@ const ServiceRequestForm: React.FC = () => {
       const requestData: any = {
         serviceId: selectedServiceId,
         assignedNurseId: selectedStaffId, // Backend still expects this field name
+        quantity: quantity,
+        notes: notes.trim() || undefined
       };
 
       if (selectedPatientId) {
         requestData.patientId = selectedPatientId;
+        
+        // Update patient details if modified by user
+        try {
+          await patientService.updatePatient(selectedPatientId, {
+            firstName: patient.firstName,
+            lastName: patient.lastName,
+            age: parseInt(patient.age, 10) || 0,
+            gender: patient.gender,
+            contactNumber: patient.contactNumber
+          });
+          console.log('✅ Patient information updated successfully');
+        } catch (updateError) {
+          console.error('⚠️ Failed to update patient info, continuing service request anyway:', updateError);
+        }
       } else {
         requestData.patientInfo = {
           firstName: patient.firstName,
@@ -310,11 +360,7 @@ const ServiceRequestForm: React.FC = () => {
                 {searchQuery && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setSearchQuery('');
-                      setSearchResults([]);
-                      setShowSearchResults(false);
-                    }}
+                    onClick={handleClearPatient}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -440,6 +486,40 @@ const ServiceRequestForm: React.FC = () => {
               </div>
             </div>
 
+            {/* Patient Card Status Display */}
+            {loadingCardStatus && (
+              <div className="p-3 bg-muted/10 border border-border/30 rounded-lg text-xs text-muted-foreground flex items-center gap-2">
+                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-primary"></div>
+                Checking patient card registration status...
+              </div>
+            )}
+            {!loadingCardStatus && cardStatus && (
+              <div>
+                {cardStatus.isValid ? (
+                  <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 rounded-lg flex items-start gap-3 transition-all duration-300">
+                    <span className="text-emerald-500 text-lg">✓</span>
+                    <div>
+                      <h4 className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Active Card Registration</h4>
+                      <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
+                        Type: <strong>{cardStatus.cardType}</strong> | Expiry: {cardStatus.expiryDate ? new Date(cardStatus.expiryDate).toLocaleDateString() : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/30 rounded-lg flex items-start gap-3 transition-all duration-300">
+                    <span className="text-amber-500 text-lg">⚠️</span>
+                    <div>
+                      <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-300">Card Payment/Renewal Required</h4>
+                      <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                        This patient does not have a valid active card registration (Status: <strong>{cardStatus.status}</strong>).
+                        Submitting this request will automatically queue a Card Payment Notification alongside the service billing.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Service</Label>
@@ -481,6 +561,29 @@ const ServiceRequestForm: React.FC = () => {
                     Available for: {selectedService.category} services
                   </p>
                 )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Quantity</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={quantity}
+                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  required
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Notes / Clinical Info</Label>
+                <textarea
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Enter request notes or specific instructions..."
+                  rows={3}
+                />
               </div>
             </div>
 
