@@ -1195,23 +1195,25 @@ const MedicalTestRequestForm: React.FC = () => {
               </div>
             </div>
 
-            <div class="request-footer">
-              <div class="signature-section" style="position: relative; display: flex; flex-direction: column; align-items: center; min-height: 65px; justify-content: flex-end;">
-                ${(user as any)?.digitalSignature ? `
-                  <img src="${(user as any).digitalSignature}" alt="Signature" style="position: absolute; bottom: 18px; max-height: 48px; max-width: 150px; object-fit: contain; transform: rotate(-2deg);" />
-                ` : `
-                  <div class="physician-signature" style="position: absolute; bottom: 15px;">Dr. ${user?.firstName || ''} ${user?.lastName || ''}</div>
-                `}
-                <div class="signature-line" style="margin-top: 0; margin-bottom: 4px;"></div>
-                <div class="signature-label">Physician Signature & Stamp</div>
+            <div class="request-footer" style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 25px; padding-top: 15px; border-top: 2px solid #1e3a8a; text-align: left;">
+              <div class="signature-block" style="display: flex; flex-direction: column; gap: 4px;">
+                <div style="margin-bottom: 6px; font-size: 12px; font-weight: 800; color: #1e3a8a !important; text-transform: uppercase;"><strong>Doctor Signature</strong></div>
+                <div style="font-size: 11px; color: #475569 !important;"><strong>Prescriber:</strong> Dr. ${user?.firstName || ''} ${user?.lastName || ''}</div>
+                <div style="font-size: 11px; color: #475569 !important;"><strong>Department:</strong> Internal Medicine / OPD</div>
+                <div style="font-size: 11px; color: #475569 !important;"><strong>Date:</strong> ${currentDate}</div>
+                <div style="font-size: 11px; margin-top: 6px; color: #475569 !important; display: flex; align-items: center; gap: 8px;">
+                  <strong>Signature:</strong> 
+                  ${(user as any)?.digitalSignature ? `
+                    <img src="${(user as any).digitalSignature}" alt="Signature" style="max-height: 48px; max-width: 140px; object-fit: contain; vertical-align: middle; background: white;" />
+                  ` : `
+                    <span style="font-family: 'Dancing Script', 'Brush Script MT', cursive; font-size: 18px; color: #1a56db !important; font-weight: 600;">Dr. ${user?.firstName || ''} ${user?.lastName || ''}</span>
+                  `}
+                </div>
               </div>
-              <div class="signature-section" style="position: relative; display: flex; flex-direction: column; align-items: center; min-height: 65px; justify-content: flex-end;">
-                <div class="authorization-date" style="position: absolute; bottom: 15px;">${currentDate}</div>
-                <div class="signature-line" style="margin-top: 0; margin-bottom: 4px;"></div>
-                <div class="signature-label">Authorization Date</div>
-              </div>
-              <div class="stamp-box">
-                Official Seal
+              <div class="stamp-block" style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; min-height: 100px;">
+                <div class="stamp-box" style="width: 90px; height: 90px; border: 1.5px dashed #94a3b8; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #94a3b8 !important; text-transform: uppercase; font-weight: 700; margin: 0;">
+                  Official Seal
+                </div>
               </div>
             </div>
           </div>
