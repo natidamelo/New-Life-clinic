@@ -190,12 +190,12 @@ router.get('/billing/revenue-stats', auth, cacheMiddleware(STATS_CACHE_DURATION)
     // Outstanding amount
     const outstandingAmount = await MedicalInvoice.aggregate([
       {
-        $match: { status: { $in: ['pending', 'partial'] } }
+        $match: { status: { $in: ['pending', 'partial', 'overdue'] } }
       },
       {
         $group: {
           _id: null,
-          total: { $sum: '$total' }
+          total: { $sum: '$balance' }
         }
       }
     ]);

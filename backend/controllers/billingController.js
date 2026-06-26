@@ -278,12 +278,12 @@ exports.getFinancialSummary = asyncHandler(async (req, res) => {
         const [revenueData, inventoryCostAgg, oneTimeExpenseAgg, recurringExpenseAgg] = await Promise.all([
             // 1. Revenue & Payment aggregation (single query instead of 4 sequential ones!)
             MedicalInvoice.aggregate([
-                { $match: { issueDate: { $gte: start, $lte: end } } },
+                { $match: { issueDate: { $gte: start, $lte: end }, status: { $nin: ['cancelled', 'refunded'] } } },
                 {
                     $group: {
                         _id: null,
                         totalRevenue: { $sum: '$total' },
-                        totalOutstanding: { $sum: { $subtract: ['$total', '$amountPaid'] } },
+                        totalOutstanding: { $sum: '$balance' },
                         totalAmountPaid: { $sum: '$amountPaid' },
                         totalOverdue: {
                             $sum: {
@@ -291,10 +291,10 @@ exports.getFinancialSummary = asyncHandler(async (req, res) => {
                                     {
                                         $and: [
                                             { $lt: ['$dueDate', new Date()] },
-                                            { $gt: [{ $subtract: ['$total', '$amountPaid'] }, 0] }
+                                            { $gt: ['$balance', 0] }
                                         ]
                                     },
-                                    { $subtract: ['$total', '$amountPaid'] },
+                                    '$balance',
                                     0
                                 ]
                             }
@@ -441,7 +441,7 @@ exports.getAgingReport = asyncHandler(async (req, res) => {
         const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
         const agingData = await MedicalInvoice.aggregate([
-            { $match: { balance: { $gt: 0 } } }, // Only unpaid invoices
+            { $match: { balance: { $gt: 0 }, status: { $nin: ['cancelled', 'refunded'] } } }, // Only unpaid invoices
             {
                 $group: {
                     _id: null,
@@ -529,7 +529,7 @@ exports.getMonthlyData = asyncHandler(async (req, res) => {
     try {
         // Get monthly revenue data
         const monthlyRevenue = await MedicalInvoice.aggregate([
-            { $match: { issueDate: { $gte: start, $lte: end } } },
+            { $match: { issueDate: { $gte: start, $lte: end }, status: { $nin: ['cancelled', 'refunded'] } } },
             {
                 $group: {
                     _id: {
@@ -621,7 +621,7 @@ exports.getRevenueByService = asyncHandler(async (req, res) => {
 
     try {
         const revenueByService = await MedicalInvoice.aggregate([
-            { $match: { issueDate: { $gte: start, $lte: end } } },
+            { $match: { issueDate: { $gte: start, $lte: end }, status: { $nin: ['cancelled', 'refunded'] } } },
             { $unwind: '$items' },
             {
                 $group: {
@@ -658,7 +658,7 @@ exports.getPaymentMethods = asyncHandler(async (req, res) => {
 
     try {
         const paymentMethods = await MedicalInvoice.aggregate([
-            { $match: { issueDate: { $gte: start, $lte: end } } },
+            { $match: { issueDate: { $gte: start, $lte: end }, status: { $nin: ['cancelled', 'refunded'] } } },
             { $unwind: '$payments' },
             { $match: { 'payments.date': { $gte: start, $lte: end } } },
             {

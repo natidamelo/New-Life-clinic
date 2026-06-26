@@ -60,6 +60,7 @@ router.get('/', auth, async (req, res) => {
     }
 
     const baseMatch = {
+      status: { $nin: ['cancelled', 'refunded'] },
       $or: [
         { createdAt: { $gte: startDate, $lte: endDate } },
         { dateIssued: { $gte: startDate, $lte: endDate } },
@@ -75,11 +76,11 @@ router.get('/', auth, async (req, res) => {
           {
             $group: {
               _id: null,
-              totalRevenue:      { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, '$total', 0] } },
+              totalRevenue:      { $sum: { $ifNull: ['$amountPaid', 0] } },
               paidInvoices:      { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, 1, 0] } },
               pendingInvoices:   { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
               partialPayments:   { $sum: { $cond: [{ $eq: ['$status', 'partial'] }, 1, 0] } },
-              outstandingAmount: { $sum: { $cond: [{ $in:  ['$status', ['pending', 'overdue', 'partial']] }, '$total', 0] } },
+              outstandingAmount: { $sum: { $cond: [{ $in:  ['$status', ['pending', 'overdue', 'partial']] }, '$balance', 0] } },
               patientCount:      { $sum: { $cond: [{ $in: ['$status', ['paid', 'partial']] }, 1, 0] } },
               totalCount:        { $sum: 1 },
             },

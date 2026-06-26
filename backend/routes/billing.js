@@ -3238,7 +3238,8 @@ router.get('/reports/standard-financial', auth, checkRole('admin', 'finance'), a
     const invoiceStats = await MedicalInvoice.aggregate([
       {
         $match: {
-          issueDate: { $gte: start, $lte: end }
+          issueDate: { $gte: start, $lte: end },
+          status: { $nin: ['cancelled', 'refunded'] }
         }
       },
       {
@@ -3246,7 +3247,7 @@ router.get('/reports/standard-financial', auth, checkRole('admin', 'finance'), a
           _id: null,
           totalRevenue: { $sum: '$total' },
           totalPaid: { $sum: '$amountPaid' },
-          totalOutstanding: { $sum: { $subtract: ['$total', '$amountPaid'] } },
+          totalOutstanding: { $sum: '$balance' },
           invoiceCount: { $sum: 1 }
         }
       }
@@ -3728,9 +3729,9 @@ router.get('/reports/detailed', auth, checkRole('admin', 'finance'), async (req,
     // Calculate summary statistics
     const summaryStats = {
       totalInvoices: filteredInvoices.length,
-      totalRevenue: filteredInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0),
+      totalRevenue: filteredInvoices.reduce((sum, inv) => sum + (['cancelled', 'refunded'].includes(inv.status) ? 0 : (inv.total || 0)), 0),
       totalPaid: filteredInvoices.reduce((sum, inv) => sum + (inv.amountPaid || 0), 0),
-      totalOutstanding: filteredInvoices.reduce((sum, inv) => sum + (inv.balance || 0), 0),
+      totalOutstanding: filteredInvoices.reduce((sum, inv) => sum + (['cancelled', 'refunded'].includes(inv.status) ? 0 : (inv.balance || 0)), 0),
       totalCashPayments: filteredInvoices.reduce((sum, inv) => sum + (inv.cashPayments || 0), 0),
       totalBankPayments: filteredInvoices.reduce((sum, inv) => sum + (inv.bankPayments || 0), 0),
       totalInsurancePayments: filteredInvoices.reduce((sum, inv) => sum + (inv.insurancePayments || 0), 0),
@@ -3935,7 +3936,8 @@ router.get('/reports', auth, checkRole('admin', 'finance'), async (req, res) => 
     const invoiceStats = await MedicalInvoice.aggregate([
       {
         $match: {
-          issueDate: { $gte: start, $lte: end }
+          issueDate: { $gte: start, $lte: end },
+          status: { $nin: ['cancelled', 'refunded'] }
         }
       },
       {
@@ -3943,7 +3945,7 @@ router.get('/reports', auth, checkRole('admin', 'finance'), async (req, res) => 
           _id: null,
           totalAmount: { $sum: '$total' },
           totalPaid: { $sum: '$amountPaid' },
-          totalOutstanding: { $sum: { $subtract: ['$total', '$amountPaid'] } },
+          totalOutstanding: { $sum: '$balance' },
           recordCount: { $sum: 1 }
         }
       }
@@ -4120,6 +4122,7 @@ router.get('/aging-report', auth, checkRole('admin', 'finance'), async (req, res
     const result = await MedicalInvoice.aggregate([
       {
         $match: {
+          status: { $nin: ['cancelled', 'refunded'] },
           $expr: { $gt: [{ $subtract: ['$total', '$amountPaid'] }, 0] } // Only unpaid balances
         }
       },
@@ -4211,7 +4214,9 @@ router.get('/monthly-data', auth, checkRole('admin', 'finance'), async (req, res
     console.log('📊 Getting monthly financial data for date range:', { startDate, endDate });
 
     // Build date filter
-    const matchStage = {};
+    const matchStage = {
+      status: { $nin: ['cancelled', 'refunded'] }
+    };
     if (startDate || endDate) {
       const dateFilter = {};
       if (startDate) dateFilter.$gte = new Date(startDate);
@@ -4273,7 +4278,9 @@ router.get('/revenue-by-service', auth, checkRole('admin', 'finance'), async (re
     console.log('📊 Getting revenue by service for date range:', { startDate, endDate });
 
     // Build date filter
-    const matchStage = {};
+    const matchStage = {
+      status: { $nin: ['cancelled', 'refunded'] }
+    };
     if (startDate || endDate) {
       const dateFilter = {};
       if (startDate) dateFilter.$gte = new Date(startDate);
@@ -4491,7 +4498,7 @@ router.get('/card-insurance-report', auth, checkRole('admin', 'finance'), async 
     // Card descriptions contain the card type name, e.g. "Basic patient card membership"
     const invDateMatch = hasDateFilter ? { issueDate: dateFilter } : {};
     const cardRevenueRaw = await MedicalInvoice.aggregate([
-      { $match: { status: { $nin: ['cancelled'] }, ...invDateMatch } },
+      { $match: { status: { $nin: ['cancelled', 'refunded'] }, ...invDateMatch } },
       { $unwind: '$items' },
       // Match items that look like card memberships
       {
@@ -4607,7 +4614,7 @@ router.get('/card-insurance-report', auth, checkRole('admin', 'finance'), async 
     if (hasDateFilter) invMatch.issueDate = dateFilter;
 
     const insuranceStats = await MedicalInvoice.aggregate([
-      { $match: { status: { $nin: ['cancelled'] }, ...(hasDateFilter ? { issueDate: dateFilter } : {}) } },
+      { $match: { status: { $nin: ['cancelled', 'refunded'] }, ...(hasDateFilter ? { issueDate: dateFilter } : {}) } },
       { $unwind: '$payments' },
       { $match: { 'payments.method': 'insurance' } },
       {
@@ -4660,7 +4667,9 @@ router.get('/payment-method-breakdown', auth, checkRole('admin', 'finance'), asy
     console.log('📊 Getting payment method breakdown for date range:', { startDate, endDate });
 
     // Build date filter
-    const matchStage = {};
+    const matchStage = {
+      status: { $nin: ['cancelled', 'refunded'] }
+    };
     if (startDate || endDate) {
       const dateFilter = {};
       if (startDate) dateFilter.$gte = new Date(startDate);
@@ -4714,7 +4723,9 @@ router.get('/payment-methods', auth, checkRole('admin', 'finance'), async (req, 
     console.log('📊 Getting payment methods data for date range:', { startDate, endDate });
 
     // Build date filter
-    const matchStage = {};
+    const matchStage = {
+      status: { $nin: ['cancelled', 'refunded'] }
+    };
     if (startDate || endDate) {
       const dateFilter = {};
       if (startDate) dateFilter.$gte = new Date(startDate);

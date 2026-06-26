@@ -19,12 +19,12 @@ function getMonthRange(year, month) {
 async function getMonthFinancials(start, end) {
   // Revenue from MedicalInvoice (the ACTUAL billing model used)
   const revAgg = await MedicalInvoice.aggregate([
-    { $match: { createdAt: { $gte: start, $lt: end }, status: { $nin: ['cancelled'] } } },
+    { $match: { createdAt: { $gte: start, $lt: end }, status: { $nin: ['cancelled', 'refunded'] } } },
     { $unwind: { path: '$items', preserveNullAndEmptyArrays: false } },
     { $group: { _id: { $ifNull: ['$items.itemType', '$items.category'] }, amount: { $sum: '$items.total' }, count: { $sum: 1 } } }
   ]);
   const revTotalAgg = await MedicalInvoice.aggregate([
-    { $match: { createdAt: { $gte: start, $lt: end }, status: { $nin: ['cancelled'] } } },
+    { $match: { createdAt: { $gte: start, $lt: end }, status: { $nin: ['cancelled', 'refunded'] } } },
     { $group: { _id: null, total: { $sum: '$total' }, paid: { $sum: '$amountPaid' } } }
   ]);
 
@@ -113,7 +113,7 @@ router.get('/financial/trend', async (req, res) => {
       const year = d.getFullYear(); const month = d.getMonth() + 1;
       const { start, end } = getMonthRange(year, month);
       const revAgg = await MedicalInvoice.aggregate([
-        { $match: { createdAt: { $gte: start, $lt: end }, status: { $nin: ['cancelled'] } } },
+        { $match: { createdAt: { $gte: start, $lt: end }, status: { $nin: ['cancelled', 'refunded'] } } },
         { $group: { _id: null, total: { $sum: '$total' } } }
       ]);
       const expAgg = await OperatingExpense.aggregate([
@@ -229,7 +229,7 @@ router.get('/strategy/forecast', async (req, res) => {
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     const currentRevAgg = await MedicalInvoice.aggregate([
-      { $match: { createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd }, status: { $nin: ['cancelled'] } } },
+      { $match: { createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd }, status: { $nin: ['cancelled', 'refunded'] } } },
       { $group: { _id: null, total: { $sum: '$total' } } }
     ]);
     const currentRevenue = currentRevAgg[0]?.total || 0;
