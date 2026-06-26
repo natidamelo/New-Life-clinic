@@ -3492,148 +3492,64 @@ router.get('/reports/detailed', auth, checkRole('admin', 'finance'), async (req,
         $addFields: {
           // Calculate payment method breakdown from both payments and paymentHistory arrays
           cashPayments: {
-            $add: [
-              // From payments array
-              {
-                $sum: {
-                  $map: {
-                    input: { $ifNull: ['$payments', []] },
-                    as: 'payment',
-                    in: {
-                      $cond: [
-                        { $eq: ['$$payment.method', 'cash'] },
-                        { $ifNull: ['$$payment.amount', 0] },
-                        0
-                      ]
-                    }
-                  }
-                }
-              },
-              // From paymentHistory array
-              {
-                $sum: {
-                  $map: {
-                    input: { $ifNull: ['$paymentHistory', []] },
-                    as: 'payment',
-                    in: {
-                      $cond: [
-                        { $eq: ['$$payment.method', 'cash'] },
-                        { $ifNull: ['$$payment.amount', 0] },
-                        0
-                      ]
-                    }
-                  }
+            $sum: {
+              $map: {
+                input: { $ifNull: ['$payments', []] },
+                as: 'payment',
+                in: {
+                  $cond: [
+                    { $eq: ['$$payment.method', 'cash'] },
+                    { $ifNull: ['$$payment.amount', 0] },
+                    0
+                  ]
                 }
               }
-            ]
+            }
           },
           bankPayments: {
-            $add: [
-              // From payments array
-              {
-                $sum: {
-                  $map: {
-                    input: { $ifNull: ['$payments', []] },
-                    as: 'payment',
-                    in: {
-                      $cond: [
-                        { $in: ['$$payment.method', ['bank_transfer', 'card', 'credit', 'debit', 'credit_card', 'debit_card']] },
-                        { $ifNull: ['$$payment.amount', 0] },
-                        0
-                      ]
-                    }
-                  }
-                }
-              },
-              // From paymentHistory array
-              {
-                $sum: {
-                  $map: {
-                    input: { $ifNull: ['$paymentHistory', []] },
-                    as: 'payment',
-                    in: {
-                      $cond: [
-                        { $in: ['$$payment.method', ['bank_transfer', 'card', 'credit', 'debit', 'credit_card', 'debit_card']] },
-                        { $ifNull: ['$$payment.amount', 0] },
-                        0
-                      ]
-                    }
-                  }
+            $sum: {
+              $map: {
+                input: { $ifNull: ['$payments', []] },
+                as: 'payment',
+                in: {
+                  $cond: [
+                    { $in: ['$$payment.method', ['bank_transfer', 'card', 'credit', 'debit', 'credit_card', 'debit_card']] },
+                    { $ifNull: ['$$payment.amount', 0] },
+                    0
+                  ]
                 }
               }
-            ]
+            }
           },
           insurancePayments: {
-            $add: [
-              // From payments array
-              {
-                $sum: {
-                  $map: {
-                    input: { $ifNull: ['$payments', []] },
-                    as: 'payment',
-                    in: {
-                      $cond: [
-                        { $eq: ['$$payment.method', 'insurance'] },
-                        { $ifNull: ['$$payment.amount', 0] },
-                        0
-                      ]
-                    }
-                  }
-                }
-              },
-              // From paymentHistory array
-              {
-                $sum: {
-                  $map: {
-                    input: { $ifNull: ['$paymentHistory', []] },
-                    as: 'payment',
-                    in: {
-                      $cond: [
-                        { $eq: ['$$payment.method', 'insurance'] },
-                        { $ifNull: ['$$payment.amount', 0] },
-                        0
-                      ]
-                    }
-                  }
+            $sum: {
+              $map: {
+                input: { $ifNull: ['$payments', []] },
+                as: 'payment',
+                in: {
+                  $cond: [
+                    { $eq: ['$$payment.method', 'insurance'] },
+                    { $ifNull: ['$$payment.amount', 0] },
+                    0
+                  ]
                 }
               }
-            ]
+            }
           },
           otherPayments: {
-            $add: [
-              // From payments array
-              {
-                $sum: {
-                  $map: {
-                    input: { $ifNull: ['$payments', []] },
-                    as: 'payment',
-                    in: {
-                      $cond: [
-                        { $eq: ['$$payment.method', 'other'] },
-                        { $ifNull: ['$$payment.amount', 0] },
-                        0
-                      ]
-                    }
-                  }
-                }
-              },
-              // From paymentHistory array
-              {
-                $sum: {
-                  $map: {
-                    input: { $ifNull: ['$paymentHistory', []] },
-                    as: 'payment',
-                    in: {
-                      $cond: [
-                        { $eq: ['$$payment.method', 'other'] },
-                        { $ifNull: ['$$payment.amount', 0] },
-                        0
-                      ]
-                    }
-                  }
+            $sum: {
+              $map: {
+                input: { $ifNull: ['$payments', []] },
+                as: 'payment',
+                in: {
+                  $cond: [
+                    { $eq: ['$$payment.method', 'other'] },
+                    { $ifNull: ['$$payment.amount', 0] },
+                    0
+                  ]
                 }
               }
-            ]
+            }
           },
         }
       },
@@ -3814,10 +3730,9 @@ router.get('/reports/detailed', auth, checkRole('admin', 'finance'), async (req,
 
         const csvRows = filteredInvoices.map(invoice => {
           try {
-            // Get payment method details from both payments and paymentHistory arrays
+            // Get payment method details from payments array
             const allPayments = [
-              ...(invoice.payments || []),
-              ...(invoice.paymentHistory || [])
+              ...(invoice.payments || [])
             ];
 
             // Debug payment data
@@ -6265,6 +6180,8 @@ router.put('/invoices/:id/cancel', auth, checkRole('admin', 'finance'), async (r
           status: 'cancelled',
           amountPaid: 0,
           balance: invoice.total,
+          payments: [],
+          paymentHistory: [],
           notes: updatedNotes
         }
       },
@@ -6358,6 +6275,8 @@ router.put('/invoices/:id/refund', auth, checkRole('admin', 'finance'), async (r
           status: 'refunded',
           amountPaid: 0,
           balance: invoice.total,
+          payments: [],
+          paymentHistory: [],
           notes: updatedNotes
         }
       },

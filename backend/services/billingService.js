@@ -1636,7 +1636,7 @@ const billingService = {
       const collectionsFromPaymentCollection = paymentStats[0]?.totalCollections || 0;
       const collectionsFromHistory = paymentsInHistoryAgg[0]?.totalCollections || 0;
       const legacyPaidCollections = legacyPaidAgg[0]?.total || 0;
-      const collectionsCombined = collectionsFromInvoicePayments + collectionsFromHistory + collectionsFromPaymentCollection + legacyPaidCollections;
+      const collectionsCombined = collectionsFromInvoicePayments + collectionsFromPaymentCollection + legacyPaidCollections;
       
       // Use cash-based revenue: robust combined collections for the period
       const actualRevenue = collectionsCombined;
