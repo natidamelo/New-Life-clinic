@@ -798,6 +798,7 @@ const MedicalTestRequestForm: React.FC = () => {
         <head>
           <title>Request Form - ${testTypeLabel}</title>
           <meta charset="UTF-8">
+          <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
           <style>
             @page {
               size: A4 portrait;
@@ -1007,6 +1008,28 @@ const MedicalTestRequestForm: React.FC = () => {
               flex: 1;
               margin: 0 25px;
             }
+            .physician-signature {
+              font-family: 'Dancing Script', 'Brush Script MT', 'Courier New', cursive;
+              font-size: 24px;
+              color: #1a56db !important; /* Royal signature blue ink */
+              margin-bottom: -15px;
+              height: 30px;
+              line-height: 30px;
+              text-align: center;
+              font-weight: 600;
+              transform: rotate(-1.5deg);
+              display: inline-block;
+            }
+            .authorization-date {
+              font-family: 'Inter', sans-serif;
+              font-size: 13px;
+              color: #0f172a !important;
+              font-weight: 700;
+              margin-bottom: -10px;
+              height: 25px;
+              line-height: 30px;
+              text-align: center;
+            }
             .signature-line { 
               border-bottom: 1.5px solid #000; 
               width: 170px; 
@@ -1173,11 +1196,13 @@ const MedicalTestRequestForm: React.FC = () => {
             </div>
 
             <div class="request-footer">
-              <div class="signature-section">
+              <div class="signature-section" style="position: relative; display: flex; flex-direction: column; align-items: center;">
+                <div class="physician-signature">Dr. ${user?.firstName || ''} ${user?.lastName || ''}</div>
                 <div class="signature-line"></div>
                 <div class="signature-label">Physician Signature & Stamp</div>
               </div>
-              <div class="signature-section">
+              <div class="signature-section" style="position: relative; display: flex; flex-direction: column; align-items: center;">
+                <div class="authorization-date">${currentDate}</div>
                 <div class="signature-line"></div>
                 <div class="signature-label">Authorization Date</div>
               </div>
