@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { useClinic } from '../../context/ClinicContext';
@@ -6,13 +6,29 @@ import patientService from '../../services/patientService';
 import imagingService from '../../services/imagingService';
 import api from '../../services/api';
 import { 
-  BeakerIcon, 
-  HeartIcon, 
-  DocumentTextIcon,
-  XMarkIcon,
-  MagnifyingGlassIcon,
-  PrinterIcon
-} from '@heroicons/react/24/outline';
+  Search, 
+  X, 
+  Printer, 
+  FileSpreadsheet, 
+  Activity, 
+  Heart, 
+  Check, 
+  ChevronDown, 
+  ChevronUp, 
+  Trash2, 
+  User, 
+  Calendar, 
+  Clock, 
+  AlertCircle, 
+  Info, 
+  Layers, 
+  FileText, 
+  Sparkles,
+  Zap,
+  CheckCircle2,
+  Bookmark,
+  Filter
+} from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
@@ -57,6 +73,9 @@ const MedicalTestRequestForm: React.FC = () => {
   const [bodyPartDropdownOpen, setBodyPartDropdownOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
+
+  // Lab test search filter query
+  const [labSearchQuery, setLabSearchQuery] = useState('');
 
   // Form state for each test type
   const [formData, setFormData] = useState<TestRequest>({
@@ -179,6 +198,7 @@ const MedicalTestRequestForm: React.FC = () => {
     // Clear selected tests when switching tabs
     setSelectedLabTests({});
     setExpandedTests(new Set());
+    setLabSearchQuery('');
   };
 
   const handleMainTestToggle = (mainTest: string, checked: boolean) => {
@@ -272,6 +292,55 @@ const MedicalTestRequestForm: React.FC = () => {
     }));
   };
 
+  // Preset Panel configurations
+  const labPanels = [
+    {
+      name: 'CBC Panel',
+      mainTestsList: ['Complete Blood Count (CBC)']
+    },
+    {
+      name: 'Lipid Panel',
+      mainTestsList: ['Lipid Panel']
+    },
+    {
+      name: 'Liver Profile (LFT)',
+      mainTestsList: ['Liver Function Tests']
+    },
+    {
+      name: 'Metabolic BMP',
+      mainTestsList: ['Basic Metabolic Panel (BMP)']
+    },
+    {
+      name: 'Thyroid Panel',
+      mainTestsList: ['Thyroid Function Tests']
+    },
+    {
+      name: 'Routine Lab Screen',
+      mainTestsList: ['Complete Blood Count (CBC)', 'Basic Metabolic Panel (BMP)', 'Lipid Panel', 'Urinalysis']
+    }
+  ];
+
+  const handleApplyPresetPanel = (mainTestsList: string[]) => {
+    setSelectedLabTests(prev => {
+      const newSelected = { ...prev };
+      mainTestsList.forEach(mainTest => {
+        if (labTests[mainTest as keyof typeof labTests]) {
+          newSelected[mainTest] = new Set(labTests[mainTest as keyof typeof labTests]);
+        }
+      });
+      return newSelected;
+    });
+    
+    // Auto-expand the applied panels
+    setExpandedTests(prev => {
+      const newExpanded = new Set(prev);
+      mainTestsList.forEach(mt => newExpanded.add(mt));
+      return newExpanded;
+    });
+
+    toast.success('Applied panel tests to form');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -300,8 +369,6 @@ const MedicalTestRequestForm: React.FC = () => {
       return;
     }
 
-    // ECG and Echocardiography don't require body part (automatically set to Heart/Cardiac)
-
     setSubmitting(true);
 
     try {
@@ -322,7 +389,6 @@ const MedicalTestRequestForm: React.FC = () => {
           'mammography': 'Mammography'
         };
 
-        // For ECG/Echocardiography use Heart/Cardiac; for Mammography use Breast - Left/Right/Bilateral
         const bodyPartForCardiac = activeTab === 'ecg' || activeTab === 'echocardiography'
           ? 'Heart/Cardiac'
           : activeTab === 'mammography'
@@ -340,7 +406,7 @@ const MedicalTestRequestForm: React.FC = () => {
         toast.success(`${activeTab.toUpperCase()} request submitted successfully`);
       }
 
-      // Reset form
+      // Reset form (except selected patient)
       setFormData({
         testType: activeTab,
         patientId: selectedPatient._id || selectedPatient.id || '',
@@ -355,10 +421,10 @@ const MedicalTestRequestForm: React.FC = () => {
       if (activeTab === 'mammography') {
         setMammographyLaterality('');
       }
-      // Clear lab test selections if it was a lab test
       if (activeTab === 'lab') {
         setSelectedLabTests({});
         setExpandedTests(new Set());
+        setLabSearchQuery('');
       }
     } catch (error: any) {
       console.error('Error submitting request:', error);
@@ -367,17 +433,6 @@ const MedicalTestRequestForm: React.FC = () => {
       setSubmitting(false);
     }
   };
-
-  const testTabs: { id: TestType; label: string; icon: React.ComponentType<any> }[] = [
-    { id: 'ultrasound', label: 'Ultrasound', icon: BeakerIcon },
-    { id: 'xray', label: 'X-Ray', icon: BeakerIcon },
-    { id: 'mri', label: 'MRI', icon: BeakerIcon },
-    { id: 'ecg', label: 'ECG', icon: HeartIcon },
-    { id: 'echocardiography', label: 'Echocardiography', icon: HeartIcon },
-    { id: 'ctscan', label: 'CT Scan', icon: BeakerIcon },
-    { id: 'mammography', label: 'Mammography', icon: BeakerIcon },
-    { id: 'lab', label: 'Lab', icon: DocumentTextIcon }
-  ];
 
   const labTests = {
     'Complete Blood Count (CBC)': [
@@ -513,7 +568,6 @@ const MedicalTestRequestForm: React.FC = () => {
     ]
   };
 
-  // Ordered with most commonly requested imaging areas first so they appear in the visible dropdown area
   const bodyParts = [
     'Shoulder',
     'Knee',
@@ -566,6 +620,9 @@ const MedicalTestRequestForm: React.FC = () => {
     'Other'
   ];
 
+  // Quick select common body parts
+  const quickBodyParts = ['Chest', 'Abdomen', 'Knee', 'Spine', 'Shoulder', 'Brain', 'Pelvis'];
+
   const escapeHtml = (unsafe: string) => {
     return unsafe
       .replace(/&/g, '&amp;')
@@ -574,6 +631,37 @@ const MedicalTestRequestForm: React.FC = () => {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   };
+
+  // Filtered lab tests based on search query
+  const filteredLabTests = useMemo(() => {
+    if (!labSearchQuery.trim()) return labTests;
+
+    const query = labSearchQuery.toLowerCase();
+    const result: Record<string, string[]> = {};
+
+    Object.entries(labTests).forEach(([mainTest, subTests]) => {
+      const matchMain = mainTest.toLowerCase().includes(query);
+      const matchingSubs = subTests.filter(sub => sub.toLowerCase().includes(query));
+
+      if (matchMain) {
+        // If main test matches, return all its sub tests
+        result[mainTest] = subTests;
+      } else if (matchingSubs.length > 0) {
+        // Otherwise, only return matching sub tests
+        result[mainTest] = matchingSubs;
+      }
+    });
+
+    return result;
+  }, [labSearchQuery]);
+
+  // Keep matching categories expanded during search
+  useEffect(() => {
+    if (labSearchQuery.trim()) {
+      const matchingCategories = Object.keys(filteredLabTests);
+      setExpandedTests(new Set(matchingCategories));
+    }
+  }, [filteredLabTests, labSearchQuery]);
 
   const handlePrint = () => {
     if (!selectedPatient) {
@@ -613,8 +701,6 @@ const MedicalTestRequestForm: React.FC = () => {
     const labMasterTableHtml =
       activeTab === 'lab'
         ? (() => {
-            // To keep it on ONE A4 page, we print ONLY the selected rows,
-            // grouped into the requested sections. Selected rows are marked with "X".
             const sectionOrder = [
               'SEROLOGY',
               'MICROBIOLOGY',
@@ -635,7 +721,6 @@ const MedicalTestRequestForm: React.FC = () => {
               const section = getLabSection(mainTest);
               if (!selectedBySection[section]) selectedBySection[section] = [];
 
-              // Preserve master ordering of sub-tests.
               const masterSubTests = (labTests as any)[mainTest] || [];
               masterSubTests.forEach((subTest: string) => {
                 if (subSet.has(subTest)) {
@@ -650,28 +735,30 @@ const MedicalTestRequestForm: React.FC = () => {
             const tableFontSize = compact ? '9px' : '10.5px';
 
             let rowNo = 1;
-            const bodyParts: string[] = [];
+            const rowsHtml: string[] = [];
 
             sectionOrder.forEach((section) => {
               const rows = selectedBySection[section];
               if (!rows || rows.length === 0) return;
 
-              bodyParts.push(`
+              rowsHtml.push(`
                 <tr class="lab-section-row">
-                  <td colspan="4">${section}</td>
+                  <td colspan="4" style="background: #f1f5f9; font-weight: 850; text-transform: uppercase; font-size: 0.8rem; padding: 4px 6px; letter-spacing: 0.5px; border-bottom: 1.5px solid #cbd5e1; text-align: left; color: #1e3a8a;">
+                    ${section}
+                  </td>
                 </tr>
               `);
 
               rows.forEach(({ mainTest, subTest }) => {
-                bodyParts.push(`
-                  <tr class="lab-row">
-                    <td class="lab-row-no">${rowNo++}</td>
-                    <td class="lab-test-cell">
-                      <div class="lab-test-category">${escapeHtml(mainTest)}</div>
-                      <div class="lab-test-name">${escapeHtml(subTest)}</div>
+                rowsHtml.push(`
+                  <tr class="lab-row" style="border-bottom: 1px solid #e2e8f0;">
+                    <td class="lab-row-no" style="width: 32px; text-align: center; font-weight: 700; color: #475569;">${rowNo++}</td>
+                    <td class="lab-test-cell" style="padding: 4px 8px; text-align: left;">
+                      <div class="lab-test-category" style="font-size: 0.7rem; color: #64748b; font-weight: 600; text-transform: uppercase; margin-bottom: 1px;">${escapeHtml(mainTest)}</div>
+                      <div class="lab-test-name" style="font-size: 0.85rem; font-weight: 700; color: #0f172a;">${escapeHtml(subTest)}</div>
                     </td>
-                    <td class="lab-icd-cell">&nbsp;</td>
-                    <td class="lab-selected-cell">X</td>
+                    <td class="lab-icd-cell" style="width: 120px; border-left: 1px solid #cfd8e3; border-right: 1px solid #cfd8e3;">&nbsp;</td>
+                    <td class="lab-selected-cell" style="width: 44px; text-align: center; font-weight: 900; color: #2563eb; font-size: 1rem;">✔</td>
                   </tr>
                 `);
               });
@@ -679,28 +766,31 @@ const MedicalTestRequestForm: React.FC = () => {
 
             return `
               <style>
-                .lab-master-table { font-size: ${tableFontSize}; }
-                .lab-master-table th, .lab-master-table td { padding: ${rowPadding}; }
+                .lab-master-table { font-size: ${tableFontSize}; width: 100%; border-collapse: collapse; background: white; border: 1.5px solid #94a3b8; }
+                .lab-master-table th { background: #1e3a8a; color: white !important; font-weight: 800; font-size: 0.82rem; text-align: left; padding: 6px 8px; letter-spacing: 0.5px; }
+                .lab-master-table td { padding: ${rowPadding}; border-bottom: 1px solid #cbd5e1; }
               </style>
-              <div class="lab-instruction">Provide relevant ICD-10 Codes. Selected tests are marked with an "X".</div>
+              <div class="lab-instruction" style="font-size: 0.8rem; color: #475569; margin: 4px 0 10px 0; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                <span>ℹ Requested tests are selected below. Please specify ICD-10 diagnostic codes in the designated column if required.</span>
+              </div>
               <table class="lab-master-table">
                 <thead>
-                  <tr>
-                    <th style="width: 28px;">#</th>
-                    <th>SPECIALTY TESTS</th>
-                    <th style="width: 88px;">ICD-10 Codes</th>
-                    <th style="width: 40px;">Mark</th>
+                  <tr style="border-bottom: 2px solid #1e3a8a;">
+                    <th style="width: 32px; text-align: center;">#</th>
+                    <th>REQUESTED SPECIALTY TEST</th>
+                    <th style="width: 120px; text-align: center; border-left: 1px solid rgba(255,255,255,0.2); border-right: 1px solid rgba(255,255,255,0.2);">ICD-10 Code</th>
+                    <th style="width: 44px; text-align: center;">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${bodyParts.join('')}
+                  ${rowsHtml.join('')}
                 </tbody>
               </table>
             `;
           })()
         : '';
 
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    const printWindow = window.open('', '_blank', 'width=850,height=900');
     if (printWindow) {
       printWindow.document.write(`
         <!DOCTYPE html>
@@ -711,473 +801,286 @@ const MedicalTestRequestForm: React.FC = () => {
           <style>
             @page {
               size: A4 portrait;
-              margin: 3mm;
+              margin: 8mm 6mm;
             }
             * {
               margin: 0;
               padding: 0;
               box-sizing: border-box;
               color: #000000 !important;
-              border-color: #000000 !important;
+              border-color: #475569 !important;
             }
             body { 
-              font-family: 'Arial', sans-serif; 
+              font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif; 
               margin: 0; 
               padding: 0; 
-              line-height: 1.4; 
+              line-height: 1.35; 
               background: white;
-              color: #333;
-              font-size: 15px;
+              color: #0f172a;
+              font-size: 13.5px;
             }
             .request-container {
               width: 100%;
               max-width: 100%;
-              height: auto;
               margin: 0;
-              border: 2px solid #2c5aa0;
-              padding: 12px;
+              border: 3px double #1e3a8a;
+              padding: 18px;
               box-sizing: border-box;
               display: flex;
               flex-direction: column;
+              border-radius: 6px;
             }
             .clinic-header {
-              background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
-              color: white;
-              padding: 14px 20px;
+              border-bottom: 2px solid #1e3a8a;
+              padding-bottom: 12px;
               display: flex;
               align-items: center;
               justify-content: space-between;
-              margin-bottom: 0;
+              margin-bottom: 12px;
               position: relative;
             }
-            .clinic-header::after {
-              content: '';
-              position: absolute;
-              bottom: 0;
-              left: 0;
-              right: 0;
-              height: 3px;
-              background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853);
+            .clinic-logo-container {
+              display: flex;
+              align-items: center;
+              gap: 12px;
             }
             .clinic-logo {
-              width: 55px;
-              height: 55px;
+              width: 60px;
+              height: 60px;
               object-fit: contain;
-              flex-shrink: 0;
-              border-radius: 8px;
-              border: 2px solid rgba(255,255,255,0.3);
+              border-radius: 6px;
+              border: 1px solid #94a3b8;
             }
-            .clinic-info-center {
-              flex: 1;
-              text-align: center;
-              padding: 0 15px;
+            .clinic-header-info {
+              display: flex;
+              flex-direction: column;
             }
             .clinic-name {
-              font-size: 18px;
-              font-weight: 800;
+              font-size: 20px;
+              font-weight: 850;
               text-transform: uppercase;
-              letter-spacing: 1.5px;
-              color: white;
-              margin-bottom: 2px;
+              letter-spacing: 1px;
+              color: #1e3a8a !important;
             }
             .clinic-subtitle {
               font-size: 11px;
-              color: rgba(255,255,255,0.75);
-              font-weight: 500;
+              color: #475569 !important;
+              font-weight: 600;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin-top: 1px;
             }
             .clinic-contact-right {
-              font-size: 10px;
-              color: rgba(255,255,255,0.7);
+              font-size: 10.5px;
+              color: #475569 !important;
               text-align: right;
-              line-height: 1.6;
-              white-space: nowrap;
+              line-height: 1.4;
+              font-weight: 500;
             }
-            .document-type-badge {
+            .form-title-banner {
               text-align: center;
-              padding: 8px 0 6px;
-              margin-bottom: 12px;
-              border-bottom: 1px solid #e2e8f0;
+              margin-bottom: 14px;
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 4px;
+              padding: 6px 0;
             }
-            .document-type-badge span {
-              display: inline-block;
-              font-size: 12px;
-              font-weight: 700;
-              color: #1a365d;
+            .form-title-banner span {
+              font-size: 14px;
+              font-weight: 800;
+              color: #1e3a8a !important;
               text-transform: uppercase;
               letter-spacing: 2px;
-              padding: 4px 18px;
-              border: 1.5px solid #1a365d;
-              border-radius: 20px;
             }
             .request-meta {
               display: flex;
               justify-content: space-between;
-              align-items: center;
-              background: #f8f9fa;
+              background: #f8fafc;
               padding: 8px 12px;
-              border-radius: 3px;
-              margin-bottom: 10px;
-              border-left: 3px solid #2c5aa0;
-              font-size: 1rem;
+              border-radius: 4px;
+              margin-bottom: 12px;
+              border-left: 4px solid #1e3a8a;
+              border-top: 1px solid #e2e8f0;
+              border-right: 1px solid #e2e8f0;
+              border-bottom: 1px solid #e2e8f0;
             }
             .meta-item {
               display: flex;
               flex-direction: column;
             }
             .meta-label {
-              font-size: 0.9rem;
-              color: #666;
-              font-weight: 500;
-              margin-bottom: 3px;
+              font-size: 10.5px;
+              color: #64748b !important;
+              font-weight: 700;
+              text-transform: uppercase;
+              margin-bottom: 2px;
             }
             .meta-value {
-              color: #333;
-              font-size: 1.05rem;
-              font-weight: 600;
+              color: #0f172a !important;
+              font-weight: 700;
+              font-size: 13.5px;
             }
             .priority-badge {
               display: inline-block;
-              padding: 4px 12px;
-              border-radius: 10px;
-              font-size: 0.9rem;
-              font-weight: 600;
+              padding: 2px 8px;
+              border-radius: 4px;
+              font-size: 11px;
+              font-weight: 800;
               text-transform: uppercase;
+              border: 1px solid #cbd5e1;
             }
             .priority-routine {
-              background: #d1ecf1;
-              color: #0c5460;
+              background: #e2f0d9;
+              color: #385723 !important;
+              border-color: #a9d08e;
             }
             .priority-stat {
-              background: #f8d7da;
-              color: #721c24;
+              background: #fce4d6;
+              color: #c65911 !important;
+              border-color: #f4b084;
+              animation: blink 1s infinite alternate;
             }
             .priority-asap {
-              background: #fff3cd;
-              color: #856404;
+              background: #fff2cc;
+              color: #7f6000 !important;
+              border-color: #ffd966;
             }
             .request-section { 
-              margin-bottom: 10px; 
-              background: #fafafa;
-              padding: 10px;
-              border-radius: 3px;
-              border-left: 3px solid #2c5aa0;
-              flex-grow: 1;
+              margin-bottom: 12px; 
+              background: #ffffff;
+              padding: 12px;
+              border-radius: 4px;
+              border: 1px solid #cbd5e1;
             }
             .request-section h3 { 
-              font-size: 1.15rem; 
+              font-size: 12px; 
               margin-bottom: 8px; 
-              color: #2c5aa0; 
-              border-bottom: 1px solid #e9ecef; 
-              padding-bottom: 4px; 
+              color: #1e3a8a !important; 
+              border-bottom: 1.5px solid #1e3a8a; 
+              padding-bottom: 3px; 
               font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
             }
             .info-grid { 
               display: grid; 
               grid-template-columns: 1fr 1fr; 
-              gap: 10px; 
-              margin-bottom: 8px; 
+              gap: 8px 20px; 
             }
             .info-item {
               display: flex;
               flex-direction: column;
-              margin-bottom: 6px;
             }
             .info-label {
-              font-weight: 800;
-              color: #2c5aa0;
-              font-size: 0.95rem;
-              margin-bottom: 3px;
-            }
-            .info-value {
-              color: #333;
-              font-size: 1rem;
-              padding: 2px 0;
-              line-height: 1.4;
-            }
-            .clinical-info {
-              background: white;
-              padding: 8px;
-              border: 1px solid #dee2e6;
-              border-radius: 3px;
-              margin-top: 6px;
-              white-space: pre-wrap;
-              line-height: 1.5;
-              font-size: 0.95rem;
-            }
-
-            .tests-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 6px;
-              background: white;
-            }
-            .tests-table th,
-            .tests-table td {
-              border: 1px solid #dee2e6;
-              padding: 6px 8px;
-              font-size: 0.95rem;
-              vertical-align: top;
-            }
-            .tests-table th {
-              background: #f0f3f7;
-              color: #2c5aa0;
-              font-weight: 800;
-              text-align: left;
-            }
-
-            .lab-print-table {
-              margin-top: 6px;
-            }
-            .lab-instruction {
-              font-size: 0.85rem;
-              color: #444;
-              margin: 2px 0 6px 0;
-              font-weight: 600;
-            }
-            .lab-master-table {
-              width: 100%;
-              border-collapse: collapse;
-              background: white;
-            }
-            .lab-master-table th,
-            .lab-master-table td {
-              border: 1px solid #cfd8e3;
-              padding: 3px 5px;
-              vertical-align: top;
-            }
-            .lab-master-table th {
-              background: #eaf2ff;
-              color: #1f3a6d;
-              font-weight: 800;
-              font-size: 0.8rem;
-              text-align: left;
-              white-space: nowrap;
-            }
-            .lab-master-table td {
-              font-size: 0.78rem;
-              color: #1f2937;
-            }
-
-            .lab-section-row td {
-              background: #f2f6ff;
-              border-left: 0;
-              border-right: 0;
-              font-weight: 900;
-              color: #1f3a6d;
+              font-weight: 700;
+              color: #475569 !important;
+              font-size: 11px;
               text-transform: uppercase;
-              font-size: 0.78rem;
-              padding: 4px 6px;
-            }
-            .lab-row-no {
-              width: 32px;
-              text-align: center;
-              font-weight: 700;
-            }
-            .lab-test-cell {
-              min-width: 220px;
-            }
-            .lab-test-category {
-              font-size: 0.72rem;
-              color: #6b7280;
-              font-weight: 700;
               margin-bottom: 1px;
             }
-            .lab-test-name {
-              font-size: 0.78rem;
+            .info-value {
+              color: #0f172a !important;
+              font-weight: 700;
+              font-size: 13.5px;
+            }
+            .clinical-info {
+              background: #fafafa;
+              padding: 8px 10px;
+              border: 1px solid #cbd5e1;
+              border-radius: 4px;
+              margin-top: 4px;
+              white-space: pre-wrap;
+              line-height: 1.4;
+              font-size: 13px;
               font-weight: 500;
-            }
-            .lab-icd-cell {
-              width: 92px;
-              color: #9ca3af;
-            }
-            .lab-selected-cell {
-              width: 44px;
-              text-align: center;
-              font-weight: 900;
-              color: #2c5aa0;
-            }
-            .lab-request-container {
-              min-height: auto;
-            }
-
-            .lab-master-table thead {
-              display: table-header-group;
-            }
-            .lab-master-table tbody {
-              display: table-row-group;
-            }
-
-            .tests-table tbody tr:nth-child(even) {
-              background: #fbfcfe;
+              min-height: 50px;
             }
             .request-footer { 
               display: flex; 
               justify-content: space-between; 
-              margin-top: auto;
-              padding-top: 10px; 
-              border-top: 2px solid #2c5aa0; 
+              margin-top: 30px;
+              padding-top: 15px; 
+              border-top: 1.5px solid #1e3a8a; 
             }
             .signature-section { 
               text-align: center; 
               flex: 1;
-              margin: 0 12px;
-              font-size: 0.95rem;
+              margin: 0 25px;
             }
             .signature-line { 
-              border-bottom: 1px solid #333; 
-              width: 140px; 
-              margin: 10px auto 4px; 
+              border-bottom: 1.5px solid #000; 
+              width: 170px; 
+              margin: 15px auto 4px; 
               height: 1px;
             }
             .signature-label {
-              font-size: 0.9rem;
-              color: #666;
-              font-weight: 600;
+              font-size: 11px;
+              color: #475569 !important;
+              font-weight: 700;
+              text-transform: uppercase;
+            }
+            .stamp-box {
+              width: 85px;
+              height: 85px;
+              border: 1px dashed #94a3b8;
+              border-radius: 4px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 9px;
+              color: #94a3b8 !important;
+              text-transform: uppercase;
+              font-weight: 700;
+              margin-left: 20px;
             }
             @media print { 
               html, body { 
-                margin: 0; 
-                padding: 0; 
-                font-size: 14px;
-                width: 148mm;
-                height: auto;
+                background: white;
               }
               .request-container { 
-                box-shadow: none; 
-                border: 2px solid #2c5aa0; 
-                padding: 12px;
+                border: 2px solid #1e3a8a; 
+                padding: 14px;
                 width: 100%;
-                min-height: auto;
-                height: auto;
                 box-sizing: border-box;
                 margin: 0;
-                overflow: visible;
-              }
-              .clinic-header {
-                background: #f8fafc !important;
-                border: 1px solid #cbd5e1 !important;
-                border-radius: 6px !important;
-                color: #0f172a !important;
-                padding: 8px 12px !important;
-              }
-              .clinic-header::after {
-                display: none !important;
-              }
-              .clinic-name {
-                color: #0f172a !important;
-              }
-              .clinic-subtitle {
-                color: #475569 !important;
-              }
-              .clinic-contact-right {
-                color: #475569 !important;
-              }
-              .clinic-logo {
-                border: 1px solid #cbd5e1 !important;
-              }
-              .document-type-badge span {
-                color: #1a365d !important;
-                border-color: #1a365d !important;
-              }
-              .request-meta {
-                padding: 7px 10px;
-                margin-bottom: 9px;
-                font-size: 0.95rem;
-              }
-              .meta-label {
-                font-size: 0.85rem;
-              }
-              .meta-value {
-                font-size: 1rem;
               }
               .priority-badge {
-                padding: 3px 10px;
-                font-size: 0.85rem;
-              }
-              .request-section {
-                margin-bottom: 9px;
-                padding: 9px;
-              }
-              .request-section h3 {
-                font-size: 1.1rem;
-                margin-bottom: 6px;
-              }
-              .info-grid {
-                gap: 9px;
-                margin-bottom: 6px;
-              }
-              .info-item {
-                margin-bottom: 5px;
-              }
-              .info-label {
-                font-size: 0.9rem;
-              }
-              .info-value {
-                font-size: 0.95rem;
-              }
-              .clinical-info {
-                padding: 7px;
-                font-size: 0.9rem;
-                line-height: 1.4;
-              }
-              .tests-table th,
-              .tests-table td {
-                padding: 5px 7px;
-                font-size: 0.9rem;
-              }
-
-              .tests-table thead {
-                display: table-header-group;
-              }
-              .tests-table tbody {
-                display: table-row-group;
-              }
-              .request-footer {
-                margin-top: auto;
-                padding-top: 8px;
-              }
-              .signature-section {
-                font-size: 0.9rem;
-                margin: 0 10px;
-              }
-              .signature-line {
-                width: 130px;
-                margin: 8px auto 3px;
-              }
-              .signature-label {
-                font-size: 0.85rem;
+                border: 1px solid #000 !important;
               }
             }
           </style>
         </head>
         <body>
-          <div class="request-container${activeTab === 'lab' ? ' lab-request-container' : ''}">
+          <div class="request-container">
             <div class="clinic-header">
-              <img src="${clinic?.logo || '/assets/images/logo.jpg'}" alt="Logo" class="clinic-logo" onerror="this.style.display='none'">
-              <div class="clinic-info-center">
-                <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
-                <div class="clinic-subtitle">Laboratory & Imaging Services</div>
+              <div class="clinic-logo-container">
+                <img src="${clinic?.logo || '/assets/images/logo.jpg'}" alt="Clinic Logo" class="clinic-logo" onerror="this.style.display='none'">
+                <div class="clinic-header-info">
+                  <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
+                  <div class="clinic-subtitle">Laboratory & Diagnostic Imaging Services</div>
+                </div>
               </div>
               <div class="clinic-contact-right">
                 📍 ${clinic?.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}<br>
-                📞 ${clinic?.contactPhone || '+251925959219'}
+                📞 Telephone: ${clinic?.contactPhone || '+251925959219'}
               </div>
             </div>
-            <div class="document-type-badge">
-              <span>── Request Form ──</span>
+            
+            <div class="form-title-banner">
+              <span>── MEDICAL RECONNAISSANCE & TEST REQUEST ──</span>
             </div>
 
             <div class="request-meta">
               <div class="meta-item">
-                <span class="meta-label">Request Date:</span>
+                <span class="meta-label">Request Date</span>
                 <span class="meta-value">${currentDate}</span>
               </div>
               <div class="meta-item">
-                <span class="meta-label">Request Time:</span>
+                <span class="meta-label">Request Time</span>
                 <span class="meta-value">${currentTime}</span>
               </div>
               <div class="meta-item">
-                <span class="meta-label">Priority:</span>
+                <span class="meta-label">Urgency Priority</span>
                 <span class="meta-value">
                   <span class="priority-badge priority-${formData.priority.toLowerCase()}">${formData.priority}</span>
                 </span>
@@ -1185,91 +1088,86 @@ const MedicalTestRequestForm: React.FC = () => {
             </div>
 
             <div class="request-section">
-              <h3>Patient Information</h3>
+              <h3>1. Patient Demographics</h3>
               <div class="info-grid">
                 <div class="info-item">
-                  <span class="info-label">Patient Name:</span>
-                  <span class="info-value">${selectedPatient.firstName} ${selectedPatient.lastName}</span>
+                  <span class="info-label">Full Name</span>
+                  <span class="info-value" style="font-size: 14.5px;">${selectedPatient.firstName} ${selectedPatient.lastName}</span>
                 </div>
                 <div class="info-item">
-                  <span class="info-label">Medical Record #:</span>
+                  <span class="info-label">Medical Record Number (MRN)</span>
                   <span class="info-value">${selectedPatient.patientId || 'N/A'}</span>
                 </div>
-                ${selectedPatient.age ? `
                 <div class="info-item">
-                  <span class="info-label">Age:</span>
-                  <span class="info-value">${selectedPatient.age} years</span>
+                  <span class="info-label">Age</span>
+                  <span class="info-value">${selectedPatient.age ? `${selectedPatient.age} Years` : 'N/A'}</span>
                 </div>
-                ` : ''}
-                ${selectedPatient.gender ? `
                 <div class="info-item">
-                  <span class="info-label">Gender:</span>
-                  <span class="info-value">${selectedPatient.gender}</span>
+                  <span class="info-label">Gender</span>
+                  <span class="info-value" style="text-transform: capitalize;">${selectedPatient.gender || 'N/A'}</span>
                 </div>
-                ` : ''}
               </div>
             </div>
 
-            <div class="request-section">
-              <h3>Test Request Details</h3>
-              <div class="info-grid">
+            <div class="request-section" style="flex-grow: 1;">
+              <h3>2. Diagnostic Request Details</h3>
+              <div class="info-grid" style="margin-bottom: 10px;">
                 <div class="info-item">
-                  <span class="info-label">Test Type:</span>
-                  <span class="info-value">${testTypeLabel}</span>
+                  <span class="info-label">Category of Service</span>
+                  <span class="info-value" style="text-transform: uppercase;">${testTypeLabel}</span>
                 </div>
                 ${['ultrasound', 'xray', 'mri', 'ctscan'].includes(activeTab) && formData.bodyPart ? `
                 <div class="info-item">
-                  <span class="info-label">Body Part:</span>
+                  <span class="info-label">Anatomical Target Site (Body Part)</span>
                   <span class="info-value">${formData.bodyPart}</span>
-                </div>
-                ` : ''}
-                ${activeTab === 'lab' ? `
-                <div class="info-item" style="grid-column: 1 / -1;">
-                  <span class="info-label">Selected Lab Tests:</span>
-                  <div class="info-value lab-print-table" style="padding: 0;">
-                    ${labMasterTableHtml}
-                  </div>
-                </div>
-                ` : formData.specificTest ? `
-                <div class="info-item">
-                  <span class="info-label">Specific Test:</span>
-                  <span class="info-value">${formData.specificTest}</span>
                 </div>
                 ` : ''}
                 ${(activeTab === 'ecg' || activeTab === 'echocardiography') ? `
                 <div class="info-item">
-                  <span class="info-label">Body Part:</span>
-                  <span class="info-value">Heart/Cardiac</span>
+                  <span class="info-label">Anatomical Target Site</span>
+                  <span class="info-value">Heart / Cardiac Assessment</span>
                 </div>
-                ` : activeTab === 'mammography' && mammographyBodyPartLabel ? `
+                ` : ''}
+                ${activeTab === 'mammography' && mammographyBodyPartLabel ? `
                 <div class="info-item">
-                  <span class="info-label">Body Part:</span>
-                  <span class="info-value">${mammographyBodyPartLabel}</span>
+                  <span class="info-label">Laterality Requested</span>
+                  <span class="info-value" style="text-transform: uppercase;">${mammographyBodyPartLabel}</span>
                 </div>
                 ` : ''}
               </div>
-              <div class="info-item" style="grid-column: 1 / -1;">
-                <span class="info-label">Clinical Information / Indication:</span>
-                <div class="clinical-info">${formData.clinicalInfo}</div>
+              
+              ${activeTab === 'lab' ? `
+              <div class="info-item" style="margin-top: 10px; margin-bottom: 10px;">
+                <span class="info-label" style="margin-bottom: 4px;">Laboratory Panel Checklist</span>
+                <div class="info-value" style="padding: 0;">
+                  ${labMasterTableHtml}
+                </div>
               </div>
+              ` : ''}
+
+              <div class="info-item" style="margin-top: 6px;">
+                <span class="info-label">Clinical Indication & Presentation Notes</span>
+                <div class="clinical-info">${escapeHtml(formData.clinicalInfo)}</div>
+              </div>
+              
               ${formData.notes ? `
-              <div class="info-item" style="grid-column: 1 / -1; margin-top: 8px;">
-                <span class="info-label">Additional Notes:</span>
-                <div class="clinical-info">${formData.notes}</div>
+              <div class="info-item" style="margin-top: 8px;">
+                <span class="info-label">Secondary Directives & Notes</span>
+                <div class="clinical-info">${escapeHtml(formData.notes)}</div>
               </div>
               ` : ''}
             </div>
 
             <div class="request-section">
-              <h3>Requesting Physician</h3>
+              <h3>3. Ordering Medical Practitioner</h3>
               <div class="info-grid">
                 <div class="info-item">
-                  <span class="info-label">Doctor Name:</span>
-                  <span class="info-value">${user?.firstName || ''} ${user?.lastName || ''}</span>
+                  <span class="info-label">Clinician Name</span>
+                  <span class="info-value">Dr. ${user?.firstName || ''} ${user?.lastName || ''}</span>
                 </div>
                 <div class="info-item">
-                  <span class="info-label">Date & Time:</span>
-                  <span class="info-value">${currentDate} at ${currentTime}</span>
+                  <span class="info-label">Department / Clinic</span>
+                  <span class="info-value">Internal Medicine / OPD</span>
                 </div>
               </div>
             </div>
@@ -1277,11 +1175,14 @@ const MedicalTestRequestForm: React.FC = () => {
             <div class="request-footer">
               <div class="signature-section">
                 <div class="signature-line"></div>
-                <div class="signature-label">Requesting Physician Signature</div>
+                <div class="signature-label">Physician Signature & Stamp</div>
               </div>
               <div class="signature-section">
                 <div class="signature-line"></div>
-                <div class="signature-label">Date</div>
+                <div class="signature-label">Authorization Date</div>
+              </div>
+              <div class="stamp-box">
+                Official Seal
               </div>
             </div>
           </div>
@@ -1291,11 +1192,10 @@ const MedicalTestRequestForm: React.FC = () => {
       
       printWindow.document.close();
       
-      // Wait for images to load before printing
       printWindow.onload = () => {
         setTimeout(() => {
           printWindow.print();
-        }, 250);
+        }, 300);
       };
     }
   };
@@ -1373,7 +1273,7 @@ const MedicalTestRequestForm: React.FC = () => {
       const workbook = XLSX.utils.book_new();
 
       if (activeTab === 'lab') {
-        // 1) Summary sheet
+        // Summary sheet
         const summaryWorksheet = XLSX.utils.json_to_sheet([{
           ...commonColumns,
           'Lab Category': '',
@@ -1391,17 +1291,16 @@ const MedicalTestRequestForm: React.FC = () => {
           { wch: 18 }, // Contact Number
           { wch: 18 }, // Test Type
           { wch: 12 }, // Body Part
-          { wch: 38 }, // Clinical Information / Indication
+          { wch: 38 }, // Clinical Information
           { wch: 30 }, // Additional Notes
           { wch: 22 }, // Requesting Physician
           { wch: 22 }, // Lab Category
           { wch: 34 }, // Lab Test
         ];
 
-        const summaryName = 'Request Summary';
-        XLSX.utils.book_append_sheet(workbook, summaryWorksheet, summaryName);
+        XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Request Summary');
 
-        // 2) Lab tests sheet (with category + each selected test row)
+        // Detailed lab sheet
         const labRows: Array<Record<string, any>> = [];
         let no = 1;
 
@@ -1443,17 +1342,15 @@ const MedicalTestRequestForm: React.FC = () => {
           { wch: 10 }, // Age
           { wch: 12 }, // Gender
           { wch: 18 }, // Contact Number
-          { wch: 38 }, // Clinical info
-          { wch: 30 }, // Additional Notes
-          { wch: 22 } // Requesting Physician
+          { wch: 38 }, // Clinical Info
+          { wch: 30 }, // Notes
+          { wch: 22 } // Physician
         ];
 
-        // Freeze header row (best-effort).
         (labWorksheet as any)['!freeze'] = { xSplit: 0, ySplit: 1, topRow: 1 };
-
-        XLSX.utils.book_append_sheet(workbook, labWorksheet, 'Lab Tests');
+        XLSX.utils.book_append_sheet(workbook, labWorksheet, 'Lab Tests Detail');
       } else {
-        // For imaging requests: keep one clean sheet.
+        // Imaging request sheet
         const rows = [
           {
             'No.': 1,
@@ -1465,7 +1362,7 @@ const MedicalTestRequestForm: React.FC = () => {
         const worksheet = XLSX.utils.json_to_sheet(rows);
         (worksheet as any)['!cols'] = [
           { wch: 6 }, // No.
-          { wch: 34 }, // Lab Test
+          { wch: 18 }, // Lab Test placeholder
           { wch: 18 }, // Request Date
           { wch: 14 }, // Request Time
           { wch: 12 }, // Priority
@@ -1476,13 +1373,12 @@ const MedicalTestRequestForm: React.FC = () => {
           { wch: 18 }, // Contact Number
           { wch: 18 }, // Test Type
           { wch: 18 }, // Body Part
-          { wch: 38 }, // Clinical Information / Indication
-          { wch: 30 }, // Additional Notes
-          { wch: 22 }, // Requesting Physician
+          { wch: 38 }, // Clinical Info
+          { wch: 30 }, // Notes
+          { wch: 22 }, // Physician
         ];
 
         (worksheet as any)['!freeze'] = { xSplit: 0, ySplit: 1, topRow: 1 };
-
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Request Form');
       }
 
@@ -1492,7 +1388,7 @@ const MedicalTestRequestForm: React.FC = () => {
       });
 
       const safePatientId = (selectedPatient.patientId || selectedPatient._id || 'patient').toString().replace(/[^\w-]+/g, '');
-      saveAs(blob, `Lab-Request-${safePatientId}-${Date.now()}.xlsx`);
+      saveAs(blob, `Diagnostic-Request-${safePatientId}-${Date.now()}.xlsx`);
       toast.success('Excel exported successfully');
     } catch (error) {
       console.error('Excel export failed:', error);
@@ -1502,398 +1398,688 @@ const MedicalTestRequestForm: React.FC = () => {
     }
   };
 
+  const testTabs: { id: TestType; label: string; icon: React.ComponentType<any> }[] = [
+    { id: 'ultrasound', label: 'Ultrasound', icon: Activity },
+    { id: 'xray', label: 'X-Ray', icon: Layers },
+    { id: 'mri', label: 'MRI', icon: Layers },
+    { id: 'ecg', label: 'ECG', icon: Heart },
+    { id: 'echocardiography', label: 'Echocardiography', icon: Heart },
+    { id: 'ctscan', label: 'CT Scan', icon: Layers },
+    { id: 'mammography', label: 'Mammography', icon: Sparkles },
+    { id: 'lab', label: 'Laboratory', icon: FileText }
+  ];
+
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Request Forms</h1>
-        <p className="text-muted-foreground">Request various medical tests and imaging studies for patients</p>
+    <div className="container mx-auto p-4 md:p-6 max-w-6xl space-y-6">
+      {/* Header Banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 p-6 md:p-8 text-white shadow-xl">
+        <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 transform opacity-10">
+          <Activity className="h-64 w-64" />
+        </div>
+        <div className="relative z-10 space-y-2">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/30 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-100 backdrop-blur-sm border border-blue-400/20">
+            <Activity className="h-3.5 w-3.5" /> Doctor's Portal
+          </div>
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Diagnostic Requests</h1>
+          <p className="max-w-xl text-blue-100 text-sm md:text-base font-medium">
+            Order laboratory panels and diagnostic imaging studies (Ultrasound, X-Ray, MRI, CT Scan, and ECG) with instant print and system logging capabilities.
+          </p>
+        </div>
       </div>
 
-      {/* Patient Selection */}
-      <div className="bg-card rounded-lg shadow-sm border border-border p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4 text-foreground">Patient Information</h2>
-        <div className="relative" ref={searchRef}>
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search patient by name, ID, or phone number..."
-              className="w-full pl-10 pr-10 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-              value={searchQuery}
-              onChange={handleSearchInputChange}
-              onFocus={() => searchQuery && setShowSearchResults(true)}
-            />
-            {selectedPatient && (
-              <button
-                onClick={() => {
-                  setSelectedPatient(null);
-                  setSearchQuery('');
-                  setFormData(prev => ({ ...prev, patientId: '', patientName: '' }));
-                }}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <XMarkIcon className="w-5 h-5" />
-              </button>
+      {/* Patient Selection Card */}
+      <div className="bg-card rounded-2xl shadow-sm border border-border/80 overflow-hidden">
+        <div className="border-b border-border/60 bg-muted/20 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <User className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-bold text-foreground">Patient Information</h2>
+          </div>
+          {selectedPatient && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <Check className="w-3 h-3" /> Selected
+            </span>
+          )}
+        </div>
+        
+        <div className="p-6 space-y-4">
+          <div className="relative" ref={searchRef}>
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search patient by Name, Patient ID, or Contact Number..."
+                className="w-full pl-11 pr-10 py-3 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background text-foreground placeholder:text-muted-foreground transition-all"
+                value={searchQuery}
+                onChange={handleSearchInputChange}
+                onFocus={() => searchQuery && setShowSearchResults(true)}
+              />
+              {selectedPatient && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPatient(null);
+                    setSearchQuery('');
+                    setFormData(prev => ({ ...prev, patientId: '', patientName: '' }));
+                    setSelectedLabTests({});
+                    setExpandedTests(new Set());
+                  }}
+                  className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            {/* Suggestions Dropdown */}
+            {showSearchResults && searchResults.length > 0 && (
+              <div className="absolute z-30 w-full mt-2 bg-card border border-border rounded-xl shadow-xl max-h-72 overflow-y-auto divide-y divide-border/50 animate-in fade-in slide-in-from-top-2 duration-200">
+                {searchResults.map((patient) => {
+                  const initials = `${patient.firstName?.[0] || ''}${patient.lastName?.[0] || ''}`.toUpperCase();
+                  return (
+                    <div
+                      key={patient._id || patient.id}
+                      onClick={() => handleSelectPatient(patient)}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-muted/60 cursor-pointer transition-colors"
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-xs font-bold text-white shadow-sm">
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-foreground truncate">
+                          {patient.firstName} {patient.lastName}
+                        </div>
+                        <div className="flex flex-wrap gap-x-2 text-xs text-muted-foreground mt-0.5">
+                          {patient.patientId && <span className="font-semibold text-primary">MRN: {patient.patientId}</span>}
+                          {patient.age && <span>• {patient.age} yrs</span>}
+                          {patient.gender && <span className="capitalize">• {patient.gender}</span>}
+                          {patient.contactNumber && <span>• 📞 {patient.contactNumber}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {isSearching && (
+              <div className="absolute z-30 w-full mt-2 bg-card border border-border rounded-xl p-4 text-center shadow-lg text-sm text-muted-foreground flex items-center justify-center gap-2">
+                <span className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
+                Searching clinical registry...
+              </div>
             )}
           </div>
 
-          {/* Search Results */}
-          {showSearchResults && searchResults.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-              {searchResults.map((patient) => (
-                <div
-                  key={patient._id || patient.id}
-                  onClick={() => handleSelectPatient(patient)}
-                  className="px-4 py-3 hover:bg-muted/50 cursor-pointer border-b border-border last:border-b-0"
-                >
-                  <div className="font-medium text-foreground">
-                    {patient.firstName} {patient.lastName}
+          {/* Selected Patient Overview Card */}
+          {selectedPatient && (
+            <div className="bg-gradient-to-br from-muted/50 to-muted/20 border border-border/80 rounded-xl p-5 relative overflow-hidden transition-all duration-300">
+              <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 text-muted/10">
+                <User className="w-24 h-24" />
+              </div>
+              <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-tr from-primary to-indigo-600 text-lg font-bold text-white shadow-md">
+                    {`${selectedPatient.firstName?.[0] || ''}${selectedPatient.lastName?.[0] || ''}`.toUpperCase()}
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {patient.patientId && `MR#: ${patient.patientId}`}
-                    {patient.age && ` | Age: ${patient.age}`}
-                    {patient.gender && ` | ${patient.gender}`}
-                    {patient.contactNumber && ` | Phone: ${patient.contactNumber}`}
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">
+                      {selectedPatient.firstName} {selectedPatient.lastName}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <span className="inline-flex items-center rounded-md bg-blue-500/10 px-2 py-1 text-xs font-semibold text-primary border border-blue-500/10">
+                        MRN: {selectedPatient.patientId || 'N/A'}
+                      </span>
+                      {selectedPatient.age && (
+                        <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/10">
+                          {selectedPatient.age} Years Old
+                        </span>
+                      )}
+                      {selectedPatient.gender && (
+                        <span className="inline-flex items-center rounded-md bg-purple-500/10 px-2 py-1 text-xs font-semibold text-purple-600 dark:text-purple-400 border border-purple-500/10 capitalize">
+                          {selectedPatient.gender}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
 
-          {isSearching && (
-            <div className="mt-2 text-sm text-muted-foreground">Searching...</div>
-          )}
-
-          {selectedPatient && (
-            <div className="mt-4 p-4 bg-muted/30 rounded-lg">
-              <div className="font-semibold text-foreground">
-                Selected: {selectedPatient.firstName} {selectedPatient.lastName}
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">
-                {selectedPatient.patientId && `MR#: ${selectedPatient.patientId}`}
-                {selectedPatient.age && ` | Age: ${selectedPatient.age}`}
-                {selectedPatient.gender && ` | ${selectedPatient.gender}`}
+                {selectedPatient.contactNumber && (
+                  <div className="text-sm bg-background border border-border/60 rounded-lg px-4 py-2 self-start sm:self-center">
+                    <span className="text-muted-foreground block text-xs uppercase font-bold tracking-wide">Contact</span>
+                    <span className="font-semibold text-foreground">📞 {selectedPatient.contactNumber}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Test Type Tabs */}
-      <div className="bg-card rounded-lg shadow-sm border border-border">
-        <div className="border-b border-border">
-          <div className="flex overflow-x-auto">
+      {/* Tabs Container */}
+      <div className="bg-card rounded-2xl shadow-sm border border-border/80 overflow-hidden">
+        {/* Navigation Tabs */}
+        <div className="border-b border-border/60 bg-muted/20 p-2 overflow-x-auto">
+          <div className="flex space-x-1 min-w-max">
             {testTabs.map((tab) => {
               const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              
+              // Count for lab selection badge
+              const labSelectedCount = tab.id === 'lab' ? getTotalSelectedTests() : 0;
+              
               return (
                 <button
                   key={tab.id}
+                  type="button"
                   onClick={() => handleTabChange(tab.id)}
-                  className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'text-primary border-b-2 border-primary bg-primary/5'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  className={`flex items-center gap-2 px-5 py-3 text-sm font-bold rounded-xl transition-all duration-200 cursor-pointer ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-[1.02]'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
-                  {tab.label}
+                  <Icon className={`w-4.5 h-4.5 ${isActive ? 'stroke-[2.5px]' : ''}`} />
+                  <span>{tab.label}</span>
+                  {labSelectedCount > 0 && (
+                    <span className={`ml-1.5 px-2 py-0.5 text-xs font-extrabold rounded-full ${
+                      isActive ? 'bg-white text-primary' : 'bg-primary text-white'
+                    }`}>
+                      {labSelectedCount}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Form Content */}
-        <form onSubmit={handleSubmit} className="p-6">
+        {/* Tab Panel Form Content */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Main Service Fields */}
           <div className="space-y-6">
-            {/* Body Part (for imaging tests, but not ECG/Echocardiography) */}
+            
+            {/* Imaging Selection Body Site Grid & Dropdown */}
             {['ultrasound', 'xray', 'mri', 'ctscan'].includes(activeTab) && (
-              <div ref={bodyPartDropdownRef} className="relative">
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Body Part <span className="text-destructive">*</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setBodyPartDropdownOpen((prev) => !prev)}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-left bg-background flex items-center justify-between"
-                  aria-haspopup="listbox"
-                  aria-expanded={bodyPartDropdownOpen}
-                >
-                  <span className={formData.bodyPart ? 'text-foreground' : 'text-muted-foreground'}>
-                    {formData.bodyPart || 'Select body part'}
-                  </span>
-                  <svg className={`w-5 h-5 text-muted-foreground shrink-0 transition-transform ${bodyPartDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {bodyPartDropdownOpen && (
-                  <div
-                    className="absolute z-20 w-full mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden"
-                    role="listbox"
-                  >
-                    <div className="max-h-[280px] overflow-y-auto py-1">
-                      {bodyParts.map((part) => (
-                        <button
-                          key={part}
-                          type="button"
-                          role="option"
-                          aria-selected={formData.bodyPart === part}
-                          onClick={() => {
-                            handleInputChange('bodyPart', part);
-                            setBodyPartDropdownOpen(false);
-                          }}
-                          className={`w-full px-4 py-2.5 text-left text-sm hover:bg-muted/60 transition-colors ${formData.bodyPart === part ? 'bg-primary/10 text-primary font-medium' : 'text-foreground'}`}
-                        >
-                          {part}
-                        </button>
-                      ))}
-                    </div>
+              <div className="space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                  <div>
+                    <label className="text-base font-bold text-foreground block">
+                      Anatomical Target Site <span className="text-destructive">*</span>
+                    </label>
+                    <span className="text-xs text-muted-foreground">Select a common target or choose from the list.</span>
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Info for ECG/Echocardiography */}
-            {(activeTab === 'ecg' || activeTab === 'echocardiography') && (
-              <div className="p-4 bg-muted/30 rounded-lg border border-border">
-                <p className="text-sm text-muted-foreground">
-                  <strong>Note:</strong> Body part will be automatically set to "Heart/Cardiac" for {activeTab === 'ecg' ? 'ECG' : 'Echocardiography'} tests.
-                </p>
-              </div>
-            )}
-
-            {/* Mammography: Which breast (required) */}
-            {activeTab === 'mammography' && (
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-foreground">
-                  Which breast? <span className="text-destructive">*</span>
-                </label>
-                <div className="flex flex-wrap gap-4 p-4 bg-muted/30 rounded-lg border border-border">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="mammographyLaterality"
-                      value="left"
-                      checked={mammographyLaterality === 'left'}
-                      onChange={() => setMammographyLaterality('left')}
-                      className="w-4 h-4 text-primary border-border focus:ring-primary focus:ring-2"
-                    />
-                    <span className="text-foreground font-medium">Left breast</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="mammographyLaterality"
-                      value="right"
-                      checked={mammographyLaterality === 'right'}
-                      onChange={() => setMammographyLaterality('right')}
-                      className="w-4 h-4 text-primary border-border focus:ring-primary focus:ring-2"
-                    />
-                    <span className="text-foreground font-medium">Right breast</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="mammographyLaterality"
-                      value="bilateral"
-                      checked={mammographyLaterality === 'bilateral'}
-                      onChange={() => setMammographyLaterality('bilateral')}
-                      className="w-4 h-4 text-primary border-border focus:ring-primary focus:ring-2"
-                    />
-                    <span className="text-foreground font-medium">Bilateral (both breasts)</span>
-                  </label>
+                  
+                  {/* Dropdown Selector */}
+                  <div ref={bodyPartDropdownRef} className="relative w-full md:w-72">
+                    <button
+                      type="button"
+                      onClick={() => setBodyPartDropdownOpen((prev) => !prev)}
+                      className="w-full px-4 py-2.5 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-left bg-background text-sm flex items-center justify-between hover:bg-muted/40 transition-colors"
+                      aria-haspopup="listbox"
+                      aria-expanded={bodyPartDropdownOpen}
+                    >
+                      <span className={formData.bodyPart ? 'text-foreground font-semibold' : 'text-muted-foreground'}>
+                        {formData.bodyPart || 'Search body parts...'}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${bodyPartDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {bodyPartDropdownOpen && (
+                      <div className="absolute right-0 z-40 w-full mt-1.5 bg-card border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in duration-100">
+                        <div className="max-h-60 overflow-y-auto py-1">
+                          {bodyParts.map((part) => (
+                            <button
+                              key={part}
+                              type="button"
+                              role="option"
+                              aria-selected={formData.bodyPart === part}
+                              onClick={() => {
+                                handleInputChange('bodyPart', part);
+                                setBodyPartDropdownOpen(false);
+                              }}
+                              className={`w-full px-4 py-2 text-left text-sm hover:bg-muted transition-colors ${formData.bodyPart === part ? 'bg-primary/10 text-primary font-bold' : 'text-foreground'}`}
+                            >
+                              {part}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {/* Lab Tests Selection (for lab) */}
-            {activeTab === 'lab' && (
-              <div>
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>Note:</strong> Lab test requests are prepared for printing only and will not be submitted to the lab system.
-                  </p>
-                </div>
-                <div className="flex justify-between items-center mb-4">
-                  <label className="block text-sm font-medium text-foreground">
-                    Select Lab Tests <span className="text-destructive">*</span>
-                  </label>
+                {/* Quick Select Buttons Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+                  {quickBodyParts.map((part) => {
+                    const isSelected = formData.bodyPart === part;
+                    return (
+                      <button
+                        key={part}
+                        type="button"
+                        onClick={() => handleInputChange('bodyPart', part)}
+                        className={`px-3 py-2.5 text-xs font-bold rounded-xl border transition-all ${
+                          isSelected
+                            ? 'bg-primary/10 border-primary text-primary shadow-sm'
+                            : 'bg-card border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                        }`}
+                      >
+                        {part}
+                      </button>
+                    );
+                  })}
                   <button
                     type="button"
-                    onClick={handleSelectAllTests}
-                    className="text-sm text-primary hover:text-primary/80 underline"
+                    onClick={() => {
+                      handleInputChange('bodyPart', 'Other');
+                      setBodyPartDropdownOpen(true);
+                    }}
+                    className={`px-3 py-2.5 text-xs font-bold rounded-xl border transition-all ${
+                      formData.bodyPart && !quickBodyParts.includes(formData.bodyPart)
+                        ? 'bg-primary/10 border-primary text-primary shadow-sm'
+                        : 'bg-card border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                    }`}
                   >
-                    {Object.keys(selectedLabTests).length === Object.keys(labTests).length ? 'Deselect All' : 'Select All'}
+                    Custom Site...
                   </button>
                 </div>
+              </div>
+            )}
 
-                <div className="space-y-3 max-h-96 overflow-y-auto border border-border rounded-lg p-4 bg-muted/20">
-                  {Object.entries(labTests).map(([mainTest, subTests]) => {
-                    const isExpanded = expandedTests.has(mainTest);
-                    const isMainTestSelected = !!selectedLabTests[mainTest];
-                    const selectedSubTestsCount = selectedLabTests[mainTest]?.size || 0;
-                    const totalSubTestsCount = subTests.length;
+            {/* Cardiac assessment note */}
+            {(activeTab === 'ecg' || activeTab === 'echocardiography') && (
+              <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl flex items-start gap-3">
+                <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <h4 className="text-sm font-bold text-foreground">Standard Cardiac Assessment Target</h4>
+                  <p className="text-xs text-muted-foreground">
+                    This order is automatically targeted at <strong>Heart/Cardiac</strong>. No additional anatomical targeting is required.
+                  </p>
+                </div>
+              </div>
+            )}
 
+            {/* Mammography Breast selection */}
+            {activeTab === 'mammography' && (
+              <div className="space-y-3">
+                <label className="text-base font-bold text-foreground block">
+                  Laterality Assessment Target <span className="text-destructive">*</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    { id: 'left', title: 'Left Breast Only', desc: 'Single view request for left anatomical side' },
+                    { id: 'right', title: 'Right Breast Only', desc: 'Single view request for right anatomical side' },
+                    { id: 'bilateral', title: 'Bilateral Assessment', desc: 'Both breasts (routine screening setup)' }
+                  ].map((laterality) => {
+                    const isSelected = mammographyLaterality === laterality.id;
                     return (
-                      <div key={mainTest} className="border border-border rounded-lg bg-card">
-                        {/* Main Test Header */}
-                        <div
-                          className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30 transition-colors"
-                          onClick={() => toggleExpandedTest(mainTest)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="checkbox"
-                              checked={isMainTestSelected}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                handleMainTestToggle(mainTest, e.target.checked);
-                              }}
-                              className="w-4 h-4 text-primary border-border rounded focus:ring-primary focus:ring-2"
-                            />
-                            <span className="font-medium text-foreground">{mainTest}</span>
-                            {selectedSubTestsCount > 0 && (
-                              <span className="text-xs text-muted-foreground bg-primary/10 px-2 py-1 rounded">
-                                {selectedSubTestsCount}/{totalSubTestsCount} selected
-                              </span>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleExpandedTest(mainTest);
-                            }}
-                          >
-                            <svg
-                              className={`w-5 h-5 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
+                      <button
+                        key={laterality.id}
+                        type="button"
+                        onClick={() => setMammographyLaterality(laterality.id as MammographyLaterality)}
+                        className={`p-4 rounded-xl border-2 text-left transition-all flex items-start justify-between ${
+                          isSelected
+                            ? 'bg-primary/5 border-primary shadow-sm'
+                            : 'bg-card border-border/80 hover:bg-muted/20'
+                        }`}
+                      >
+                        <div className="space-y-1">
+                          <h4 className={`text-sm font-bold ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                            {laterality.title}
+                          </h4>
+                          <p className="text-xs text-muted-foreground font-medium">
+                            {laterality.desc}
+                          </p>
                         </div>
-
-                        {/* Sub-tests */}
-                        {isExpanded && (
-                          <div className="border-t border-border bg-muted/10">
-                            <div className="p-3 space-y-2">
-                              {subTests.map((subTest) => (
-                                <label key={subTest} className="flex items-center gap-3 cursor-pointer hover:bg-muted/20 p-2 rounded">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedLabTests[mainTest]?.has(subTest) || false}
-                                    onChange={(e) => handleSubTestSelection(mainTest, subTest, e.target.checked)}
-                                    className="w-4 h-4 text-primary border-border rounded focus:ring-primary focus:ring-2"
-                                  />
-                                  <span className="text-sm text-foreground">{subTest}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                        <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
+                          isSelected ? 'border-primary bg-primary text-white' : 'border-muted-foreground/30 bg-transparent'
+                        }`}>
+                          {isSelected && <Check className="w-3 h-3 stroke-[3px]" />}
+                        </div>
+                      </button>
                     );
                   })}
                 </div>
-
-                {getTotalSelectedTests() === 0 && (
-                  <p className="text-sm text-destructive mt-2">Please select at least one lab test</p>
-                )}
-                {getTotalSelectedTests() > 0 && (
-                  <div className="mt-4">
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {getTotalSelectedTests()} test{getTotalSelectedTests() > 1 ? 's' : ''} selected:
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {getAllSelectedTestNames().map((test) => (
-                        <span
-                          key={test}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-xs rounded-md"
-                        >
-                          {test}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              // Find which main test this sub-test belongs to and remove it
-                              Object.entries(selectedLabTests).forEach(([mainTest, subTests]) => {
-                                if (subTests.has(test)) {
-                                  handleSubTestSelection(mainTest, test, false);
-                                }
-                              });
-                            }}
-                            className="hover:text-destructive ml-1"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
-            {/* Clinical Information */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Clinical Information / Indication <span className="text-destructive">*</span>
+            {/* Advanced Lab Panels selection */}
+            {activeTab === 'lab' && (
+              <div className="space-y-6">
+                
+                {/* Visual Alert */}
+                <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl flex items-start gap-3">
+                  <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-bold text-foreground">Print-Only Directives</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Laboratory requests will generate a premium A4 print sheet containing ICD-10 columns for medical recording.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Search & Preset Panel Buttons */}
+                <div className="space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <label className="text-base font-bold text-foreground">
+                      Select Laboratory Panels & Tests <span className="text-destructive">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleSelectAllTests}
+                      className="text-xs font-bold text-primary hover:underline hover:text-primary/80 self-end sm:self-auto"
+                    >
+                      {Object.keys(selectedLabTests).length === Object.keys(labTests).length ? 'Deselect All Panels' : 'Select All Panels'}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Search laboratory tests (e.g., glucose, creatinine, lipid)..."
+                        className="w-full pl-10 pr-4 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background text-foreground transition-all"
+                        value={labSearchQuery}
+                        onChange={(e) => setLabSearchQuery(e.target.value)}
+                      />
+                      {labSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setLabSearchQuery('')}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Preset Pills */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+                    <span className="text-xs text-muted-foreground font-bold flex items-center gap-1 mr-1">
+                      <Bookmark className="w-3 h-3 text-primary" /> Preset Panels:
+                    </span>
+                    {labPanels.map((panel) => (
+                      <button
+                        key={panel.name}
+                        type="button"
+                        onClick={() => handleApplyPresetPanel(panel.mainTestsList)}
+                        className="px-2.5 py-1 text-xs font-bold bg-muted/60 border border-border/80 text-foreground hover:bg-primary/5 hover:border-primary/40 rounded-lg transition-all"
+                      >
+                        + {panel.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Layout Grid: Panels on left, selection preview on right */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Collapsible Lab Test List */}
+                  <div className="lg:col-span-2 space-y-3 max-h-[500px] overflow-y-auto border border-border/70 rounded-xl p-3 bg-muted/10 scrollbar-thin">
+                    {Object.entries(filteredLabTests).map(([mainTest, subTests]) => {
+                      const isExpanded = expandedTests.has(mainTest);
+                      const isMainTestSelected = !!selectedLabTests[mainTest];
+                      const selectedSubTestsCount = selectedLabTests[mainTest]?.size || 0;
+                      const totalSubTestsCount = subTests.length;
+
+                      return (
+                        <div key={mainTest} className="border border-border/60 rounded-xl bg-card overflow-hidden shadow-xs">
+                          {/* Main Panel Row */}
+                          <div
+                            className="flex items-center justify-between p-3.5 cursor-pointer hover:bg-muted/40 transition-colors"
+                            onClick={() => toggleExpandedTest(mainTest)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMainTestToggle(mainTest, !isMainTestSelected);
+                                }}
+                                className="focus:outline-hidden"
+                              >
+                                <div className={`h-5 w-5 rounded border flex items-center justify-center transition-all ${
+                                  isMainTestSelected
+                                    ? 'bg-primary border-primary text-white shadow-sm'
+                                    : 'border-muted-foreground/30 bg-background hover:border-muted-foreground/60'
+                                }`}>
+                                  {isMainTestSelected && <Check className="w-3.5 h-3.5 stroke-[3px]" />}
+                                </div>
+                              </button>
+                              <span className="font-bold text-foreground text-sm">{mainTest}</span>
+                              {selectedSubTestsCount > 0 && (
+                                <span className="text-[10px] font-extrabold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                  {selectedSubTestsCount} / {totalSubTestsCount} Selected
+                                </span>
+                              )}
+                            </div>
+                            
+                            <button
+                              type="button"
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpandedTest(mainTest);
+                              }}
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                            </button>
+                          </div>
+
+                          {/* Sub tests container */}
+                          {isExpanded && (
+                            <div className="border-t border-border/50 bg-muted/5 divide-y divide-border/30">
+                              <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {subTests.map((subTest) => {
+                                  const isChecked = selectedLabTests[mainTest]?.has(subTest) || false;
+                                  return (
+                                    <label
+                                      key={subTest}
+                                      className={`flex items-start gap-2.5 p-2 rounded-lg cursor-pointer hover:bg-muted/30 transition-colors ${
+                                        isChecked ? 'bg-primary/5' : ''
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={(e) => handleSubTestSelection(mainTest, subTest, e.target.checked)}
+                                        className="w-4.5 h-4.5 rounded border-border text-primary focus:ring-primary/20 shrink-0 mt-0.5 cursor-pointer"
+                                      />
+                                      <span className="text-xs font-semibold text-foreground leading-normal">{subTest}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    
+                    {Object.keys(filteredLabTests).length === 0 && (
+                      <div className="text-center py-12 text-muted-foreground text-sm font-medium">
+                        🔍 No laboratory tests matched "{labSearchQuery}"
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Summary Basket */}
+                  <div className="bg-card border border-border/80 rounded-xl p-4 flex flex-col h-[500px]">
+                    <div className="border-b border-border/50 pb-3 mb-3 flex items-center justify-between">
+                      <span className="font-bold text-foreground text-sm">Selected Tests</span>
+                      <span className="bg-primary/10 text-primary font-bold text-xs px-2.5 py-0.5 rounded-full">
+                        {getTotalSelectedTests()} Total
+                      </span>
+                    </div>
+
+                    {getTotalSelectedTests() === 0 ? (
+                      <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                        <Filter className="w-8 h-8 text-muted-foreground/30 mb-2" />
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          No laboratory tests selected yet.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
+                        {Object.entries(selectedLabTests).map(([mainTest, subTests]) => (
+                          <div key={mainTest} className="space-y-1">
+                            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                              {mainTest}
+                            </div>
+                            <div className="space-y-1 pl-2">
+                              {Array.from(subTests).map((test) => (
+                                <div
+                                  key={test}
+                                  className="flex items-center justify-between gap-2 bg-muted/30 border border-border/40 rounded-lg p-2 text-xs transition-all hover:bg-muted"
+                                >
+                                  <span className="font-bold text-foreground leading-tight truncate">{test}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSubTestSelection(mainTest, test, false)}
+                                    className="text-muted-foreground hover:text-destructive shrink-0"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {getTotalSelectedTests() > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLabTests({})}
+                        className="mt-4 w-full py-2 text-center text-xs font-bold text-destructive hover:bg-destructive/10 rounded-lg border border-destructive/20 transition-all cursor-pointer"
+                      >
+                        Deselect All ({getTotalSelectedTests()})
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Clinical Information Indication */}
+            <div className="space-y-2">
+              <label className="text-base font-bold text-foreground block">
+                Clinical Indication & Presentation Notes <span className="text-destructive">*</span>
               </label>
               <textarea
                 value={formData.clinicalInfo}
                 onChange={(e) => handleInputChange('clinicalInfo', e.target.value)}
                 rows={4}
-                className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                placeholder="Enter clinical information, indication, or reason for the test..."
+                className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background text-foreground placeholder:text-muted-foreground text-sm transition-all"
+                placeholder="Detail patient symptoms, clinical indication, or reason for the test request..."
                 required
               />
             </div>
 
-            {/* Priority */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Priority <span className="text-destructive">*</span>
+            {/* Urgency Priority Cards */}
+            <div className="space-y-3">
+              <label className="text-base font-bold text-foreground block">
+                Urgency Priority <span className="text-destructive">*</span>
               </label>
-              <select
-                value={formData.priority}
-                onChange={(e) => handleInputChange('priority', e.target.value as 'Routine' | 'STAT' | 'ASAP')}
-                className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                required
-              >
-                <option value="Routine">Routine</option>
-                <option value="STAT">STAT (Urgent)</option>
-                <option value="ASAP">ASAP (As Soon As Possible)</option>
-              </select>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  {
+                    id: 'Routine',
+                    title: 'Routine Request',
+                    desc: 'Processed within standard schedule timeline',
+                    borderClass: 'border-slate-200 dark:border-slate-800',
+                    activeClass: 'bg-slate-500/5 border-slate-500 text-slate-700 dark:text-slate-300'
+                  },
+                  {
+                    id: 'ASAP',
+                    title: 'ASAP Directive',
+                    desc: 'High priority request for urgent cases',
+                    borderClass: 'border-amber-200 dark:border-amber-900',
+                    activeClass: 'bg-amber-500/5 border-amber-500 text-amber-700 dark:text-amber-300'
+                  },
+                  {
+                    id: 'STAT',
+                    title: 'STAT (Emergency)',
+                    desc: 'Immediate diagnostic assessment required',
+                    borderClass: 'border-rose-200 dark:border-rose-900',
+                    activeClass: 'bg-rose-500/5 border-rose-500 text-rose-700 dark:text-rose-300'
+                  }
+                ].map((priorityOption) => {
+                  const isSelected = formData.priority === priorityOption.id;
+                  return (
+                    <button
+                      key={priorityOption.id}
+                      type="button"
+                      onClick={() => handleInputChange('priority', priorityOption.id as 'Routine' | 'STAT' | 'ASAP')}
+                      className={`p-4 rounded-xl border text-left transition-all relative overflow-hidden flex items-start gap-3 ${
+                        isSelected
+                          ? priorityOption.activeClass
+                          : `bg-card ${priorityOption.borderClass} hover:bg-muted/10`
+                      }`}
+                    >
+                      <div className="shrink-0 mt-0.5">
+                        {priorityOption.id === 'STAT' ? (
+                          <div className="relative flex h-4 w-4">
+                            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                              isSelected ? 'bg-rose-500' : 'bg-rose-400'
+                            }`} />
+                            <span className={`relative inline-flex rounded-full h-4 w-4 ${
+                              isSelected ? 'bg-rose-600' : 'bg-rose-500'
+                            }`} />
+                          </div>
+                        ) : (
+                          <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                            isSelected ? 'border-primary' : 'border-muted-foreground/30'
+                          }`}>
+                            {isSelected && <div className="h-2 w-2 rounded-full bg-primary" />}
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-0.5">
+                        <h4 className="text-sm font-bold">{priorityOption.title}</h4>
+                        <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+                          {priorityOption.desc}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Additional Notes */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Additional Notes (Optional)
+            {/* Additional Secondary Notes */}
+            <div className="space-y-2">
+              <label className="text-base font-bold text-foreground block">
+                Secondary Directives / Notes (Optional)
               </label>
               <textarea
                 value={formData.notes || ''}
                 onChange={(e) => handleInputChange('notes', e.target.value)}
                 rows={3}
-                className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                placeholder="Any additional notes or special instructions..."
+                className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background text-foreground placeholder:text-muted-foreground text-sm transition-all"
+                placeholder="Input additional directives or instructions to the laboratory/imaging staff..."
               />
             </div>
 
-            {/* Submit Button */}
-            <div className="flex justify-between gap-4 pt-4 border-t border-border">
-              <div className="flex gap-4">
+            {/* Form Action Controls */}
+            <div className="flex flex-col sm:flex-row justify-between gap-4 pt-6 border-t border-border/80">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   type="button"
                   onClick={handlePrint}
-                  disabled={!selectedPatient || !formData.clinicalInfo.trim() || (activeTab === 'lab' && getTotalSelectedTests() === 0) || (activeTab === 'mammography' && !mammographyLaterality)}
-                  className="flex items-center gap-2 px-6 py-2 border border-border rounded-lg text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={
+                    !selectedPatient ||
+                    !formData.clinicalInfo.trim() ||
+                    (activeTab === 'lab' && getTotalSelectedTests() === 0) ||
+                    (activeTab === 'mammography' && !mammographyLaterality)
+                  }
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 border border-border rounded-xl text-foreground font-bold hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
-                  <PrinterIcon className="w-5 h-5" />
-                  {activeTab === 'lab' ? 'Print (Paper)' : 'Print Request'}
+                  <Printer className="w-4.5 h-4.5" />
+                  Print Physical Request
                 </button>
                 {activeTab === 'lab' && (
                   <button
@@ -1903,16 +2089,16 @@ const MedicalTestRequestForm: React.FC = () => {
                       exportingExcel ||
                       !selectedPatient ||
                       !formData.clinicalInfo.trim() ||
-                      (activeTab === 'lab' && getTotalSelectedTests() === 0)
+                      getTotalSelectedTests() === 0
                     }
-                    className="flex items-center gap-2 px-6 py-2 bg-muted/30 border border-border rounded-lg text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-muted/40 border border-border rounded-xl text-foreground font-bold hover:bg-muted/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                   >
-                    <DocumentTextIcon className="w-5 h-5" />
-                    {exportingExcel ? 'Exporting...' : 'Export to Excel'}
+                    <FileSpreadsheet className="w-4.5 h-4.5" />
+                    {exportingExcel ? 'Exporting...' : 'Export Spreadsheet'}
                   </button>
                 )}
               </div>
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -1930,21 +2116,43 @@ const MedicalTestRequestForm: React.FC = () => {
                     setMammographyLaterality('');
                     setSelectedLabTests({});
                     setExpandedTests(new Set());
+                    setLabSearchQuery('');
                   }}
-                  className="px-6 py-2 border border-border rounded-lg text-foreground hover:bg-muted transition-colors"
+                  className="px-5 py-2.5 border border-border rounded-xl text-foreground font-bold hover:bg-muted transition-colors text-sm"
                   disabled={submitting}
                 >
-                  Clear Form
+                  Reset form
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting || !selectedPatient || (activeTab === 'lab' && getTotalSelectedTests() === 0) || (activeTab === 'mammography' && !mammographyLaterality)}
-                  className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={
+                    submitting ||
+                    !selectedPatient ||
+                    (activeTab === 'lab' && getTotalSelectedTests() === 0) ||
+                    (activeTab === 'mammography' && !mammographyLaterality)
+                  }
+                  className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-primary/95 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2 shadow-md shadow-primary/10"
                 >
-                  {submitting ? 'Processing...' : activeTab === 'lab' ? 'Prepare Lab Request' : `Submit ${testTabs.find(t => t.id === activeTab)?.label} Request`}
+                  {submitting ? (
+                    <>
+                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                      Saving request...
+                    </>
+                  ) : activeTab === 'lab' ? (
+                    <>
+                      <CheckCircle2 className="w-4.5 h-4.5" />
+                      Finalize Request Form
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4.5 h-4.5" />
+                      Submit {testTabs.find(t => t.id === activeTab)?.label} Order
+                    </>
+                  )}
                 </button>
               </div>
             </div>
+
           </div>
         </form>
       </div>
@@ -1953,4 +2161,3 @@ const MedicalTestRequestForm: React.FC = () => {
 };
 
 export default MedicalTestRequestForm;
-
