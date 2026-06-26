@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/card';
-import { ArrowLeft, FileText, Printer, CreditCard, BarChart3, Plus, Trash2, RotateCcw } from 'lucide-react';
+import { ArrowLeft, FileText, Printer, CreditCard, BarChart3, Plus, Trash2, RotateCcw, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import billingService, { InvoiceStatus } from '../../services/billingService';
 import RecordPaymentForm from '../../components/Billing/RecordPaymentForm';
@@ -26,6 +26,8 @@ const getStatusColor = (status: InvoiceStatus | string | undefined) => {
       return 'bg-destructive/20 text-destructive border-destructive/30';
     case 'cancelled':
       return 'bg-muted/20 text-muted-foreground border-border/30';
+    case 'refunded':
+      return 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-400';
     default:
       return 'bg-muted/20 text-muted-foreground border-border/30';
   }
@@ -787,7 +789,7 @@ const InvoiceDetail: React.FC = () => {
                   </div>
                   <div className="flex flex-col items-end">
                     <div className={`px-4 py-2 rounded-full text-sm font-bold ${getStatusColor(invoice.status)} mb-1`}>
-                      {invoice.status === 'paid' ? 'FULLY PAID' : invoice.status === 'partial' ? 'PARTIALLY PAID' : 'UNPAID'}
+                      {invoice.status === 'paid' ? 'FULLY PAID' : invoice.status === 'partial' ? 'PARTIALLY PAID' : invoice.status === 'cancelled' ? 'CANCELLED' : invoice.status === 'refunded' ? 'REFUNDED' : 'UNPAID'}
                     </div>
                     {invoice.status === 'partial' && (
                       <div className="text-xs text-primary">
@@ -796,6 +798,24 @@ const InvoiceDetail: React.FC = () => {
                     )}
                   </div>
                 </div>
+
+                {invoice.notes && (
+                  <div className={`p-4 mb-6 rounded-xl border flex items-start gap-3 ${
+                    invoice.status === 'cancelled'
+                      ? 'bg-destructive/10 border-destructive/20 text-destructive'
+                      : invoice.status === 'refunded'
+                      ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400'
+                      : 'bg-muted border-border/40 text-muted-foreground'
+                  }`}>
+                    <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="font-bold block mb-0.5">
+                        {invoice.status === 'cancelled' ? 'Invoice Cancelled' : invoice.status === 'refunded' ? 'Invoice Refunded' : 'Invoice Notes'}
+                      </span>
+                      <p className="text-sm whitespace-pre-wrap leading-relaxed">{invoice.notes}</p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mb-8 text-sm">
                   <div>

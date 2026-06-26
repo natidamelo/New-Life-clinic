@@ -140,6 +140,10 @@ export interface UpdateInvoiceData {
   notes?: string;
   attachment?: string;
   status?: InvoiceStatus;
+  paymentTIN?: string;
+  paymentCustomerName?: string;
+  paymentMethod?: string;
+  invoiceNumber?: string;
 }
 
 export interface AddPaymentData {
