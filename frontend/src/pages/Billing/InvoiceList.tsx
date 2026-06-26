@@ -20,7 +20,7 @@ import billingService, { Invoice } from '../../services/billingService';
 import { safeArray } from '../../utils/formatters';
 import { useAuth } from '../../context/AuthContext';
 
-type StatusFilter = 'all' | 'pending' | 'partial' | 'overdue' | 'paid' | 'cancelled';
+type StatusFilter = 'all' | 'pending' | 'partial' | 'overdue' | 'paid' | 'cancelled' | 'refunded';
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string; row: string }> = {
   pending:   { label: 'Pending',   dot: 'bg-red-500',    badge: 'bg-red-100 text-red-700 border-red-200',     row: 'hover:bg-red-50/40' },
@@ -28,6 +28,7 @@ const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string;
   overdue:   { label: 'Overdue',   dot: 'bg-orange-500', badge: 'bg-orange-100 text-orange-700 border-orange-200', row: 'hover:bg-orange-50/40' },
   paid:      { label: 'Paid',      dot: 'bg-green-500',  badge: 'bg-green-100 text-green-700 border-green-200', row: 'hover:bg-green-50/30' },
   cancelled: { label: 'Cancelled', dot: 'bg-gray-400',   badge: 'bg-gray-100 text-gray-600 border-gray-200',   row: 'hover:bg-gray-50/40' },
+  refunded:  { label: 'Refunded',  dot: 'bg-amber-500',  badge: 'bg-amber-100 text-amber-700 border-amber-200', row: 'hover:bg-amber-50/40' },
   disputed:  { label: 'Disputed',  dot: 'bg-purple-500', badge: 'bg-purple-100 text-purple-700 border-purple-200', row: 'hover:bg-purple-50/40' },
 };
 
@@ -308,6 +309,7 @@ const InvoiceList: React.FC = () => {
     { key: 'overdue',  label: 'Overdue',  color: 'bg-orange-500' },
     { key: 'paid',     label: 'Paid',     color: 'bg-green-600' },
     { key: 'cancelled',label: 'Cancelled',color: 'bg-gray-400' },
+    { key: 'refunded', label: 'Refunded',  color: 'bg-amber-500' },
   ];
 
   return (
