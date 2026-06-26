@@ -1197,7 +1197,13 @@ const MedicalTestRequestForm: React.FC = () => {
 
             <div class="request-footer">
               <div class="signature-section" style="position: relative; display: flex; flex-direction: column; align-items: center;">
-                <div class="physician-signature">Dr. ${user?.firstName || ''} ${user?.lastName || ''}</div>
+                ${(user as any)?.digitalSignature ? `
+                  <div style="height: 30px; display: flex; align-items: center; justify-content: center; margin-bottom: -15px;">
+                    <img src="${(user as any).digitalSignature}" alt="Signature" style="max-height: 50px; max-width: 160px; object-fit: contain; transform: rotate(-1deg); margin-top: -15px;" />
+                  </div>
+                ` : `
+                  <div class="physician-signature">Dr. ${user?.firstName || ''} ${user?.lastName || ''}</div>
+                `}
                 <div class="signature-line"></div>
                 <div class="signature-label">Physician Signature & Stamp</div>
               </div>
