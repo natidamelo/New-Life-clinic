@@ -50,6 +50,17 @@ interface Analytics {
   }>;
 }
 
+const safeFormat = (dateInput: any, formatStr: string, fallback: string = '-') => {
+  if (!dateInput) return fallback;
+  try {
+    const parsedDate = typeof dateInput === 'string' ? parseISO(dateInput) : new Date(dateInput);
+    if (isNaN(parsedDate.getTime())) return fallback;
+    return format(parsedDate, formatStr);
+  } catch (e) {
+    return fallback;
+  }
+};
+
 const TimesheetDashboard: React.FC = () => {
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
   const [filteredTimesheets, setFilteredTimesheets] = useState<TimesheetEntry[]>([]);
@@ -173,9 +184,9 @@ const TimesheetDashboard: React.FC = () => {
       const headers = ['Employee','Department','Date','Clock In','Clock Out','Total Hours','Status'];
       const csvRows = [headers.join(',')];
       rows.forEach((ts) => {
-        const dateStr = ts.date ? format(parseISO(ts.date), 'yyyy-MM-dd') : '';
-        const cin = ts.clockIn?.time ? format(parseISO(ts.clockIn.time), 'HH:mm') : '';
-        const cout = ts.clockOut?.time ? format(parseISO(ts.clockOut.time), 'HH:mm') : '';
+        const dateStr = safeFormat(ts.date, 'yyyy-MM-dd', '');
+        const cin = safeFormat(ts.clockIn?.time, 'HH:mm', '');
+        const cout = safeFormat(ts.clockOut?.time, 'HH:mm', '');
         const total = `${Math.floor(ts.totalHours)}h ${Math.round((ts.totalHours - Math.floor(ts.totalHours)) * 60)}m`;
         const vals = [ts.userName, ts.userDepartment, dateStr, cin, cout, total, ts.status];
         const escaped = vals.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`);
@@ -563,20 +574,14 @@ const TimesheetDashboard: React.FC = () => {
         </div>
                           </TableCell>
                           <TableCell>{timesheet.userDepartment}</TableCell>
-                                                     <TableCell>
-                             {timesheet.date ? format(parseISO(timesheet.date), 'MMM dd, yyyy') : '-'}
-                           </TableCell>
                           <TableCell>
-                            {timesheet.clockIn?.time ? 
-                              format(parseISO(timesheet.clockIn.time), 'HH:mm') : 
-                              '-'
-                            }
+                            {safeFormat(timesheet.date, 'MMM dd, yyyy')}
                           </TableCell>
                           <TableCell>
-                            {timesheet.clockOut?.time ? 
-                              format(parseISO(timesheet.clockOut.time), 'HH:mm') : 
-                              '-'
-                            }
+                            {safeFormat(timesheet.clockIn?.time, 'HH:mm')}
+                          </TableCell>
+                          <TableCell>
+                            {safeFormat(timesheet.clockOut?.time, 'HH:mm')}
                           </TableCell>
                           <TableCell>
                             <div className="font-medium">{formatDuration(timesheet.totalHours)}</div>
@@ -678,9 +683,13 @@ const TimesheetDashboard: React.FC = () => {
                       if (ts.date) {
                         try {
                           const d = parseISO(ts.date);
-                          const dayName = dayNames[d.getDay()];
-                          dayHours[dayName] += ts.totalHours || 0;
-                          dayCounts[dayName]++;
+                          if (!isNaN(d.getTime())) {
+                            const dayName = dayNames[d.getDay()];
+                            if (dayName) {
+                              dayHours[dayName] = (dayHours[dayName] || 0) + (ts.totalHours || 0);
+                              dayCounts[dayName] = (dayCounts[dayName] || 0) + 1;
+                            }
+                          }
                         } catch (e) {}
                       }
                     });
