@@ -345,7 +345,7 @@ class StaffService {
   async getMonthlyAttendanceData(year?: number, month?: number, department?: string) {
     const params: any = {};
     if (year) params.year = year;
-    if (month) params.month = month;
+    if (month !== undefined && month !== null) params.month = month;
     if (department) params.department = department;
 
     console.log('🔍 [StaffService] Fetching monthly attendance data:', params);

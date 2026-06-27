@@ -445,7 +445,7 @@ router.get('/monthly-attendance', auth, async (req, res) => {
       for (let day = 1; day <= daysInMonth; day++) {
         const currentDate = new Date(targetYear, targetMonth, day);
         const dateKey = currentDate.toISOString().split('T')[0];
-        const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
+        const isWeekend = currentDate.getDay() === 0; // Only Sunday is weekend - Saturday is a working day
         const isFuture = currentDate > new Date();
         
         if (isWeekend) {
@@ -570,15 +570,15 @@ router.get('/monthly-attendance', auth, async (req, res) => {
       Object.values(staff.dailyAttendance).forEach(day => {
         if (day.status !== 'weekend' && day.status !== 'future') {
           totalDays++;
-          if (day.status === 'present' || day.status === 'overtime-checkin' || day.status === 'overtime-complete') {
+          if (day.status === 'present' || day.status === 'late' || day.status === 'partial' || day.status === 'early-clock-out' || day.status === 'overtime-checkin' || day.status === 'overtime-complete') {
             totalPresent++;
           } else if (day.status === 'absent') {
             totalAbsent++;
           }
-          if (day.isOvertime) {
+          if (day.isOvertime || day.status === 'overtime-checkin' || day.status === 'overtime-complete') {
             totalOvertime++;
           }
-          totalWorkHours += day.workHours;
+          totalWorkHours += day.workHours || 0;
         }
       });
     });
