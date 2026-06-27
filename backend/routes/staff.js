@@ -1852,4 +1852,70 @@ router.post('/clock-out', auth, async (req, res) => {
   }
 });
 
+// @route   PUT /api/staff/timesheets/:id/approve
+// @desc    Approve a timesheet
+// @access  Private (Admin only)
+router.put('/timesheets/:id/approve', auth, async (req, res) => {
+  try {
+    const Timesheet = require('../models/Timesheet');
+    
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to approve timesheets' });
+    }
+
+    const timesheet = await Timesheet.findById(req.params.id);
+    if (!timesheet) {
+      return res.status(404).json({ success: false, message: 'Timesheet not found' });
+    }
+
+    timesheet.status = 'approved';
+    timesheet.approvedBy = req.user.id;
+    timesheet.approvedAt = new Date();
+    await timesheet.save();
+
+    res.json({
+      success: true,
+      message: 'Timesheet approved successfully',
+      timesheet
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
+// @route   PUT /api/staff/timesheets/:id/reject
+// @desc    Reject a timesheet
+// @access  Private (Admin only)
+router.put('/timesheets/:id/reject', auth, async (req, res) => {
+  try {
+    const Timesheet = require('../models/Timesheet');
+    
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to reject timesheets' });
+    }
+
+    const { notes } = req.body;
+    const timesheet = await Timesheet.findById(req.params.id);
+    if (!timesheet) {
+      return res.status(404).json({ success: false, message: 'Timesheet not found' });
+    }
+
+    timesheet.status = 'rejected';
+    if (notes) {
+      timesheet.notes = notes;
+    }
+    await timesheet.save();
+
+    res.json({
+      success: true,
+      message: 'Timesheet rejected successfully',
+      timesheet
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = router;

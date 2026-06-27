@@ -62,7 +62,7 @@ export interface Timesheet {
   };
   totalWorkHours: number;
   totalBreakHours: number;
-  status: 'active' | 'completed' | 'pending';
+  status: 'active' | 'completed' | 'pending' | 'approved' | 'rejected';
   department: string;
   notes: string;
   createdAt: string;
@@ -563,6 +563,18 @@ class StaffService {
       params,
       responseType: 'blob'
     });
+    return response.data;
+  }
+
+  // Approve a timesheet
+  async approveTimesheet(id: string) {
+    const response = await api.put(`/api/staff/timesheets/${id}/approve`);
+    return response.data;
+  }
+
+  // Reject a timesheet
+  async rejectTimesheet(id: string, notes?: string) {
+    const response = await api.put(`/api/staff/timesheets/${id}/reject`, { notes });
     return response.data;
   }
 }
