@@ -80,6 +80,7 @@ const systemControlsMenuItems = [
 
 const doctorMenuItems = [
   { path: '/app/doctor', icon: DashboardIcon, label: 'Doctor Dashboard' },
+  { path: '/app/mch', icon: DashboardIcon, label: 'MCH Dashboard' },
   { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
   { path: '/app/ward/ipd', icon: PatientsIcon, label: 'IPD Management' },
   { path: '/app/doctor/patients', icon: PatientsIcon, label: 'My Patients' },

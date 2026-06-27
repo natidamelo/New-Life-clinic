@@ -45,6 +45,7 @@ const adminMenuItems = [
 
 const doctorMenuItems = [
   { path: '/app/doctor', icon: DashboardIcon, label: 'Doctor Dashboard' },
+  { path: '/app/mch', icon: DashboardIcon, label: 'MCH Dashboard' },
   { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
   { path: '/app/doctor/patients', icon: PatientsIcon, label: 'My Patients' },
   { path: '/app/doctor/consultations', icon: DocumentTextIcon, label: 'Consultations' },
