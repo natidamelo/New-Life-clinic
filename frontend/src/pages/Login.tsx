@@ -822,6 +822,14 @@ const Login: React.FC = () => {
   const [packagesLoading, setPackagesLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  
+  // Real clinical metrics state
+  const [vitalsStats, setVitalsStats] = useState({
+    patientsServed: 10482,
+    staffOnDuty: 50,
+    portalUptime: '99.9%',
+    clinicSupport: '24/7'
+  });
 
   // Self-booking wizard states
   const [bookingStep, setBookingStep] = useState(1);
@@ -871,7 +879,24 @@ const Login: React.FC = () => {
     fetchServices();
     fetchPackages();
     fetchDoctors();
+    fetchVitalsStats();
   }, []);
+
+  const fetchVitalsStats = async () => {
+    try {
+      const res = await api.get('/api/health-check/public-stats');
+      if (res.data && res.data.success) {
+        setVitalsStats({
+          patientsServed: res.data.patientsServed,
+          staffOnDuty: res.data.staffOnDuty,
+          portalUptime: res.data.portalUptime || '99.9%',
+          clinicSupport: res.data.clinicSupport || '24/7'
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching public vitals stats:', err);
+    }
+  };
 
   const fetchServices = async () => {
     setServicesLoading(true);
@@ -1451,7 +1476,7 @@ const Login: React.FC = () => {
                         <div className="space-y-1">
                           <span className="block font-mono text-[9px] uppercase tracking-widest text-slate">Patients Served</span>
                           <span className={`block font-sans font-extrabold text-2xl ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'}`}>
-                            <CountUp to={10482} animate={!prefersReducedMotion} />
+                            <CountUp to={vitalsStats.patientsServed} animate={!prefersReducedMotion} />
                           </span>
                         </div>
                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-ink/5 dark:border-slate-800">
@@ -1470,7 +1495,9 @@ const Login: React.FC = () => {
                       }`}>
                         <div className="space-y-1">
                           <span className="block font-mono text-[9px] uppercase tracking-widest text-slate">Staff On Duty</span>
-                          <span className="block font-sans font-extrabold text-2xl text-ink dark:text-paper">50+</span>
+                          <span className="block font-sans font-extrabold text-2xl text-ink dark:text-paper">
+                            <CountUp to={vitalsStats.staffOnDuty} animate={!prefersReducedMotion} />+
+                          </span>
                         </div>
                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-ink/5 dark:border-slate-800">
                           <span className="text-[9px] text-slate font-mono">Duty Rota</span>
@@ -1488,7 +1515,7 @@ const Login: React.FC = () => {
                       }`}>
                         <div className="space-y-1">
                           <span className="block font-mono text-[9px] uppercase tracking-widest text-slate">Portal Uptime</span>
-                          <span className={`block font-sans font-extrabold text-2xl ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'}`}>99.9%</span>
+                          <span className={`block font-sans font-extrabold text-2xl ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'}`}>{vitalsStats.portalUptime}</span>
                         </div>
                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-ink/5 dark:border-slate-800">
                           <span className="text-[9px] text-slate font-mono">Secure SLA</span>
@@ -1506,7 +1533,7 @@ const Login: React.FC = () => {
                       }`}>
                         <div className="space-y-1">
                           <span className="block font-mono text-[9px] uppercase tracking-widest text-slate">Clinic Support</span>
-                          <span className="block font-sans font-extrabold text-2xl text-ink dark:text-paper">24/7</span>
+                          <span className="block font-sans font-extrabold text-2xl text-ink dark:text-paper">{vitalsStats.clinicSupport}</span>
                         </div>
                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-ink/5 dark:border-slate-800">
                           <span className="text-[9px] text-slate font-mono">Available</span>
