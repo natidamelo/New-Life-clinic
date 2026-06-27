@@ -444,7 +444,7 @@ router.get('/monthly-attendance', auth, async (req, res) => {
       
       for (let day = 1; day <= daysInMonth; day++) {
         const currentDate = new Date(targetYear, targetMonth, day);
-        const dateKey = currentDate.toISOString().split('T')[0];
+        const dateKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
         const isWeekend = currentDate.getDay() === 0; // Only Sunday is weekend - Saturday is a working day
         const isFuture = currentDate > new Date();
         

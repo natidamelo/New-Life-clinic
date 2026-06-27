@@ -456,12 +456,12 @@ const StaffControlCenter: React.FC = () => {
     if (staff.dailyAttendance) {
       for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(year, month, day);
-        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+        const isWeekend = date.getDay() === 0;
         const isFuture = date > new Date();
         
         if (!isWeekend && !isFuture) {
           total++;
-          const dateKey = date.toISOString().split('T')[0];
+          const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
           const dayData = staff.dailyAttendance[dateKey];
           
           if (dayData) {
@@ -507,8 +507,6 @@ const StaffControlCenter: React.FC = () => {
 
   // Helper function to get attendance status for a specific date
   const getAttendanceStatus = (staff: any, date: Date) => {
-    const dateString = date.toDateString();
-    const isToday = dateString === new Date().toDateString();
     const isWeekend = date.getDay() === 0; // Saturday is working day, so only Sunday is weekend
     
     // Always mark weekends as weekend
@@ -516,14 +514,9 @@ const StaffControlCenter: React.FC = () => {
       return 'weekend';
     }
     
-    // For today, use the real status from the API
-    if (isToday) {
-      return staff.status;
-    }
-    
-    // For past dates, check if we have real data from the monthly API
+    // Check if we have real data from the monthly API
     if (staff.dailyAttendance) {
-      const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
       const dayData = staff.dailyAttendance[dateKey];
       
       if (dayData) {
@@ -1281,10 +1274,10 @@ const StaffControlCenter: React.FC = () => {
                                 const date = new Date(year, month, i + 1);
                                 const isToday = date.toDateString() === new Date().toDateString();
                                 const isWeekend = date.getDay() === 0;
-                                const isFuture = date > new Date();
+                                const isFuture = date > new Date() && !isToday;
                                 
                                 const attendanceStatus = getAttendanceStatus(staff, date);
-                                const dateKey = date.toISOString().split('T')[0];
+                                const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                                 const dayData = (staff as any).dailyAttendance ? (staff as any).dailyAttendance[dateKey] : null;
 
                                 let tooltipText = '';

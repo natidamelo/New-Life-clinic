@@ -1,5 +1,12 @@
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
+try {
+  dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+  console.log('✅ Custom DNS servers set for robust Atlas resolution');
+} catch (e) {
+  console.warn('⚠️ Failed to set custom DNS servers:', e.message);
+}
+
 
 const createApp = require('./app');
 const mongoose = require('mongoose');

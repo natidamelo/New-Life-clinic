@@ -129,6 +129,8 @@ router.post('/verify', auth, async (req, res) => {
   }
 });
 
+
+
 // @route   GET /api/qr/attendance/all/today
 // @desc    Get attendance for all users in staff service format for a specific date
 // @access  Private
