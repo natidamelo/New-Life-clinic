@@ -241,7 +241,7 @@ router.get('/prescriptions', async (req, res, next) => {
  */
 router.put('/profile', async (req, res, next) => {
   try {
-    const { contactNumber, email, address } = req.body;
+    const { contactNumber, email, address, profilePic } = req.body;
 
     const patient = await Patient.findById(req.user.patient);
     if (!patient) {
@@ -254,6 +254,7 @@ router.put('/profile', async (req, res, next) => {
     if (contactNumber) patient.contactNumber = contactNumber;
     if (email) patient.email = email.toLowerCase();
     if (address) patient.address = address;
+    if (profilePic !== undefined) patient.profilePic = profilePic;
 
     await patient.save();
 

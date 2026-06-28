@@ -46,6 +46,10 @@ const patientSchema = new mongoose.Schema({
     trim: true,
     lowercase: true
   },
+  profilePic: {
+    type: String,
+    required: false
+  },
   address: {
     type: mongoose.Schema.Types.Mixed,
     default: {

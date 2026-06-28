@@ -9,7 +9,7 @@ import {
   Activity, User, Clipboard, Heart, LogOut, Moon, Sun, 
   MapPin, Phone, Mail, Award, CheckCircle2, AlertCircle, 
   Lock, Edit3, Save, ChevronRight, FileText, Pill, FileSpreadsheet,
-  Stethoscope
+  Stethoscope, Camera
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, 
@@ -24,6 +24,7 @@ interface PatientData {
   gender: string;
   contactNumber: string;
   email: string;
+  profilePic?: string;
   address: any;
   bloodType?: string;
   allergies?: Array<{ allergen: string; reaction: string; severity: string }>;
@@ -196,6 +197,36 @@ const PatientDashboard: React.FC = () => {
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to update contact info.');
     }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (limit to 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image size must be less than 2MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64String = reader.result as string;
+      try {
+        toast.loading('Uploading profile photo...', { id: 'avatar-upload' });
+        const res = await api.put('/api/patient-portal/profile', { profilePic: base64String });
+        if (res.data.success) {
+          setPatient(res.data.data);
+          toast.success('Profile photo updated successfully!', { id: 'avatar-upload' });
+        }
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Failed to upload photo.', { id: 'avatar-upload' });
+      }
+    };
+    reader.onerror = () => {
+      toast.error('Failed to read image file.');
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleLogout = async () => {
@@ -424,13 +455,46 @@ const PatientDashboard: React.FC = () => {
         
         {/* Patient quick badge & welcome */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Hello, {patient?.firstName}
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              Fayda ID: <span className="font-semibold">{patient?.faydaId || 'N/A'}</span> • Patient Card ID: <span className="font-semibold">{patient?.patientId}</span>
-            </p>
+          <div className="flex items-center gap-4">
+            {/* Avatar Group */}
+            <div className="relative group shrink-0">
+              <div className={`h-16 w-16 sm:h-20 sm:w-20 rounded-full overflow-hidden border-2 flex items-center justify-center font-extrabold text-lg sm:text-xl shadow-md transition-all ${
+                isDarkMode 
+                  ? 'bg-slate-900 border-slate-800 text-cyan-400' 
+                  : 'bg-white border-slate-200 text-teal-700'
+              }`}>
+                {patient?.profilePic ? (
+                  <img 
+                    src={patient.profilePic} 
+                    alt="Profile" 
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span>
+                    {(patient?.firstName?.[0] || '') + (patient?.lastName?.[0] || '')}
+                  </span>
+                )}
+              </div>
+              {/* Upload Overlay */}
+              <label className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 opacity-0 group-hover:opacity-100 cursor-pointer transition-all duration-200">
+                <Camera className="h-5 w-5 text-white" />
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleAvatarUpload} 
+                  className="hidden" 
+                />
+              </label>
+            </div>
+
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                Hello, {patient?.firstName}
+              </h1>
+              <p className="text-xs text-slate-500 mt-1">
+                Fayda ID: <span className="font-semibold">{patient?.faydaId || 'N/A'}</span> • Patient Card ID: <span className="font-semibold">{patient?.patientId}</span>
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
