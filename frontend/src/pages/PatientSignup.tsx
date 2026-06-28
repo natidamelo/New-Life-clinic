@@ -38,6 +38,8 @@ const PatientSignupSchema = Yup.object().shape({
   confirmPassword: Yup.string()
     .oneOf([Yup.ref('password')], 'Passwords must match')
     .required('Confirm password is required'),
+  patientCardId: Yup.string()
+    .optional(),
 });
 
 const PatientSignup: React.FC = () => {
@@ -55,6 +57,7 @@ const PatientSignup: React.FC = () => {
       dateOfBirth: '',
       password: '',
       confirmPassword: '',
+      patientCardId: '',
     },
     validationSchema: PatientSignupSchema,
     onSubmit: async (values) => {
@@ -162,6 +165,32 @@ const PatientSignup: React.FC = () => {
           </div>
 
           <form onSubmit={formik.handleSubmit} className="space-y-6">
+            {/* Patient Card ID (Optional) */}
+            <div className="space-y-1.5 p-4 rounded-2xl border transition-all duration-200" style={{
+              borderColor: isDarkMode ? 'rgba(148,163,184,0.1)' : 'rgba(226,232,240,0.8)',
+              background: isDarkMode ? 'rgba(15,23,42,0.3)' : 'rgba(248,250,252,0.4)',
+            }}>
+              <label className={`block text-[11px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                Existing Patient Card ID (Optional)
+              </label>
+              <p className="text-[10px] text-slate-500 mb-2">
+                If you already have a clinic card, enter your Card ID (e.g. P12345-6789) to link your clinical history.
+              </p>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400">
+                  <Activity className="h-4 w-4" />
+                </span>
+                <input
+                  name="patientCardId"
+                  type="text"
+                  placeholder="e.g. P12345-6789"
+                  {...formik.getFieldProps('patientCardId')}
+                  style={inputStyle}
+                  className="w-full h-11 pl-9 pr-4 text-xs rounded-xl outline-none focus:ring-2 focus:ring-teal-500/20 uppercase"
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {/* First Name */}
               <div className="space-y-1.5">

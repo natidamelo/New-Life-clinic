@@ -380,10 +380,10 @@ const authController = {
    */
   patientRegister: async (req, res, next) => {
     try {
-      const { firstName, lastName, email, password, contactNumber, gender, dateOfBirth } = req.body;
+      const { firstName, lastName, email, password, contactNumber, gender, dateOfBirth, patientCardId } = req.body;
       const clinicId = req.body.clinicId || req.headers['x-clinic-id'] || 'default';
 
-      logger.info('Patient registration attempt', { firstName, lastName, email, contactNumber });
+      logger.info('Patient registration attempt', { firstName, lastName, email, contactNumber, patientCardId });
 
       if (!firstName || !lastName || !email || !password || !contactNumber || !gender) {
         return res.status(400).json({
@@ -410,18 +410,33 @@ const authController = {
         });
       }
 
-      // Find or create Patient record
-      let patient = await Patient.findOne({
-        clinicId,
-        $or: [
-          { email: email.toLowerCase() },
-          { contactNumber: contactNumber }
-        ]
-      }).setOptions({ skipTenantScope: true });
+      let patient = null;
 
-      if (patient) {
-        logger.info('Existing clinic patient record found, linking account', { patientId: patient._id });
-        // Update patient info if empty
+      // 1. If Patient Card ID is provided, try to find by that ID first
+      if (patientCardId && patientCardId.trim()) {
+        const normalizedCardId = patientCardId.trim();
+        // Try exact match in Patient model using standard id checking
+        patient = await Patient.findByAnyId(normalizedCardId);
+        
+        if (!patient) {
+          return res.status(400).json({
+            success: false,
+            message: `Clinical Patient record with Card ID "${normalizedCardId}" was not found. Please double-check the ID or leave the field blank if you do not have one.`
+          });
+        }
+
+        // Verify if a user is already linked to this patient record
+        const alreadyLinkedUser = await User.findOne({ patient: patient._id }).setOptions({ skipTenantScope: true });
+        if (alreadyLinkedUser) {
+          return res.status(400).json({
+            success: false,
+            message: 'This Patient Card is already linked to an existing portal account. Please sign in or reset your password.'
+          });
+        }
+
+        logger.info('Linked user signup to existing patient record via Patient Card ID', { patientId: patient._id, patientCardId: normalizedCardId });
+        
+        // Update contact number / email on patient if empty
         let updated = false;
         if (!patient.email && email) {
           patient.email = email.toLowerCase();
@@ -431,18 +446,50 @@ const authController = {
           await patient.save();
         }
       } else {
-        logger.info('No existing patient record found, creating a new one');
-        patient = new Patient({
+        // 2. If no Patient Card ID is provided, search by email or contactNumber
+        patient = await Patient.findOne({
           clinicId,
-          firstName,
-          lastName,
-          gender,
-          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
-          contactNumber,
-          email: email.toLowerCase(),
-          status: 'Outpatient'
-        });
-        await patient.save();
+          $or: [
+            { email: email.toLowerCase() },
+            { contactNumber: contactNumber }
+          ]
+        }).setOptions({ skipTenantScope: true });
+
+        if (patient) {
+          // Verify if a user is already linked to this patient record
+          const alreadyLinkedUser = await User.findOne({ patient: patient._id }).setOptions({ skipTenantScope: true });
+          if (alreadyLinkedUser) {
+            return res.status(400).json({
+              success: false,
+              message: 'A portal account is already linked to your email or phone number. Please sign in.'
+            });
+          }
+
+          logger.info('Existing clinic patient record found by email/phone, linking account', { patientId: patient._id });
+          // Update patient info if empty
+          let updated = false;
+          if (!patient.email && email) {
+            patient.email = email.toLowerCase();
+            updated = true;
+          }
+          if (updated) {
+            await patient.save();
+          }
+        } else {
+          // 3. Create a new patient record
+          logger.info('No existing patient record found, creating a new one');
+          patient = new Patient({
+            clinicId,
+            firstName,
+            lastName,
+            gender,
+            dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+            contactNumber,
+            email: email.toLowerCase(),
+            status: 'Outpatient'
+          });
+          await patient.save();
+        }
       }
 
       // Create new patient user
