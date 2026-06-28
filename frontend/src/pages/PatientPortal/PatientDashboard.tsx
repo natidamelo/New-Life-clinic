@@ -928,6 +928,9 @@ const PatientDashboard: React.FC = () => {
                                 const medDetails = task.medicationDetails;
                                 const totalDoses = medDetails?.doseRecords?.length || 0;
                                 const givenDoses = medDetails?.doseRecords?.filter((r: any) => r.administered).length || 0;
+                                const isAllGiven = totalDoses > 0 && givenDoses === totalDoses;
+                                const displayStatus = isAllGiven ? 'COMPLETED' : task.status;
+
                                 return (
                                   <tr key={idx} className={`${isDarkMode ? 'hover:bg-slate-800/10' : 'hover:bg-slate-55/50'} transition-all`}>
                                     <td className="px-4 py-3.5">
@@ -955,11 +958,11 @@ const PatientDashboard: React.FC = () => {
                                     </td>
                                     <td className="px-4 py-3.5 whitespace-nowrap">
                                       <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border ${
-                                        task.status === 'PENDING'
+                                        displayStatus === 'PENDING'
                                           ? 'bg-amber-500/10 border-amber-500/20 text-amber-500 animate-pulse'
                                           : 'bg-green-500/10 border-green-500/20 text-green-500'
                                       }`}>
-                                        {task.status}
+                                        {displayStatus}
                                       </span>
                                     </td>
                                   </tr>
