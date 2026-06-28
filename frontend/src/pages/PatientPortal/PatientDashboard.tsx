@@ -203,25 +203,56 @@ const PatientDashboard: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (limit to 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('Image size must be less than 2MB.');
-      return;
-    }
-
     const reader = new FileReader();
-    reader.onload = async () => {
-      const base64String = reader.result as string;
-      try {
-        toast.loading('Uploading profile photo...', { id: 'avatar-upload' });
-        const res = await api.put('/api/patient-portal/profile', { profilePic: base64String });
-        if (res.data.success) {
-          setPatient(res.data.data);
-          toast.success('Profile photo updated successfully!', { id: 'avatar-upload' });
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = async () => {
+        // Create canvas for compression
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 400;
+        const MAX_HEIGHT = 400;
+        let width = img.width;
+        let height = img.height;
+
+        // Scale preserving aspect ratio
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
         }
-      } catch (error: any) {
-        toast.error(error.response?.data?.message || 'Failed to upload photo.', { id: 'avatar-upload' });
-      }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // Compress to JPEG with 0.8 quality (reduces size from 5-10MB to ~50KB!)
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+          
+          try {
+            toast.loading('Uploading profile photo...', { id: 'avatar-upload' });
+            const res = await api.put('/api/patient-portal/profile', { profilePic: compressedBase64 });
+            if (res.data.success) {
+              setPatient(res.data.data);
+              toast.success('Profile photo updated successfully!', { id: 'avatar-upload' });
+            }
+          } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Failed to upload photo.', { id: 'avatar-upload' });
+          }
+        } else {
+          toast.error('Failed to create image canvas.');
+        }
+      };
+      img.onerror = () => {
+        toast.error('Failed to load image file.');
+      };
+      img.src = reader.result as string;
     };
     reader.onerror = () => {
       toast.error('Failed to read image file.');
