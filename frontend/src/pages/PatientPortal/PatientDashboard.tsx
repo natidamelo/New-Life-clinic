@@ -892,164 +892,164 @@ const PatientDashboard: React.FC = () => {
             )}
 
             {/* Medications Tab */}
-            {activeTab === 'medications' && (
-              <div className="space-y-8">
-                <div>
-                  <h2 className="text-lg font-extrabold">My Medications & Injections</h2>
-                  <p className="text-xs text-slate-500">View your active prescriptions and clinic-administered treatments</p>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Column 1: Clinic Injections & Infusions */}
-                  <div className="space-y-4">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                      <Activity className="h-4 w-4 text-rose-500 animate-pulse" /> Clinic Administered Treatments
-                    </h3>
-                    
-                    {treatments && treatments.length > 0 ? (
-                      <div className="space-y-4">
-                        {treatments.map((task, idx) => {
-                          const medDetails = task.medicationDetails;
-                          const totalDoses = medDetails?.doseRecords?.length || 0;
-                          const givenDoses = medDetails?.doseRecords?.filter((r: any) => r.administered).length || 0;
-                          
-                          return (
-                            <div key={idx} className={`border p-5 rounded-3xl flex flex-col justify-between gap-4 transition-all ${
-                              isDarkMode ? 'bg-slate-900/30 border-slate-800' : 'bg-white border-slate-200'
-                            }`}>
-                              <div className="space-y-2 text-xs">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-bold uppercase border ${
-                                    task.status === 'PENDING'
-                                      ? 'bg-amber-500/10 border-amber-500/20 text-amber-500 animate-pulse'
-                                      : 'bg-green-500/10 border-green-500/20 text-green-500'
-                                  }`}>
-                                    {task.status}
-                                  </span>
-                                  {medDetails?.route && (
-                                    <span className="px-2.5 py-0.5 rounded-lg text-[9px] font-bold uppercase border border-slate-700/25 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
-                                      {medDetails.route}
-                                    </span>
-                                  )}
-                                  {totalDoses > 0 && (
-                                    <span className="px-2.5 py-0.5 rounded-lg text-[9px] font-bold uppercase border border-teal-500/20 bg-teal-500/5 text-teal-500">
-                                      Doses: {givenDoses} of {totalDoses} given
-                                    </span>
-                                  )}
-                                </div>
-                                <h4 className="font-extrabold text-sm text-slate-800 dark:text-white">{medDetails?.medicationName || task.description}</h4>
-                                {medDetails?.dosage && (
-                                  <p className="text-slate-500 font-semibold text-xs">Dosage: {medDetails.dosage} • {medDetails.frequency || 'Once'}</p>
-                                )}
-                                {medDetails?.instructions && (
-                                  <p className="text-[11px] text-slate-400 leading-relaxed italic bg-slate-50 dark:bg-slate-900/40 p-2.5 rounded-xl border border-slate-700/5">
-                                    Instructions: {medDetails.instructions}
-                                  </p>
-                                )}
-                              </div>
-                              
-                              <div className="border-t border-slate-700/10 pt-3 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                                <span>
-                                  Due: <span className="font-bold">{new Date(task.dueDate || task.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                                </span>
-                                {task.assignedToName && (
-                                  <span>Assigned Nurse: <span className="font-bold text-slate-700 dark:text-slate-300">{task.assignedToName}</span></span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className={`border p-6 rounded-3xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
-                        No scheduled in-clinic medications or injections.
-                      </div>
-                    )}
+            {activeTab === 'medications' && (() => {
+              const takeHomePrescriptions = prescriptions.filter(rx => !rx.sendToNurse);
+              
+              return (
+                <div className="space-y-8">
+                  <div>
+                    <h2 className="text-lg font-extrabold">My Medications & Injections</h2>
+                    <p className="text-xs text-slate-500">View your active prescriptions and clinic-administered treatments</p>
                   </div>
 
-                  {/* Column 2: Prescribed / Take-Home Medications */}
-                  <div className="space-y-4">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                      <Pill className="h-4 w-4 text-teal-500" /> Prescribed Medications (Take-Home)
-                    </h3>
-                    
-                    {prescriptions && prescriptions.length > 0 ? (
-                      <div className="space-y-4">
-                        {prescriptions.map((rx, idx) => {
-                          const medList = rx.medications && rx.medications.length > 0 ? rx.medications : [{
-                            name: rx.medicationName || rx.medication,
-                            dosage: rx.dosage,
-                            frequency: rx.frequency,
-                            route: rx.route,
-                            notes: rx.instructions || rx.notes
-                          }];
-
-                          return (
-                            <div key={idx} className={`border p-5 rounded-3xl space-y-4 transition-all ${
-                              isDarkMode ? 'bg-slate-900/30 border-slate-800' : 'bg-white border-slate-200'
-                            }`}>
-                              {/* Rx Header */}
-                              <div className="flex justify-between items-start pb-2 border-b border-slate-700/10">
-                                <div>
-                                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Prescription Date</span>
-                                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                                    {new Date(rx.datePrescribed || rx.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
-                                  </span>
-                                </div>
-                                <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-bold uppercase border ${
-                                  rx.status === 'Active' || rx.status === 'Completed'
-                                    ? 'bg-green-500/10 border-green-500/20 text-green-500'
-                                    : rx.status === 'Cancelled'
-                                      ? 'bg-red-500/10 border-red-500/20 text-red-500'
-                                      : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
-                                }`}>
-                                  {rx.status}
-                                </span>
-                              </div>
-
-                              {/* Rx Medications */}
-                              <div className="space-y-3.5">
-                                {medList.map((med: any, i: number) => (
-                                  <div key={i} className="space-y-1 text-xs">
-                                    <div className="flex items-center gap-2">
-                                      <h4 className="font-extrabold text-slate-800 dark:text-white">{med.name}</h4>
-                                      {med.route && (
-                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-bold border border-slate-700/15 text-slate-400 dark:text-slate-500 capitalize">
-                                          {med.route}
-                                        </span>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Column 1: Clinic Injections & Infusions */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                        <Activity className="h-4 w-4 text-rose-500 animate-pulse" /> Clinic Administered Treatments
+                      </h3>
+                      
+                      {treatments && treatments.length > 0 ? (
+                        <div className="overflow-x-auto rounded-3xl border border-slate-700/10">
+                          <table className="w-full text-xs text-left">
+                            <thead className={`text-[10px] uppercase font-bold tracking-wider ${
+                              isDarkMode ? 'bg-slate-900 text-slate-400 border-slate-800' : 'bg-slate-50 text-slate-500 border-slate-200'
+                            } border-b`}>
+                              <tr>
+                                <th className="px-4 py-3">Treatment / Medication</th>
+                                <th className="px-4 py-3">Dosage & Route</th>
+                                <th className="px-4 py-3 text-center">Progress</th>
+                                <th className="px-4 py-3">Nurse & Due Date</th>
+                                <th className="px-4 py-3">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-700/10">
+                              {treatments.map((task, idx) => {
+                                const medDetails = task.medicationDetails;
+                                const totalDoses = medDetails?.doseRecords?.length || 0;
+                                const givenDoses = medDetails?.doseRecords?.filter((r: any) => r.administered).length || 0;
+                                return (
+                                  <tr key={idx} className={`${isDarkMode ? 'hover:bg-slate-800/10' : 'hover:bg-slate-55/50'} transition-all`}>
+                                    <td className="px-4 py-3.5">
+                                      <span className="font-extrabold text-slate-800 dark:text-white block">{medDetails?.medicationName || task.description}</span>
+                                      {medDetails?.instructions && (
+                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5 leading-relaxed">{medDetails.instructions}</span>
                                       )}
-                                    </div>
-                                    <p className="text-slate-500 font-semibold text-xs">{med.dosage} • {med.frequency}</p>
-                                    {med.notes && (
-                                      <p className="text-[11px] text-slate-400 leading-relaxed italic bg-slate-50 dark:bg-slate-900/40 p-2.5 rounded-xl border border-slate-700/5">
-                                        Instructions: {med.notes}
-                                      </p>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
+                                    </td>
+                                    <td className="px-4 py-3.5 font-medium whitespace-nowrap">
+                                      <span className="block">{medDetails?.dosage || '1 unit'}</span>
+                                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5 capitalize">{medDetails?.route || 'Intravenous'}</span>
+                                    </td>
+                                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                                      <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-teal-500/10 text-teal-500 border border-teal-500/20">
+                                        {givenDoses} of {totalDoses} Given
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3.5 whitespace-nowrap">
+                                      <span className="block font-medium">
+                                        {new Date(task.dueDate || task.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                                      </span>
+                                      {task.assignedToName && (
+                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">Nurse: {task.assignedToName}</span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-3.5 whitespace-nowrap">
+                                      <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border ${
+                                        task.status === 'PENDING'
+                                          ? 'bg-amber-500/10 border-amber-500/20 text-amber-500 animate-pulse'
+                                          : 'bg-green-500/10 border-green-500/20 text-green-500'
+                                      }`}>
+                                        {task.status}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className={`border p-6 rounded-3xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
+                          No scheduled clinic medications or injections on record.
+                        </div>
+                      )}
+                    </div>
 
-                              {/* Rx Footer */}
-                              <div className="pt-2 text-[10px] text-slate-500 flex items-center justify-between">
-                                {rx.doctor && (
-                                  <span>Prescribed By: <span className="font-bold text-slate-700 dark:text-slate-300">Dr. {rx.doctor.lastName}</span></span>
-                                )}
-                                <span>Refills: <span className="font-bold">{rx.refills || 0}</span></span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className={`border p-6 rounded-3xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
-                        No take-home medications or prescriptions on file.
-                      </div>
-                    )}
+                    {/* Column 2: Prescribed / Take-Home Medications */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                        <Pill className="h-4 w-4 text-teal-500" /> Prescribed Medications (Take-Home)
+                      </h3>
+                      
+                      {takeHomePrescriptions && takeHomePrescriptions.length > 0 ? (
+                        <div className="overflow-x-auto rounded-3xl border border-slate-700/10">
+                          <table className="w-full text-xs text-left">
+                            <thead className={`text-[10px] uppercase font-bold tracking-wider ${
+                              isDarkMode ? 'bg-slate-900 text-slate-400 border-slate-800' : 'bg-slate-50 text-slate-500 border-slate-200'
+                            } border-b`}>
+                              <tr>
+                                <th className="px-4 py-3">Prescribed Meds</th>
+                                <th className="px-4 py-3">Dosage & Route</th>
+                                <th className="px-4 py-3">Date & Doctor</th>
+                                <th className="px-4 py-3">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-700/10">
+                              {takeHomePrescriptions.map((rx, idx) => {
+                                const medList = rx.medications && rx.medications.length > 0 ? rx.medications : [{
+                                  name: rx.medicationName || rx.medication,
+                                  dosage: rx.dosage,
+                                  frequency: rx.frequency,
+                                  route: rx.route,
+                                  notes: rx.instructions || rx.notes
+                                }];
+                                return medList.map((med: any, i: number) => (
+                                  <tr key={`${idx}-${i}`} className={`${isDarkMode ? 'hover:bg-slate-800/10' : 'hover:bg-slate-50/50'} transition-all`}>
+                                    <td className="px-4 py-3.5">
+                                      <span className="font-extrabold text-slate-800 dark:text-white block">{med.name}</span>
+                                      {med.notes && (
+                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5 leading-relaxed">{med.notes}</span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-3.5 font-medium whitespace-nowrap">
+                                      <span className="block">{med.dosage} • {med.frequency}</span>
+                                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5 capitalize">{med.route || 'Oral'}</span>
+                                    </td>
+                                    <td className="px-4 py-3.5 whitespace-nowrap">
+                                      <span className="block font-medium">
+                                        {new Date(rx.datePrescribed || rx.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                                      </span>
+                                      {rx.doctor && (
+                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">Dr. {rx.doctor.lastName}</span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-3.5 whitespace-nowrap">
+                                      <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border ${
+                                        rx.status === 'Active' || rx.status === 'Completed'
+                                          ? 'bg-green-500/10 border-green-500/20 text-green-500'
+                                          : rx.status === 'Cancelled'
+                                            ? 'bg-red-500/10 border-red-500/20 text-red-500'
+                                            : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
+                                      }`}>
+                                        {rx.status}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ));
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className={`border p-6 rounded-3xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
+                          No take-home medications or prescriptions on file.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-
-              </div>
-            )}
+              );
+            })()}
 
             {/* Recommendations Tab */}
             {activeTab === 'records' && (
