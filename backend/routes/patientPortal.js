@@ -63,14 +63,78 @@ router.get('/profile', async (req, res, next) => {
  */
 router.get('/vitals', async (req, res, next) => {
   try {
-    const vitalsList = await VitalSigns.find({
+    // 1. Fetch from standalone VitalSigns collection
+    const standaloneVitals = await VitalSigns.find({
       patientId: req.user.patient,
       isActive: true
     }).sort({ measurementDate: -1 });
 
+    const formattedStandalone = standaloneVitals.map(v => ({
+      systolic: v.systolic,
+      diastolic: v.diastolic,
+      pulse: v.pulse,
+      temperature: v.temperature,
+      weight: v.weight,
+      height: v.height,
+      bmi: v.bmi,
+      spo2: v.spo2,
+      respiratoryRate: v.respiratoryRate,
+      bloodSugar: v.bloodSugar,
+      notes: v.notes,
+      measuredByName: v.measuredByName || 'Clinical Nurse',
+      measurementDate: v.measurementDate
+    }));
+
+    // 2. Fetch from MedicalRecord consult vital signs
+    const medicalRecords = await MedicalRecord.find({
+      patient: req.user.patient
+    }).populate('doctorId', 'firstName lastName').sort({ visitDate: -1 });
+
+    const recordVitals = [];
+    for (const record of medicalRecords) {
+      if (record.vitalSigns && (record.vitalSigns.bloodPressure || record.vitalSigns.temperature || record.vitalSigns.heartRate)) {
+        // Parse BP (e.g. "120/80")
+        let systolic = undefined;
+        let diastolic = undefined;
+        if (record.vitalSigns.bloodPressure) {
+          const parts = record.vitalSigns.bloodPressure.split('/');
+          if (parts.length === 2) {
+            systolic = parseFloat(parts[0]);
+            diastolic = parseFloat(parts[1]);
+          }
+        }
+
+        // Parse temperature (convert Fahrenheit > 45 to Celsius)
+        let temp = record.vitalSigns.temperature ? parseFloat(record.vitalSigns.temperature) : undefined;
+        if (temp && temp > 45) {
+          temp = Math.round(((temp - 32) * 5 / 9) * 10) / 10;
+        }
+
+        recordVitals.push({
+          systolic,
+          diastolic,
+          pulse: record.vitalSigns.heartRate ? parseFloat(record.vitalSigns.heartRate) : undefined,
+          temperature: temp,
+          weight: record.vitalSigns.weight ? parseFloat(record.vitalSigns.weight) : undefined,
+          height: record.vitalSigns.height ? parseFloat(record.vitalSigns.height) : undefined,
+          bmi: record.vitalSigns.bmi ? parseFloat(record.vitalSigns.bmi) : undefined,
+          spo2: record.vitalSigns.oxygenSaturation ? parseFloat(record.vitalSigns.oxygenSaturation) : undefined,
+          respiratoryRate: record.vitalSigns.respiratoryRate ? parseFloat(record.vitalSigns.respiratoryRate) : undefined,
+          measuredByName: record.doctorName || (record.doctorId ? `Dr. ${record.doctorId.lastName}` : 'Consulting Physician'),
+          measurementDate: record.visitDate,
+          notes: record.notes || 'Recorded during consultation'
+        });
+      }
+    }
+
+    // 3. Merge both lists and sort by date descending
+    const allVitals = [...formattedStandalone, ...recordVitals].sort((a, b) => 
+      new Date(b.measurementDate).getTime() - new Date(a.measurementDate).getTime()
+    );
+
     res.status(200).json({
       success: true,
-      data: vitalsList
+      data: allVitals
     });
   } catch (error) {
     logger.error('Failed to fetch patient portal vitals', { error: error.message });

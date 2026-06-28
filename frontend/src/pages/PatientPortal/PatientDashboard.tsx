@@ -30,6 +30,19 @@ interface PatientData {
   emergencyContact?: { name: string; relationship: string; contactNumber: string };
   faydaId?: string;
   nextCheckup?: string;
+  medications?: Array<{
+    name: string;
+    dosage?: string;
+    frequency?: string;
+    route?: string;
+    prescribedBy?: string;
+  }>;
+  medicalHistory?: Array<{
+    condition?: string;
+    diagnosis?: string;
+    diagnosedDate?: string;
+    notes?: string;
+  }>;
 }
 
 interface VitalSignsData {
@@ -400,6 +413,73 @@ const PatientDashboard: React.FC = () => {
                     ) : (
                       <div className={`border p-6 rounded-2xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
                         No finalized medical records available.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Active Medications */}
+                  <div className="space-y-3 mt-6">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                      <Pill className="h-4 w-4 text-teal-500" /> Active Medications
+                    </h3>
+                    {patient?.medications && patient.medications.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {patient.medications.map((med, idx) => (
+                          <div key={idx} className={`border p-4 rounded-2xl flex items-start gap-3 ${
+                            isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'
+                          }`}>
+                            <div className="p-2 rounded-lg bg-teal-500/10 text-teal-500 shrink-0">
+                              <Pill className="h-4 w-4" />
+                            </div>
+                            <div className="space-y-0.5 text-xs">
+                              <p className="font-extrabold">{med.name}</p>
+                              <p className="text-slate-500 font-semibold">{med.dosage} • {med.frequency}</p>
+                              {med.prescribedBy && (
+                                <p className="text-[10px] text-slate-400 font-medium">Prescribed by: {med.prescribedBy}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className={`border p-4 rounded-2xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
+                        No active medications registered.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Past History */}
+                  <div className="space-y-3 mt-6">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                      <Clipboard className="h-4 w-4 text-cyan-500" /> Past Medical History
+                    </h3>
+                    {patient?.medicalHistory && patient.medicalHistory.length > 0 ? (
+                      <div className="space-y-3">
+                        {patient.medicalHistory.map((hist, idx) => (
+                          <div key={idx} className={`border p-4 rounded-2xl flex flex-col sm:flex-row justify-between gap-3 ${
+                            isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'
+                          }`}>
+                            <div className="space-y-1 text-xs">
+                              <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border bg-cyan-500/10 border-cyan-500/25 text-cyan-400`}>
+                                {hist.condition || 'Condition'}
+                              </span>
+                              <p className="font-extrabold mt-1">{hist.diagnosis}</p>
+                              {hist.notes && <p className="text-[11px] text-slate-500 italic mt-1">"{hist.notes}"</p>}
+                            </div>
+                            {hist.diagnosedDate && (
+                              <div className="text-right shrink-0">
+                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Diagnosed Date</span>
+                                <span className="text-xs font-semibold text-slate-500">
+                                  {new Date(hist.diagnosedDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className={`border p-4 rounded-2xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
+                        No past medical history recorded.
                       </div>
                     )}
                   </div>
