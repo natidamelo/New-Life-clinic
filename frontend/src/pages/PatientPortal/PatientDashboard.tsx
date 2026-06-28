@@ -475,16 +475,16 @@ const PatientDashboard: React.FC = () => {
                   </span>
                 )}
               </div>
-              {/* Upload Overlay */}
-              <label className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 opacity-0 group-hover:opacity-100 cursor-pointer transition-all duration-200">
+              {/* Upload Hover Overlay */}
+              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none">
                 <Camera className="h-5 w-5 text-white" />
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleAvatarUpload} 
-                  className="hidden" 
-                />
-              </label>
+              </div>
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleAvatarUpload} 
+                className="absolute inset-0 opacity-0 cursor-pointer rounded-full z-20" 
+              />
             </div>
 
             <div>
