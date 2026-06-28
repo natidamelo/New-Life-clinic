@@ -571,15 +571,26 @@ const authController = {
 
       logger.info('Safe patient demographics returned for registration autofill', { patientId: patient._id });
 
+      let calculatedDob = '';
+      if (patient.dateOfBirth) {
+        calculatedDob = new Date(patient.dateOfBirth).toISOString().split('T')[0];
+      } else if (patient.age !== undefined && patient.age !== null) {
+        // Approximate date of birth from age (Jan 1st of birth year)
+        const birthYear = new Date().getFullYear() - patient.age;
+        calculatedDob = `${birthYear}-01-01`;
+      }
+
+      const cleanEmail = patient.email ? patient.email.replace(/\s+/g, '').toLowerCase() : '';
+
       res.status(200).json({
         success: true,
         data: {
           firstName: patient.firstName,
           lastName: patient.lastName,
-          email: patient.email || '',
+          email: cleanEmail,
           contactNumber: patient.contactNumber || '',
           gender: patient.gender || '',
-          dateOfBirth: patient.dateOfBirth ? new Date(patient.dateOfBirth).toISOString().split('T')[0] : ''
+          dateOfBirth: calculatedDob
         }
       });
     } catch (error) {
