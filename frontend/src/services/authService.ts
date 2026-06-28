@@ -403,6 +403,43 @@ class AuthService {
   }
 
   /**
+   * Register a new patient
+   */
+  public async registerPatient(data: any): Promise<AuthResponse> {
+    try {
+      console.log('🔄 [AuthService] Attempting patient registration...');
+      
+      const response = await api.post('/api/auth/patient/register', data, { skipAuth: true } as any);
+      
+      if (response.data.success && response.data.data) {
+        const { user, token, patient } = response.data.data;
+        
+        setClinicTenantId(user.clinicId || 'default');
+        
+        // Store authentication data
+        this.setToken(token);
+        this.setUser(user);
+        
+        // Store patient details in localStorage
+        localStorage.setItem('patient_details', JSON.stringify(patient));
+        
+        // Set up token refresh
+        this.setupTokenRefresh();
+        
+        console.log('✅ [AuthService] Patient registration successful');
+        return response.data;
+      } else {
+        const errorMessage = response.data.message || 'Registration failed';
+        throw new Error(errorMessage);
+      }
+    } catch (error: any) {
+      console.error('❌ [AuthService] Patient registration failed:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Registration failed. Please try again.';
+      throw new Error(errorMessage);
+    }
+  }
+
+  /**
    * Test login (for development)
    */
   public async testLogin(credentials: LoginCredentials): Promise<AuthResponse> {

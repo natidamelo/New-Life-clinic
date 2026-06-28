@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['super_admin', 'admin', 'reception', 'nurse', 'lab', 'imaging', 'doctor', 'billing', 'inventory', 'finance', 'pharmacy', 'mch'],
+    enum: ['super_admin', 'admin', 'reception', 'nurse', 'lab', 'imaging', 'doctor', 'billing', 'inventory', 'finance', 'pharmacy', 'mch', 'patient'],
     required: true
   },
   firstName: {
@@ -48,6 +48,11 @@ const userSchema = new mongoose.Schema({
     required: function() {
       return this.role === 'doctor';
     }
+  },
+  patient: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Patient',
+    required: false
   },
   permissions: {
     manageUsers: { type: Boolean, default: false },
@@ -168,6 +173,18 @@ userSchema.pre('save', async function(next) {
           managePatients: true,
           manageAppointments: true,
           viewReports: true
+        };
+        break;
+      case 'patient':
+        this.permissions = {
+          manageUsers: false,
+          managePatients: false,
+          manageAppointments: false,
+          manageBilling: false,
+          manageInventory: false,
+          generateReports: false,
+          viewReports: false,
+          deleteMessages: false
         };
         break;
       // Other roles can have their default permissions set similarly

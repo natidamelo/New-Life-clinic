@@ -47,7 +47,7 @@ const validationRules = {
     .withMessage('Password must be at least 6 characters'),
     
   role: body('role')
-    .isIn(['admin', 'reception', 'nurse', 'lab', 'imaging', 'doctor', 'billing', 'inventory'])
+    .isIn(['admin', 'reception', 'nurse', 'lab', 'imaging', 'doctor', 'billing', 'inventory', 'patient'])
     .withMessage('Invalid role specified'),
     
   // ID validation
@@ -194,7 +194,7 @@ const validate = {
       body('username').optional().trim().isLength({ min: 3, max: 30 }),
       body('email').optional().trim().isEmail().normalizeEmail(),
       body('password').optional().isLength({ min: 6 }),
-      body('role').optional().isIn(['admin', 'reception', 'nurse', 'lab', 'imaging', 'doctor', 'billing', 'inventory']),
+      body('role').optional().isIn(['admin', 'reception', 'nurse', 'lab', 'imaging', 'doctor', 'billing', 'inventory', 'patient']),
       body('firstName').optional().trim().isLength({ min: 2, max: 50 }),
       body('lastName').optional().trim().isLength({ min: 2, max: 50 }),
       body('photo').optional({ nullable: true }).custom((val) => val === null || (typeof val === 'string' && val.length <= 10000000)).withMessage('Photo must be a valid URL or base64 string (max 10MB)'),
@@ -207,7 +207,7 @@ const validate = {
       body('username').optional().trim().isLength({ min: 3, max: 30 }),
       body('email').optional().trim().isEmail().normalizeEmail(),
       body('password').optional().isLength({ min: 6 }),
-      body('role').optional().isIn(['admin', 'reception', 'nurse', 'lab', 'imaging', 'doctor', 'billing', 'inventory']),
+      body('role').optional().isIn(['admin', 'reception', 'nurse', 'lab', 'imaging', 'doctor', 'billing', 'inventory', 'patient']),
       body('firstName').optional().trim().isLength({ min: 2, max: 50 }),
       body('lastName').optional().trim().isLength({ min: 2, max: 50 }),
       body('photo').optional({ nullable: true }).custom((val) => val === null || (typeof val === 'string' && val.length <= 10000000)).withMessage('Photo must be a valid URL or base64 string (max 10MB)'),

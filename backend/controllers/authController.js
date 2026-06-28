@@ -363,10 +363,6 @@ const authController = {
     res.status(200).json({ success: true, user: req.user });
   },
 
-  /**
-   * Logout user
-   * @route POST /api/auth/logout
-   */
   logout: async (req, res, next) => {
     try {
       res.status(200).json({
@@ -374,6 +370,116 @@ const authController = {
         message: 'Logged out successfully'
       });
     } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Register a new patient and link/create clinical Patient record
+   * @route POST /api/auth/patient/register
+   */
+  patientRegister: async (req, res, next) => {
+    try {
+      const { firstName, lastName, email, password, contactNumber, gender, dateOfBirth } = req.body;
+      const clinicId = req.body.clinicId || req.headers['x-clinic-id'] || 'default';
+
+      logger.info('Patient registration attempt', { firstName, lastName, email, contactNumber });
+
+      if (!firstName || !lastName || !email || !password || !contactNumber || !gender) {
+        return res.status(400).json({
+          success: false,
+          message: 'First name, last name, email, password, contact number, and gender are required'
+        });
+      }
+
+      const User = require('../models/User');
+      const Patient = require('../models/Patient');
+
+      // Check if user already exists
+      const existingUser = await User.findOne({
+        $or: [
+          { email: email.toLowerCase() },
+          { username: email.toLowerCase() }
+        ]
+      }).setOptions({ skipTenantScope: true });
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'An account with this email address already exists'
+        });
+      }
+
+      // Find or create Patient record
+      let patient = await Patient.findOne({
+        clinicId,
+        $or: [
+          { email: email.toLowerCase() },
+          { contactNumber: contactNumber }
+        ]
+      }).setOptions({ skipTenantScope: true });
+
+      if (patient) {
+        logger.info('Existing clinic patient record found, linking account', { patientId: patient._id });
+        // Update patient info if empty
+        let updated = false;
+        if (!patient.email && email) {
+          patient.email = email.toLowerCase();
+          updated = true;
+        }
+        if (updated) {
+          await patient.save();
+        }
+      } else {
+        logger.info('No existing patient record found, creating a new one');
+        patient = new Patient({
+          clinicId,
+          firstName,
+          lastName,
+          gender,
+          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+          contactNumber,
+          email: email.toLowerCase(),
+          status: 'Outpatient'
+        });
+        await patient.save();
+      }
+
+      // Create new patient user
+      const user = new User({
+        clinicId,
+        username: email.toLowerCase(),
+        email: email.toLowerCase(),
+        password,
+        role: 'patient',
+        firstName,
+        lastName,
+        patient: patient._id,
+        isActive: true
+      });
+
+      await user.save();
+
+      // Generate JWT
+      const token = authService.generateToken(user);
+
+      // Remove password from response
+      const userResponse = user.toObject();
+      delete userResponse.password;
+
+      logger.info('Patient user registered successfully', { userId: user._id, patientId: patient._id });
+
+      res.status(201).json({
+        success: true,
+        message: 'Patient registered successfully',
+        data: {
+          user: userResponse,
+          token,
+          patient
+        }
+      });
+    } catch (error) {
+      logger.error('Patient registration failed', { error: error.message });
       next(error);
     }
   }

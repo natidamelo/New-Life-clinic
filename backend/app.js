@@ -954,6 +954,7 @@ const createApp = () => {
   
   // Patient routes
   app.use('/api/patients', require('./routes/patients'));
+  app.use('/api/patient-portal', auth, require('./routes/patientPortal'));
   
   // Appointment routes
   app.use('/api/appointments', require('./routes/appointments'));

@@ -113,6 +113,9 @@ const PatientRecord = lazy(() => import('./pages/Doctor/PatientRecord'));
 const FinancialAdvisor = lazy(() => import('./pages/Finance/FinancialAdvisor'));
 const CCTVDashboard = lazy(() => import('./pages/CCTV/CCTVDashboard'));
 
+// Patient Portal lazy loaded pages
+const PatientSignup = lazy(() => import('./pages/PatientSignup'));
+const PatientDashboard = lazy(() => import('./pages/PatientPortal/PatientDashboard'));
 
 const router = createBrowserRouter([
   {
@@ -121,12 +124,23 @@ const router = createBrowserRouter([
     errorElement: <ErrorFallback />
   },
   createLazyRoute("/login", Login),
+  createLazyRoute("/patient/signup", PatientSignup),
   {
     path: "/verify-qr",
     element: <LazyWrapper><VerifyQR /></LazyWrapper>,
     errorElement: <ErrorFallback />
   },
-
+  {
+    path: "/patient",
+    element: <ProtectedRoute allowedRoles={['patient']}><Outlet /></ProtectedRoute>,
+    errorElement: <ErrorFallback />,
+    children: [
+      {
+        path: "dashboard",
+        element: <LazyWrapper><PatientDashboard /></LazyWrapper>
+      }
+    ]
+  },
   {
     path: '/billing/process-payment/:notificationId',
     element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><LazyWrapper><ProcessPaymentPage /></LazyWrapper></ProtectedRoute>,

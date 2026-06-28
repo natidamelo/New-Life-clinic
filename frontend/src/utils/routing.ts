@@ -44,6 +44,8 @@ export const getRoleBasedRoute = (role: string, user?: { role?: string; email?: 
     // Handle legacy role names for backward compatibility
     case 'reception':
       return '/app/reception';
+    case 'patient':
+      return '/patient/dashboard';
     default:
       return '/app/dashboard'; // Default to admin dashboard
   }

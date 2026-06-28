@@ -2951,6 +2951,18 @@ const Login: React.FC = () => {
                   </button>
                 </form>
 
+                {/* Patient Sign Up Link */}
+                <div className="text-center text-xs mt-1">
+                  <span className={`${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Are you a patient? </span>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/patient/signup')}
+                    className={`font-semibold underline cursor-pointer transition-colors ${isDarkMode ? 'text-cyan-300 hover:text-cyan-200' : 'text-teal-600 hover:text-teal-700'}`}
+                  >
+                    Create Patient Account
+                  </button>
+                </div>
+
                 {/* Divider */}
                 <div className="flex items-center gap-3">
                   <div className={`flex-1 h-px ${isDarkMode ? 'bg-slate-700/60' : 'bg-slate-200'}`} />

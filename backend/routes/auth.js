@@ -109,6 +109,13 @@ router.put('/profile',
 router.get('/verify', auth, authController.verify);
 
 /**
+ * @route   POST /api/auth/patient/register
+ * @desc    Register a new patient user
+ * @access  Public
+ */
+router.post('/patient/register', authController.patientRegister);
+
+/**
  * @route   POST /api/auth/logout
  * @desc    Logout user
  * @access  Public
