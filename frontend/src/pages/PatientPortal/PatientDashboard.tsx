@@ -189,6 +189,148 @@ const PatientDashboard: React.FC = () => {
     navigate('/login');
   };
 
+  // Render Lab Results in a clean table format
+  const renderLabResults = (order: LabResultData) => {
+    if (!order.results) return null;
+
+    const tableHeaderStyle = `text-[10px] uppercase font-bold tracking-wider ${
+      isDarkMode ? 'bg-slate-900 text-slate-400 border-slate-800' : 'bg-slate-50 text-slate-500 border-slate-200'
+    } px-4 py-2 border-b`;
+    
+    const tableRowStyle = `text-xs ${
+      isDarkMode ? 'hover:bg-slate-800/20 border-slate-800/50' : 'hover:bg-slate-50/50 border-slate-100'
+    } border-b`;
+
+    // Case 1: Results is an object with "results" and "normalRange"
+    if (typeof order.results === 'object' && order.results !== null) {
+      const resValue = order.results.results;
+      const refRange = order.results.normalRange || order.normalRange || 'N/A';
+      
+      const entries = Object.entries(order.results).filter(([key]) => key !== 'results' && key !== 'normalRange');
+      
+      if (resValue) {
+        return (
+          <div className="overflow-hidden rounded-2xl border border-slate-700/10 mt-2">
+            <table className="w-full text-left">
+              <thead>
+                <tr>
+                  <th className={tableHeaderStyle}>Test Parameter</th>
+                  <th className={tableHeaderStyle}>Result Value</th>
+                  <th className={tableHeaderStyle}>Reference Range</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/10">
+                <tr className={tableRowStyle}>
+                  <td className="px-4 py-2.5 font-semibold text-slate-700 dark:text-slate-300">{order.testName || 'Result'}</td>
+                  <td className="px-4 py-2.5 font-bold text-teal-600 dark:text-teal-400">{resValue}</td>
+                  <td className="px-4 py-2.5 font-mono text-slate-500">{refRange}</td>
+                </tr>
+                {entries.map(([key, val]) => (
+                  <tr key={key} className={tableRowStyle}>
+                    <td className="px-4 py-2.5 font-semibold capitalize text-slate-700 dark:text-slate-300">{key.replace(/([A-Z])/g, ' $1')}</td>
+                    <td className="px-4 py-2.5 font-bold text-teal-600 dark:text-teal-400">{String(val)}</td>
+                    <td className="px-4 py-2.5 font-mono text-slate-500">-</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+
+      // Flat key-value object
+      if (Object.keys(order.results).length > 0) {
+        return (
+          <div className="overflow-hidden rounded-2xl border border-slate-700/10 mt-2">
+            <table className="w-full text-left">
+              <thead>
+                <tr>
+                  <th className={tableHeaderStyle}>Parameter</th>
+                  <th className={tableHeaderStyle}>Finding / Result</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/10">
+                {Object.entries(order.results).map(([key, val]) => (
+                  <tr key={key} className={tableRowStyle}>
+                    <td className="px-4 py-2.5 font-semibold text-slate-500 dark:text-slate-400 capitalize">{key.replace(/([A-Z])/g, ' $1')}</td>
+                    <td className={`px-4 py-2.5 font-bold ${
+                      String(val).toLowerCase().includes('positive') || String(val).toLowerCase().includes('reactive')
+                        ? 'text-red-500'
+                        : 'text-slate-700 dark:text-slate-200'
+                    }`}>{String(val)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+    }
+
+    // Case 2: Results is a string
+    if (typeof order.results === 'string') {
+      const rawStr = order.results.trim();
+      
+      // Check if it is a list of parameters
+      if (rawStr.includes(':') && (rawStr.includes(';') || rawStr.includes('\n'))) {
+        const delimiters = rawStr.includes(';') ? ';' : '\n';
+        const pairs = rawStr
+          .split(delimiters)
+          .map(part => part.trim())
+          .filter(part => part.length > 0 && part.includes(':'));
+        
+        if (pairs.length > 0) {
+          return (
+            <div className="overflow-hidden rounded-2xl border border-slate-700/10 mt-2">
+              <table className="w-full text-left">
+                <thead>
+                  <tr>
+                    <th className={tableHeaderStyle}>Parameter</th>
+                    <th className={tableHeaderStyle}>Finding / Result</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/10">
+                  {pairs.map((pair, i) => {
+                    const idx = pair.indexOf(':');
+                    const key = pair.slice(0, idx).trim();
+                    const val = pair.slice(idx + 1).trim();
+                    return (
+                      <tr key={i} className={tableRowStyle}>
+                        <td className="px-4 py-2 font-semibold text-slate-500 dark:text-slate-400 capitalize">{key}</td>
+                        <td className={`px-4 py-2 font-bold ${
+                          val === '-' || val.toLowerCase() === 'negative' || val.toLowerCase() === 'non-reactive'
+                            ? 'text-slate-400 dark:text-slate-500' 
+                            : val.toLowerCase().includes('positive') || val.toLowerCase().includes('reactive')
+                              ? 'text-red-500'
+                              : 'text-slate-700 dark:text-slate-200'
+                        }`}>{val}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
+      }
+
+      // Default string rendering
+      return (
+        <div className={`mt-2 p-4 rounded-2xl text-xs font-bold border ${
+          rawStr.toLowerCase() === 'negative' || rawStr.toLowerCase() === 'non-reactive'
+            ? 'bg-green-500/5 border-green-500/15 text-green-500'
+            : rawStr.toLowerCase().includes('positive') || rawStr.toLowerCase().includes('reactive')
+              ? 'bg-red-500/5 border-red-500/15 text-red-500'
+              : isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+        }`}>
+          {rawStr}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   // Process Vitals for Recharts
   const chartData = [...vitals]
     .reverse() // chart from oldest to newest
@@ -431,11 +573,23 @@ const PatientDashboard: React.FC = () => {
                             <div className="p-2 rounded-lg bg-teal-500/10 text-teal-500 shrink-0">
                               <Pill className="h-4 w-4" />
                             </div>
-                            <div className="space-y-0.5 text-xs">
+                            <div className="space-y-1 text-xs">
                               <p className="font-extrabold">{med.name}</p>
-                              <p className="text-slate-500 font-semibold">{med.dosage} • {med.frequency}</p>
+                              <p className="text-slate-500 font-semibold">
+                                {med.dosage} • {med.frequency} {med.route ? `(${med.route})` : ''}
+                              </p>
                               {med.prescribedBy && (
                                 <p className="text-[10px] text-slate-400 font-medium">Prescribed by: {med.prescribedBy}</p>
+                              )}
+                              {(med.lastGiven || med.nextDue) && (
+                                <div className="mt-1.5 pt-1.5 border-t border-slate-700/10 space-y-0.5 text-[9px] text-slate-400 font-medium">
+                                  {med.lastGiven && (
+                                    <p>Last Given: <span className="font-bold text-slate-500">{new Date(med.lastGiven).toLocaleString()}</span></p>
+                                  )}
+                                  {med.nextDue && (
+                                    <p>Next Due: <span className="font-bold text-teal-500">{new Date(med.nextDue).toLocaleString()}</span></p>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </div>
@@ -700,15 +854,7 @@ const PatientDashboard: React.FC = () => {
                               <div className="mt-4 border-t border-slate-700/20 pt-4 space-y-4">
                                 <div>
                                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Clinical Findings / Results</span>
-                                  <div className={`mt-2 p-4 rounded-2xl text-xs leading-relaxed ${
-                                    isDarkMode ? 'bg-slate-950/40 text-slate-300' : 'bg-slate-50 text-slate-700'
-                                  }`}>
-                                    {typeof order.results === 'string' ? (
-                                      <p className="whitespace-pre-wrap font-mono">{order.results}</p>
-                                    ) : (
-                                      <pre className="whitespace-pre-wrap font-mono">{JSON.stringify(order.results, null, 2)}</pre>
-                                    )}
-                                  </div>
+                                  {renderLabResults(order)}
                                 </div>
 
                                 {/* Specimen & Normal Range */}
