@@ -211,6 +211,30 @@ router.get('/treatments', async (req, res, next) => {
 });
 
 /**
+ * @route   GET /api/patient-portal/prescriptions
+ * @desc    Get patient prescriptions
+ * @access  Private (Patient only)
+ */
+router.get('/prescriptions', async (req, res, next) => {
+  try {
+    const Prescription = require('../models/Prescription');
+    const User = require('../models/User'); // Required so schema registers
+    const prescriptions = await Prescription.find({
+      patient: req.user.patient
+    }).populate('doctor', 'firstName lastName specialization')
+      .sort({ datePrescribed: -1, createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: prescriptions
+    });
+  } catch (error) {
+    logger.error('Failed to fetch patient portal prescriptions', { error: error.message });
+    next(error);
+  }
+});
+
+/**
  * @route   PUT /api/patient-portal/profile
  * @desc    Update patient contact information
  * @access  Private (Patient only)
