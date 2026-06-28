@@ -656,7 +656,7 @@ const PatientDashboard: React.FC = () => {
                             <div>
                               <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Ordered Date</span>
                               <span className="text-xs font-bold">
-                                {new Date(order.orderDateTime).toLocaleDateString(undefined, { dateStyle: 'long', timeStyle: 'short' })}
+                                {new Date(order.orderDateTime).toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' })}
                               </span>
                             </div>
 
