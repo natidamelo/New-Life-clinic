@@ -116,6 +116,13 @@ router.get('/verify', auth, authController.verify);
 router.post('/patient/register', authController.patientRegister);
 
 /**
+ * @route   GET /api/auth/patient/check-card/:cardId
+ * @desc    Check a patient card and retrievesafe demographic details for autofill
+ * @access  Public
+ */
+router.get('/patient/check-card/:cardId', authController.checkPatientCard);
+
+/**
  * @route   POST /api/auth/logout
  * @desc    Logout user
  * @access  Public

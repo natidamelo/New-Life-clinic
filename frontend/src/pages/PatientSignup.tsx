@@ -4,6 +4,7 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { toast } from 'react-hot-toast';
 import authService from '../services/authService';
+import api from '../services/apiService';
 import { useSafeTheme } from '../hooks/useSafeTheme';
 import { motion } from 'framer-motion';
 import { 
@@ -46,6 +47,39 @@ const PatientSignup: React.FC = () => {
   const navigate = useNavigate();
   const { isDarkMode } = useSafeTheme();
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerifyingCard, setIsVerifyingCard] = useState(false);
+
+  const handleCardIdLookup = async (cardId: string) => {
+    if (!cardId || !cardId.trim()) return;
+    
+    try {
+      setIsVerifyingCard(true);
+      const response = await api.get(`/api/auth/patient/check-card/${cardId.trim()}`, { skipAuth: true } as any);
+      if (response.data.success && response.data.data) {
+        const patientInfo = response.data.data;
+        
+        // Pre-fill the Formik values
+        formik.setFieldValue('firstName', patientInfo.firstName || '');
+        formik.setFieldValue('lastName', patientInfo.lastName || '');
+        formik.setFieldValue('email', patientInfo.email || '');
+        formik.setFieldValue('contactNumber', patientInfo.contactNumber || '');
+        formik.setFieldValue('gender', patientInfo.gender || '');
+        formik.setFieldValue('dateOfBirth', patientInfo.dateOfBirth || '');
+        
+        toast.success('Patient Card verified! Details autofilled.', {
+          position: 'top-center',
+        });
+      }
+    } catch (error: any) {
+      console.error('❌ Card lookup failed:', error);
+      const errorMsg = error.response?.data?.message || 'Patient card not found or already linked.';
+      toast.error(errorMsg, {
+        position: 'top-center',
+      });
+    } finally {
+      setIsVerifyingCard(false);
+    }
+  };
 
   const formik = useFormik({
     initialValues: {
@@ -174,20 +208,43 @@ const PatientSignup: React.FC = () => {
                 Existing Patient Card ID (Optional)
               </label>
               <p className="text-[10px] text-slate-500 mb-2">
-                If you already have a clinic card, enter your Card ID (e.g. P12345-6789) to link your clinical history.
+                If you already have a clinic card, enter your Card ID (e.g. P12345-6789) to autofill your profile details and link your clinical history.
               </p>
               <div className="relative">
                 <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400">
-                  <Activity className="h-4 w-4" />
+                  {isVerifyingCard ? (
+                    <svg className="animate-spin h-4 w-4 text-teal-500" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : (
+                    <Activity className="h-4 w-4" />
+                  )}
                 </span>
                 <input
                   name="patientCardId"
                   type="text"
                   placeholder="e.g. P12345-6789"
                   {...formik.getFieldProps('patientCardId')}
+                  onBlur={(e) => {
+                    formik.handleBlur(e);
+                    handleCardIdLookup(e.target.value);
+                  }}
                   style={inputStyle}
-                  className="w-full h-11 pl-9 pr-4 text-xs rounded-xl outline-none focus:ring-2 focus:ring-teal-500/20 uppercase"
+                  className="w-full h-11 pl-9 pr-20 text-xs rounded-xl outline-none focus:ring-2 focus:ring-teal-500/20 uppercase"
                 />
+                <button
+                  type="button"
+                  disabled={isVerifyingCard || !formik.values.patientCardId}
+                  onClick={() => handleCardIdLookup(formik.values.patientCardId)}
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isDarkMode 
+                      ? 'border-cyan-500/30 text-cyan-400 bg-cyan-500/5 hover:bg-cyan-500/15' 
+                      : 'border-teal-200 text-teal-600 bg-teal-50 hover:bg-teal-100'
+                  }`}
+                >
+                  Verify
+                </button>
               </div>
             </div>
 

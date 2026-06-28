@@ -529,6 +529,63 @@ const authController = {
       logger.error('Patient registration failed', { error: error.message });
       next(error);
     }
+  },
+
+  /**
+   * Check if a patient card exists and is valid for linking, returning safe profile details for autofill
+   * @route GET /api/auth/patient/check-card/:cardId
+   */
+  checkPatientCard: async (req, res, next) => {
+    try {
+      const { cardId } = req.params;
+      
+      logger.info('Patient card verification request', { cardId });
+
+      if (!cardId || !cardId.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Patient Card ID is required'
+        });
+      }
+
+      const Patient = require('../models/Patient');
+      const User = require('../models/User');
+
+      const patient = await Patient.findByAnyId(cardId.trim());
+
+      if (!patient) {
+        return res.status(404).json({
+          success: false,
+          message: `Clinical Patient record with Card ID "${cardId}" was not found`
+        });
+      }
+
+      // Check if this patient is already associated with a User account
+      const alreadyLinkedUser = await User.findOne({ patient: patient._id }).setOptions({ skipTenantScope: true });
+      if (alreadyLinkedUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'This Patient Card is already associated with an active portal account'
+        });
+      }
+
+      logger.info('Safe patient demographics returned for registration autofill', { patientId: patient._id });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          firstName: patient.firstName,
+          lastName: patient.lastName,
+          email: patient.email || '',
+          contactNumber: patient.contactNumber || '',
+          gender: patient.gender || '',
+          dateOfBirth: patient.dateOfBirth ? new Date(patient.dateOfBirth).toISOString().split('T')[0] : ''
+        }
+      });
+    } catch (error) {
+      logger.error('Patient card verification failed', { error: error.message });
+      next(error);
+    }
   }
 };
 
