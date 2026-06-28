@@ -105,6 +105,7 @@ const PatientDashboard: React.FC = () => {
   const [vitals, setVitals] = useState<VitalSignsData[]>([]);
   const [labs, setLabs] = useState<LabResultData[]>([]);
   const [records, setRecords] = useState<MedicalRecordData[]>([]);
+  const [treatments, setTreatments] = useState<any[]>([]);
   
   // Loading & Edit States
   const [isLoading, setIsLoading] = useState(true);
@@ -153,6 +154,12 @@ const PatientDashboard: React.FC = () => {
       const recordsRes = await api.get('/api/patient-portal/records');
       if (recordsRes.data.success) {
         setRecords(recordsRes.data.data);
+      }
+
+      // Fetch clinic treatments/injections (Nurse Tasks)
+      const treatmentsRes = await api.get('/api/patient-portal/treatments');
+      if (treatmentsRes.data.success) {
+        setTreatments(treatmentsRes.data.data);
       }
 
     } catch (error: any) {
@@ -555,6 +562,71 @@ const PatientDashboard: React.FC = () => {
                     ) : (
                       <div className={`border p-6 rounded-2xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
                         No finalized medical records available.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Clinic Administered Medications & Injections */}
+                  <div className="space-y-3 mt-6">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                      <Activity className="h-4 w-4 text-rose-500 animate-pulse" /> Clinic Medications & Injections
+                    </h3>
+                    {treatments && treatments.length > 0 ? (
+                      <div className="space-y-3">
+                        {treatments.map((task, idx) => {
+                          const medDetails = task.medicationDetails;
+                          const totalDoses = medDetails?.doseRecords?.length || 0;
+                          const givenDoses = medDetails?.doseRecords?.filter((r: any) => r.administered).length || 0;
+                          
+                          return (
+                            <div key={idx} className={`border p-4.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
+                              isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'
+                            }`}>
+                              <div className="space-y-1 text-xs flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border ${
+                                    task.status === 'PENDING'
+                                      ? 'bg-amber-500/10 border-amber-500/20 text-amber-500 animate-pulse'
+                                      : 'bg-green-500/10 border-green-500/20 text-green-500'
+                                  }`}>
+                                    {task.status}
+                                  </span>
+                                  {medDetails?.route && (
+                                    <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border border-slate-700/20 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                                      {medDetails.route}
+                                    </span>
+                                  )}
+                                  {totalDoses > 0 && (
+                                    <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border border-teal-500/20 bg-teal-500/5 text-teal-500">
+                                      Doses: {givenDoses} of {totalDoses} given
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="font-extrabold mt-1 text-sm">{medDetails?.medicationName || task.description}</p>
+                                {medDetails?.dosage && (
+                                  <p className="text-slate-500 font-semibold text-xs">Dosage: {medDetails.dosage} • {medDetails.frequency || 'Once'}</p>
+                                )}
+                                {medDetails?.instructions && (
+                                  <p className="text-[11px] text-slate-400 mt-1 italic">Instructions: {medDetails.instructions}</p>
+                                )}
+                              </div>
+                              
+                              <div className="text-left sm:text-right shrink-0 space-y-1">
+                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Due/Assigned Date</span>
+                                <span className="text-xs font-semibold text-slate-500 block">
+                                  {new Date(task.dueDate || task.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                                </span>
+                                {task.assignedToName && (
+                                  <span className="text-[10px] text-slate-400 block">Nurse: {task.assignedToName}</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className={`border p-4 rounded-2xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
+                        No scheduled clinic medications or injections on record.
                       </div>
                     )}
                   </div>

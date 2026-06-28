@@ -189,6 +189,28 @@ router.get('/records', async (req, res, next) => {
 });
 
 /**
+ * @route   GET /api/patient-portal/treatments
+ * @desc    Get patient clinic medications and injections (Nurse Tasks)
+ * @access  Private (Patient only)
+ */
+router.get('/treatments', async (req, res, next) => {
+  try {
+    const NurseTask = require('../models/NurseTask');
+    const tasks = await NurseTask.find({
+      patientId: req.user.patient
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: tasks
+    });
+  } catch (error) {
+    logger.error('Failed to fetch patient portal clinic treatments', { error: error.message });
+    next(error);
+  }
+});
+
+/**
  * @route   PUT /api/patient-portal/profile
  * @desc    Update patient contact information
  * @access  Private (Patient only)
