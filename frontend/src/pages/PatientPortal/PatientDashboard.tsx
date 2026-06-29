@@ -9,7 +9,7 @@ import {
   Activity, User, Clipboard, Heart, LogOut, Moon, Sun, 
   MapPin, Phone, Mail, Award, CheckCircle2, AlertCircle, 
   Lock, Edit3, Save, ChevronRight, FileText, Pill, FileSpreadsheet,
-  Stethoscope, Camera
+  Stethoscope, Camera, Bot, MessageSquare
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, 
@@ -99,7 +99,7 @@ const PatientDashboard: React.FC = () => {
   const { isDarkMode, toggleTheme } = useSafeTheme();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'vitals' | 'labs' | 'medications' | 'records' | 'profile'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'vitals' | 'labs' | 'medications' | 'records' | 'profile' | 'ai_chat'>('overview');
   
   // Data States
   const [patient, setPatient] = useState<PatientData | null>(null);
@@ -117,6 +117,25 @@ const PatientDashboard: React.FC = () => {
   const [editPhone, setEditPhone] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editAddress, setEditAddress] = useState({ street: '', city: '', state: '' });
+
+  // AI Chat Bot States
+  const [chatMessages, setChatMessages] = useState<Array<{ id: string; role: 'user' | 'model'; content: string; timestamp: Date }>>([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isSendingChat, setIsSendingChat] = useState(false);
+  const chatEndRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (patient) {
+      setChatMessages([
+        {
+          id: 'welcome',
+          role: 'model',
+          content: `Hello, **${patient.firstName}**! I'm **M-Bot**, your clinical AI assistant at New Life Clinic. 🧠✨\n\nI have secure access to your clinical summary, active medications, recent vitals, and lab test status. How can I help you today?\n\n*Note: I'm here to provide clinical information. For any diagnostic decisions or emergencies, please consult our medical team.*`,
+          timestamp: new Date()
+        }
+      ]);
+    }
+  }, [patient]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -177,6 +196,134 @@ const PatientDashboard: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const scrollToBottom = () => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollTo({
+        top: chatEndRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatMessages, isSendingChat]);
+
+  const handleSendChatMessage = async (presetText?: string) => {
+    const textToSend = presetText || inputMessage;
+    if (!textToSend || !textToSend.trim() || isSendingChat) return;
+    
+    const userMsg = {
+      id: Math.random().toString(36).substring(7),
+      role: 'user' as const,
+      content: textToSend,
+      timestamp: new Date()
+    };
+    
+    // Clear input if sending from input box
+    if (!presetText) {
+      setInputMessage('');
+    }
+    
+    setChatMessages(prev => [...prev, userMsg]);
+    setIsSendingChat(true);
+    
+    try {
+      const messageHistory = chatMessages.map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+      
+      const res = await api.post('/api/patient-portal/chat', {
+        messages: messageHistory,
+        userMessage: textToSend
+      });
+      
+      if (res.data.success) {
+        const replyMsg = {
+          id: Math.random().toString(36).substring(7),
+          role: 'model' as const,
+          content: res.data.data.reply,
+          timestamp: new Date()
+        };
+        setChatMessages(prev => [...prev, replyMsg]);
+      } else {
+        toast.error(res.data.message || 'Failed to get response from assistant');
+      }
+    } catch (err: any) {
+      console.error('Chat error:', err);
+      const errMsg = {
+        id: Math.random().toString(36).substring(7),
+        role: 'model' as const,
+        content: 'I apologize, but I encountered an error communicating with the server. Please check your internet connection and try again.',
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, errMsg]);
+    } finally {
+      setIsSendingChat(false);
+    }
+  };
+
+  const getDynamicSuggestionChips = () => {
+    const chips: string[] = [];
+    
+    if (prescriptions && prescriptions.length > 0) {
+      chips.push("What active medications do I have?");
+      chips.push("Tell me about precautions for my medications.");
+    }
+    
+    if (vitals && vitals.length > 0) {
+      chips.push("Can you explain my recent vital signs?");
+    }
+    
+    if (patient?.medicalHistory && patient.medicalHistory.length > 0) {
+      const conditions = patient.medicalHistory.map(h => h.condition || h.diagnosis).filter(Boolean);
+      if (conditions.length > 0) {
+        chips.push(`What is ${conditions[0]} and how is it managed?`);
+      }
+    } else if (records && records.length > 0 && records[0].diagnosis) {
+      chips.push(`What is ${records[0].diagnosis} and how is it managed?`);
+    }
+    
+    chips.push("What are some general tips for maintaining a healthy blood pressure?");
+    
+    return Array.from(new Set(chips)).slice(0, 4);
+  };
+
+  const renderFormattedContent = (text: string) => {
+    const lines = text.split('\n');
+    return lines.map((line, i) => {
+      const isBullet = line.trim().startsWith('-') || line.trim().startsWith('*');
+      let content = line;
+      if (isBullet) {
+        content = line.replace(/^[-*]\s+/, '');
+      }
+
+      const parts = content.split(/(\*\*.*?\*\*)/g);
+      const parsedElements = parts.map((part, j) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={j} className="font-extrabold">{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+
+      if (isBullet) {
+        return (
+          <div key={i} className="flex items-start gap-2 ml-4 my-1">
+            <span className="text-cyan-500 mt-1.5 h-1.5 w-1.5 rounded-full bg-cyan-500 shrink-0" />
+            <span className="text-sm leading-relaxed">{parsedElements}</span>
+          </div>
+        );
+      }
+
+      return (
+        <p key={i} className="text-sm leading-relaxed my-1 min-h-[1rem]">
+          {parsedElements}
+        </p>
+      );
+    });
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -535,7 +682,8 @@ const PatientDashboard: React.FC = () => {
               { id: 'labs', label: 'Lab Results', icon: FileSpreadsheet },
               { id: 'medications', label: 'Medications', icon: Pill },
               { id: 'records', label: 'Recommendations', icon: Stethoscope },
-              { id: 'profile', label: 'My Profile', icon: Edit3 }
+              { id: 'profile', label: 'My Profile', icon: Edit3 },
+              { id: 'ai_chat', label: 'Ask AI', icon: MessageSquare }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -1438,7 +1586,140 @@ const PatientDashboard: React.FC = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
 
+            {/* AI Chat Bot Tab */}
+            {activeTab === 'ai_chat' && (
+              <div className={`border p-6 rounded-3xl space-y-6 ${
+                isDarkMode ? 'bg-[#0f1934]/60 border-slate-800' : 'bg-white border-slate-200'
+              }`}>
+                <div className="flex items-center justify-between border-b pb-4 border-slate-800/40">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2.5 rounded-2xl ${isDarkMode ? 'bg-cyan-500/10 text-cyan-400' : 'bg-teal-600/10 text-teal-700'}`}>
+                      <Bot className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold">AI Health Assistant (M-Bot)</h2>
+                      <p className="text-xs text-slate-400">Ask basic questions about your health, vitals, and medications</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-2.5 w-2.5 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                    </span>
+                    <span className="text-xs text-slate-400 font-semibold">Gemini 2.0 Active</span>
+                  </div>
+                </div>
+
+                {/* Messages Box */}
+                <div 
+                  className="h-[480px] overflow-y-auto space-y-4 pr-2 flex flex-col scrollbar-thin"
+                  ref={chatEndRef}
+                  style={{
+                    scrollbarWidth: 'thin'
+                  }}
+                >
+                  {chatMessages.map((msg) => (
+                    <div 
+                      key={msg.id}
+                      className={`flex gap-3 max-w-[80%] ${msg.role === 'user' ? 'self-end flex-row-reverse' : 'self-start'}`}
+                    >
+                      <div className={`p-3.5 rounded-2xl ${
+                        msg.role === 'user' 
+                          ? isDarkMode 
+                            ? 'bg-cyan-500/15 border border-cyan-400/20 text-slate-100 rounded-tr-none' 
+                            : 'bg-teal-600 text-white rounded-tr-none'
+                          : isDarkMode 
+                            ? 'bg-[#152347] border border-slate-800 text-slate-300 rounded-tl-none' 
+                            : 'bg-slate-100 text-slate-700 rounded-tl-none'
+                      }`}>
+                        <div className="space-y-1">
+                          {renderFormattedContent(msg.content)}
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-2 text-right">
+                          {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {isSendingChat && (
+                    <div className="flex gap-3 max-w-[80%] self-start">
+                      <div className={`p-4 rounded-2xl rounded-tl-none flex items-center gap-2 ${
+                        isDarkMode ? 'bg-[#152347] border border-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        <span className="text-xs">M-Bot is thinking</span>
+                        <div className="flex gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="h-1.5 w-1.5 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="h-1.5 w-1.5 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Suggestion Chips */}
+                {chatMessages.length <= 1 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-slate-450 font-bold">Suggested questions based on your profile:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {getDynamicSuggestionChips().map((chip, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleSendChatMessage(chip)}
+                          className={`px-3 py-1.5 rounded-full text-xs cursor-pointer border transition-all duration-200 ${
+                            isDarkMode 
+                              ? 'bg-slate-900 border-slate-800 text-slate-300 hover:border-cyan-400/40 hover:text-cyan-400' 
+                              : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-teal-500/40 hover:text-teal-600'
+                          }`}
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Input Box */}
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendChatMessage();
+                  }}
+                  className="flex items-center gap-2 pt-2"
+                >
+                  <input
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    placeholder="Type a message or ask about your prescriptions..."
+                    disabled={isSendingChat}
+                    className={`flex-1 px-4 py-3 rounded-2xl text-sm border focus:outline-none transition-all duration-200 ${
+                      isDarkMode 
+                        ? 'bg-slate-900/60 border-slate-800 text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30' 
+                        : 'bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30'
+                    }`}
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSendingChat || !inputMessage.trim()}
+                    className={`px-5 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 cursor-pointer transition-all duration-200 ${
+                      isSendingChat || !inputMessage.trim()
+                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-800'
+                        : isDarkMode
+                          ? 'bg-cyan-500/10 border border-cyan-400/35 text-cyan-400 hover:bg-cyan-500/20'
+                          : 'bg-teal-600 text-white hover:bg-teal-700'
+                    }`}
+                  >
+                    Send
+                  </button>
+                </form>
+                <p className="text-[10px] text-center text-slate-500">
+                  M-Bot is an AI assistant. Clinical data displayed is from your electronic medical file at New Life Clinic. Always check with your physician before modifying treatments.
+                </p>
               </div>
             )}
           </motion.div>
