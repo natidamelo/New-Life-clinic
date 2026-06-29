@@ -306,17 +306,17 @@ const RegisterPatient: React.FC = () => {
         {currentFormTab === 'personal' && (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">First Name *</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">First Name *</label>
               <input type="text" id="firstName" name="firstName" value={formik.values.firstName} onChange={formik.handleChange} onBlur={formik.handleBlur} className={`block w-full rounded-lg border ${formik.touched.firstName && formik.errors.firstName ? 'border-destructive/40 focus:ring-red-500' : 'border-border/40 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`} placeholder="Enter first name" />
               {formik.touched.firstName && formik.errors.firstName && (<p className="mt-1 text-xs text-destructive">{String(formik.errors.firstName)}</p>)}
             </div>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Last Name *</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Last Name *</label>
               <input type="text" id="lastName" name="lastName" value={formik.values.lastName} onChange={formik.handleChange} onBlur={formik.handleBlur} className={`block w-full rounded-lg border ${formik.touched.lastName && formik.errors.lastName ? 'border-destructive/40 focus:ring-red-500' : 'border-border/40 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`} placeholder="Enter last name" />
               {formik.touched.lastName && formik.errors.lastName && (<p className="mt-1 text-xs text-destructive">{String(formik.errors.lastName)}</p>)}
             </div>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Age *</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Age *</label>
               <div className="grid grid-cols-2 gap-2">
                 <input type="number" id="age" name="age" value={formik.values.age as any} onChange={formik.handleChange} onBlur={formik.handleBlur} className={`block w-full rounded-lg border ${formik.touched.age && formik.errors.age ? 'border-destructive/40 focus:ring-red-500' : 'border-border/40 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`} placeholder="Enter age" min={0} />
                 <select id="ageUnit" name="ageUnit" value={(formik.values as any).ageUnit} onChange={formik.handleChange} onBlur={formik.handleBlur} className="block w-full rounded-lg border border-border/40 shadow-sm focus:border-primary focus:ring-blue-500 px-4 py-2">
@@ -328,47 +328,47 @@ const RegisterPatient: React.FC = () => {
               {formik.touched.age && formik.errors.age && (<p className="mt-1 text-xs text-destructive">{String(formik.errors.age)}</p>)}
             </div>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Gender *</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Gender *</label>
               <select id="gender" name="gender" value={formik.values.gender} onChange={formik.handleChange} onBlur={formik.handleBlur} className="block w-full rounded-lg border border-border/40 shadow-sm focus:border-primary focus:ring-blue-500 px-4 py-2">
                 {genderOptions.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
               </select>
               {formik.touched.gender && formik.errors.gender && (<p className="mt-1 text-xs text-destructive">{String(formik.errors.gender)}</p>)}
             </div>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Contact Number *</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Contact Number *</label>
               <input type="text" id="contactNumber" name="contactNumber" value={formik.values.contactNumber} onChange={formik.handleChange} onBlur={formik.handleBlur} className={`block w-full rounded-lg border ${formik.touched.contactNumber && formik.errors.contactNumber ? 'border-destructive/40 focus:ring-red-500' : 'border-border/40 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`} placeholder="e.g. 0912345678 or +251912345678" />
               {formik.touched.contactNumber && formik.errors.contactNumber && (<p className="mt-1 text-xs text-destructive">{String(formik.errors.contactNumber)}</p>)}
             </div>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Email</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Email</label>
               <input type="email" id="email" name="email" value={formik.values.email} onChange={formik.handleChange} onBlur={formik.handleBlur} className={`block w-full rounded-lg border ${formik.touched.email && formik.errors.email ? 'border-destructive/40 focus:ring-red-500' : 'border-border/40 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`} placeholder="Enter email (optional)" />
               {formik.touched.email && formik.errors.email && (<p className="mt-1 text-xs text-destructive">{String(formik.errors.email)}</p>)}
             </div>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Fayda ID</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Fayda ID</label>
               <input type="text" id="faydaId" name="faydaId" value={formik.values.faydaId} onChange={formik.handleChange} onBlur={formik.handleBlur} className="block w-full rounded-lg border border-border/40 shadow-sm focus:border-primary focus:ring-blue-500 px-4 py-2" placeholder="Enter Fayda ID (optional)" />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Address *</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Address *</label>
               <input type="text" id="address" name="address" value={formik.values.address} onChange={formik.handleChange} onBlur={formik.handleBlur} className={`block w-full rounded-lg border ${formik.touched.address && formik.errors.address ? 'border-destructive/40 focus:ring-red-500' : 'border-border/40 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`} placeholder="Enter address" />
               {formik.touched.address && formik.errors.address && (<p className="mt-1 text-xs text-destructive">{String(formik.errors.address)}</p>)}
             </div>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Department *</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Department *</label>
               <select id="department" name="department" value={formik.values.department} onChange={formik.handleChange} onBlur={formik.handleBlur} className="block w-full rounded-lg border border-border/40 shadow-sm focus:border-primary focus:ring-blue-500 px-4 py-2">
                 {departments.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
               </select>
               {formik.touched.department && formik.errors.department && (<p className="mt-1 text-xs text-destructive">{String(formik.errors.department)}</p>)}
             </div>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Priority *</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Priority *</label>
               <select id="priority" name="priority" value={formik.values.priority} onChange={formik.handleChange} onBlur={formik.handleBlur} className="block w-full rounded-lg border border-border/40 shadow-sm focus:border-primary focus:ring-blue-500 px-4 py-2">
                 {priorityOptions.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
               </select>
               {formik.touched.priority && formik.errors.priority && (<p className="mt-1 text-xs text-destructive">{String(formik.errors.priority)}</p>)}
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Card Type *</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Card Type *</label>
               <select id="selectedCardTypeId" name="selectedCardTypeId" value={formik.values.selectedCardTypeId} onChange={formik.handleChange} onBlur={formik.handleBlur} className={`block w-full rounded-lg border ${formik.touched.selectedCardTypeId && formik.errors.selectedCardTypeId ? 'border-destructive/40 focus:ring-red-500' : 'border-border/40 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`} style={{WebkitAppearance: "menulist-button"}}>
                 <option value="">Select a card type</option>
                 {cardTypes.map(cardType => (
@@ -384,23 +384,23 @@ const RegisterPatient: React.FC = () => {
         {currentFormTab === 'medical' && (
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Medical History</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Medical History</label>
               <textarea id="medicalHistory" name="medicalHistory" rows={3} value={formik.values.medicalHistory} onChange={formik.handleChange} onBlur={formik.handleBlur} className="block w-full rounded-lg border border-border/40 shadow-sm focus:border-primary focus:ring-blue-500 px-4 py-2" placeholder="Enter medical history (optional)" />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Allergies</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Allergies</label>
               <textarea id="allergies" name="allergies" rows={2} value={formik.values.allergies} onChange={formik.handleChange} onBlur={formik.handleBlur} className="block w-full rounded-lg border border-border/40 shadow-sm focus:border-primary focus:ring-blue-500 px-4 py-2" placeholder="Enter allergies (optional)" />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Insurance Provider</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Insurance Provider</label>
               <input type="text" id="insuranceProvider" name="insuranceProvider" value={formik.values.insuranceProvider} onChange={formik.handleChange} onBlur={formik.handleBlur} className="block w-full rounded-lg border border-border/40 shadow-sm focus:border-primary focus:ring-blue-500 px-4 py-2" placeholder="Enter insurance provider (optional)" />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Insurance Number</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Insurance Number</label>
               <input type="text" id="insuranceNumber" name="insuranceNumber" value={formik.values.insuranceNumber} onChange={formik.handleChange} onBlur={formik.handleBlur} className="block w-full rounded-lg border border-border/40 shadow-sm focus:border-primary focus:ring-blue-500 px-4 py-2" placeholder="Enter insurance number (optional)" />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-muted-foreground mb-1">Additional Notes</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-1">Additional Notes</label>
               <textarea id="notes" name="notes" rows={3} value={formik.values.notes} onChange={formik.handleChange} onBlur={formik.handleBlur} className="block w-full rounded-lg border border-border/40 shadow-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 transition-all" placeholder="Enter any additional medical notes or observations..." />
             </div>
           </div>
