@@ -14,7 +14,7 @@ import userService from '../../services/userService';
 import { debounce } from 'lodash'; // Import debounce from lodash
 import { extractErrorMessage } from '../../utils/errorUtils';
 import { safeErrorToString } from '../../utils/errorHandler';
-import patientCardService, { PatientCardSimpleStatus } from '../../services/patientCardService';
+
 
 interface Patient {
   firstName: string;
@@ -66,8 +66,7 @@ const ServiceRequestForm: React.FC = () => {
   const [selectedStaffId, setSelectedStaffId] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
   const [notes, setNotes] = useState<string>('');
-  const [cardStatus, setCardStatus] = useState<PatientCardSimpleStatus | null>(null);
-  const [loadingCardStatus, setLoadingCardStatus] = useState<boolean>(false);
+
 
   useEffect(() => {
     fetchData();
@@ -233,18 +232,6 @@ const ServiceRequestForm: React.FC = () => {
     setSearchQuery(`${p.firstName || ''} ${p.lastName || ''}`.trim()); // Set the full name in the search input
     setSearchResults([]); // Clear search results after selection
     setShowSearchResults(false); // Hide search results
-
-    // Fetch patient card status
-    setLoadingCardStatus(true);
-    try {
-      const status = await patientCardService.getPatientCardByPatientId(pId);
-      setCardStatus(status);
-    } catch (err) {
-      console.error('Error fetching card status:', err);
-      setCardStatus(null);
-    } finally {
-      setLoadingCardStatus(false);
-    }
   };
 
   const handleClearPatient = () => {
@@ -252,7 +239,7 @@ const ServiceRequestForm: React.FC = () => {
     setSearchQuery('');
     setSearchResults([]);
     setShowSearchResults(false);
-    setCardStatus(null);
+
     setPatient({
       firstName: '',
       lastName: '',
@@ -487,38 +474,7 @@ const ServiceRequestForm: React.FC = () => {
             </div>
 
             {/* Patient Card Status Display */}
-            {loadingCardStatus && (
-              <div className="p-3 bg-muted/10 border border-border/30 rounded-lg text-xs text-muted-foreground flex items-center gap-2">
-                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-primary"></div>
-                Checking patient card registration status...
-              </div>
-            )}
-            {!loadingCardStatus && cardStatus && (
-              <div>
-                {cardStatus.isValid ? (
-                  <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 rounded-lg flex items-start gap-3 transition-all duration-300">
-                    <span className="text-emerald-500 text-lg">✓</span>
-                    <div>
-                      <h4 className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Active Card Registration</h4>
-                      <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
-                        Type: <strong>{cardStatus.cardType}</strong> | Expiry: {cardStatus.expiryDate ? new Date(cardStatus.expiryDate).toLocaleDateString() : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/30 rounded-lg flex items-start gap-3 transition-all duration-300">
-                    <span className="text-amber-500 text-lg">⚠️</span>
-                    <div>
-                      <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-300">Card Payment/Renewal Required</h4>
-                      <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                        This patient does not have a valid active card registration (Status: <strong>{cardStatus.status}</strong>).
-                        Submitting this request will automatically queue a Card Payment Notification alongside the service billing.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
