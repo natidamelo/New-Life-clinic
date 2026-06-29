@@ -373,7 +373,7 @@ Guidelines:
       try {
         const axiosModule = require('axios');
         const axios = axiosModule.default || axiosModule;
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`;
 
         // Map history to Gemini format:
         // messages: [{ role: 'user' | 'model', content: string }]
