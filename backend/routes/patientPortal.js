@@ -365,83 +365,89 @@ Guidelines:
 
     // 5. Structure the history contents for Gemini API
     const geminiKey = process.env.GEMINI_API_KEY;
-    if (!geminiKey || geminiKey === 'your_gemini_api_key_here') {
-      return res.status(500).json({ 
-        success: false, 
-        message: 'AI service is not configured. Please contact support.' 
-      });
-    }
-
-    const axios = require('axios');
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
-
-    // Map history to Gemini format:
-    // messages: [{ role: 'user' | 'model', content: string }]
-    const contents = [];
-    if (messages && Array.isArray(messages)) {
-      messages.forEach(m => {
-        contents.push({
-          role: m.role === 'model' ? 'model' : 'user',
-          parts: [{ text: m.content }]
-        });
-      });
-    }
-
-    // Append the new user message if not already included
-    if (contents.length === 0 || contents[contents.length - 1].parts[0].text !== userMessage) {
-      contents.push({
-        role: 'user',
-        parts: [{ text: userMessage }]
-      });
-    }
-
-    // Call Gemini
-    const payload = {
-      contents,
-      systemInstruction: {
-        parts: [{ text: systemPrompt }]
-      },
-      generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 1000
-      }
-    };
-
+    const isGeminiAvailable = geminiKey && geminiKey !== 'your_gemini_api_key_here';
     let replyText = '';
-    try {
-      const response = await axios.post(url, payload, { timeout: 25000 });
-      replyText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 'I apologize, but I am unable to formulate a response at the moment. Please try again.';
-      
-      res.json({
-        success: true,
-        data: {
-          reply: replyText
+    let usedFallback = false;
+
+    if (isGeminiAvailable) {
+      try {
+        const axiosModule = require('axios');
+        const axios = axiosModule.default || axiosModule;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+
+        // Map history to Gemini format:
+        // messages: [{ role: 'user' | 'model', content: string }]
+        const contents = [];
+        if (messages && Array.isArray(messages)) {
+          messages.forEach(m => {
+            contents.push({
+              role: m.role === 'model' ? 'model' : 'user',
+              parts: [{ text: m.content }]
+            });
+          });
         }
-      });
-    } catch (apiError) {
-      console.warn('[Patient Portal Chat] Live Gemini API failed, using local fallback:', apiError.message);
-      
-      // Local fallback logic
-      replyText = getLocalChatFallback(userMessage, {
-        patientName,
-        age,
-        gender,
-        bloodType,
-        allergiesStr,
-        historyStr,
-        recentVitalsStr,
-        activeMedsStr,
-        labResultsStr,
-        recentRecordsStr
-      });
-      
-      res.json({
-        success: true,
-        data: {
-          reply: replyText + '\n\n*(Note: Live AI service is temporarily rate-limited; this response was generated using your local clinic records fallback)*'
+
+        // Append the new user message if not already included
+        if (contents.length === 0 || contents[contents.length - 1].parts[0].text !== userMessage) {
+          contents.push({
+            role: 'user',
+            parts: [{ text: userMessage }]
+          });
         }
-      });
+
+        // Call Gemini
+        const payload = {
+          contents,
+          systemInstruction: {
+            parts: [{ text: systemPrompt }]
+          },
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 1000
+          }
+        };
+
+        const response = await axios.post(url, payload, { timeout: 25000 });
+        replyText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 'I apologize, but I am unable to formulate a response at the moment. Please try again.';
+        
+        return res.json({
+          success: true,
+          data: {
+            reply: replyText
+          }
+        });
+      } catch (apiError) {
+        console.warn('[Patient Portal Chat] Live Gemini API failed, using local fallback:', apiError.message);
+        usedFallback = true;
+      }
+    } else {
+      console.log('[Patient Portal Chat] Gemini API key not configured, using offline mode fallback.');
     }
+
+    // Fallback block - runs if Gemini API failed OR if Gemini API key was not configured
+    replyText = getLocalChatFallback(userMessage, {
+      patientName,
+      age,
+      gender,
+      bloodType,
+      allergiesStr,
+      historyStr,
+      recentVitalsStr,
+      activeMedsStr,
+      labResultsStr,
+      recentRecordsStr
+    });
+    
+    const note = isGeminiAvailable && usedFallback
+      ? '\n\n*(Note: Live AI service is temporarily rate-limited; this response was generated using your local clinic records fallback)*'
+      : '\n\n*(Note: AI service is in offline mode; this response was generated using your local clinic records)*';
+
+    res.json({
+      success: true,
+      data: {
+        reply: replyText + note
+      }
+    });
 
   } catch (error) {
     console.error('Patient portal AI chat error:', error.message);
