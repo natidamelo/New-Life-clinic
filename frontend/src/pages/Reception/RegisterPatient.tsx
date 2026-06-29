@@ -68,7 +68,8 @@ const validationSchema = Yup.object().shape({
   medicalHistory: Yup.string(),
   allergies: Yup.string(),
   notes: Yup.string(),
-  selectedCardTypeId: Yup.string().required('Card type is required')
+  selectedCardTypeId: Yup.string().required('Card type is required'),
+  bloodType: Yup.string().oneOf(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', ''], 'Invalid blood group')
 });
 
 const RegisterPatient: React.FC = () => {
@@ -100,7 +101,8 @@ const RegisterPatient: React.FC = () => {
       medicalHistory: '',
       allergies: '',
       notes: '',
-      selectedCardTypeId: ''
+      selectedCardTypeId: '',
+      bloodType: ''
     },
     validationSchema,
     onSubmit: async (values, { resetForm }) => {
@@ -131,7 +133,8 @@ const RegisterPatient: React.FC = () => {
           insuranceProvider: values.insuranceProvider,
           insuranceNumber: values.insuranceNumber,
           faydaId: values.faydaId,
-          selectedCardTypeId: values.selectedCardTypeId || undefined
+          selectedCardTypeId: values.selectedCardTypeId || undefined,
+          bloodType: values.bloodType || undefined
         };
         
         console.log("Submitting new patient data:", newPatientData);
@@ -390,6 +393,21 @@ const RegisterPatient: React.FC = () => {
             <div className="col-span-2">
               <label className="block text-sm font-bold text-muted-foreground mb-2">Allergies</label>
               <textarea id="allergies" name="allergies" rows={2} value={formik.values.allergies} onChange={formik.handleChange} onBlur={formik.handleBlur} className="block w-full rounded-lg border border-border/40 shadow-sm focus:border-primary focus:ring-blue-500 px-4 py-2" placeholder="Enter allergies (optional)" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-bold text-muted-foreground mb-2">Blood Group</label>
+              <select id="bloodType" name="bloodType" value={formik.values.bloodType} onChange={formik.handleChange} onBlur={formik.handleBlur} className="block w-full rounded-lg border border-border/40 shadow-sm focus:border-primary focus:ring-blue-500 px-4 py-2">
+                <option value="">Select blood group (optional)</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+              {formik.touched.bloodType && formik.errors.bloodType && (<p className="mt-1 text-xs text-destructive">{String(formik.errors.bloodType)}</p>)}
             </div>
             <div className="col-span-2">
               <label className="block text-sm font-bold text-muted-foreground mb-2">Insurance Provider</label>

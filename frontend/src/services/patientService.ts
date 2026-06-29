@@ -162,6 +162,7 @@ export interface CreatePatientDto {
   insuranceNumber?: string;
   faydaId?: string;
   selectedCardTypeId?: string;
+  bloodType?: string;
 }
 
 // Add caching variables

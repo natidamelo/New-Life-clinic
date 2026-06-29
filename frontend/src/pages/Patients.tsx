@@ -637,6 +637,7 @@ const Patients: React.FC = () => {
               <p><span className="font-semibold">Date of Birth:</span> {formatDate(selectedPatient.dateOfBirth)} (Age: {selectedPatient.age})</p>
               <p><span className="font-semibold">Contact:</span> {selectedPatient.contactNumber}</p>
               <p><span className="font-semibold">Email:</span> {selectedPatient.email || 'N/A'}</p>
+              <p><span className="font-semibold">Blood Group:</span> {selectedPatient.bloodType || 'N/A'}</p>
               <p><span className="font-semibold">Address:</span> {selectedPatient.address}</p>
               <p><span className="font-semibold">Status:</span> {selectedPatient.status}</p>
               {selectedPatient.hidden && (
@@ -738,6 +739,22 @@ const Patients: React.FC = () => {
                 value={editForm.email || ''}
                 onChange={e => handleEditFormChange('email', e.target.value)}
               />
+              <label className="block text-sm font-medium">Blood Group</label>
+              <select
+                className="w-full border rounded p-2 bg-background"
+                value={editForm.bloodType || ''}
+                onChange={e => handleEditFormChange('bloodType', e.target.value)}
+              >
+                <option value="">Select blood group (optional)</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
               <div className="flex items-center gap-2 pt-2">
                 <input
                   type="checkbox"
