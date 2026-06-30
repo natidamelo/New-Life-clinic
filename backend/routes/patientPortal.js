@@ -405,7 +405,6 @@ Guidelines:
       try {
         const axiosModule = require('axios');
         const axios = axiosModule.default || axiosModule;
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`;
 
         // Map history to Gemini format:
         // messages: [{ role: 'user' | 'model', content: string }]
@@ -427,20 +426,41 @@ Guidelines:
           });
         }
 
-        // Call Gemini
-        const payload = {
-          contents,
-          systemInstruction: {
-            parts: [{ text: systemPrompt }]
-          },
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 1000
-          }
-        };
+        // Try gemini-3.5-flash first, then fall back to gemini-flash-latest
+        const models = ['gemini-3.5-flash', 'gemini-flash-latest'];
+        let response = null;
+        let lastError = null;
 
-        const response = await axios.post(url, payload, { timeout: 25000 });
-        replyText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 'I apologize, but I am unable to formulate a response at the moment. Please try again.';
+        for (const model of models) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
+            
+            const payload = {
+              contents,
+              systemInstruction: {
+                parts: [{ text: systemPrompt }]
+              },
+              generationConfig: {
+                temperature: 0.4,
+                maxOutputTokens: 4096
+              }
+            };
+
+            response = await axios.post(url, payload, { timeout: 25000 });
+            if (response?.data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+              break;
+            }
+          } catch (modelError) {
+            console.warn(`[Patient Portal Chat] Model ${model} failed:`, modelError.message);
+            lastError = modelError;
+          }
+        }
+
+        if (!response || !response.data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+          throw lastError || new Error('No valid response from any Gemini model');
+        }
+
+        replyText = response.data.candidates[0].content.parts[0].text;
         
         return res.json({
           success: true,
