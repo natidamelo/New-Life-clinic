@@ -1260,36 +1260,62 @@ const MedicalCertificates: React.FC = () => {
                   body {
                     padding: 0;
                     margin: 4mm;
+                    color: #000 !important;
                   }
                   .certificate-frame {
-                    border-color: #000;
+                    border-color: #000 !important;
                     min-height: 186mm;
                   }
                   .clinic-header {
-                    border-bottom-color: #000;
+                    border-bottom-color: #000 !important;
+                  }
+                  .clinic-details h1,
+                  .clinic-details p,
+                  .clinic-meta-right,
+                  .certificate-title-container h2,
+                  .meta-info-item,
+                  .meta-info-item strong,
+                  .narrative-block,
+                  .narrative-block strong,
+                  .details-card h3,
+                  .details-row,
+                  .details-row .label,
+                  .details-row .val,
+                  .notes-card h3,
+                  .notes-card p,
+                  .doctor-name-title,
+                  .doctor-license,
+                  .qr-details,
+                  .qr-details strong {
+                    color: #000 !important;
                   }
                   .certificate-title-container h2 {
-                    color: #000;
-                    border-bottom-color: #000;
+                    border-bottom-color: #000 !important;
                   }
                   .meta-info-bar {
-                    background-color: #fff;
-                    border-color: #000;
+                    background-color: #fff !important;
+                    border-color: #000 !important;
                   }
                   .details-card {
-                    border-color: #000;
-                    background-color: #fff;
+                    border-color: #000 !important;
+                    background-color: #fff !important;
                   }
                   .details-card h3 {
-                    color: #000;
-                    border-bottom-color: #000;
+                    border-bottom-color: #000 !important;
+                  }
+                  .notes-card {
+                    border-color: #000 !important;
+                    background-color: #fff !important;
+                  }
+                  .footer-signature-section {
+                    border-top-color: #000 !important;
                   }
                   .security-verification-block {
-                    background-color: #fff;
-                    border-color: #000;
+                    background-color: #fff !important;
+                    border-color: #000 !important;
                   }
-                  .qr-details strong {
-                    color: #000;
+                  .watermark-bg {
+                    opacity: 0.08 !important;
                   }
                 }
               </style>
