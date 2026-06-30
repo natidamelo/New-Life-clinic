@@ -9,7 +9,7 @@ import {
   Activity, User, Clipboard, Heart, LogOut, Moon, Sun, 
   MapPin, Phone, Mail, Award, CheckCircle2, AlertCircle, 
   Lock, Edit3, Save, ChevronRight, FileText, Pill, FileSpreadsheet,
-  Stethoscope, Camera, Bot, MessageSquare
+  Stethoscope, Camera, Bot, MessageSquare, Mic, MicOff, Volume2, VolumeX
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, 
@@ -123,6 +123,103 @@ const PatientDashboard: React.FC = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isSendingChat, setIsSendingChat] = useState(false);
   const chatEndRef = React.useRef<HTMLDivElement>(null);
+
+  // Voice States
+  const [isListening, setIsListening] = useState(false);
+  const [recognition, setRecognition] = useState<any>(null);
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = 'en-US';
+
+      rec.onstart = () => {
+        setIsListening(true);
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+      };
+
+      rec.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+        if (event.error !== 'no-speech') {
+          toast.error('Voice input error: ' + event.error);
+        }
+      };
+
+      rec.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInputMessage(prev => {
+          const space = prev.trim().length > 0 ? ' ' : '';
+          return prev + space + transcript;
+        });
+      };
+
+      setRecognition(rec);
+    }
+  }, []);
+
+  // Text-To-Speech function
+  const speakMessage = (msgId: string, text: string) => {
+    if ('speechSynthesis' in window) {
+      if (speakingMsgId === msgId) {
+        window.speechSynthesis.cancel();
+        setSpeakingMsgId(null);
+        return;
+      }
+
+      window.speechSynthesis.cancel();
+
+      // Clean up markdown before speaking
+      const cleanText = text.replace(/[*#`_\-]/g, '').replace(/🧠✨/g, '').replace(/⚠️/g, '');
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      
+      utterance.onend = () => {
+        setSpeakingMsgId(null);
+      };
+      utterance.onerror = () => {
+        setSpeakingMsgId(null);
+      };
+
+      setSpeakingMsgId(msgId);
+      window.speechSynthesis.speak(utterance);
+    } else {
+      toast.error('Text-to-speech is not supported in this browser.');
+    }
+  };
+
+  // Cleanup speech synthesis on unmount
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognition) {
+      toast.error('Voice input is not supported in this browser. Please try Chrome, Edge or Safari.');
+      return;
+    }
+
+    if (isListening) {
+      recognition.stop();
+    } else {
+      try {
+        recognition.start();
+      } catch (err) {
+        console.error('Failed to start recognition:', err);
+      }
+    }
+  };
 
   useEffect(() => {
     if (patient) {
@@ -1638,8 +1735,25 @@ const PatientDashboard: React.FC = () => {
                         <div className="space-y-1">
                           {renderFormattedContent(msg.content)}
                         </div>
-                        <div className="text-[10px] text-slate-400 mt-2 text-right">
-                          {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        <div className="flex items-center justify-between gap-4 mt-2 border-t border-slate-750/15 pt-1.5">
+                          <button
+                            type="button"
+                            onClick={() => speakMessage(msg.id, msg.content)}
+                            className={`p-1 rounded-lg transition-all duration-150 flex items-center gap-1 text-[10px] cursor-pointer ${
+                              speakingMsgId === msg.id 
+                                ? 'text-cyan-400 bg-cyan-500/10 animate-pulse' 
+                                : isDarkMode 
+                                  ? 'text-slate-400 hover:text-cyan-400 hover:bg-slate-850/50' 
+                                  : 'text-slate-500 hover:text-teal-605 hover:bg-slate-200/50'
+                            }`}
+                            title={speakingMsgId === msg.id ? "Stop voice" : "Read aloud"}
+                          >
+                            {speakingMsgId === msg.id ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                            <span>{speakingMsgId === msg.id ? 'Stop' : 'Listen'}</span>
+                          </button>
+                          <div className="text-[10px] text-slate-400">
+                            {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1691,18 +1805,35 @@ const PatientDashboard: React.FC = () => {
                   }}
                   className="flex items-center gap-2 pt-2"
                 >
-                  <input
-                    type="text"
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    placeholder="Type a message or ask about your prescriptions..."
-                    disabled={isSendingChat}
-                    className={`flex-1 px-4 py-3 rounded-2xl text-sm border focus:outline-none transition-all duration-200 ${
-                      isDarkMode 
-                        ? 'bg-slate-900/60 border-slate-800 text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30' 
-                        : 'bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30'
-                    }`}
-                  />
+                  <div className="flex-1 relative flex items-center">
+                    <input
+                      type="text"
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      placeholder="Type a message or ask about your prescriptions..."
+                      disabled={isSendingChat}
+                      className={`w-full pr-12 pl-4 py-3 rounded-2xl text-sm border focus:outline-none transition-all duration-200 ${
+                        isDarkMode 
+                          ? 'bg-slate-900/60 border-slate-800 text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30' 
+                          : 'bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={toggleListening}
+                      disabled={isSendingChat}
+                      className={`absolute right-3.5 p-1.5 rounded-xl transition-all duration-200 cursor-pointer ${
+                        isListening 
+                          ? 'text-rose-500 bg-rose-500/10 animate-pulse' 
+                          : isDarkMode 
+                            ? 'text-slate-400 hover:text-cyan-400 hover:bg-slate-800/40' 
+                            : 'text-slate-400 hover:text-teal-600 hover:bg-slate-100'
+                      }`}
+                      title={isListening ? "Stop listening" : "Voice search"}
+                    >
+                      {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                    </button>
+                  </div>
                   <button
                     type="submit"
                     disabled={isSendingChat || !inputMessage.trim()}
