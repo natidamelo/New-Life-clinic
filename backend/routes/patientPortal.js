@@ -82,7 +82,8 @@ router.get('/vitals', async (req, res, next) => {
       bloodSugar: v.bloodSugar,
       notes: v.notes,
       measuredByName: v.measuredByName || 'Clinical Nurse',
-      measurementDate: v.measurementDate
+      measurementDate: v.measurementDate,
+      isStandalone: true
     }));
 
     // 2. Fetch from MedicalRecord consult vital signs
@@ -122,19 +123,50 @@ router.get('/vitals', async (req, res, next) => {
           respiratoryRate: record.vitalSigns.respiratoryRate ? parseFloat(record.vitalSigns.respiratoryRate) : undefined,
           measuredByName: record.doctorName || (record.doctorId ? `Dr. ${record.doctorId.lastName}` : 'Consulting Physician'),
           measurementDate: record.visitDate,
-          notes: record.notes || 'Recorded during consultation'
+          notes: record.notes || 'Recorded during consultation',
+          isStandalone: false
         });
       }
     }
 
-    // 3. Merge both lists and sort by date descending
-    const allVitals = [...formattedStandalone, ...recordVitals].sort((a, b) => 
+    // 3. Merge both lists
+    const allVitals = [...formattedStandalone, ...recordVitals];
+
+    // Deduplicate similar readings within 24 hours (preferring standalone/nurse vitals)
+    const uniqueVitals = [];
+    for (const current of allVitals) {
+      const duplicateIdx = uniqueVitals.findIndex(existing => {
+        const timeDiff = Math.abs(new Date(existing.measurementDate).getTime() - new Date(current.measurementDate).getTime()) / (1000 * 60 * 60);
+        if (timeDiff < 24) {
+          const bpMatch = existing.systolic === current.systolic && existing.diastolic === current.diastolic;
+          const pulseMatch = existing.pulse === current.pulse;
+          const tempMatch = existing.temperature === current.temperature;
+          const weightMatch = existing.weight === current.weight;
+          const heightMatch = existing.height === current.height;
+          const spo2Match = existing.spo2 === current.spo2;
+          return bpMatch && pulseMatch && tempMatch && weightMatch && heightMatch && spo2Match;
+        }
+        return false;
+      });
+
+      if (duplicateIdx !== -1) {
+        const existing = uniqueVitals[duplicateIdx];
+        if (!existing.isStandalone && current.isStandalone) {
+          uniqueVitals[duplicateIdx] = current;
+        }
+      } else {
+        uniqueVitals.push(current);
+      }
+    }
+
+    // Sort by date descending
+    uniqueVitals.sort((a, b) => 
       new Date(b.measurementDate).getTime() - new Date(a.measurementDate).getTime()
     );
 
     res.status(200).json({
       success: true,
-      data: allVitals
+      data: uniqueVitals
     });
   } catch (error) {
     logger.error('Failed to fetch patient portal vitals', { error: error.message });
