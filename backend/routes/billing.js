@@ -1160,6 +1160,7 @@ router.post('/process-medication-payment', auth, [
             {
               $set: {
                 paymentStatus: 'paid',
+                status: 'Active',
                 paidAt: new Date(),
                 'paymentAuthorization.paymentStatus': 'fully_paid'
               }
@@ -2237,6 +2238,7 @@ router.post('/process-consolidated-payment', auth, [
           {
             $set: {
               paymentStatus: 'paid',
+              status: 'Active',
               paidAt: new Date(),
               'paymentAuthorization.paymentStatus': 'fully_paid'
             }

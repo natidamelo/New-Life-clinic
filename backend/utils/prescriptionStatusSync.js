@@ -90,9 +90,10 @@ async function syncPrescriptionStatusFromInvoice(invoice, options = {}) {
             prescription.paymentStatus = newPaymentStatus;
             prescription.updatedAt = new Date();
             
-            // If paid or partially paid, set paidAt timestamp
+            // If paid or partially paid, set paidAt timestamp and activate status
             if (newPaymentStatus === 'paid' || newPaymentStatus === 'partial') {
               prescription.paidAt = new Date();
+              prescription.status = 'Active';
             }
             
             await prescription.save();
@@ -269,6 +270,7 @@ async function manualSyncAllPrescriptions(patientId = null) {
             
             if (newPaymentStatus === 'paid' || newPaymentStatus === 'partial') {
               prescription.paidAt = new Date();
+              prescription.status = 'Active';
             }
             
             await prescription.save();

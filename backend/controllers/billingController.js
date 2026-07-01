@@ -1120,7 +1120,7 @@ exports.addPaymentToInvoice = asyncHandler(async (req, res) => {
 
             // Update prescription fields
             prescription.paymentStatus = prescriptionPaymentStatus;
-            prescription.status = prescriptionPaymentStatus === 'paid' ? 'Active' : prescription.status;
+            prescription.status = ['paid', 'partial'].includes(prescriptionPaymentStatus) ? 'Active' : prescription.status;
 
             if (prescriptionPaymentStatus === 'paid') {
                 prescription.paidAt = new Date();
