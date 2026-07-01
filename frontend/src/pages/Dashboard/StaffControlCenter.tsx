@@ -247,42 +247,24 @@ const StaffControlCenter: React.FC = () => {
       }
     };
 
-    const loadAttendanceData = async () => {
-      try {
-        // Use real staff data instead of mock attendance data
-        const data = await staffService.getAttendanceData();
-        if (data && data.success) {
-          setAttendanceData(Array.isArray(data.attendanceData) ? data.attendanceData : []);
-          setAttendanceSummary(data.summary || null);
-        } else {
-          // Fallback to empty data if API fails
-          setAttendanceData([]);
-          setAttendanceSummary(null);
-        }
-      } catch (error) {
-        console.error('Error loading attendance data:', error);
-        setAttendanceData([]);
-        setAttendanceSummary(null);
-      }
+    const refreshMonthlyData = () => {
+      fetchMonthlyAttendance(currentMonth.getFullYear(), currentMonth.getMonth(), true);
     };
 
     loadAttendanceStatus();
-    loadAttendanceData();
-    
-    // Fetch current month's attendance data
-    const now = new Date();
-    fetchMonthlyAttendance(now.getFullYear(), now.getMonth());
+    fetchMonthlyAttendance(currentMonth.getFullYear(), currentMonth.getMonth());
     
     // Start automatic activity tracking
     attendanceService.startActivityTracking();
 
-    const interval = setInterval(loadAttendanceData, 60000);
+    const interval = setInterval(refreshMonthlyData, 60000);
 
     return () => {
       clearInterval(interval);
       attendanceService.stopActivityTracking();
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMonth]);
 
   // Filter staff based on search query and active filter
   const filteredStaff = (Array.isArray(staffMembers) ? staffMembers : []).filter(staff => {
@@ -552,13 +534,13 @@ const StaffControlCenter: React.FC = () => {
   };
 
   // Function to fetch monthly attendance data
-  const fetchMonthlyAttendance = async (year: number, month: number) => {
+  const fetchMonthlyAttendance = async (year: number, month: number, forceRefresh = false) => {
     const cacheKey = `${year}-${month}`;
     
     // Check if data is already cached
-    if (monthlyAttendanceCache[cacheKey]) {
+    if (!forceRefresh && monthlyAttendanceCache[cacheKey]) {
       const cachedData = monthlyAttendanceCache[cacheKey];
-      setAttendanceData(Array.isArray(cachedData.staff) ? cachedData.staff : []);
+      setAttendanceData(Array.isArray(cachedData.monthlyAttendanceData) ? cachedData.monthlyAttendanceData : []);
       setAttendanceSummary(cachedData.summary || null);
       return;
     }
