@@ -1277,7 +1277,7 @@ const StaffControlCenter: React.FC = () => {
                                 }
                                 
                                 // Cell content and styling
-                                let cellContent = '';
+                                let cellContent: React.ReactNode = '';
                                 let cellClass = '';
                                 
                                 if (isFuture) {
@@ -1286,15 +1286,38 @@ const StaffControlCenter: React.FC = () => {
                                 } else if (isWeekend) {
                                   cellContent = '•';
                                   cellClass = 'bg-slate-50 dark:bg-slate-800/30 text-slate-300 dark:text-slate-600';
-                                } else if (attendanceStatus === 'present') {
-                                  cellContent = '✓';
-                                  cellClass = 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 font-bold';
                                 } else if (attendanceStatus === 'overtime-complete' || attendanceStatus === 'overtime-checkin') {
+                                  // Pure overtime day (no regular timesheet)
                                   cellContent = 'OT';
                                   cellClass = 'bg-violet-50 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400 font-bold text-[10px]';
+                                } else if (attendanceStatus === 'present') {
+                                  if (dayData?.isOvertime) {
+                                    // Present + overtime on same day
+                                    cellContent = (
+                                      <span className="flex flex-col items-center leading-none gap-0.5">
+                                        <span>✓</span>
+                                        <span className="text-[8px] font-bold text-violet-500 dark:text-violet-400">OT</span>
+                                      </span>
+                                    );
+                                    cellClass = 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 font-bold';
+                                  } else {
+                                    cellContent = '✓';
+                                    cellClass = 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 font-bold';
+                                  }
                                 } else if (attendanceStatus === 'late') {
-                                  cellContent = 'L';
-                                  cellClass = 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 font-bold';
+                                  if (dayData?.isOvertime) {
+                                    // Late + overtime on same day
+                                    cellContent = (
+                                      <span className="flex flex-col items-center leading-none gap-0.5">
+                                        <span>L</span>
+                                        <span className="text-[8px] font-bold text-violet-500 dark:text-violet-400">OT</span>
+                                      </span>
+                                    );
+                                    cellClass = 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 font-bold';
+                                  } else {
+                                    cellContent = 'L';
+                                    cellClass = 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 font-bold';
+                                  }
                                 } else if (attendanceStatus === 'absent') {
                                   cellContent = '✗';
                                   cellClass = 'bg-rose-50 dark:bg-rose-950/30 text-rose-500 dark:text-rose-400 font-bold';
@@ -1426,6 +1449,13 @@ const StaffControlCenter: React.FC = () => {
                   <span className="text-xs text-muted-foreground">Present</span>
                 </div>
                 <div className="flex items-center gap-1.5">
+                  <div className="w-6 h-5 rounded bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 flex flex-col items-center justify-center leading-none gap-0 font-bold">
+                    <span className="text-[9px] text-emerald-600 dark:text-emerald-400">✓</span>
+                    <span className="text-[7px] text-violet-500 dark:text-violet-400 font-bold">OT</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">Present + OT</span>
+                </div>
+                <div className="flex items-center gap-1.5">
                   <div className="w-6 h-5 rounded bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 flex items-center justify-center text-rose-500 dark:text-rose-400 text-[10px] font-bold">✗</div>
                   <span className="text-xs text-muted-foreground">Absent</span>
                 </div>
@@ -1434,8 +1464,15 @@ const StaffControlCenter: React.FC = () => {
                   <span className="text-xs text-muted-foreground">Late</span>
                 </div>
                 <div className="flex items-center gap-1.5">
+                  <div className="w-6 h-5 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex flex-col items-center justify-center leading-none gap-0 font-bold">
+                    <span className="text-[9px] text-amber-600 dark:text-amber-400">L</span>
+                    <span className="text-[7px] text-violet-500 dark:text-violet-400 font-bold">OT</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">Late + OT</span>
+                </div>
+                <div className="flex items-center gap-1.5">
                   <div className="w-6 h-5 rounded bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 flex items-center justify-center text-violet-600 dark:text-violet-400 text-[9px] font-bold">OT</div>
-                  <span className="text-xs text-muted-foreground">Overtime</span>
+                  <span className="text-xs text-muted-foreground">OT only</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-6 h-5 rounded bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-300 dark:text-slate-600 text-[10px]">•</div>
