@@ -192,19 +192,21 @@ router.get('/list-timesheets', async (req, res) => {
     const Timesheet = require('../models/Timesheet');
     const User = require('../models/User');
     
-    const natan = await User.findOne({ firstName: 'Doctor', lastName: 'Natan' });
-    if (!natan) {
-      return res.json({ error: 'Natan not found' });
-    }
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    threeDaysAgo.setHours(0, 0, 0, 0);
     
-    const timesheets = await Timesheet.find({ userId: natan._id })
+    const timesheets = await Timesheet.find({ date: { $gte: threeDaysAgo } })
+      .populate('userId', 'firstName lastName role')
       .sort({ createdAt: -1 })
       .lean();
       
     res.json({
-      userId: natan._id,
+      count: timesheets.length,
       timesheets: timesheets.map(t => ({
         _id: t._id,
+        user: t.userId ? `${t.userId.firstName} ${t.userId.lastName} (${t.userId.role})` : 'Unknown',
+        userId: t.userId ? t.userId._id : null,
         date: t.date,
         createdAt: t.createdAt,
         isOvertime: t.isOvertime,
