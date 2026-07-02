@@ -5,6 +5,11 @@ const User = require('../models/User');
 const StaffAttendance = require('../models/StaffAttendance');
 const Timesheet = require('../models/Timesheet');
 
+const getEATDateString = (date) => {
+  const eatDate = new Date(new Date(date).getTime() + (3 * 60 * 60 * 1000));
+  return `${eatDate.getUTCFullYear()}-${String(eatDate.getUTCMonth() + 1).padStart(2, '0')}-${String(eatDate.getUTCDate()).padStart(2, '0')}`;
+};
+
 // @route   GET /api/staff
 // @desc    Get all staff
 // @access  Private
@@ -255,7 +260,20 @@ router.get('/attendance-data', auth, async (req, res) => {
         let ethiopianCheckInTime = null;
         let ethiopianCheckOutTime = null;
         
-        if (overtimeTimesheet) {
+        if (regularTimesheet && overtimeTimesheet) {
+          // Both regular and overtime timesheets exist
+          if (overtimeTimesheet.status === 'active') {
+            dayAttendanceStatus = 'overtime-checkin';
+            attendanceStatus = 'checked-in';
+          } else if (overtimeTimesheet.status === 'completed') {
+            dayAttendanceStatus = 'overtime-complete';
+            attendanceStatus = 'checked-out';
+          }
+          minutesLate = regularTimesheet.clockIn?.minutesLate || 0;
+          minutesEarly = overtimeTimesheet.clockOut?.minutesEarly || regularTimesheet.clockOut?.minutesEarly || 0;
+          ethiopianCheckInTime = regularTimesheet.clockIn?.ethiopianTime;
+          ethiopianCheckOutTime = overtimeTimesheet.clockOut?.ethiopianTime || regularTimesheet.clockOut?.ethiopianTime;
+        } else if (overtimeTimesheet) {
           // If there's an overtime timesheet, use its status
           if (overtimeTimesheet.status === 'active') {
             dayAttendanceStatus = 'overtime-checkin';
@@ -413,7 +431,7 @@ router.get('/monthly-attendance', auth, async (req, res) => {
     timesheetRecords.forEach(record => {
       if (!record.userId || !record.userId._id) return;
       const userId = record.userId._id.toString();
-      const dateKey = record.date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const dateKey = getEATDateString(record.date);
       
       if (!attendanceByUserAndDate[userId]) {
         attendanceByUserAndDate[userId] = {};
@@ -481,7 +499,42 @@ router.get('/monthly-attendance', auth, async (req, res) => {
             let overtimeHours = 0;
             let isOvertime = false;
             
-            if (overtime) {
+            if (regular && overtime) {
+              // Both regular and overtime timesheets exist
+              if (overtime.status === 'active') {
+                status = 'overtime-checkin';
+              } else if (overtime.status === 'completed') {
+                status = 'overtime-complete';
+              } else {
+                status = regular.dayAttendanceStatus || 'present';
+              }
+              
+              clockInTime = regular.clockIn?.time ? 
+                regular.clockIn.time.toLocaleTimeString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: false
+                }) : null;
+                
+              clockOutTime = overtime.clockOut?.time ? 
+                overtime.clockOut.time.toLocaleTimeString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: false
+                }) : (regular.clockOut?.time ? 
+                  regular.clockOut.time.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                  }) : null);
+                  
+              workHours = (regular.totalWorkHours || 0) + (overtime.totalWorkHours || 0);
+              overtimeHours = (overtime.overtimeHours || 0) + (regular.overtimeHours || 0);
+              isOvertime = true;
+            } else if (overtime) {
               // Overtime timesheet exists
               if (overtime.status === 'active') {
                 status = 'overtime-checkin';

@@ -61,6 +61,41 @@ class EthiopianTime {
     endOfDay.setUTCHours(11, 0, 0, 0); // 11:00 AM Ethiopian time
     return new Date(endOfDay.getTime() - (3 * 60 * 60 * 1000)); // Convert back to UTC
   }
+
+  /**
+   * Get the start of the shift date in EAT (UTC+3), adjusting for post-midnight overtime.
+   * If isOvertimeCheck is true and the current time is between 12:00 AM and 1:30 AM EAT,
+   * the shift belongs to the previous calendar day.
+   */
+  static getEATShiftDate(isOvertimeCheck = false) {
+    const now = new Date();
+    const ethiopianNow = new Date(now.getTime() + (3 * 60 * 60 * 1000));
+    const hour = ethiopianNow.getUTCHours();
+    const minute = ethiopianNow.getUTCMinutes();
+    const timeMinutes = hour * 60 + minute;
+    
+    // 12:00 AM to 1:30 AM EAT = 0 to 90 minutes
+    const isPostMidnightOvertime = timeMinutes <= (1 * 60 + 30);
+    
+    if (isPostMidnightOvertime && isOvertimeCheck) {
+      ethiopianNow.setUTCDate(ethiopianNow.getUTCDate() - 1);
+    }
+    
+    const year = ethiopianNow.getUTCFullYear();
+    const month = ethiopianNow.getUTCMonth();
+    const day = ethiopianNow.getUTCDate();
+    
+    // Start of that day in EAT (UTC+3), which is 21:00 UTC the previous day
+    return new Date(Date.UTC(year, month, day, 0, 0, 0) - (3 * 60 * 60 * 1000));
+  }
+
+  /**
+   * Get EAT date string as YYYY-MM-DD
+   */
+  static getEATDateString(date) {
+    const eatDate = new Date(new Date(date).getTime() + (3 * 60 * 60 * 1000));
+    return `${eatDate.getUTCFullYear()}-${String(eatDate.getUTCMonth() + 1).padStart(2, '0')}-${String(eatDate.getUTCDate()).padStart(2, '0')}`;
+  }
 }
 
 class QRCodeService {
@@ -935,21 +970,10 @@ class QRCodeService {
    */
   static async processCheckIn(userId, deviceInfo = {}, isOvertimeCheckIn = false) {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      // Check if already clocked in today (both regular and overtime)
-      const existingTimesheets = await Timesheet.find({
-        userId,
-        date: { $gte: today, $lt: tomorrow }
-      }).sort({ createdAt: -1 });
-
-      // Check if current time is within overtime hours
       const clockInTime = new Date();
-      const currentHour = clockInTime.getHours();
-      const currentMinute = clockInTime.getMinutes();
+      const ethiopianNow = new Date(clockInTime.getTime() + (3 * 60 * 60 * 1000));
+      const currentHour = ethiopianNow.getUTCHours();
+      const currentMinute = ethiopianNow.getUTCMinutes();
       const currentTimeMinutes = currentHour * 60 + currentMinute;
       
       const overtimeStartMinutes = 17 * 60; // 5:00 PM
@@ -963,6 +987,16 @@ class QRCodeService {
         // Overtime within same day
         isWithinOvertimeHours = currentTimeMinutes >= overtimeStartMinutes && currentTimeMinutes <= overtimeEndMinutes;
       }
+
+      const isOvertimeCheckInParam = isOvertimeCheckIn || isWithinOvertimeHours;
+      const today = EthiopianTime.getEATShiftDate(isOvertimeCheckInParam);
+      const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+
+      // Check if already clocked in today (both regular and overtime)
+      const existingTimesheets = await Timesheet.find({
+        userId,
+        date: { $gte: today, $lt: tomorrow }
+      }).sort({ createdAt: -1 });
 
       // Check if user is already clocked in for regular hours (not overtime)
       const regularTimesheet = existingTimesheets.find(ts => !ts.isOvertime && ts.status === 'active');
@@ -1019,8 +1053,7 @@ class QRCodeService {
           department = 'General';
       }
 
-      // Determine if this is an overtime check-in
-      const isOvertimeCheckInParam = isOvertimeCheckIn || isWithinOvertimeHours;
+      // isOvertimeCheckInParam is already determined above
       
       // Calculate proper attendance status based on Ethiopian time
       let attendanceStatus = 'present-on-time';
@@ -1074,11 +1107,6 @@ class QRCodeService {
 
       // Also update StaffAttendance model for the attendance overview
       try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
         // Find or create StaffAttendance record for today
         let staffAttendance = await StaffAttendance.findOne({
           userId,
@@ -1146,10 +1174,8 @@ class QRCodeService {
    */
   static async processCheckOut(userId, deviceInfo = {}) {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      const today = EthiopianTime.getEATShiftDate(true);
+      const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
       // Find today's timesheets (both regular and overtime)
       const todayTimesheets = await Timesheet.find({
@@ -1240,15 +1266,10 @@ class QRCodeService {
 
       // Also update StaffAttendance model for the attendance overview
       try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
         // Find StaffAttendance record for today
         const staffAttendance = await StaffAttendance.findOne({
           userId,
-          date: { $gte: today, $lt: tomorrow }
+          checkInTime: { $gte: today, $lt: tomorrow }
         });
 
         if (staffAttendance) {
@@ -1406,10 +1427,8 @@ class QRCodeService {
    */
   static async getCurrentAttendanceStatus(userId) {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      const today = EthiopianTime.getEATShiftDate(true);
+      const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
       // Get today's timesheets (both regular and overtime)
       const todayTimesheets = await Timesheet.find({
