@@ -187,4 +187,38 @@ router.get('/public-stats', async (req, res) => {
   }
 });
 
+router.get('/list-timesheets', async (req, res) => {
+  try {
+    const Timesheet = require('../models/Timesheet');
+    const User = require('../models/User');
+    
+    const natan = await User.findOne({ firstName: 'Doctor', lastName: 'Natan' });
+    if (!natan) {
+      return res.json({ error: 'Natan not found' });
+    }
+    
+    const timesheets = await Timesheet.find({ userId: natan._id })
+      .sort({ createdAt: -1 })
+      .lean();
+      
+    res.json({
+      userId: natan._id,
+      timesheets: timesheets.map(t => ({
+        _id: t._id,
+        date: t.date,
+        createdAt: t.createdAt,
+        isOvertime: t.isOvertime,
+        status: t.status,
+        dayAttendanceStatus: t.dayAttendanceStatus,
+        clockIn: t.clockIn,
+        clockOut: t.clockOut,
+        totalWorkHours: t.totalWorkHours,
+        overtimeHours: t.overtimeHours
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router; 
