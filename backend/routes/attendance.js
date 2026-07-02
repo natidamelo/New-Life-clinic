@@ -2,33 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { auth, optionalAuth } = require('../middleware/auth');
 
-const getEATShiftDate = (isOvertimeCheck = false) => {
-  const now = new Date();
-  const ethiopianNow = new Date(now.getTime() + (3 * 60 * 60 * 1000));
-  const hour = ethiopianNow.getUTCHours();
-  const minute = ethiopianNow.getUTCMinutes();
-  const timeMinutes = hour * 60 + minute;
-  
-  // 12:00 AM to 1:30 AM EAT = 0 to 90 minutes
-  const isPostMidnightOvertime = timeMinutes <= (1 * 60 + 30);
-  
-  if (isPostMidnightOvertime && isOvertimeCheck) {
-    ethiopianNow.setUTCDate(ethiopianNow.getUTCDate() - 1);
-  }
-  
-  const year = ethiopianNow.getUTCFullYear();
-  const month = ethiopianNow.getUTCMonth();
-  const day = ethiopianNow.getUTCDate();
-  
-  // Start of that day in EAT (UTC+3), which is 21:00 UTC the previous day
-  return new Date(Date.UTC(year, month, day, 0, 0, 0) - (3 * 60 * 60 * 1000));
-};
-
-const getEATDateString = (date) => {
-  const eatDate = new Date(new Date(date).getTime() + (3 * 60 * 60 * 1000));
-  return `${eatDate.getUTCFullYear()}-${String(eatDate.getUTCMonth() + 1).padStart(2, '0')}-${String(eatDate.getUTCDate()).padStart(2, '0')}`;
-};
-
 // @route   GET /api/attendance
 // @desc    Get all attendance
 // @access  Private
@@ -191,8 +164,10 @@ router.get('/my-status', auth, async (req, res) => {
     const Timesheet = require('../models/Timesheet');
     
     // Get today's date
-    const today = getEATShiftDate(true);
-    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
     
     // Get today's timesheets
     const timesheets = await Timesheet.find({
@@ -577,7 +552,7 @@ router.get('/analytics', auth, async (req, res) => {
     }
     
     // Get unique working days
-    const uniqueDates = new Set(deptFiltered.map(t => t.date ? getEATDateString(t.date) : '').filter(Boolean));
+    const uniqueDates = new Set(deptFiltered.map(t => t.date ? new Date(t.date).toISOString().split('T')[0] : '').filter(Boolean));
     const totalDays = uniqueDates.size || 1;
     
     const totalPresent = deptFiltered.filter(t => t.dayAttendanceStatus === 'present' || t.status === 'completed' || t.status === 'active').length;
@@ -597,7 +572,7 @@ router.get('/analytics', auth, async (req, res) => {
     const dailyStatsMap = {};
     deptFiltered.forEach(t => {
       if (!t.date) return;
-      const dateKey = getEATDateString(t.date);
+      const dateKey = new Date(t.date).toISOString().split('T')[0];
       if (!dateKey) return;
       if (!dailyStatsMap[dateKey]) dailyStatsMap[dateKey] = { date: dateKey, present: 0, absent: 0, late: 0, overtime: 0 };
       dailyStatsMap[dateKey].present++;
