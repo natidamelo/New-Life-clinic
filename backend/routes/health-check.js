@@ -223,4 +223,47 @@ router.get('/list-timesheets', async (req, res) => {
   }
 });
 
+router.get('/repair-dates', async (req, res) => {
+  try {
+    const Timesheet = require('../models/Timesheet');
+    const User = require('../models/User');
+    
+    const natan = await User.findOne({ $or: [{ firstName: 'DR' }, { lastName: 'Natan' }, { firstName: 'Doctor' }] });
+    if (!natan) {
+      return res.json({ error: 'Natan not found' });
+    }
+    
+    const startOfJuly2 = new Date('2026-07-02T00:00:00.000Z');
+    const endOfJuly2 = new Date('2026-07-02T23:59:59.000Z');
+    
+    const timesheets = await Timesheet.find({
+      userId: natan._id,
+      isOvertime: true,
+      createdAt: { $gte: startOfJuly2, $lte: endOfJuly2 }
+    });
+    
+    if (timesheets.length === 0) {
+      return res.json({ message: 'No matching overtime timesheets found to repair' });
+    }
+    
+    const targetDate = new Date(Date.UTC(2026, 6, 1, 0, 0, 0) - (3 * 60 * 60 * 1000));
+    
+    const updatedIds = [];
+    for (let ts of timesheets) {
+      ts.date = targetDate;
+      await ts.save();
+      updatedIds.push(ts._id);
+    }
+    
+    res.json({
+      success: true,
+      message: `Successfully repaired ${timesheets.length} timesheets`,
+      updatedIds,
+      newDate: targetDate
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router; 
