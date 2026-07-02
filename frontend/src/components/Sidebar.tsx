@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ClockIcon } from '@heroicons/react/24/outline';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import {
@@ -120,6 +121,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
   const { isDarkMode } = useSafeTheme();
   const { attendanceStatus, isLoading: statusLoading } = useAttendanceStatus();
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [isOvertimeQRModalOpen, setIsOvertimeQRModalOpen] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
 
   // Force re-render when component mounts to ensure menu items are updated
@@ -256,7 +258,35 @@ const Sidebar: React.FC<SidebarProps> = () => {
         </button>
       </div>
 
-
+      {/* Overtime Check-in/Check-out Button — only for non-admin staff */}
+      {user && user.role !== 'admin' && (
+        <div className="px-4 py-2 border-t border-border">
+          <button
+            onClick={() => setIsOvertimeQRModalOpen(true)}
+            className={`flex items-center w-full px-4 py-3 rounded-lg transition-all duration-200 group shadow-md ${
+              attendanceStatus?.status === 'overtime_completed'
+                ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                : attendanceStatus?.status === 'overtime_active'
+                  ? 'bg-violet-600 hover:bg-violet-700 text-white hover:shadow-lg'
+                  : 'bg-violet-500 hover:bg-violet-600 text-white hover:shadow-lg'
+            }`}
+            disabled={attendanceStatus?.status === 'overtime_completed'}
+            title="Clock in or out for an overtime shift"
+          >
+            <ClockIcon className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" />
+            <div className="ml-3 flex flex-col items-start">
+              <span className="font-medium text-sm">
+                {attendanceStatus?.status === 'overtime_active'
+                  ? 'Clock Out (OT)'
+                  : attendanceStatus?.status === 'overtime_completed'
+                  ? 'OT Completed'
+                  : 'Overtime Check-in/Out'}
+              </span>
+              <span className="text-[10px] opacity-75">Separate overtime shift</span>
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Theme Toggle */}
       <div className="px-4 py-3 border-t border-border">
@@ -296,10 +326,17 @@ const Sidebar: React.FC<SidebarProps> = () => {
         </button>
       </div>
 
-      {/* QR Code Modal */}
+      {/* Regular QR Code Modal */}
       <QRCodeModal
         isOpen={isQRModalOpen}
         onClose={() => setIsQRModalOpen(false)}
+      />
+
+      {/* Overtime QR Code Modal */}
+      <QRCodeModal
+        isOpen={isOvertimeQRModalOpen}
+        onClose={() => setIsOvertimeQRModalOpen(false)}
+        currentStatus={{ status: 'clocked_out', isOvertimeTime: true, canCheckIn: true, overtimeMode: true }}
       />
     </div>
   );

@@ -49,6 +49,7 @@ interface AttendanceStatus {
   message?: string;
   duration?: string;
   isOvertime?: boolean;
+  overtimeMode?: boolean; // dedicated overtime check-in/out flow
 }
 
 const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatus: propCurrentStatus }) => {
@@ -104,6 +105,13 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
     }
     
     if (isOpen && effectiveCurrentStatus && !hasInitializedRef.current) {
+      // If explicitly opened in overtime mode, always start with check-in
+      if (propCurrentStatus?.overtimeMode) {
+        setHashType('qr-checkin');
+        hasInitializedRef.current = true;
+        return;
+      }
+
       const isUserCheckedIn = 
         effectiveCurrentStatus.status === 'clocked_in' || 
         effectiveCurrentStatus.status === 'checked_in' || 
@@ -672,11 +680,15 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, currentStatu
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            <QrCodeIcon className="w-5 h-5 text-primary" />
-            Staff Check-in/Check-out
+            <QrCodeIcon className={`w-5 h-5 ${propCurrentStatus?.overtimeMode ? 'text-violet-600' : 'text-primary'}`} />
+            {propCurrentStatus?.overtimeMode
+              ? <span className="text-violet-600 dark:text-violet-400">Overtime Check-in / Check-out</span>
+              : 'Staff Check-in/Check-out'}
           </DialogTitle>
           <DialogDescription>
-            Generate QR codes for staff check-in and check-out operations
+            {propCurrentStatus?.overtimeMode
+              ? 'Generate a QR code to clock in or out for your overtime shift'
+              : 'Generate QR codes for staff check-in and check-out operations'}
           </DialogDescription>
         </DialogHeader>
 
