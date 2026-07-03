@@ -3796,6 +3796,11 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
         let data: any = { data: [] };
         if (res.ok) {
           data = await res.json();
+          // In create mode (and no specific recordId), we only want to resume drafts, not finalized records.
+          if (mode === 'create' && !recordId && data.data) {
+            data.data = data.data.filter((rec: any) => rec.status === 'Draft');
+            console.log('🔍 [ModernMedicalRecordForm] Filtered medical records to drafts only for create mode:', data.data);
+          }
         } else {
           console.warn('🔍 [ModernMedicalRecordForm] Failed to fetch patient medical records history. Status:', res.status);
         }

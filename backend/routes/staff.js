@@ -480,40 +480,15 @@ router.get('/monthly-attendance', auth, async (req, res) => {
             let workHours = 0;
             let overtimeHours = 0;
             let isOvertime = false;
-
-            if (regular) {
-              // Regular timesheet always sets the base status
-              status = regular.dayAttendanceStatus || 'present';
-              clockInTime = regular.clockIn?.time ? 
-                regular.clockIn.time.toLocaleTimeString('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  hour12: false
-                }) : null;
-              clockOutTime = regular.clockOut?.time ? 
-                regular.clockOut.time.toLocaleTimeString('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  hour12: false
-                }) : null;
-              workHours = regular.totalWorkHours || 0;
-              // If there is also an overtime record for this day, add OT hours on top
-              if (overtime) {
-                overtimeHours = overtime.overtimeHours || overtime.totalWorkHours || 0;
-                isOvertime = true;
-              } else {
-                overtimeHours = regular.overtimeHours || 0;
-                isOvertime = workHours > 8;
-              }
-            } else if (overtime) {
-              // Only an overtime timesheet exists (no regular record)
+            
+            if (overtime) {
+              // Overtime timesheet exists
               if (overtime.status === 'active') {
                 status = 'overtime-checkin';
               } else if (overtime.status === 'completed') {
                 status = 'overtime-complete';
               }
+              
               clockInTime = overtime.clockIn?.time ? 
                 overtime.clockIn.time.toLocaleTimeString('en-US', {
                   hour: '2-digit',
@@ -531,6 +506,26 @@ router.get('/monthly-attendance', auth, async (req, res) => {
               workHours = overtime.totalWorkHours || 0;
               overtimeHours = overtime.overtimeHours || 0;
               isOvertime = true;
+            } else if (regular) {
+              // Regular timesheet exists
+              status = regular.dayAttendanceStatus || 'present';
+              clockInTime = regular.clockIn?.time ? 
+                regular.clockIn.time.toLocaleTimeString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: false
+                }) : null;
+              clockOutTime = regular.clockOut?.time ? 
+                regular.clockOut.time.toLocaleTimeString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: false
+                }) : null;
+              workHours = regular.totalWorkHours || 0;
+              overtimeHours = regular.overtimeHours || 0;
+              isOvertime = workHours > 8;
             }
             
             dailyAttendance[dateKey] = {

@@ -1863,10 +1863,18 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
     // Mark patient as viewed to hide NEW badge
     setViewedPatients(prev => new Set(prev).add(patient.id));
 
-    setSelectedPatientObject(patient);
+    // Explicitly set create mode and clear any existing record metadata
+    const cleanPatient = {
+      ...patient,
+      _recordId: undefined,
+      _mode: 'create' as const,
+      _existingRecordData: undefined
+    };
+
+    setSelectedPatientObject(cleanPatient);
     setIsMedicalRecordOpen(true);
 
-    console.log('Opening medical record for patient:', patient);
+    console.log('Opening medical record for patient:', cleanPatient);
   };
 
   // New function to handle viewing existing records

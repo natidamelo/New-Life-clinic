@@ -144,9 +144,6 @@ const StaffControlCenter: React.FC = () => {
   
   // State for attendance department filter
   const [attendanceDeptFilter, setAttendanceDeptFilter] = useState<string>('all');
-  
-  // State for overtime search query
-  const [overtimeSearchQuery, setOvertimeSearchQuery] = useState('');
 
   // Memoized filtered staff members for better performance
   const filteredStaffMembers = useMemo(() => {
@@ -368,94 +365,6 @@ const StaffControlCenter: React.FC = () => {
     
     return { present, absent, late, overtime, total, avgHours: total > 0 ? totalHours / total : 0 };
   }, [attendanceData]);
-
-  // Extract and format all overtime records for the current month
-  const monthlyOvertimeRecords = useMemo(() => {
-    const records: Array<{
-      id: string;
-      userName: string;
-      userRole: string;
-      department: string;
-      date: string;
-      clockInTime: string | null;
-      clockOutTime: string | null;
-      workHours: number;
-      overtimeHours: number;
-      status: string;
-    }> = [];
-
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    (attendanceData || []).forEach(staff => {
-      // Apply department filter
-      if (attendanceDeptFilter !== 'all' && staff.department !== attendanceDeptFilter) {
-        return;
-      }
-
-      if (staff.dailyAttendance) {
-        for (let day = 1; day <= daysInMonth; day++) {
-          const date = new Date(year, month, day);
-          const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-          const dayData = (staff as any).dailyAttendance[dateKey];
-          
-          if (dayData && (dayData.overtimeHours > 0 || dayData.isOvertime || dayData.status === 'overtime-complete' || dayData.status === 'overtime-checkin')) {
-            records.push({
-              id: `${staff.userId}-${dateKey}`,
-              userName: staff.userName,
-              userRole: staff.userRole,
-              department: staff.department,
-              date: dateKey,
-              clockInTime: dayData.clockInTime,
-              clockOutTime: dayData.clockOutTime,
-              workHours: dayData.workHours || 0,
-              overtimeHours: dayData.overtimeHours || 0,
-              status: dayData.status
-            });
-          }
-        }
-      }
-    });
-
-    return records.sort((a, b) => b.date.localeCompare(a.date));
-  }, [attendanceData, currentMonth, attendanceDeptFilter]);
-
-  // Export overtime data as CSV
-  const handleExportOvertimeCSV = () => {
-    if (!monthlyOvertimeRecords || monthlyOvertimeRecords.length === 0) {
-      toast({ title: "No Data", description: "No overtime records available to export.", variant: "destructive" });
-      return;
-    }
-    const headers = ['Date', 'Staff Member', 'Role', 'Department', 'Clock In', 'Clock Out', 'Regular Status', 'OT Hours'];
-    const csvData = monthlyOvertimeRecords.map(record => [
-      record.date,
-      record.userName,
-      record.userRole,
-      record.department,
-      record.clockInTime || 'N/A',
-      record.clockOutTime || 'N/A',
-      record.status,
-      `${record.overtimeHours.toFixed(1)}h`
-    ]);
-
-    const csvContent = [headers, ...csvData]
-      .map(row => row.map(cell => `"${cell}"`).join(','))
-      .join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `overtime-report-${currentMonth.getFullYear()}-${currentMonth.getMonth() + 1}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-    
-    toast({
-      title: "Overtime Export Successful",
-      description: "Overtime records exported as CSV",
-    });
-  };
 
   // Export attendance data as CSV
   const handleExportAttendanceCSV = () => {
@@ -852,7 +761,6 @@ const StaffControlCenter: React.FC = () => {
           <TabsTrigger value="timesheets">Timesheets</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="clock-in-out">Clock In/Out</TabsTrigger>
-          <TabsTrigger value="overtime">Overtime</TabsTrigger>
           <TabsTrigger value="assignments">Patient Assignments</TabsTrigger>
           <TabsTrigger value="leave-management" className="relative">
             Leave Management
@@ -1369,7 +1277,7 @@ const StaffControlCenter: React.FC = () => {
                                 }
                                 
                                 // Cell content and styling
-                                let cellContent: React.ReactNode = '';
+                                let cellContent = '';
                                 let cellClass = '';
                                 
                                 if (isFuture) {
@@ -1378,38 +1286,15 @@ const StaffControlCenter: React.FC = () => {
                                 } else if (isWeekend) {
                                   cellContent = '•';
                                   cellClass = 'bg-slate-50 dark:bg-slate-800/30 text-slate-300 dark:text-slate-600';
+                                } else if (attendanceStatus === 'present') {
+                                  cellContent = '✓';
+                                  cellClass = 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 font-bold';
                                 } else if (attendanceStatus === 'overtime-complete' || attendanceStatus === 'overtime-checkin') {
-                                  // Pure overtime day (no regular timesheet)
                                   cellContent = 'OT';
                                   cellClass = 'bg-violet-50 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400 font-bold text-[10px]';
-                                } else if (attendanceStatus === 'present') {
-                                  if (dayData?.isOvertime) {
-                                    // Present + overtime on same day
-                                    cellContent = (
-                                      <span className="flex flex-col items-center leading-none gap-0.5">
-                                        <span>✓</span>
-                                        <span className="text-[8px] font-bold text-violet-500 dark:text-violet-400">OT</span>
-                                      </span>
-                                    );
-                                    cellClass = 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 font-bold';
-                                  } else {
-                                    cellContent = '✓';
-                                    cellClass = 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 font-bold';
-                                  }
                                 } else if (attendanceStatus === 'late') {
-                                  if (dayData?.isOvertime) {
-                                    // Late + overtime on same day
-                                    cellContent = (
-                                      <span className="flex flex-col items-center leading-none gap-0.5">
-                                        <span>L</span>
-                                        <span className="text-[8px] font-bold text-violet-500 dark:text-violet-400">OT</span>
-                                      </span>
-                                    );
-                                    cellClass = 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 font-bold';
-                                  } else {
-                                    cellContent = 'L';
-                                    cellClass = 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 font-bold';
-                                  }
+                                  cellContent = 'L';
+                                  cellClass = 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 font-bold';
                                 } else if (attendanceStatus === 'absent') {
                                   cellContent = '✗';
                                   cellClass = 'bg-rose-50 dark:bg-rose-950/30 text-rose-500 dark:text-rose-400 font-bold';
@@ -1541,13 +1426,6 @@ const StaffControlCenter: React.FC = () => {
                   <span className="text-xs text-muted-foreground">Present</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-6 h-5 rounded bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 flex flex-col items-center justify-center leading-none gap-0 font-bold">
-                    <span className="text-[9px] text-emerald-600 dark:text-emerald-400">✓</span>
-                    <span className="text-[7px] text-violet-500 dark:text-violet-400 font-bold">OT</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">Present + OT</span>
-                </div>
-                <div className="flex items-center gap-1.5">
                   <div className="w-6 h-5 rounded bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 flex items-center justify-center text-rose-500 dark:text-rose-400 text-[10px] font-bold">✗</div>
                   <span className="text-xs text-muted-foreground">Absent</span>
                 </div>
@@ -1556,15 +1434,8 @@ const StaffControlCenter: React.FC = () => {
                   <span className="text-xs text-muted-foreground">Late</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-6 h-5 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex flex-col items-center justify-center leading-none gap-0 font-bold">
-                    <span className="text-[9px] text-amber-600 dark:text-amber-400">L</span>
-                    <span className="text-[7px] text-violet-500 dark:text-violet-400 font-bold">OT</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">Late + OT</span>
-                </div>
-                <div className="flex items-center gap-1.5">
                   <div className="w-6 h-5 rounded bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 flex items-center justify-center text-violet-600 dark:text-violet-400 text-[9px] font-bold">OT</div>
-                  <span className="text-xs text-muted-foreground">OT only</span>
+                  <span className="text-xs text-muted-foreground">Overtime</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-6 h-5 rounded bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-300 dark:text-slate-600 text-[10px]">•</div>
@@ -1574,185 +1445,6 @@ const StaffControlCenter: React.FC = () => {
                   <div className="w-6 h-5 rounded bg-slate-50 dark:bg-slate-800/20 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-muted-foreground/40 text-[10px]">·</div>
                   <span className="text-xs text-muted-foreground">No Data</span>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="overtime" className="space-y-4">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-violet-500/15 to-violet-600/5 hover:shadow-md transition-all duration-300 group">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">Total Overtime Hours</p>
-                    <p className="text-3xl font-black mt-0.5 text-violet-700 dark:text-violet-300">
-                      {monthlyOvertimeRecords.reduce((sum, r) => sum + r.overtimeHours, 0).toFixed(1)}<span className="text-base font-medium text-violet-500">h</span>
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-violet-500/15 p-2 group-hover:bg-violet-500/25 transition-colors">
-                    <Clock className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-blue-500/15 to-blue-600/5 hover:shadow-md transition-all duration-300 group">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Staff Members with OT</p>
-                    <p className="text-3xl font-black mt-0.5 text-blue-700 dark:text-blue-300">
-                      {new Set(monthlyOvertimeRecords.map(r => r.userName)).size}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-blue-500/15 p-2 group-hover:bg-blue-500/25 transition-colors">
-                    <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-emerald-500/15 to-emerald-600/5 hover:shadow-md transition-all duration-300 group">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total OT Sessions</p>
-                    <p className="text-3xl font-black mt-0.5 text-emerald-700 dark:text-emerald-300">
-                      {monthlyOvertimeRecords.length}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-emerald-500/15 p-2 group-hover:bg-emerald-500/25 transition-colors">
-                    <Activity className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Overtime Table */}
-          <Card className="overflow-hidden border border-border/40 shadow-sm">
-            <CardHeader className="bg-gradient-to-r from-muted/40 to-transparent pb-4 border-b border-border/20">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-primary/10 p-2.5">
-                    <Clock className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg font-semibold">Overtime Records</CardTitle>
-                    <CardDescription className="text-xs mt-0.5">
-                      Detailed view of overtime shifts for {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                    </CardDescription>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder="Search OT records..."
-                      className="w-[200px] pl-8 h-8 text-xs"
-                      value={overtimeSearchQuery}
-                      onChange={(e) => setOvertimeSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={handleExportOvertimeCSV}>
-                    <Download className="h-3 w-3" />
-                    Export OT CSV
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-muted/10 border-b border-border/10">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Staff Member</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Role & Dept</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Regular Status</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">OT Clock In</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">OT Clock Out</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">OT Hours</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/10">
-                    {(() => {
-                      const filteredRecords = monthlyOvertimeRecords.filter(record => 
-                        record.userName.toLowerCase().includes(overtimeSearchQuery.toLowerCase()) ||
-                        record.userRole.toLowerCase().includes(overtimeSearchQuery.toLowerCase()) ||
-                        record.department.toLowerCase().includes(overtimeSearchQuery.toLowerCase()) ||
-                        record.date.includes(overtimeSearchQuery)
-                      );
-
-                      if (filteredRecords.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
-                              No overtime records found matching your criteria.
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      return filteredRecords.map((record) => (
-                        <tr key={record.id} className="hover:bg-muted/10 transition-colors">
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback className="bg-violet-100 text-violet-700 font-bold text-xs">
-                                  {record.userName.split(' ').map(n => n[0]).join('').substring(0, 2)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm font-semibold">{record.userName}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
-                              <Badge variant="outline" className="capitalize text-[10px] px-1.5 py-0">
-                                {record.userRole}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">{record.department}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-xs">
-                            {new Date(record.date).toLocaleDateString('en-US', {
-                              weekday: 'short',
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <Badge 
-                              variant="outline"
-                              className={`capitalize text-[10px] ${
-                                record.status === 'present' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' :
-                                record.status === 'late' ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800' :
-                                record.status === 'absent' ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800' :
-                                'bg-muted text-muted-foreground'
-                              }`}
-                            >
-                              {record.status}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-center text-xs font-mono">
-                            {record.clockInTime || '—'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-center text-xs font-mono">
-                            {record.clockOutTime || 'Active'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-right">
-                            <Badge className="bg-violet-100 hover:bg-violet-200 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400 font-black border-0">
-                              +{record.overtimeHours.toFixed(1)}h
-                            </Badge>
-                          </td>
-                        </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
               </div>
             </CardContent>
           </Card>
