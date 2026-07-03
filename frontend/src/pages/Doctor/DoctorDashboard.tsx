@@ -1458,6 +1458,42 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       setIsSubmittingLab(false);
     }
   };
+  const checkCardExpiryAndAlert = (patient?: PatientType): boolean => {
+    if (!patient) return false;
+    
+    let isExpired = false;
+    let daysOverdue = 0;
+    
+    if (patient.cardStatus === 'expired') {
+      isExpired = true;
+    } else {
+      const issueDateSource = patient.cardIssueDate || patient.createdAt;
+      if (issueDateSource) {
+        const issueDate = new Date(issueDateSource);
+        if (!isNaN(issueDate.getTime())) {
+          const graceEnd = new Date(issueDate);
+          graceEnd.setDate(graceEnd.getDate() + 15);
+          const now = new Date();
+          const daysSinceIssue = Math.ceil((now.getTime() - issueDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysSinceIssue > 15) {
+            isExpired = true;
+            daysOverdue = daysSinceIssue - 15;
+          }
+        }
+      }
+    }
+    
+    if (isExpired) {
+      const msg = daysOverdue > 0 
+        ? `Access denied. The patient's card has expired (${daysOverdue} days overdue). The patient must pay/renew their card at reception.`
+        : "Access denied. The patient's card has expired (15-day grace period exceeded). The patient must pay/renew their card at reception.";
+      toast.error(msg, { duration: 6000 });
+      return true;
+    }
+    
+    return false;
+  };
+
   const handleOpenCreatePrescription = async (patient?: PatientType) => {
     try {
       setError(null);
@@ -1481,6 +1517,9 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
 
       const targetPatient = patient || selectedPatientObject;
       if (targetPatient) {
+        if (checkCardExpiryAndAlert(targetPatient)) {
+          return;
+        }
         setIsLoadingPrescription(true);
         setSelectedPatient(targetPatient.id);
         setSelectedPatientObject(targetPatient);
@@ -1501,6 +1540,9 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       setError(null);
       const targetPatient = patient || selectedPatientObject;
       if (targetPatient) {
+        if (checkCardExpiryAndAlert(targetPatient)) {
+          return;
+        }
         setIsLoadingLab(true);
         setSelectedPatient(targetPatient.id); // <-- Ensure this is the patient ID string
         setSelectedPatientObject(targetPatient);
@@ -1520,6 +1562,9 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       setError(null);
       const targetPatient = patient || selectedPatientObject;
       if (targetPatient) {
+        if (checkCardExpiryAndAlert(targetPatient)) {
+          return;
+        }
         setIsLoadingImaging(true);
         setSelectedPatientObject(targetPatient);
         // Reset form fields when opening dialog
@@ -1546,6 +1591,9 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
   const handleOpenHistoryTaking = (patient?: PatientType) => {
     console.log('Opening history taking for:', patient);
     if (patient) {
+      if (checkCardExpiryAndAlert(patient)) {
+        return;
+      }
       setSelectedPatientForMedicalRecords(patient);
       setShowMedicalRecordsModal(true);
     }
@@ -1846,6 +1894,9 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
   };
   const handleStartConsultation = (patient?: PatientType) => {
     if (patient) {
+      if (checkCardExpiryAndAlert(patient)) {
+        return;
+      }
       toast(`Starting consultation for ${patient.firstName} ${patient.lastName}`);
       // Add consultation logic later
     } else {
@@ -1857,6 +1908,10 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
   const handleOpenMedicalRecord = (patient?: PatientType) => {
     if (!patient) {
       toast.error('Patient data is missing. Please select a patient.');
+      return;
+    }
+
+    if (checkCardExpiryAndAlert(patient)) {
       return;
     }
 

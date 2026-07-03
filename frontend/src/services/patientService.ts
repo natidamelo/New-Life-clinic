@@ -53,6 +53,10 @@ export interface Patient {
     description: string;
   };
   cardStatus?: string;
+  cardIssueDate?: string;
+  cardExpiryDate?: string;
+  cardDaysRemaining?: number;
+  createdAt?: string;
   lastVisit?: string;
   roomNumber?: string;
   diagnosis?: string;
