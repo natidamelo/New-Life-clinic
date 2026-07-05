@@ -1009,3 +1009,65 @@ thead th {
   border-color: hsl(var(--primary) / 0.25) !important;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: SHADCN SIDEBAR GLOBAL OVERRIDES (SPECIFICITY REINFORCEMENT)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Sidebar panels and outer layout wrappers */
+[data-sidebar="sidebar"],
+[data-slot="sidebar-inner"],
+[data-sidebar="sidebar"] > div,
+[data-slot="sidebar-wrapper"],
+.bg-sidebar {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* Sidebar header & footer explicitly */
+[data-slot="sidebar-header"],
+[data-slot="sidebar-footer"],
+.border-sidebar-border {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* Sidebar navigation buttons */
+[data-sidebar="menu-button"] {
+  color: var(--color-text-primary) !important;
+}
+
+/* Sidebar active navigation item highlight */
+[data-sidebar="menu-button"][data-active="true"],
+[data-sidebar="menu-button"][data-state="active"],
+[data-sidebar="menu-button"].active {
+  background-color: var(--color-accent) !important;
+  color: var(--color-primary-fg, #ffffff) !important;
+}
+
+/* Sidebar inactive navigation item hover state */
+[data-sidebar="menu-button"]:hover:not([data-active="true"]):not([data-state="active"]):not(.active) {
+  background-color: var(--color-surface-raised) !important;
+  color: var(--color-text-primary) !important;
+}
+
+/* Logo lockup text styling */
+[data-slot="sidebar-header"] span,
+[data-slot="sidebar-header"] p,
+[data-slot="sidebar-header"] h1 {
+  color: var(--color-text-primary) !important;
+}
+[data-slot="sidebar-header"] span.text-sidebar-foreground\/50 {
+  color: var(--color-text-muted) !important;
+}
+
+/* Profile block at the bottom styling */
+[data-slot="sidebar-footer"] span,
+[data-slot="sidebar-footer"] p {
+  color: var(--color-text-primary) !important;
+}
+[data-slot="sidebar-footer"] span.text-sidebar-foreground\/60 {
+  color: var(--color-text-muted) !important;
+}
+
+

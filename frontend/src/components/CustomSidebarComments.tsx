@@ -186,16 +186,16 @@ const CustomSidebarComments: React.FC<CustomSidebarCommentsProps> = ({ children 
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         {children ? children : (
-          <div className="flex items-center justify-between px-3 py-1.5 border border-sidebar-border/60 bg-sidebar/5 rounded-lg mb-1.5 cursor-pointer hover:bg-sidebar/10 transition-colors">
-            <span className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">Messages</span>
+          <div className="flex items-center justify-between px-3 py-1.5 border border-sidebar-border/60 dark:border-[var(--color-border)] bg-sidebar/5 dark:bg-[var(--color-surface-raised)]/35 rounded-lg mb-1.5 cursor-pointer hover:bg-sidebar/10 dark:hover:bg-[var(--color-surface-raised)]/65 transition-colors">
+            <span className="text-xs font-semibold text-sidebar-foreground/60 dark:text-[var(--color-text-muted)] uppercase tracking-wider">Messages</span>
             <div className="relative">
-              <ChatBubbleLeftRightIcon className="w-5 h-5 text-muted-foreground" />
+              <ChatBubbleLeftRightIcon className="w-5 h-5 text-muted-foreground dark:text-[var(--color-text-muted)]" />
               {unreadCount > 0 ? (
-                <span className="absolute -top-2 -right-4 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-background whitespace-nowrap z-10 animate-bounce">
+                <span className="absolute -top-2 -right-4 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-background dark:border-[var(--color-surface)] whitespace-nowrap z-10 animate-bounce">
                   {unreadCount} {unreadCount === 1 ? 'message' : 'messages'}
                 </span>
               ) : comments.length > 0 ? (
-                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] font-bold h-3.5 min-w-[14px] flex items-center justify-center rounded-full px-1 border border-background">
+                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] font-bold h-3.5 min-w-[14px] flex items-center justify-center rounded-full px-1 border border-background dark:border-[var(--color-surface)]">
                   {comments.length > 99 ? '99+' : comments.length}
                 </span>
               ) : null}

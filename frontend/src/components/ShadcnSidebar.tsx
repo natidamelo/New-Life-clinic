@@ -680,19 +680,18 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
                   <CustomSidebarComments />
                 </SidebarMenuItem>
 
-                {/* Check-in/Check-out Button */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => setIsQRModalOpen(true)}
                     disabled={attendanceStatus?.status === 'overtime_completed' || attendanceStatus?.isOvertimeCompleted}
                     className={`w-full border-0 font-medium rounded-lg transition-all duration-200 ${
                       (attendanceStatus?.status === 'overtime_completed' || attendanceStatus?.isOvertimeCompleted)
-                        ? 'bg-gray-400/80 hover:bg-gray-400/80 cursor-not-allowed text-white'
+                        ? 'bg-gray-400/80 hover:bg-gray-400/80 cursor-not-allowed text-white dark:bg-muted/40 dark:text-muted-foreground dark:border dark:border-border/30'
                         : attendanceStatus?.isOvertimeActive
-                          ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm shadow-orange-500/30'
+                          ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm shadow-orange-500/30 dark:bg-orange-500/20 dark:text-orange-400 dark:border dark:border-orange-500/30 dark:shadow-none'
                           : attendanceStatus?.clockedIn
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/30 font-bold'
-                            : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/30'
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/30 font-bold dark:bg-emerald-600/20 dark:text-emerald-400 dark:border dark:border-emerald-500/30 dark:shadow-none'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/30 dark:bg-emerald-600/20 dark:text-emerald-400 dark:border dark:border-emerald-500/30 dark:shadow-none'
                       }`}
                   >
                     <QrCodeIcon className="h-4 w-4 flex-shrink-0" />
