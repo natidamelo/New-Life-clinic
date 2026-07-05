@@ -8,6 +8,7 @@ interface AvatarProps {
   variant?: 'circle' | 'rounded' | 'square';
   className?: string;
   fallbackInitials?: string;
+  seed?: string | number; // To determine rotating color
 }
 
 const Avatar: React.FC<AvatarProps> = ({
@@ -16,15 +17,16 @@ const Avatar: React.FC<AvatarProps> = ({
   size = 'md',
   variant = 'circle',
   className = '',
-  fallbackInitials
+  fallbackInitials,
+  seed
 }) => {
   // Size classes
   const sizeClasses = {
-    xs: 'h-6 w-6 text-xs',
-    sm: 'h-8 w-8 text-sm',
-    md: 'h-10 w-10 text-base',
-    lg: 'h-12 w-12 text-lg',
-    xl: 'h-14 w-14 text-xl'
+    xs: 'h-6 w-6 text-[10px]',
+    sm: 'h-8 w-8 text-xs',
+    md: 'h-10 w-10 text-sm',
+    lg: 'h-12 w-12 text-base',
+    xl: 'h-14 w-14 text-lg'
   };
 
   // Variant classes
@@ -34,11 +36,20 @@ const Avatar: React.FC<AvatarProps> = ({
     square: 'rounded-none'
   };
 
+  // Rotating avatar color based on seed
+  let colorClass = 'bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] border border-[var(--color-border)]';
+  if (seed !== undefined && !src) {
+    const seedStr = seed.toString();
+    const seedNum = Array.from(seedStr).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const colorIndex = (seedNum % 8) + 1; // 1 to 8
+    colorClass = `bg-[var(--color-avatar-${colorIndex})] text-[var(--color-avatar-${colorIndex}-fg)] font-semibold border-0`;
+  }
+
   // Base classes
-  const baseClasses = 'inline-flex items-center justify-center bg-muted/20 text-muted-foreground';
+  const baseClasses = 'inline-flex items-center justify-center flex-shrink-0';
 
   // Combine all classes
-  const avatarClasses = `${baseClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${className}`;
+  const avatarClasses = `${baseClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${colorClass} ${className}`;
 
   // Handle image error
   const [hasError, setHasError] = React.useState(false);
@@ -47,7 +58,7 @@ const Avatar: React.FC<AvatarProps> = ({
   // Render fallback content
   const renderFallback = () => {
     if (fallbackInitials) {
-      return <span className="font-medium">{fallbackInitials}</span>;
+      return <span className="font-semibold uppercase tracking-wider">{fallbackInitials}</span>;
     }
     return <UserIcon className="h-1/2 w-1/2" />;
   };

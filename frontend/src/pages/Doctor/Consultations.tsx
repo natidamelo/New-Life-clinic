@@ -10,6 +10,8 @@ import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
+import StatusBadge from '../../components/StatusBadge';
+import Avatar from '../../components/Avatar';
 
 interface ConsultationPatient {
   id?: string;
@@ -368,9 +370,7 @@ const Consultations: React.FC = () => {
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
                   >
                     <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                        <User className="h-5 w-5 text-primary" />
-                      </div>
+                      <Avatar seed={patient.id || patient._id} fallbackInitials={`${(patient.firstName || 'U')[0]}${(patient.lastName || 'P')[0]}`.toUpperCase()} size="sm" />
                       <div>
                         <h3 className="font-medium text-foreground">
                           {patient?.firstName || ''} {patient?.lastName || ''}
@@ -379,9 +379,9 @@ const Consultations: React.FC = () => {
                           ID: {patient?.patientId || patient?.id || patient?._id || 'N/A'}
                         </p>
                         <div className="flex items-center space-x-2 mt-1">
-                          <Badge className={getStatusColor(patient?.status)}>
+                          <StatusBadge status={patient?.status || 'scheduled'}>
                             {patient?.status || 'Unknown'}
-                          </Badge>
+                          </StatusBadge>
                           <span className="text-xs text-muted-foreground/50">
                             Updated: {new Date(patient?.lastUpdated || patient?.updatedAt || patient?.createdAt || new Date()).toLocaleDateString()}
                           </span>
@@ -430,9 +430,7 @@ const Consultations: React.FC = () => {
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
                   >
                     <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
-                        <CheckCircle className="h-5 w-5 text-primary" />
-                      </div>
+                      <Avatar seed={consultation.patient?.patientId || consultation.patient?._id} fallbackInitials={`${(consultation.patient?.firstName || 'U')[0]}${(consultation.patient?.lastName || 'P')[0]}`.toUpperCase()} size="sm" />
                       <div>
                         <h3 className="font-medium text-foreground">
                           {consultation.patient?.firstName} {consultation.patient?.lastName}
@@ -441,9 +439,9 @@ const Consultations: React.FC = () => {
                           ID: {consultation.patient?.patientId || consultation.patient?._id}
                         </p>
                         <div className="flex items-center space-x-2 mt-1">
-                          <Badge className="bg-primary/20 text-primary">
+                          <StatusBadge status="completed">
                             Completed
-                          </Badge>
+                          </StatusBadge>
                           <span className="text-xs text-muted-foreground/50">
                             Completed: {new Date(consultation.createdAt).toLocaleDateString()}
                           </span>

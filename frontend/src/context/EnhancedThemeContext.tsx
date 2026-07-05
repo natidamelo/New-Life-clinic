@@ -827,6 +827,10 @@ function applyPrimaryColorVariables(colorTheme: ColorTheme) {
   // ── Write semantic alias tokens (used by useChartColors + any component) ──
   // These shadow the CSS-layer aliases in themes.css with the live accent value
   // so they're always accurate even before a full CSS cascade tick.
+  root.style.setProperty('--color-brand-primary',       `hsl(${primaryValue})`);
+  root.style.setProperty('--color-brand-primary-hover', `hsl(${shades['600']})`);
+  root.style.setProperty('--color-brand-on-primary',    fgValue ? `hsl(${fgValue})` : '#ffffff');
+
   root.style.setProperty('--color-primary',        `hsl(${primaryValue})`);
   root.style.setProperty('--color-primary-fg',     fgValue ? `hsl(${fgValue})` : '#ffffff');
   root.style.setProperty('--color-primary-hover',  `hsl(${shades['600']})`);

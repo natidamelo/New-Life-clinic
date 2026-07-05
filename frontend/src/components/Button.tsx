@@ -26,11 +26,11 @@ const Button: React.FC<ButtonProps> = ({
   
   // Variant classes
   const variantClasses = {
-    primary: 'bg-primary text-primary-foreground hover:bg-primary focus:ring-blue-500',
-    secondary: 'bg-muted/30 text-muted-foreground hover:bg-muted/40 focus:ring-gray-500',
-    danger: 'bg-destructive text-primary-foreground hover:bg-destructive focus:ring-red-500',
-    success: 'bg-primary text-primary-foreground hover:bg-primary focus:ring-green-500',
-    warning: 'bg-accent text-primary-foreground hover:bg-accent focus:ring-yellow-500'
+    primary: 'bg-[var(--color-brand-primary)] text-[var(--color-brand-on-primary)] hover:bg-[var(--color-brand-primary-hover)] focus:ring-[var(--color-brand-primary)]',
+    secondary: 'bg-[var(--color-surface-raised)] text-[var(--color-text-primary)] border border-[var(--color-border)] hover:bg-[var(--color-surface-raised)]/80 focus:ring-[var(--color-border)]',
+    danger: 'bg-[var(--color-status-danger)] text-[var(--color-status-danger-fg)] hover:opacity-90 focus:ring-[var(--color-status-danger)]',
+    success: 'bg-[var(--color-status-success)] text-[var(--color-status-success-fg)] hover:opacity-90 focus:ring-[var(--color-status-success)]',
+    warning: 'bg-[var(--color-status-warning)] text-[var(--color-status-warning-fg)] hover:opacity-90 focus:ring-[var(--color-status-warning)]'
   };
   
   // Size classes

@@ -27,6 +27,8 @@ import userService from '../services/userService';
 import AppointmentCheckInModal from '../components/AppointmentCheckInModal';
 import SharedAppointmentForm from '../components/SharedAppointmentForm';
 import api from '../services/apiService';
+import StatusBadge from '../components/StatusBadge';
+import Avatar from '../components/Avatar';
 
 const safeArray = <T,>(data: T[] | null | undefined): T[] => {
   return Array.isArray(data) ? data : [];
@@ -80,44 +82,27 @@ const appointmentTypes = [
   { value: 'procedure', label: 'Procedure' },
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  'Scheduled':   { label: 'Scheduled',   className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' },
-  'Checked In':  { label: 'Checked In',  className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' },
-  'Completed':   { label: 'Completed',   className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' },
-  'Cancelled':   { label: 'Cancelled',   className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' },
-  'No Show':     { label: 'No Show',     className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300' },
-};
-
-const TYPE_CONFIG: Record<string, string> = {
-  'checkup':      'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
-  'Check-up':     'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
-  'consultation': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-  'Consultation': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-  'follow-up':    'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
-  'Follow-up':    'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
-  'emergency':    'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-  'Emergency':    'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-  'lab-test':     'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
-  'imaging':      'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300',
-  'procedure':    'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
-};
-
-const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
-  const config = STATUS_CONFIG[status] || { label: status, className: 'bg-gray-100 text-gray-700' };
+const ApptStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.className}`}>
-      {config.label}
-    </span>
+    <StatusBadge status={status} />
   );
 };
 
-const TypeBadge: React.FC<{ type: string }> = ({ type }) => {
-  const className = TYPE_CONFIG[type] || 'bg-gray-100 text-gray-700';
+const ApptTypeBadge: React.FC<{ type: string }> = ({ type }) => {
   const label = appointmentTypes.find(t => t.value === type)?.label || type;
+  const getApptTypeStatus = (t: string) => {
+    const norm = t.toLowerCase();
+    if (norm.includes('checkup')) return 'success';
+    if (norm.includes('consultation')) return 'info';
+    if (norm.includes('follow')) return 'scheduled';
+    if (norm.includes('emergency')) return 'danger';
+    if (norm.includes('lab')) return 'warning';
+    return 'info';
+  };
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
+    <StatusBadge status={getApptTypeStatus(type)}>
       {label}
-    </span>
+    </StatusBadge>
   );
 };
 
@@ -527,14 +512,12 @@ const Appointments: React.FC = () => {
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
-                                <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs ring-1 ring-primary/20">
-                                  {getPatientName(appt).charAt(0)}
-                                </div>
+                                <Avatar seed={appt.patientId || appt.patientName} fallbackInitials={getPatientName(appt).charAt(0)} size="sm" />
                                 <span className="font-semibold text-sm">{getPatientName(appt)}</span>
                               </div>
                             </TableCell>
                             <TableCell>
-                              <TypeBadge type={appt.type} />
+                              <ApptTypeBadge type={appt.type} />
                             </TableCell>
                             <TableCell>
                               <span className="text-sm font-medium">{getDoctorName(appt)}</span>
@@ -545,7 +528,7 @@ const Appointments: React.FC = () => {
                               </span>
                             </TableCell>
                             <TableCell>
-                              <StatusBadge status={appt.status} />
+                              <ApptStatusBadge status={appt.status} />
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
@@ -688,11 +671,11 @@ const Appointments: React.FC = () => {
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground uppercase tracking-wide">Type</Label>
-                  <div className="mt-1"><TypeBadge type={selectedAppointment.type} /></div>
+                  <div className="mt-1"><ApptTypeBadge type={selectedAppointment.type} /></div>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground uppercase tracking-wide">Status</Label>
-                  <div className="mt-1"><StatusBadge status={selectedAppointment.status} /></div>
+                  <div className="mt-1"><ApptStatusBadge status={selectedAppointment.status} /></div>
                 </div>
               </div>
               {selectedAppointment.reason && (

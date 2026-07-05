@@ -32,12 +32,15 @@ import patientService, { Patient as PatientType } from '../../services/patientSe
 import prescriptionService from '../../services/prescriptionService';
 import labService from '../../services/labService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { ScrollArea } from '../../components/ui/scroll-area';
+import StatCard from '../../components/StatCard';
+import StatusBadge from '../../components/StatusBadge';
+import Avatar from '../../components/Avatar';
+import ProgressBar from '../../components/ProgressBar';
+import Button from '../../components/Button';
+import Tabs from '../../components/Tabs';
+import Table from '../../components/Table';
 
 // Standard childhood immunization schedule
 interface Vaccine {
@@ -715,61 +718,34 @@ const MCHDashboard: React.FC = () => {
 
       {/* MCH Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6">
-        <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-gray-900 border border-pink-100 dark:border-gray-800 shadow-sm p-5 transition-all hover:-translate-y-1">
-          <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-pink-50 dark:bg-pink-950/20" />
-          <div className="flex justify-between items-start relative">
-            <div>
-              <p className="text-xs font-bold text-pink-500 uppercase tracking-wider mb-1">ANC Pregnancies</p>
-              <p className="text-4xl font-extrabold text-gray-900 dark:text-gray-100">{mchStats.ancMothers}</p>
-              <p className="text-xs text-gray-400 mt-1">Enrolled antenatal mothers</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-pink-500 flex items-center justify-center">
-              <HeartIcon className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-
-        <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-gray-900 border border-purple-100 dark:border-gray-800 shadow-sm p-5 transition-all hover:-translate-y-1">
-          <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-purple-50 dark:bg-purple-950/20" />
-          <div className="flex justify-between items-start relative">
-            <div>
-              <p className="text-xs font-bold text-purple-500 uppercase tracking-wider mb-1">PNC Mothers</p>
-              <p className="text-4xl font-extrabold text-gray-900 dark:text-gray-100">{mchStats.pncPairs}</p>
-              <p className="text-xs text-gray-400 mt-1">Postnatal follow-ups</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-purple-500 flex items-center justify-center">
-              <Baby className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-
-        <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-gray-900 border border-teal-100 dark:border-gray-800 shadow-sm p-5 transition-all hover:-translate-y-1">
-          <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-teal-50 dark:bg-teal-950/20" />
-          <div className="flex justify-between items-start relative">
-            <div>
-              <p className="text-xs font-bold text-teal-500 uppercase tracking-wider mb-1">Vaccinations Given</p>
-              <p className="text-4xl font-extrabold text-gray-900 dark:text-gray-100">{mchStats.immunizations}</p>
-              <p className="text-xs text-gray-400 mt-1">Child immunization registry</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-teal-500 flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-
-        <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-gray-900 border border-indigo-100 dark:border-gray-800 shadow-sm p-5 transition-all hover:-translate-y-1">
-          <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-indigo-50 dark:bg-indigo-950/20" />
-          <div className="flex justify-between items-start relative">
-            <div>
-              <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1">Growth Checks</p>
-              <p className="text-4xl font-extrabold text-gray-900 dark:text-gray-100">{mchStats.growthChecks}</p>
-              <p className="text-xs text-gray-400 mt-1">Logged pediatric checks</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-indigo-500 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
+        <StatCard
+          title="ANC Pregnancies"
+          value={mchStats.ancMothers}
+          subtext="Enrolled antenatal mothers"
+          icon={<HeartIcon className="w-6 h-6" />}
+          color="red"
+        />
+        <StatCard
+          title="PNC Mothers"
+          value={mchStats.pncPairs}
+          subtext="Postnatal follow-ups"
+          icon={<Baby className="w-6 h-6" />}
+          color="purple"
+        />
+        <StatCard
+          title="Vaccinations Given"
+          value={mchStats.immunizations}
+          subtext="Child immunization registry"
+          icon={<CheckCircle className="w-6 h-6" />}
+          color="green"
+        />
+        <StatCard
+          title="Growth Checks"
+          value={mchStats.growthChecks}
+          subtext="Logged pediatric checks"
+          icon={<TrendingUp className="w-6 h-6" />}
+          color="blue"
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -841,29 +817,25 @@ const MCHDashboard: React.FC = () => {
                   <div
                     key={patientId}
                     onClick={() => setSelectedPatient(patient)}
-                    className={`p-3 cursor-pointer transition-all flex items-center justify-between ${
-                      active ? 'bg-pink-500/10 border-l-4 border-pink-500 dark:bg-pink-500/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40'
+                    className={`p-3 cursor-pointer transition-all flex items-center justify-between border-b border-[var(--color-border)] ${
+                      active ? 'bg-[var(--color-brand-primary)]/10 border-l-4 border-l-[var(--color-brand-primary)]' : 'hover:bg-[var(--color-surface-raised)]/20'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
-                        active ? 'bg-pink-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
-                      }`}>
-                        {getPatientInitials(patient)}
-                      </div>
+                      <Avatar seed={patient.id || patient._id} fallbackInitials={getPatientInitials(patient)} size="md" />
                       <div>
-                        <p className="font-semibold text-sm leading-tight text-gray-900 dark:text-gray-100">
+                        <p className="font-semibold text-sm leading-tight text-[var(--color-text-primary)]">
                           {patient.firstName} {patient.lastName}
                         </p>
-                        <p className="text-xs text-gray-400 mt-0.5">
+                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
                           ID: {patient.patientId || 'N/A'} • {patient.gender} • {patient.age} yrs
                         </p>
                       </div>
                     </div>
                     {enrolledProgram && (
-                      <Badge variant="secondary" className="bg-pink-100 text-pink-800 dark:bg-pink-950/40 dark:text-pink-300 font-semibold rounded-lg">
+                      <StatusBadge status="info">
                         {enrolledProgram}
-                      </Badge>
+                      </StatusBadge>
                     )}
                   </div>
                 );
@@ -877,18 +849,16 @@ const MCHDashboard: React.FC = () => {
           {selectedPatient ? (
             <div className="space-y-6">
               {/* Selected Patient Profile Card */}
-              <Card className="rounded-2xl border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm bg-white dark:bg-gray-900">
-                <CardHeader className="bg-gray-50/50 dark:bg-gray-950/20 border-b border-gray-100 dark:border-gray-800 py-4 flex flex-row items-center justify-between flex-wrap gap-4">
+              <Card className="rounded-2xl border-[var(--color-border)] overflow-hidden shadow-sm bg-[var(--color-surface)]">
+                <CardHeader className="bg-[var(--color-surface-raised)]/10 border-b border-[var(--color-border)] py-4 flex flex-row items-center justify-between flex-wrap gap-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-pink-100 dark:bg-pink-950/30 flex items-center justify-center">
-                      <UserIcon className="w-6 h-6 text-pink-500" />
-                    </div>
+                    <Avatar seed={selectedPatient.id || selectedPatient._id} fallbackInitials={getPatientInitials(selectedPatient)} size="lg" />
                     <div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                      <h2 className="text-xl font-bold text-[var(--color-text-primary)]">
                         {selectedPatient.firstName} {selectedPatient.lastName}
                       </h2>
-                      <p className="text-xs text-gray-400">
-                        Registry program: <span className="font-semibold text-pink-500">{getRecordSummaryForSelected()}</span>
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        Registry program: <span className="font-semibold text-[var(--color-brand-primary)]">{getRecordSummaryForSelected()}</span>
                       </p>
                     </div>
                   </div>

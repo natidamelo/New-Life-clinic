@@ -12,13 +12,13 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, helperText, leftIcon, rightIcon, fullWidth = false, className = '', ...props }, ref) => {
     // Base classes
-    const baseClasses = 'block rounded-md border-border/40 shadow-sm focus:border-primary focus:ring-blue-500 sm:text-sm';
+    const baseClasses = 'block rounded-md bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border)] shadow-sm focus:border-[var(--color-brand-primary)] focus:ring-[var(--color-brand-primary)] sm:text-sm';
     
     // Width class
     const widthClass = fullWidth ? 'w-full' : '';
     
     // Error classes
-    const errorClasses = error ? 'border-destructive/40 text-destructive placeholder-red-300 focus:border-destructive focus:ring-red-500' : '';
+    const errorClasses = error ? 'border-[var(--color-status-danger)] text-[var(--color-status-danger)] placeholder-[var(--color-status-danger)]/55 focus:border-[var(--color-status-danger)] focus:ring-[var(--color-status-danger)]' : '';
     
     // Icon padding classes
     const leftIconClass = leftIcon ? 'pl-10' : '';

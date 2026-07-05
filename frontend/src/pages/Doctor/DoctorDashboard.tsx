@@ -48,6 +48,10 @@ import { clearLocalStorageCache, forcePageRefresh } from '../../utils/clearCache
 // import PatientHistoryModal from '../../components/doctor/PatientHistoryModal'; 
 import ProfessionalPrescriptionForm from '../../components/doctor/ProfessionalPrescriptionForm';
 import LabRequestForm from '../../components/doctor/LabRequestForm';
+import StatCard from '../../components/StatCard';
+import Avatar from '../../components/Avatar';
+import StatusBadge from '../../components/StatusBadge';
+import ProgressBar from '../../components/ProgressBar';
 import MedicalRecordSection from '../../components/doctor/MedicalRecordSection';
 import { ModernMedicalRecordForm } from '../../components/doctor/nextgen/ModernMedicalRecordForm';
 import PlaceholderImage from '../../components/common/PlaceholderImage';
@@ -3229,77 +3233,38 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
         {/* ── Upgraded Stats Cards ── */}
         {dashboardStats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
-            {/* Patients with Vitals */}
-            <div className="relative overflow-hidden rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow p-5">
-              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-blue-50 dark:hidden" />
-              <div className="flex items-start justify-between relative">
-                <div>
-                  <p className="text-xs font-semibold text-blue-500 uppercase tracking-wider mb-1">Patients with Vitals</p>
-                  <p className="text-4xl font-extrabold text-[var(--color-text-primary)]">{dashboardStats.patientsToday}</p>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">Active today</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
-                  <UserIcon className="w-6 h-6" />
-                </div>
-              </div>
-              <div className="mt-3 h-1.5 rounded-full bg-blue-100 dark:bg-[var(--color-border)] overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, dashboardStats.patientsToday * 5)}%` }} />
-              </div>
-            </div>
-
-            {/* Completed Appointments */}
-            <div className="relative overflow-hidden rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow p-5">
-              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-emerald-50 dark:hidden" />
-              <div className="flex items-start justify-between relative">
-                <div>
-                  <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wider mb-1">Completed Appts</p>
-                  <p className="text-4xl font-extrabold text-[var(--color-text-primary)]">{dashboardStats.completedAppointments}</p>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">Finished sessions</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
-                  <CheckCircleIcon className="w-6 h-6" />
-                </div>
-              </div>
-              <div className="mt-3 h-1.5 rounded-full bg-emerald-100 dark:bg-[var(--color-border)] overflow-hidden">
-                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, dashboardStats.completedAppointments * 10)}%` }} />
-              </div>
-            </div>
-
-            {/* Pending Reports */}
-            <div className="relative overflow-hidden rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow p-5">
-              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-amber-50 dark:hidden" />
-              <div className="flex items-start justify-between relative">
-                <div>
-                  <p className="text-xs font-semibold text-amber-500 uppercase tracking-wider mb-1">Pending Reports</p>
-                  <p className="text-4xl font-extrabold text-[var(--color-text-primary)]">{dashboardStats.pendingReports}</p>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">Awaiting review</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
-                  <DocumentTextIcon className="w-6 h-6" />
-                </div>
-              </div>
-              <div className="mt-3 h-1.5 rounded-full bg-amber-100 dark:bg-[var(--color-border)] overflow-hidden">
-                <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.min(100, dashboardStats.pendingReports * 20)}%` }} />
-              </div>
-            </div>
-
-            {/* Lab Results */}
-            <div className="relative overflow-hidden rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow p-5">
-              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-purple-50 dark:hidden" />
-              <div className="flex items-start justify-between relative">
-                <div>
-                  <p className="text-xs font-semibold text-purple-500 uppercase tracking-wider mb-1">Lab Results</p>
-                  <p className="text-4xl font-extrabold text-[var(--color-text-primary)]">{dashboardStats.labResults}</p>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">Results available</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center flex-shrink-0">
-                  <ScienceIcon className="w-6 h-6" />
-                </div>
-              </div>
-              <div className="mt-3 h-1.5 rounded-full bg-purple-100 dark:bg-[var(--color-border)] overflow-hidden">
-                <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min(100, dashboardStats.labResults * 10)}%` }} />
-              </div>
-            </div>
+            <StatCard
+              title="Patients with Vitals"
+              value={dashboardStats.patientsToday}
+              subtext="Active today"
+              icon={<UserIcon className="w-6 h-6" />}
+              color="blue"
+              progress={dashboardStats.patientsToday * 5}
+            />
+            <StatCard
+              title="Completed Appts"
+              value={dashboardStats.completedAppointments}
+              subtext="Finished sessions"
+              icon={<CheckCircleIcon className="w-6 h-6" />}
+              color="green"
+              progress={dashboardStats.completedAppointments * 10}
+            />
+            <StatCard
+              title="Pending Reports"
+              value={dashboardStats.pendingReports}
+              subtext="Awaiting review"
+              icon={<DocumentTextIcon className="w-6 h-6" />}
+              color="yellow"
+              progress={dashboardStats.pendingReports * 20}
+            />
+            <StatCard
+              title="Lab Results"
+              value={dashboardStats.labResults}
+              subtext="Results available"
+              icon={<ScienceIcon className="w-6 h-6" />}
+              color="purple"
+              progress={dashboardStats.labResults * 10}
+            />
           </div>
         )}
 
@@ -3439,16 +3404,6 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                               const isRecentlySent = isNewPatientForDoctor(patient);
 
                               const initials = `${(patient.firstName || 'U')[0]}${(patient.lastName || 'P')[0]}`.toUpperCase();
-                              const avatarColors = [
-                                'from-blue-400 to-blue-600',
-                                'from-emerald-400 to-teal-600',
-                                'from-purple-400 to-indigo-600',
-                                'from-orange-400 to-red-500',
-                                'from-pink-400 to-rose-600',
-                                'from-cyan-400 to-blue-500',
-                              ];
-                              const avatarColor = avatarColors[idx % avatarColors.length];
-
                               const isInsurance = patient.cardType?.name?.toLowerCase() === 'insurance' ||
                                 patient.cardType?.value?.toLowerCase() === 'insurance' ||
                                 patient.cardStatus === 'insurance';
@@ -3456,27 +3411,25 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                               return (
                                 <tr
                                   key={patient.id}
-                                  className={`cursor-pointer transition-all hover:bg-blue-50/40 ${selectedPatient === patient.id ? 'bg-blue-50/60 border-l-4 border-l-blue-500' : ''
-                                    } ${isRecentlySent ? 'bg-amber-50/40' : ''}`}
+                                  className={`cursor-pointer transition-all hover:bg-[var(--color-surface-raised)]/30 ${selectedPatient === patient.id ? 'bg-[var(--color-surface-raised)]/50 border-l-4 border-l-[var(--color-brand-primary)]' : ''
+                                    } ${isRecentlySent ? 'bg-[var(--color-status-warning-subtle)]/40' : ''}`}
                                   onClick={() => handlePatientSelect(patient.id)}
                                 >
                                   {/* Patient */}
-                                  <td className="px-4 py-3">
+                                  <td className="px-4 py-3 border-b border-[var(--color-border)]">
                                     <div className="flex items-center gap-3">
-                                      <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarColor} flex items-center justify-center flex-shrink-0 shadow-sm`}>
-                                        <span className="text-xs font-bold text-white">{initials}</span>
-                                      </div>
+                                      <Avatar seed={patient.id} fallbackInitials={initials} size="sm" />
                                       <div>
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="text-sm font-semibold text-gray-900">{patient.firstName} {patient.lastName}</span>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="text-sm font-semibold text-[var(--color-text-primary)]">{patient.firstName} {patient.lastName}</span>
                                           {isRecentlySent && (
-                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">New</span>
+                                            <StatusBadge status="warning">New</StatusBadge>
                                           )}
                                           {isInsurance && (
-                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Insurance</span>
+                                            <StatusBadge status="info">Insurance</StatusBadge>
                                           )}
                                         </div>
-                                        <p className="text-xs text-gray-400">{patient.gender}{patient.age ? `, ${patient.age}y` : ''}</p>
+                                        <p className="text-xs text-[var(--color-text-muted)]">{patient.gender}{patient.age ? `, ${patient.age}y` : ''}</p>
                                       </div>
                                     </div>
                                   </td>
@@ -4130,25 +4083,28 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                               ? `${appt.patientId?.firstName || ''} ${appt.patientId?.lastName || ''}`.trim()
                               : (appt.patientName || 'Unknown Patient');
 
-                            const statusColors: Record<string, string> = {
-                              'Scheduled': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-                              'Checked In': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-                              'Completed': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-                              'Cancelled': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-                              'No Show': 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300',
-                            };
-                            const typeColors: Record<string, string> = {
-                              'checkup': 'bg-teal-100 text-teal-800', 'Check-up': 'bg-teal-100 text-teal-800',
-                              'consultation': 'bg-purple-100 text-purple-800', 'Consultation': 'bg-purple-100 text-purple-800',
-                              'follow-up': 'bg-indigo-100 text-indigo-800', 'Follow-up': 'bg-indigo-100 text-indigo-800',
-                              'emergency': 'bg-red-100 text-red-800', 'Emergency': 'bg-red-100 text-red-800',
-                              'lab-test': 'bg-orange-100 text-orange-800',
-                              'imaging': 'bg-cyan-100 text-cyan-800',
-                              'procedure': 'bg-pink-100 text-pink-800',
-                            };
                             const typeLabels: Record<string, string> = {
                               'checkup': 'Check-up', 'consultation': 'Consultation', 'follow-up': 'Follow-up',
                               'emergency': 'Emergency', 'lab-test': 'Lab Test', 'imaging': 'Imaging', 'procedure': 'Procedure',
+                            };
+
+                            const getApptTypeStatus = (type: string) => {
+                              const t = type.toLowerCase();
+                              if (t.includes('checkup')) return 'success';
+                              if (t.includes('consultation')) return 'info';
+                              if (t.includes('follow')) return 'scheduled';
+                              if (t.includes('emergency')) return 'danger';
+                              if (t.includes('lab')) return 'warning';
+                              return 'info';
+                            };
+
+                            const getApptStatusMap = (status: string) => {
+                              const s = status.toLowerCase();
+                              if (s === 'scheduled') return 'scheduled';
+                              if (s === 'checked in') return 'warning';
+                              if (s === 'completed') return 'success';
+                              if (s === 'cancelled') return 'danger';
+                              return 'danger';
                             };
 
                             return (
@@ -4167,17 +4123,17 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                                   <span className="text-sm font-medium">{patientName}</span>
                                 </TableCell>
                                 <TableCell>
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${typeColors[appt.type] || 'bg-gray-100 text-gray-700'}`}>
+                                  <StatusBadge status={getApptTypeStatus(appt.type)}>
                                     {typeLabels[appt.type] || appt.type}
-                                  </span>
+                                  </StatusBadge>
                                 </TableCell>
                                 <TableCell>
                                   <span className="text-xs text-muted-foreground">{appt.reason || '—'}</span>
                                 </TableCell>
                                 <TableCell>
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[appt.status] || 'bg-gray-100 text-gray-700'}`}>
+                                  <StatusBadge status={getApptStatusMap(appt.status)}>
                                     {appt.status}
-                                  </span>
+                                  </StatusBadge>
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <div className="flex items-center justify-end gap-1">

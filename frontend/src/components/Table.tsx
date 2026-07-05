@@ -60,14 +60,14 @@ function Table<T extends Record<string, any>>({
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-muted/10">
+      <table className="min-w-full divide-y divide-[var(--color-border)]">
+        <thead className="bg-[var(--color-surface-raised)]/30">
           <tr>
             {columns.map((column, index) => (
               <th
                 key={index}
                 scope="col"
-                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
+                className={`px-6 py-3 text-left text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider ${
                   column.sortable ? 'cursor-pointer' : ''
                 }`}
                 onClick={() => handleSort(column)}
@@ -80,7 +80,7 @@ function Table<T extends Record<string, any>>({
             ))}
           </tr>
         </thead>
-        <tbody className="bg-primary-foreground divide-y divide-gray-200">
+        <tbody className="bg-[var(--color-surface)] divide-y divide-[var(--color-border)] text-[var(--color-text-primary)]">
           {isLoading ? (
             <tr>
               <td colSpan={columns.length} className="px-6 py-4 text-center">
@@ -89,13 +89,13 @@ function Table<T extends Record<string, any>>({
             </tr>
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-6 py-4 text-center text-muted-foreground">
+              <td colSpan={columns.length} className="px-6 py-4 text-center text-[var(--color-text-muted)]">
                 {emptyMessage}
               </td>
             </tr>
           ) : (
             data.map((item, rowIndex) => (
-              <tr key={rowIndex}>
+              <tr key={rowIndex} className="hover:bg-[var(--color-surface-raised)]/10 transition-colors">
                 {columns.map((column, colIndex) => (
                   <td key={colIndex} className="px-6 py-4 whitespace-nowrap">
                     {renderCell(item, column)}
@@ -108,26 +108,26 @@ function Table<T extends Record<string, any>>({
       </table>
 
       {onPageChange && totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-primary-foreground border-t border-border/30 sm:px-6">
+        <div className="flex items-center justify-between px-4 py-3 bg-[var(--color-surface)] border-t border-[var(--color-border)] sm:px-6">
           <div className="flex justify-between flex-1 sm:hidden">
             <button
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-border/40 text-sm font-medium rounded-md text-muted-foreground bg-primary-foreground hover:bg-muted/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="relative inline-flex items-center px-4 py-2 border border-[var(--color-border)] text-sm font-medium rounded-md text-[var(--color-text-muted)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-raised)]/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
             <button
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="relative inline-flex items-center px-4 py-2 border border-border/40 text-sm font-medium rounded-md text-muted-foreground bg-primary-foreground hover:bg-muted/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="relative inline-flex items-center px-4 py-2 border border-[var(--color-border)] text-sm font-medium rounded-md text-[var(--color-text-muted)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-raised)]/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>
           </div>
           <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-[var(--color-text-muted)]">
                 Showing page <span className="font-medium">{currentPage}</span> of{' '}
                 <span className="font-medium">{totalPages}</span>
               </p>
@@ -137,7 +137,7 @@ function Table<T extends Record<string, any>>({
                 <button
                   onClick={() => onPageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-border/40 bg-primary-foreground text-sm font-medium text-muted-foreground hover:bg-muted/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-[var(--color-border)] bg-[var(--color-surface)] text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)]/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="sr-only">Previous</span>
                   <ChevronDownIcon className="h-5 w-5 rotate-90" />
@@ -145,7 +145,7 @@ function Table<T extends Record<string, any>>({
                 <button
                   onClick={() => onPageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-border/40 bg-primary-foreground text-sm font-medium text-muted-foreground hover:bg-muted/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-[var(--color-border)] bg-[var(--color-surface)] text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)]/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="sr-only">Next</span>
                   <ChevronDownIcon className="h-5 w-5 -rotate-90" />

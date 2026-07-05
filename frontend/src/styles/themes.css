@@ -158,6 +158,50 @@
     --wait-cursor: wait;
     --help-cursor: help;
 
+    /* ── Brand Tokens (Change dynamically when active accent changes) ── */
+    --color-brand-primary: hsl(var(--primary));
+    --color-brand-primary-hover: hsl(var(--primary) / 0.85);
+    --color-brand-on-primary: hsl(var(--primary-foreground));
+
+    /* ── Semantic Tokens (Fixed colors, must NOT change with accent swatch) ── */
+    --color-status-scheduled: hsl(217 91% 60%);
+    --color-status-scheduled-fg: hsl(0 0% 100%);
+    --color-status-scheduled-subtle: hsl(217 91% 60% / 0.12);
+
+    --color-status-success: hsl(142 76% 36%);
+    --color-status-success-fg: hsl(0 0% 100%);
+    --color-status-success-subtle: hsl(142 76% 36% / 0.12);
+
+    --color-status-warning: hsl(38 92% 50%);
+    --color-status-warning-fg: hsl(0 0% 100%);
+    --color-status-warning-subtle: hsl(38 92% 50% / 0.12);
+
+    --color-status-danger: hsl(0 84% 60%);
+    --color-status-danger-fg: hsl(0 0% 100%);
+    --color-status-danger-subtle: hsl(0 84% 60% / 0.12);
+
+    --color-status-info: hsl(262 83% 58%);
+    --color-status-info-fg: hsl(0 0% 100%);
+    --color-status-info-subtle: hsl(262 83% 58% / 0.12);
+
+    /* ── Patient Avatar Color Palette (6-8 fixed rotating colors) ── */
+    --color-avatar-1: hsl(217 91% 60%);
+    --color-avatar-1-fg: hsl(0 0% 100%);
+    --color-avatar-2: hsl(142 76% 36%);
+    --color-avatar-2-fg: hsl(0 0% 100%);
+    --color-avatar-3: hsl(262 83% 58%);
+    --color-avatar-3-fg: hsl(0 0% 100%);
+    --color-avatar-4: hsl(340 82% 52%);
+    --color-avatar-4-fg: hsl(0 0% 100%);
+    --color-avatar-5: hsl(38 92% 50%);
+    --color-avatar-5-fg: hsl(0 0% 100%);
+    --color-avatar-6: hsl(190 90% 40%);
+    --color-avatar-6-fg: hsl(0 0% 100%);
+    --color-avatar-7: hsl(15 85% 50%);
+    --color-avatar-7-fg: hsl(0 0% 100%);
+    --color-avatar-8: hsl(280 75% 50%);
+    --color-avatar-8-fg: hsl(0 0% 100%);
+
     /* ── Semantic Alias Tokens (theme-aware, used by hooks & charts) ── */
     /* These are computed values (not HSL fragments) so JS can read them directly */
     --color-primary: hsl(var(--primary));
@@ -359,6 +403,50 @@
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 240 4.9% 83.9%;
+
+    /* ── Brand Tokens (Change dynamically when active accent changes) ── */
+    --color-brand-primary: hsl(var(--primary));
+    --color-brand-primary-hover: hsl(var(--primary) / 0.85);
+    --color-brand-on-primary: hsl(var(--primary-foreground));
+
+    /* ── Semantic Tokens (Fixed colors, must NOT change with accent swatch) ── */
+    --color-status-scheduled: hsl(217 80% 55%);
+    --color-status-scheduled-fg: hsl(0 0% 100%);
+    --color-status-scheduled-subtle: hsl(217 80% 55% / 0.18);
+
+    --color-status-success: hsl(142 65% 42%);
+    --color-status-success-fg: hsl(0 0% 100%);
+    --color-status-success-subtle: hsl(142 65% 42% / 0.18);
+
+    --color-status-warning: hsl(38 85% 52%);
+    --color-status-warning-fg: hsl(0 0% 100%);
+    --color-status-warning-subtle: hsl(38 85% 52% / 0.18);
+
+    --color-status-danger: hsl(0 75% 58%);
+    --color-status-danger-fg: hsl(0 0% 100%);
+    --color-status-danger-subtle: hsl(0 75% 58% / 0.18);
+
+    --color-status-info: hsl(262 70% 62%);
+    --color-status-info-fg: hsl(0 0% 100%);
+    --color-status-info-subtle: hsl(262 70% 62% / 0.18);
+
+    /* ── Patient Avatar Color Palette (6-8 fixed rotating colors) ── */
+    --color-avatar-1: hsl(217 80% 55%);
+    --color-avatar-1-fg: hsl(0 0% 100%);
+    --color-avatar-2: hsl(142 65% 42%);
+    --color-avatar-2-fg: hsl(0 0% 100%);
+    --color-avatar-3: hsl(262 70% 62%);
+    --color-avatar-3-fg: hsl(0 0% 100%);
+    --color-avatar-4: hsl(340 75% 58%);
+    --color-avatar-4-fg: hsl(0 0% 100%);
+    --color-avatar-5: hsl(38 85% 52%);
+    --color-avatar-5-fg: hsl(0 0% 100%);
+    --color-avatar-6: hsl(190 75% 45%);
+    --color-avatar-6-fg: hsl(0 0% 100%);
+    --color-avatar-7: hsl(15 75% 55%);
+    --color-avatar-7-fg: hsl(0 0% 100%);
+    --color-avatar-8: hsl(280 65% 55%);
+    --color-avatar-8-fg: hsl(0 0% 100%);
 
     /* ── Semantic Alias Tokens — Dark mode overrides ── */
     --color-primary: hsl(var(--primary));

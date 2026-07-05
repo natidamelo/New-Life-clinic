@@ -32,6 +32,9 @@ import {
 } from '../../components/ui/select';
 import { useToast } from '../../components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import StatCard from '../../components/StatCard';
+import StatusBadge from '../../components/StatusBadge';
+import Avatar from '../../components/Avatar';
 
 const IPDManagement: React.FC = () => {
   const { user, getToken } = useAuth();
@@ -359,7 +362,7 @@ const IPDManagement: React.FC = () => {
     p.patientName || [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Unknown';
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-5 md:p-6">
+    <div className="min-h-screen bg-[var(--color-surface)] text-[var(--color-text-primary)] p-5 md:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>

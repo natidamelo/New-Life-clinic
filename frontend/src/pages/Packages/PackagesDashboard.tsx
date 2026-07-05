@@ -20,6 +20,8 @@ import PackageCatalog from './PackageCatalog';
 import AssignPackage from './AssignPackage';
 import PatientPackageOverview from './PatientPackageOverview';
 import toast from 'react-hot-toast';
+import StatCard from '../../components/StatCard';
+import StatusBadge from '../../components/StatusBadge';
 
 const PackagesDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -103,81 +105,35 @@ const PackagesDashboard: React.FC = () => {
 
       {/* Stats Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Card 1 */}
-        <Card className="hover:shadow-md transition-shadow border-primary/5 bg-card/50 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-500 to-indigo-500" />
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active Subscriptions</CardTitle>
-            <div className="p-2 bg-blue-500/10 rounded-lg group-hover:scale-110 transition-transform duration-300">
-              <Users className="h-4 w-4 text-blue-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoadingStats ? (
-              <div className="h-8 w-16 bg-muted animate-pulse rounded" />
-            ) : (
-              <div className="text-2xl font-bold">{activeSubscribersCount}</div>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">Across all patients</p>
-          </CardContent>
-        </Card>
-
-        {/* Card 2 */}
-        <Card className="hover:shadow-md transition-shadow border-primary/5 bg-card/50 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-pink-500 to-rose-500" />
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Package Templates</CardTitle>
-            <div className="p-2 bg-pink-500/10 rounded-lg group-hover:scale-110 transition-transform duration-300">
-              <Award className="h-4 w-4 text-pink-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoadingStats ? (
-              <div className="h-8 w-16 bg-muted animate-pulse rounded" />
-            ) : (
-              <div className="text-2xl font-bold">{packagesCount}</div>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">Predefined catalog configurations</p>
-          </CardContent>
-        </Card>
-
-        {/* Card 3 */}
-        <Card className="hover:shadow-md transition-shadow border-primary/5 bg-card/50 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-emerald-500 to-teal-500" />
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Visits Consumed</CardTitle>
-            <div className="p-2 bg-emerald-500/10 rounded-lg group-hover:scale-110 transition-transform duration-300">
-              <Activity className="h-4 w-4 text-emerald-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoadingStats ? (
-              <div className="h-8 w-16 bg-muted animate-pulse rounded" />
-            ) : (
-              <div className="text-2xl font-bold">{totalVisitsUsed}</div>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">Visits checked-in & tracked</p>
-          </CardContent>
-        </Card>
-
-        {/* Card 4 */}
-        <Card className="hover:shadow-md transition-shadow border-primary/5 bg-card/50 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-amber-500 to-orange-500" />
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Visits Utilization Rate</CardTitle>
-            <div className="p-2 bg-amber-500/10 rounded-lg group-hover:scale-110 transition-transform duration-300">
-              <TrendingUp className="h-4 w-4 text-amber-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoadingStats ? (
-              <div className="h-8 w-16 bg-muted animate-pulse rounded" />
-            ) : (
-              <div className="text-2xl font-bold">{utilizationRate}%</div>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">Visits consumed vs allocated</p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Active Subscriptions"
+          value={isLoadingStats ? "..." : activeSubscribersCount}
+          subtext="Across all patients"
+          icon={<Users className="h-4 w-4" />}
+          color="blue"
+        />
+        <StatCard
+          title="Package Templates"
+          value={isLoadingStats ? "..." : packagesCount}
+          subtext="Predefined catalog configurations"
+          icon={<Award className="h-4 w-4" />}
+          color="purple"
+        />
+        <StatCard
+          title="Visits Consumed"
+          value={isLoadingStats ? "..." : totalVisitsUsed}
+          subtext="Visits checked-in & tracked"
+          icon={<Activity className="h-4 w-4" />}
+          color="green"
+        />
+        <StatCard
+          title="Visits Utilization Rate"
+          value={isLoadingStats ? "..." : `${utilizationRate}%`}
+          subtext="Visits consumed vs allocated"
+          icon={<TrendingUp className="h-4 w-4" />}
+          color="yellow"
+          progress={isLoadingStats ? undefined : utilizationRate}
+        />
       </div>
 
       {/* Tabs Menu */}
