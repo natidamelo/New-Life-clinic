@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, Calendar, Activity, Check, Sun, Moon, Monitor,
   RefreshCw, Palette, ArrowLeft, Sparkles, Bell, Search, SlidersHorizontal,
-  Zap, Shield, Eye, Layers, ChevronRight, Star, Wand2,
+  Zap, Shield, Eye, Layers, ChevronRight, Star, Wand2, Save,
 } from 'lucide-react';
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
@@ -270,6 +270,9 @@ const ThemeSettings: React.FC = () => {
   const [saving,    setSaving   ] = useState(false);
   const [savedMsg,  setSavedMsg ] = useState('');
   const [hoverMode, setHoverMode] = useState<string | null>(null);
+  const [pendingColor, setPendingColor] = useState<string | null>(null);
+
+  const hasUnsaved = pendingColor !== null && pendingColor !== colorTheme;
 
   const apply = async (fn: () => Promise<void>, msg: string) => {
     setSaving(true);
@@ -279,8 +282,10 @@ const ThemeSettings: React.FC = () => {
     setTimeout(() => setSavedMsg(''), 2200);
   };
 
-  const currentSwatch       = allSwatches.find(s => s.name === colorTheme);
-  const currentThemeConfig  = colorThemes.find(t => t.value === colorTheme);
+  // The displayed color: pending preview takes priority over saved theme
+  const displayedColor = pendingColor ?? colorTheme;
+  const currentSwatch       = allSwatches.find(s => s.name === displayedColor);
+  const currentThemeConfig  = colorThemes.find(t => t.value === displayedColor);
   const primaryColor        = currentThemeConfig?.primary ?? 'hsl(var(--primary))';
 
   /* preview color: use hovered mode's representation if hovering a mode card */
@@ -351,6 +356,25 @@ const ThemeSettings: React.FC = () => {
               <span className="text-xs text-muted-foreground animate-pulse flex items-center gap-1.5">
                 <RefreshCw size={12} className="animate-spin" /> Applying…
               </span>
+            )}
+            {hasUnsaved && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => {
+                  apply(async () => {
+                    await setColorTheme(pendingColor as any);
+                    setPendingColor(null);
+                  }, 'Theme saved!');
+                }}
+                className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl text-white shadow-lg transition-all duration-300"
+                style={{ background: primaryColor, boxShadow: `0 4px 14px ${primaryColor}40` }}
+              >
+                <Save size={14} />
+                Save Theme
+              </motion.button>
             )}
             {user?.role === 'admin' && (
               <span className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border"
@@ -609,8 +633,19 @@ const ThemeSettings: React.FC = () => {
                     <SwatchBtn
                       key={swatch.name}
                       swatch={swatch}
-                      active={colorTheme === swatch.name}
-                      onClick={() => apply(() => setColorTheme(swatch.name as any), `${swatch.label} applied`)}
+                      active={displayedColor === swatch.name}
+                      onClick={() => {
+                        setPendingColor(swatch.name);
+                        // Apply CSS variables immediately for live preview
+                        const root = window.document.documentElement;
+                        const cfg = colorThemes.find(t => t.value === swatch.name);
+                        if (cfg?.primary) {
+                          const hslMatch = cfg.primary.match(/hsl\(([^)]+)\)/);
+                          const val = hslMatch ? hslMatch[1] : cfg.primary;
+                          root.style.setProperty('--primary', val);
+                          root.style.setProperty('--primary-color', `hsl(${val})`);
+                        }
+                      }}
                     />
                   ))}
                 </div>

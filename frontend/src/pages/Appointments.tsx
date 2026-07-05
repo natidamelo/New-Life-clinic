@@ -82,6 +82,8 @@ const appointmentTypes = [
   { value: 'procedure', label: 'Procedure' },
 ];
 
+const appointmentStatuses = ['Scheduled', 'Checked In', 'Completed', 'Cancelled', 'No Show'];
+
 const ApptStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   return (
     <StatusBadge status={status} />
@@ -394,7 +396,7 @@ const Appointments: React.FC = () => {
               className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
             >
               <option value="all">All Statuses</option>
-              {Object.keys(STATUS_CONFIG).map(s => (
+              {appointmentStatuses.map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
@@ -742,7 +744,7 @@ const Appointments: React.FC = () => {
                   onChange={e => setEditStatus(e.target.value)}
                   className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
                 >
-                  {Object.keys(STATUS_CONFIG).map(s => (
+                  {appointmentStatuses.map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
