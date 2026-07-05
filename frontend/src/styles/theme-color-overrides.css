@@ -719,8 +719,9 @@ input[type="radio"] {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Sidebar container — use the CSS variables set by JS */
-[data-slot="sidebar-inner"] {
-  background-color: hsl(var(--sidebar)) !important;
+[data-slot="sidebar-inner"],
+.bg-sidebar {
+  background-color: var(--color-surface) !important;
 }
 
 /* All text inside sidebar uses sidebar-foreground */
@@ -757,8 +758,9 @@ input[type="radio"] {
 
 /* Sidebar borders */
 [data-slot="sidebar-header"],
-[data-slot="sidebar-footer"] {
-  border-color: hsl(var(--sidebar-border)) !important;
+[data-slot="sidebar-footer"],
+.border-sidebar-border {
+  border-color: var(--color-border) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

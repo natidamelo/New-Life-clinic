@@ -832,6 +832,7 @@ function applyPrimaryColorVariables(colorTheme: ColorTheme) {
   root.style.setProperty('--color-primary-hover',  `hsl(${shades['600']})`);
   root.style.setProperty('--color-primary-active', `hsl(${shades['700']})`);
   root.style.setProperty('--color-primary-subtle', `hsl(${hue} ${saturation} 95%)`);
+  root.style.setProperty('--color-accent',         `hsl(${primaryValue})`);
   root.style.setProperty('--chart-color-1',        `hsl(${primaryValue})`);
 }
 

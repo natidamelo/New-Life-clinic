@@ -170,8 +170,10 @@
     --color-surface-raised: hsl(var(--popover));
     --color-border: hsl(var(--border));
     --color-text: hsl(var(--foreground));
+    --color-text-primary: hsl(var(--foreground));
     --color-text-muted: hsl(var(--muted-foreground));
     --color-text-subtle: hsl(var(--muted-foreground) / 0.6);
+    --color-accent: hsl(var(--primary));
     --color-danger: hsl(var(--destructive));
     --color-danger-fg: hsl(var(--destructive-foreground));
     --color-success: hsl(var(--status-success));
@@ -369,8 +371,10 @@
     --color-surface-raised: hsl(var(--popover));
     --color-border: hsl(var(--border));
     --color-text: hsl(var(--foreground));
+    --color-text-primary: hsl(var(--foreground));
     --color-text-muted: hsl(var(--muted-foreground));
     --color-text-subtle: hsl(var(--muted-foreground) / 0.6);
+    --color-accent: hsl(var(--primary));
     --color-danger: hsl(var(--status-error));
     --color-danger-fg: hsl(var(--status-error-foreground));
     --color-success: hsl(var(--status-success));

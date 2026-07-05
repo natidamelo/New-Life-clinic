@@ -3181,40 +3181,40 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
 
       {/* ── Upgraded Page Header ── */}
       <div className="mb-6">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 shadow-xl">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 dark:bg-none dark:bg-[var(--color-surface-raised)] dark:border dark:border-[var(--color-border)] shadow-xl">
           {/* decorative circles */}
-          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-white/5" />
-          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-white/5" />
-          <div className="absolute top-4 right-40 w-20 h-20 rounded-full bg-white/5" />
+          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-white/5 dark:hidden" />
+          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-white/5 dark:hidden" />
+          <div className="absolute top-4 right-40 w-20 h-20 rounded-full bg-white/5 dark:hidden" />
 
           <div className="relative px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             {/* Left: greeting + subtitle */}
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center flex-shrink-0 border border-white/20">
-                <LucideStethoscope className="w-7 h-7 text-white" />
+              <div className="w-14 h-14 rounded-2xl bg-white/15 dark:bg-muted/30 backdrop-blur-sm flex items-center justify-center flex-shrink-0 border border-white/20 dark:border-[var(--color-border)]">
+                <LucideStethoscope className="w-7 h-7 text-white dark:text-[var(--color-accent)]" />
               </div>
               <div>
-                <p className="text-white/95 text-sm font-medium">{timeGreeting}, Dr. {doctorName}</p>
-                <h1 className="text-2xl font-bold text-white leading-tight">Doctor Dashboard</h1>
-                <p className="text-white/90 text-xs mt-0.5">{todayLabel}</p>
+                <p className="text-white/95 dark:text-[var(--color-text-muted)] text-sm font-medium">{timeGreeting}, Dr. {doctorName}</p>
+                <h1 className="text-2xl font-bold text-white dark:text-[var(--color-text-primary)] leading-tight">Doctor Dashboard</h1>
+                <p className="text-white/90 dark:text-[var(--color-text-muted)] text-xs mt-0.5">{todayLabel}</p>
               </div>
             </div>
 
             {/* Right: search + refresh */}
             <div className="flex items-center gap-3 flex-wrap">
               <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/80" />
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/80 dark:text-[var(--color-text-muted)]" />
                 <input
                   type="text"
                   placeholder="Search patients..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="doctor-dashboard-search pl-9 pr-4 py-2 text-sm rounded-xl bg-blue-900/50 backdrop-blur-sm border border-white/25 text-white placeholder-white/70 caret-white focus:outline-none focus:ring-2 focus:ring-white/40 w-56"
+                  className="doctor-dashboard-search pl-9 pr-4 py-2 text-sm rounded-xl bg-blue-900/50 border border-white/25 text-white placeholder-white/70 caret-white focus:outline-none focus:ring-2 focus:ring-white/40 dark:bg-muted/50 dark:border-[var(--color-border)] dark:text-[var(--color-text-primary)] dark:placeholder-[var(--color-text-muted)]/60 dark:focus:ring-primary/40 w-56"
                 />
               </div>
               <button
                 onClick={handleManualRefresh}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 text-white hover:bg-white/25 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/15 border border-white/20 text-white hover:bg-white/25 dark:bg-muted/50 dark:border-[var(--color-border)] dark:text-[var(--color-text-primary)] dark:hover:bg-muted/75 transition-colors"
               >
                 <RefreshCw className="h-4 w-4" />
                 Refresh
@@ -3230,73 +3230,73 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
         {dashboardStats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
             {/* Patients with Vitals */}
-            <div className="relative overflow-hidden rounded-2xl bg-white border border-blue-100 shadow-sm hover:shadow-md transition-shadow p-5">
-              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-blue-50" />
+            <div className="relative overflow-hidden rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow p-5">
+              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-blue-50 dark:hidden" />
               <div className="flex items-start justify-between relative">
                 <div>
                   <p className="text-xs font-semibold text-blue-500 uppercase tracking-wider mb-1">Patients with Vitals</p>
-                  <p className="text-4xl font-extrabold text-gray-900">{dashboardStats.patientsToday}</p>
-                  <p className="text-xs text-gray-400 mt-1">Active today</p>
+                  <p className="text-4xl font-extrabold text-[var(--color-text-primary)]">{dashboardStats.patientsToday}</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">Active today</p>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0">
-                  <UserIcon className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
+                  <UserIcon className="w-6 h-6" />
                 </div>
               </div>
-              <div className="mt-3 h-1.5 rounded-full bg-blue-100 overflow-hidden">
+              <div className="mt-3 h-1.5 rounded-full bg-blue-100 dark:bg-[var(--color-border)] overflow-hidden">
                 <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, dashboardStats.patientsToday * 5)}%` }} />
               </div>
             </div>
 
             {/* Completed Appointments */}
-            <div className="relative overflow-hidden rounded-2xl bg-white border border-emerald-100 shadow-sm hover:shadow-md transition-shadow p-5">
-              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-emerald-50" />
+            <div className="relative overflow-hidden rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow p-5">
+              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-emerald-50 dark:hidden" />
               <div className="flex items-start justify-between relative">
                 <div>
                   <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wider mb-1">Completed Appts</p>
-                  <p className="text-4xl font-extrabold text-gray-900">{dashboardStats.completedAppointments}</p>
-                  <p className="text-xs text-gray-400 mt-1">Finished sessions</p>
+                  <p className="text-4xl font-extrabold text-[var(--color-text-primary)]">{dashboardStats.completedAppointments}</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">Finished sessions</p>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center flex-shrink-0">
-                  <CheckCircleIcon className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+                  <CheckCircleIcon className="w-6 h-6" />
                 </div>
               </div>
-              <div className="mt-3 h-1.5 rounded-full bg-emerald-100 overflow-hidden">
+              <div className="mt-3 h-1.5 rounded-full bg-emerald-100 dark:bg-[var(--color-border)] overflow-hidden">
                 <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, dashboardStats.completedAppointments * 10)}%` }} />
               </div>
             </div>
 
             {/* Pending Reports */}
-            <div className="relative overflow-hidden rounded-2xl bg-white border border-amber-100 shadow-sm hover:shadow-md transition-shadow p-5">
-              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-amber-50" />
+            <div className="relative overflow-hidden rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow p-5">
+              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-amber-50 dark:hidden" />
               <div className="flex items-start justify-between relative">
                 <div>
                   <p className="text-xs font-semibold text-amber-500 uppercase tracking-wider mb-1">Pending Reports</p>
-                  <p className="text-4xl font-extrabold text-gray-900">{dashboardStats.pendingReports}</p>
-                  <p className="text-xs text-gray-400 mt-1">Awaiting review</p>
+                  <p className="text-4xl font-extrabold text-[var(--color-text-primary)]">{dashboardStats.pendingReports}</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">Awaiting review</p>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0">
-                  <DocumentTextIcon className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
+                  <DocumentTextIcon className="w-6 h-6" />
                 </div>
               </div>
-              <div className="mt-3 h-1.5 rounded-full bg-amber-100 overflow-hidden">
+              <div className="mt-3 h-1.5 rounded-full bg-amber-100 dark:bg-[var(--color-border)] overflow-hidden">
                 <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.min(100, dashboardStats.pendingReports * 20)}%` }} />
               </div>
             </div>
 
             {/* Lab Results */}
-            <div className="relative overflow-hidden rounded-2xl bg-white border border-purple-100 shadow-sm hover:shadow-md transition-shadow p-5">
-              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-purple-50" />
+            <div className="relative overflow-hidden rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow p-5">
+              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-purple-50 dark:hidden" />
               <div className="flex items-start justify-between relative">
                 <div>
                   <p className="text-xs font-semibold text-purple-500 uppercase tracking-wider mb-1">Lab Results</p>
-                  <p className="text-4xl font-extrabold text-gray-900">{dashboardStats.labResults}</p>
-                  <p className="text-xs text-gray-400 mt-1">Results available</p>
+                  <p className="text-4xl font-extrabold text-[var(--color-text-primary)]">{dashboardStats.labResults}</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">Results available</p>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-purple-500 flex items-center justify-center flex-shrink-0">
-                  <ScienceIcon className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center flex-shrink-0">
+                  <ScienceIcon className="w-6 h-6" />
                 </div>
               </div>
-              <div className="mt-3 h-1.5 rounded-full bg-purple-100 overflow-hidden">
+              <div className="mt-3 h-1.5 rounded-full bg-purple-100 dark:bg-[var(--color-border)] overflow-hidden">
                 <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min(100, dashboardStats.labResults * 10)}%` }} />
               </div>
             </div>
@@ -3335,9 +3335,9 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                   <span className="text-sm text-gray-500">Loading patients...</span>
                 </div>
               ) : (
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-sm overflow-hidden">
                   {/* Table Header */}
-                  <div className="px-5 py-3 bg-gradient-to-r from-gray-50 to-blue-50/30 border-b border-gray-200 flex items-center justify-between gap-3">
+                  <div className="px-5 py-3 bg-gradient-to-r from-gray-50 to-blue-50/30 dark:from-[var(--color-surface-raised)] dark:to-[var(--color-surface-raised)]/90 border-b border-gray-200 dark:border-[var(--color-border)] flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
                         <UserIcon className="w-4 h-4 text-white" />
