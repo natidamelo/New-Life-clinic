@@ -754,7 +754,7 @@ const MCHDashboard: React.FC = () => {
           <div className="p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/20">
             <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
               <span>Patients Registry</span>
-              <Badge variant="outline">{filteredPatients.length}</Badge>
+              <span className="px-2 py-0.5 text-xs font-semibold bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-full text-[var(--color-text-muted)]">{filteredPatients.length}</span>
             </h3>
             <div className="relative">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -935,7 +935,7 @@ const MCHDashboard: React.FC = () => {
                               <p className="font-semibold text-purple-900 dark:text-purple-300">Registered program: {mchRecord.program}</p>
                               <p className="text-xs text-purple-700/80 dark:text-purple-400/80">Enrolled on: {new Date(mchRecord.enrolledAt).toLocaleDateString()}</p>
                             </div>
-                            <Badge className="bg-purple-600 hover:bg-purple-700">ACTIVE</Badge>
+                            <StatusBadge status="active">ACTIVE</StatusBadge>
                           </div>
 
                           {mchRecord.program === 'ANC' && (
@@ -1080,11 +1080,11 @@ const MCHDashboard: React.FC = () => {
                                     <span className="font-bold text-sm block mb-1">{dose}</span>
                                     {givenDate ? (
                                       <>
-                                        <Badge className="bg-emerald-600 mb-1">GIVEN</Badge>
+                                        <StatusBadge status="success" className="mb-1">GIVEN</StatusBadge>
                                         <span className="text-[10px] text-gray-500">{givenDate}</span>
                                       </>
                                     ) : (
-                                      <Badge variant="outline" className="text-gray-400">PENDING</Badge>
+                                      <StatusBadge status="scheduled">PENDING</StatusBadge>
                                     )}
                                   </div>
                                 );
@@ -1125,11 +1125,11 @@ const MCHDashboard: React.FC = () => {
                                   <div className="flex flex-col items-end gap-1">
                                     {givenDate ? (
                                       <>
-                                        <Badge className="bg-emerald-600 font-semibold rounded-lg text-[10px]">ADMINISTERED</Badge>
+                                        <StatusBadge status="success">ADMINISTERED</StatusBadge>
                                         <span className="text-[10px] text-gray-400 font-medium">{givenDate}</span>
                                       </>
                                     ) : (
-                                      <Badge variant="outline" className="text-gray-400 font-semibold rounded-lg text-[10px]">NOT ADMINISTERED</Badge>
+                                      <StatusBadge status="danger">NOT ADMINISTERED</StatusBadge>
                                     )}
                                   </div>
                                 </div>
@@ -1167,11 +1167,11 @@ const MCHDashboard: React.FC = () => {
                                   <div className="flex flex-col items-end gap-1">
                                     {givenDate ? (
                                       <>
-                                        <Badge className="bg-purple-600 font-semibold rounded-lg text-[10px]">INITIATED</Badge>
+                                        <StatusBadge status="info">INITIATED</StatusBadge>
                                         <span className="text-[10px] text-gray-400 font-medium">{givenDate}</span>
                                       </>
                                     ) : (
-                                      <Badge variant="outline" className="text-gray-400 font-semibold rounded-lg text-[10px]">PENDING</Badge>
+                                      <StatusBadge status="scheduled">PENDING</StatusBadge>
                                     )}
                                   </div>
                                 </div>
@@ -1303,9 +1303,9 @@ const MCHDashboard: React.FC = () => {
                               Check maternal bleeding, uterine involution, healing of tears, breastfeeding setup, and infant health milestones during the critical 6-week postnatal period.
                             </p>
                           </div>
-                          <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 py-1 justify-center rounded-xl font-semibold">
+                          <StatusBadge status="info" size="md">
                             Critical 6 Weeks Window
-                          </Badge>
+                          </StatusBadge>
                         </Card>
                       </div>
 
@@ -1497,9 +1497,9 @@ const MCHDashboard: React.FC = () => {
                                     <TableCell>{r.headCirc} cm</TableCell>
                                     <TableCell>{r.muac} cm</TableCell>
                                     <TableCell>
-                                      <Badge variant="outline" className="text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900 bg-purple-500/10">
+                                      <StatusBadge status="info">
                                         {r.milestones}
-                                      </Badge>
+                                      </StatusBadge>
                                     </TableCell>
                                     <TableCell>{r.notes || '—'}</TableCell>
                                   </TableRow>
