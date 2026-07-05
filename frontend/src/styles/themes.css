@@ -158,6 +158,38 @@
     --wait-cursor: wait;
     --help-cursor: help;
 
+    /* ── Semantic Alias Tokens (theme-aware, used by hooks & charts) ── */
+    /* These are computed values (not HSL fragments) so JS can read them directly */
+    --color-primary: hsl(var(--primary));
+    --color-primary-fg: hsl(var(--primary-foreground));
+    --color-primary-hover: hsl(var(--primary) / 0.85);
+    --color-primary-active: hsl(var(--primary) / 0.75);
+    --color-primary-subtle: hsl(var(--primary) / 0.12);
+    --color-surface: hsl(var(--background));
+    --color-surface-alt: hsl(var(--card));
+    --color-surface-raised: hsl(var(--popover));
+    --color-border: hsl(var(--border));
+    --color-text: hsl(var(--foreground));
+    --color-text-muted: hsl(var(--muted-foreground));
+    --color-text-subtle: hsl(var(--muted-foreground) / 0.6);
+    --color-danger: hsl(var(--destructive));
+    --color-danger-fg: hsl(var(--destructive-foreground));
+    --color-success: hsl(var(--status-success));
+    --color-success-fg: hsl(var(--status-success-foreground));
+    --color-warning: hsl(var(--status-warning));
+    --color-warning-fg: hsl(var(--status-warning-foreground));
+    --color-info: hsl(var(--status-info));
+    --color-info-fg: hsl(var(--status-info-foreground));
+    /* Chart-specific palette (concrete hex/hsl values for chart.js/recharts) */
+    --chart-color-1: hsl(var(--primary));
+    --chart-color-2: hsl(var(--status-success));
+    --chart-color-3: hsl(var(--status-warning));
+    --chart-color-4: hsl(var(--status-error));
+    --chart-color-5: hsl(var(--status-info));
+    --chart-grid: hsl(var(--border) / 0.5);
+    --chart-tooltip-bg: hsl(var(--popover));
+    --chart-tooltip-text: hsl(var(--popover-foreground));
+
     /* Sidebar Colors - Neutral 200 */
     --sidebar: 0 0% 90%;
     --sidebar-foreground: 240 10% 3.9%;
@@ -325,5 +357,36 @@
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 240 4.9% 83.9%;
+
+    /* ── Semantic Alias Tokens — Dark mode overrides ── */
+    --color-primary: hsl(var(--primary));
+    --color-primary-fg: hsl(var(--primary-foreground));
+    --color-primary-hover: hsl(var(--primary) / 0.85);
+    --color-primary-active: hsl(var(--primary) / 0.75);
+    --color-primary-subtle: hsl(var(--primary) / 0.18);
+    --color-surface: hsl(var(--background));
+    --color-surface-alt: hsl(var(--card));
+    --color-surface-raised: hsl(var(--popover));
+    --color-border: hsl(var(--border));
+    --color-text: hsl(var(--foreground));
+    --color-text-muted: hsl(var(--muted-foreground));
+    --color-text-subtle: hsl(var(--muted-foreground) / 0.6);
+    --color-danger: hsl(var(--status-error));
+    --color-danger-fg: hsl(var(--status-error-foreground));
+    --color-success: hsl(var(--status-success));
+    --color-success-fg: hsl(var(--status-success-foreground));
+    --color-warning: hsl(var(--status-warning));
+    --color-warning-fg: hsl(var(--status-warning-foreground));
+    --color-info: hsl(var(--status-info));
+    --color-info-fg: hsl(var(--status-info-foreground));
+    /* Chart palette — dark mode */
+    --chart-color-1: hsl(var(--primary));
+    --chart-color-2: hsl(var(--status-success));
+    --chart-color-3: hsl(var(--status-warning));
+    --chart-color-4: hsl(var(--status-error));
+    --chart-color-5: hsl(var(--status-info));
+    --chart-grid: hsl(var(--border) / 0.4);
+    --chart-tooltip-bg: hsl(var(--popover));
+    --chart-tooltip-text: hsl(var(--popover-foreground));
   }
 }

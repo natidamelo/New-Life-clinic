@@ -33,6 +33,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import reportsDashboardService, { ReportsDashboardStats, RevenueTrendData, ReportUsageData } from '../../services/reportsDashboardService';
+import useChartColors from '../../hooks/useChartColors';
 
 interface DashboardStats {
   totalReports: number;
@@ -54,6 +55,7 @@ const ReportsDashboard: React.FC = () => {
   const [revenueData, setRevenueData] = useState<RevenueTrendData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const ch = useChartColors();
 
   // Fetch real data from clinic-cms database
   // Monitor dashboard stats changes
@@ -651,18 +653,19 @@ const ReportsDashboard: React.FC = () => {
             {revenueData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip 
+                  <CartesianGrid strokeDasharray="3 3" stroke={ch.gridColor} />
+                  <XAxis dataKey="name" tick={{ fill: ch.textMuted }} />
+                  <YAxis tick={{ fill: ch.textMuted }} />
+                  <Tooltip
+                    contentStyle={{ background: ch.tooltipBg, border: `1px solid ${ch.border}`, color: ch.tooltipText }}
                     formatter={(value, name) => [
                       name === 'revenue' ? formatCurrency(Number(value)) : value,
                       name === 'revenue' ? 'Revenue' : name === 'patients' ? 'Patients' : 'Appointments'
                     ]}
                   />
-                  <Area type="monotone" dataKey="revenue" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
-                  <Area type="monotone" dataKey="patients" stackId="2" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
-                  <Area type="monotone" dataKey="appointments" stackId="3" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.3} />
+                  <Area type="monotone" dataKey="revenue" stackId="1" stroke={ch.success} fill={ch.success} fillOpacity={0.3} />
+                  <Area type="monotone" dataKey="patients" stackId="2" stroke={ch.primary} fill={ch.primary} fillOpacity={0.3} />
+                  <Area type="monotone" dataKey="appointments" stackId="3" stroke={ch.categorical[4]} fill={ch.categorical[4]} fillOpacity={0.3} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (

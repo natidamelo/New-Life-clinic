@@ -870,3 +870,140 @@ thead th {
 [style*="color: rgb(31, 41, 55)"] {
   color: hsl(var(--foreground)) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: DARK MODE SURFACE LEAK PREVENTION
+   Catches elements that render a literal white/light background in dark mode.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Prevent white panels in dark mode */
+.dark .bg-white,
+.dark [style*="background-color: white"],
+.dark [style*="background-color: #fff"],
+.dark [style*="background-color: #ffffff"],
+.dark [style*="background: white"],
+.dark [style*="background: #fff"],
+.dark [style*="background: #ffffff"] {
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--card-foreground)) !important;
+}
+
+/* Prevent light-gray panels in dark mode */
+.dark .bg-gray-50,
+.dark .bg-slate-50,
+.dark .bg-zinc-50,
+.dark [style*="background-color: #f9fafb"],
+.dark [style*="background-color: #f8fafc"],
+.dark [style*="background-color: #fafafa"],
+.dark [style*="background: #f9fafb"],
+.dark [style*="background: #f8fafc"] {
+  background-color: hsl(var(--background)) !important;
+}
+
+/* Prevent hard-coded light border/divider in dark mode */
+.dark [style*="border-color: #e5e7eb"],
+.dark [style*="border-color: #e2e8f0"],
+.dark [style*="border-color: rgba(0, 0, 0"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: FOCUS RINGS — THEME-AWARE
+   Ensures keyboard focus rings always use the active accent, not a fixed blue.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.focus-visible\:ring-blue-500:focus-visible,
+.focus-visible\:ring-indigo-500:focus-visible,
+.focus\:ring-blue-500:focus,
+.focus\:ring-indigo-500:focus {
+  --tw-ring-color: hsl(var(--ring)) !important;
+  box-shadow: var(--tw-ring-shadow) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: INDIGO / VIOLET / BLUE PRIMARY MAPPING
+   Components that use indigo-* or violet-* to express the "primary" intent
+   now follow the active accent color.
+   We intentionally skip indigo/violet used for semantic meaning (rare cases).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Indigo / violet backgrounds as primary intent */
+.bg-indigo-600,
+.bg-indigo-700,
+.bg-violet-600,
+.bg-violet-700 {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.bg-indigo-50,
+.bg-indigo-100,
+.bg-violet-50,
+.bg-violet-100 {
+  background-color: hsl(var(--primary) / 0.1) !important;
+  color: hsl(var(--primary)) !important;
+}
+
+.text-indigo-600,
+.text-indigo-700,
+.text-violet-600,
+.text-violet-700 {
+  color: hsl(var(--primary)) !important;
+}
+
+.border-indigo-200,
+.border-indigo-300,
+.border-violet-200,
+.border-violet-300 {
+  border-color: hsl(var(--primary) / 0.3) !important;
+}
+
+/* Hover variants */
+.hover\:bg-indigo-700:hover,
+.hover\:bg-indigo-600:hover,
+.hover\:bg-violet-700:hover {
+  background-color: hsl(var(--primary) / 0.85) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: LOADING SKELETON — THEME-AWARE
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.animate-pulse > div,
+[class*="skeleton"],
+[class*="Skeleton"] {
+  background-color: hsl(var(--muted)) !important;
+}
+
+.dark .animate-pulse > div,
+.dark [class*="skeleton"],
+.dark [class*="Skeleton"] {
+  background-color: hsl(var(--muted)) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: MODAL / DIALOG OVERLAY — THEME-AWARE
+   Dialogs created outside shadcn can still pick up theme variables.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[role="dialog"][aria-modal="true"],
+.modal-content,
+.dialog-content {
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--card-foreground)) !important;
+  border-color: hsl(var(--border)) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION: BADGE VARIANTS — PRIMARY BADGE COLOR
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Badge using indigo/blue primary intent */
+.badge-primary,
+[class*="badge"][class*="indigo"],
+[class*="badge"][class*="blue"] {
+  background-color: hsl(var(--primary) / 0.12) !important;
+  color: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary) / 0.25) !important;
+}
+

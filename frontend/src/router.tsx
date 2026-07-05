@@ -84,6 +84,7 @@ const UserManagement = lazy(() => import('./pages/Admin/UserManagement'));
 const SystemControls = lazy(() => import('./pages/Admin/SystemControls'));
 const ClinicManagement = lazy(() => import('./pages/Admin/ClinicManagement'));
 const UIShowcasePage = lazy(() => import('./pages/UIShowcasePage'));
+const ThemeQAPage = lazy(() => import('./pages/ThemeQA'));
 const StaffAttendanceControlPage = lazy(() => import('./pages/Admin/StaffAttendanceControl'));
 const ServiceRequestForm = lazy(() => import('./pages/Reception/ServiceRequestForm'));
 const AuthTest = lazy(() => import('./pages/AuthTest'));
@@ -479,6 +480,10 @@ const router = createBrowserRouter([
       {
         path: 'ui-showcase',
         element: <ProtectedRoute allowedRoles={['admin', 'nurse', 'doctor']}><LazyWrapper><UIShowcasePage /></LazyWrapper></ProtectedRoute>
+      },
+      {
+        path: 'theme-qa',
+        element: <ProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'reception', 'finance', 'lab', 'imaging']}><LazyWrapper><ThemeQAPage /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'lab',

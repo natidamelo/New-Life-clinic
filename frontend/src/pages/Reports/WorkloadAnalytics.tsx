@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
+import useChartColors from '../../hooks/useChartColors';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -178,6 +179,9 @@ const WorkloadAnalytics: React.FC = () => {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
+  /* ── chart colors (updates automatically with theme) ── */
+  const ch = useChartColors();
+
   /* ── derived ── */
   const filtered = useMemo(() => {
     let arr = rows.filter(r =>
@@ -252,8 +256,8 @@ const WorkloadAnalytics: React.FC = () => {
       {
         label: 'Visits',
         data: series.map(s => s.visits || 0),
-        borderColor: '#6366f1',
-        backgroundColor: 'rgba(99,102,241,.15)',
+        borderColor: ch.primary,
+        backgroundColor: ch.primaryAlpha,
         tension: 0.4,
         fill: true,
         pointRadius: 4,
@@ -264,8 +268,8 @@ const WorkloadAnalytics: React.FC = () => {
       {
         label: 'Clicks',
         data: series.map(s => s.clicks || 0),
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16,185,129,.1)',
+        borderColor: ch.success,
+        backgroundColor: ch.success.replace(')', ', 0.1)').replace('hsl(', 'hsla('),
         tension: 0.4,
         fill: false,
         pointRadius: 4,
@@ -281,12 +285,12 @@ const WorkloadAnalytics: React.FC = () => {
     responsive: true,
     interaction: { mode: 'index', intersect: false },
     plugins: {
-      legend: { display: true, position: 'top', labels: { usePointStyle: true, pointStyleWidth: 10 } },
-      tooltip: { backgroundColor: 'rgba(15,23,42,.95)', padding: 10, cornerRadius: 10 },
+      legend: { display: true, position: 'top', labels: { usePointStyle: true, pointStyleWidth: 10, color: ch.textMuted } },
+      tooltip: { backgroundColor: ch.tooltipBg, titleColor: ch.tooltipText, bodyColor: ch.tooltipText, padding: 10, cornerRadius: 10 },
     },
     scales: {
-      x: { grid: { color: 'rgba(0,0,0,.05)' }, ticks: { maxTicksLimit: 12, maxRotation: 0 } },
-      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.05)' } },
+      x: { grid: { color: ch.gridColor }, ticks: { maxTicksLimit: 12, maxRotation: 0, color: ch.textMuted } },
+      y: { beginAtZero: true, grid: { color: ch.gridColor }, ticks: { color: ch.textMuted } },
     },
   };
 
@@ -296,7 +300,7 @@ const WorkloadAnalytics: React.FC = () => {
     datasets: [{
       label: 'Visits',
       data: topPaths.map(t => t.visits || 0),
-      backgroundColor: topPaths.map((_, i) => `hsl(${220 + i * 18},70%,62%)`),
+      backgroundColor: topPaths.map((_, i) => ch.categorical[i % ch.categorical.length]),
       borderRadius: 8,
       borderSkipped: false,
     }],
@@ -306,11 +310,11 @@ const WorkloadAnalytics: React.FC = () => {
     indexAxis: 'y' as const,
     plugins: {
       legend: { display: false },
-      tooltip: { backgroundColor: 'rgba(15,23,42,.95)', padding: 10, cornerRadius: 10 },
+      tooltip: { backgroundColor: ch.tooltipBg, titleColor: ch.tooltipText, bodyColor: ch.tooltipText, padding: 10, cornerRadius: 10 },
     },
     scales: {
-      x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.05)' } },
-      y: { grid: { display: false } },
+      x: { beginAtZero: true, grid: { color: ch.gridColor }, ticks: { color: ch.textMuted } },
+      y: { grid: { display: false }, ticks: { color: ch.textMuted } },
     },
   };
 
@@ -319,9 +323,9 @@ const WorkloadAnalytics: React.FC = () => {
     labels: Object.keys(roleBreakdown),
     datasets: [{
       data: Object.values(roleBreakdown),
-      backgroundColor: Object.keys(roleBreakdown).map(r => ROLE_COLORS[r.toLowerCase()] ?? ROLE_COLORS.default),
+      backgroundColor: Object.keys(roleBreakdown).map((r, i) => ROLE_COLORS[r.toLowerCase()] ?? ch.categorical[i % ch.categorical.length]),
       borderWidth: 3,
-      borderColor: '#fff',
+      borderColor: ch.surfaceAlt,
       hoverOffset: 8,
     }],
   };
@@ -329,8 +333,8 @@ const WorkloadAnalytics: React.FC = () => {
     responsive: true,
     cutout: '68%',
     plugins: {
-      legend: { position: 'right', labels: { pointStyle: 'circle', usePointStyle: true } },
-      tooltip: { backgroundColor: 'rgba(15,23,42,.95)', padding: 10, cornerRadius: 10 },
+      legend: { position: 'right', labels: { pointStyle: 'circle', usePointStyle: true, color: ch.textMuted } },
+      tooltip: { backgroundColor: ch.tooltipBg, titleColor: ch.tooltipText, bodyColor: ch.tooltipText, padding: 10, cornerRadius: 10 },
     },
   };
 

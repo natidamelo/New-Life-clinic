@@ -764,7 +764,9 @@ export interface ThemeContextProps {
 
 export const ThemeContext = createContext<ThemeContextProps | undefined>(undefined);
 
-// Helper: apply primary color and all its shade variations to CSS custom properties
+// Helper: apply primary color and all its shade variations to CSS custom properties.
+// Also writes semantic --color-* alias tokens so charts and hooks stay in sync
+// with the active accent without needing to parse hsl() fragments themselves.
 function applyPrimaryColorVariables(colorTheme: ColorTheme) {
   const root = window.document.documentElement;
   const themeConfig = colorThemes.find(t => t.value === colorTheme);
@@ -779,9 +781,12 @@ function applyPrimaryColorVariables(colorTheme: ColorTheme) {
   root.style.setProperty('--primary', primaryValue);
   root.style.setProperty('--primary-color', `hsl(${primaryValue})`);
 
-  if (themeConfig.primaryForeground) {
-    const fgMatch = themeConfig.primaryForeground.match(/hsl\(([^)]+)\)/);
-    root.style.setProperty('--primary-foreground', fgMatch ? fgMatch[1] : themeConfig.primaryForeground);
+  const fgRaw = themeConfig.primaryForeground ?? '';
+  const fgMatch = fgRaw.match(/hsl\(([^)]+)\)/);
+  const fgValue = fgMatch ? fgMatch[1] : fgRaw;
+
+  if (fgValue) {
+    root.style.setProperty('--primary-foreground', fgValue);
   }
   if (themeConfig.ring) {
     const ringMatch = themeConfig.ring.match(/hsl\(([^)]+)\)/);
@@ -790,9 +795,8 @@ function applyPrimaryColorVariables(colorTheme: ColorTheme) {
 
   // Keep sidebar-primary and ring in sync
   root.style.setProperty('--sidebar-primary', primaryValue);
-  if (themeConfig.primaryForeground) {
-    const fgMatch = themeConfig.primaryForeground.match(/hsl\(([^)]+)\)/);
-    root.style.setProperty('--sidebar-primary-foreground', fgMatch ? fgMatch[1] : themeConfig.primaryForeground);
+  if (fgValue) {
+    root.style.setProperty('--sidebar-primary-foreground', fgValue);
   }
   root.style.setProperty('--sidebar-ring', primaryValue);
 
@@ -819,6 +823,16 @@ function applyPrimaryColorVariables(colorTheme: ColorTheme) {
   root.style.setProperty('--primary-active',   `hsl(${shades['700']})`);
   root.style.setProperty('--primary-focus',    `hsl(${shades['500']})`);
   root.style.setProperty('--primary-disabled', `hsl(${shades['300']})`);
+
+  // ── Write semantic alias tokens (used by useChartColors + any component) ──
+  // These shadow the CSS-layer aliases in themes.css with the live accent value
+  // so they're always accurate even before a full CSS cascade tick.
+  root.style.setProperty('--color-primary',        `hsl(${primaryValue})`);
+  root.style.setProperty('--color-primary-fg',     fgValue ? `hsl(${fgValue})` : '#ffffff');
+  root.style.setProperty('--color-primary-hover',  `hsl(${shades['600']})`);
+  root.style.setProperty('--color-primary-active', `hsl(${shades['700']})`);
+  root.style.setProperty('--color-primary-subtle', `hsl(${hue} ${saturation} 95%)`);
+  root.style.setProperty('--chart-color-1',        `hsl(${primaryValue})`);
 }
 
 interface ThemeProviderProps {
