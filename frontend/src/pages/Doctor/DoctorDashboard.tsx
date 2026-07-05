@@ -2668,7 +2668,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       console.log(`[FETCH MEDICAL RECORDS] Processed ${records.length} records`);
       try {
         const pagination = response.data?.pagination || {};
-        setMedicalRecordsTotalPages(pagination.totalPages || medicalRecordsTotalPages || 1);
+        setMedicalRecordsTotalPages(pagination.totalPages || pagination.pages || 1);
       } catch { }
 
       // If no records found, show helpful message
@@ -2728,7 +2728,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
     }
   };
 
-  // Add useEffect to fetch medical records on mount and when active tab changes
+  // Add useEffect to fetch medical records on mount and when active tab, patient filter, status filter, or page changes
   useEffect(() => {
     if (activeTab === 'Medical Records') {
       const patient = selectedPatientForMedicalRecords;
@@ -2737,53 +2737,27 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
         if (patient.status === 'completed' && medicalRecordsStatusFilter === 'finalized') {
           // For completed patients viewing finalized records, use finalized endpoint
           const patientIdToUse = patient._id || patient.id;
-          console.log(`[USE EFFECT] Fetching finalized records for completed patient: ${patientIdToUse}`);
+          console.log(`[USE EFFECT] Fetching finalized records for completed patient: ${patientIdToUse}, page: ${medicalRecordsPage}`);
           fetchFinalizedMedicalRecords(patientIdToUse);
         } else {
           // For active patients or when viewing all/active records, fetch regular records
           const patientId = patient.id;
-          console.log(`[USE EFFECT] Fetching records for active patient: ${patientId} with filter: ${medicalRecordsStatusFilter}`);
+          console.log(`[USE EFFECT] Fetching records for active patient: ${patientId} with filter: ${medicalRecordsStatusFilter}, page: ${medicalRecordsPage}`);
           fetchAllMedicalRecords(0, false, patientId);
         }
       } else {
         // No patient selected, fetch all records based on filter
-        console.log(`[USE EFFECT] Fetching medical records with filter: ${medicalRecordsStatusFilter}`);
+        console.log(`[USE EFFECT] Fetching medical records with filter: ${medicalRecordsStatusFilter}, page: ${medicalRecordsPage}`);
         fetchAllMedicalRecords(0, false);
       }
     }
-  }, [activeTab, selectedPatientForMedicalRecords, medicalRecordsStatusFilter]);
-
-  // Re-fetch medical records when page changes on the Medical Records tab
-  useEffect(() => {
-    if (activeTab === 'Medical Records') {
-      const patient = selectedPatientForMedicalRecords;
-      if (patient && patient.status === 'completed') {
-        const patientIdToUse = patient._id || patient.id;
-        fetchFinalizedMedicalRecords(patientIdToUse);
-      } else {
-        fetchAllMedicalRecords(0, false, patient?.id);
-      }
-    }
-  }, [medicalRecordsPage]);
+  }, [activeTab, selectedPatientForMedicalRecords, medicalRecordsStatusFilter, medicalRecordsPage]);
 
   // Add function to handle viewing patient medical records
   const handleViewPatientMedicalRecords = (patient: PatientType) => {
     setSelectedPatientForMedicalRecords(patient);
+    setMedicalRecordsPage(1);
     setActiveTab('Medical Records');
-
-    // Show loading message
-    toast(`Loading medical records for ${patient.firstName} ${patient.lastName}...`, {
-      icon: '📋',
-      duration: 2000,
-    });
-
-    // For completed patients, we need to fetch finalized records
-    // Use the patient's _id (ObjectId) instead of patientId for better compatibility
-    const patientIdToUse = patient._id || patient.id;
-    console.log(`[VIEW HISTORY] Using patient ID: ${patientIdToUse} for ${patient.firstName} ${patient.lastName}`);
-
-    // Fetch finalized records for completed patients
-    fetchFinalizedMedicalRecords(patientIdToUse);
   };
 
   // Add function to fetch finalized medical records
@@ -2818,7 +2792,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       console.log(`[FETCH FINALIZED RECORDS] Processed ${records.length} finalized records`);
       try {
         const pagination = response.data?.pagination || {};
-        setMedicalRecordsTotalPages(pagination.totalPages || medicalRecordsTotalPages || 1);
+        setMedicalRecordsTotalPages(pagination.totalPages || pagination.pages || 1);
       } catch { }
 
       // If no records found, show helpful message
@@ -2879,7 +2853,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
         <div className="flex items-center gap-2 flex-wrap">
           {selectedPatientForMedicalRecords && (
             <button
-              onClick={() => { setSelectedPatientForMedicalRecords(null); fetchAllMedicalRecords(); }}
+              onClick={() => { setSelectedPatientForMedicalRecords(null); setMedicalRecordsPage(1); }}
               className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-700 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
             >
               <ArrowBack className="h-3 w-3" /> All Records

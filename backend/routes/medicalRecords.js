@@ -289,6 +289,9 @@ router.get('/dashboard-lite', auth, asyncHandler(async (req, res) => {
       pagination: {
         page,
         limit,
+        total: queryCount,
+        pages: Math.ceil(queryCount / limit),
+        totalPages: Math.ceil(queryCount / limit),
         hasMore: records.length === limit
       }
     });
@@ -786,7 +789,8 @@ router.get('/finalized', [auth,
       page,
       limit,
       total,
-      pages: Math.ceil(total / limit)
+      pages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit)
     }
   });
 }));
@@ -1017,7 +1021,8 @@ router.get('/', [auth,
       page,
       limit,
       total: req.query.includeCount === 'true' ? total : undefined,
-      pages: req.query.includeCount === 'true' ? Math.ceil(total / limit) : undefined
+      pages: req.query.includeCount === 'true' ? Math.ceil(total / limit) : undefined,
+      totalPages: req.query.includeCount === 'true' ? Math.ceil(total / limit) : undefined
     }
   });
 }));
