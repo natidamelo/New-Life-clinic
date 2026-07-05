@@ -106,7 +106,7 @@ router.get('/route-usage/timeseries', auth, cacheMiddleware(30000), async (req, 
       {
         $group: {
           _id: {
-            bucket: { $dateTrunc: { date: '$timestamp', unit } },
+            bucket: { $dateTrunc: { date: { $toDate: '$timestamp' }, unit } },
           },
           clicks: { $sum: { $cond: [{ $eq: ['$action', 'click'] }, 1, 0] } },
           visits: { $sum: { $cond: [{ $eq: ['$action', 'enter'] }, 1, 0] } },
