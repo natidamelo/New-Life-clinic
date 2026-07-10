@@ -572,49 +572,90 @@ To set up your Telegram bot:
   }
 
   async handleStartCommand(chatId) {
-    const keyboard = this.createMainMenuKeyboard();
+    const User = require('../models/User');
+    const isStaff = await User.findOne({ telegramChatId: String(chatId) });
 
-    // Check if this user has already linked their phone
-    const existingContact = await TelegramContact.findOne({ telegramChatId: String(chatId) });
-
-    let welcomeMessage = `🏥 <b>Welcome to New Life Clinic Management System</b>\n\n`;
-
-    if (!existingContact) {
-      welcomeMessage += `📱 <b>Are you a patient?</b> Share your phone number below so we can send you your Card ID and dashboard access link when you register at the clinic.\n\n`;
-    } else {
-      welcomeMessage += `✅ Your phone <b>${existingContact.phoneNumber}</b> is linked. You'll receive your Card ID here automatically when you register.\n\n`;
+    if (isStaff) {
+      // 1. Staff Welcome Flow
+      const keyboard = this.createMainMenuKeyboard();
+      const welcomeMessage = `🏥 <b>New Life Clinic - Staff Portal</b>\n\n` +
+        `👨‍⚕️ Welcome back, <b>${isStaff.firstName} ${isStaff.lastName}</b>!\n\n` +
+        `Use the menu below to manage patient queue, appointments, billing, and lab orders:`;
+      
+      await this.bot.sendMessage(chatId, welcomeMessage, {
+        parse_mode: 'HTML',
+        reply_markup: keyboard
+      });
+      return;
     }
 
-    welcomeMessage += `👨‍⚕️ <b>Patient Management</b>\nYou can:\n• View patient records\n• Search patients\n• Access patient history\n• Manage appointments\n\nUse the main menu to navigate.`;
+    // 2. Patient / Guest Flow
+    const existingContact = await TelegramContact.findOne({ telegramChatId: String(chatId) });
 
-    // Build reply markup with phone share button for unlinked users
-    const replyMarkup = !existingContact ? {
-      keyboard: [
-        [{ text: '📱 Share My Phone Number', request_contact: true }]
-      ],
-      resize_keyboard: true,
-      one_time_keyboard: true
-    } : keyboard;
+    if (existingContact) {
+      // Linked Patient Flow
+      const Patient = require('../models/Patient');
+      const patient = await Patient.findOne({ contactNumber: existingContact.phoneNumber });
 
-    await this.bot.sendMessage(chatId, welcomeMessage, {
-      parse_mode: 'HTML',
-      reply_markup: replyMarkup
-    });
+      let welcomeMessage = `🏥 <b>Welcome to New Life Clinic Patient Bot</b>\n\n`;
+      if (patient) {
+        welcomeMessage += `👤 <b>Patient Name:</b> ${patient.firstName} ${patient.lastName}\n`;
+        welcomeMessage += `🆔 <b>Card ID:</b> <code>${patient.patientId}</code>\n\n`;
+      } else {
+        welcomeMessage += `👤 <b>Patient:</b> Linked (${existingContact.phoneNumber})\n`;
+        welcomeMessage += `🆔 <b>Card ID:</b> Pending Registration at Clinic reception\n\n`;
+      }
+      welcomeMessage += `Use the options below to access your dashboard or view your details.`;
 
-    // If user already shared phone, also show inline menu
-    if (existingContact) return;
+      const patientKeyboard = this.createPatientMenuKeyboard(patient ? patient.patientId : null);
 
-    // Send inline menu as a separate message so both keyboards work
-    await this.bot.sendMessage(chatId, '👇 Or use the menu below:', {
-      parse_mode: 'HTML',
-      reply_markup: keyboard
-    });
+      await this.bot.sendMessage(chatId, welcomeMessage, {
+        parse_mode: 'HTML',
+        reply_markup: patientKeyboard
+      });
+    } else {
+      // Unlinked Guest Flow (Prompt to share phone number)
+      const welcomeMessage = `🏥 <b>Welcome to New Life Clinic</b>\n\n` +
+        `📱 <b>Are you a patient?</b> Share your phone number below so we can securely link your account and send your Card ID / dashboard login details when you register at the clinic.`;
+
+      const replyMarkup = {
+        keyboard: [
+          [{ text: '📱 Share My Phone Number', request_contact: true }]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: true
+      };
+
+      await this.bot.sendMessage(chatId, welcomeMessage, {
+        parse_mode: 'HTML',
+        reply_markup: replyMarkup
+      });
+    }
   }
 
   async handleCallbackAction(chatId, action, messageId) {
     console.log(`🔄 Handling action: ${action} for chat ${chatId}`);
 
     try {
+      // Verify if user is staff
+      const User = require('../models/User');
+      const isStaff = await User.findOne({ telegramChatId: String(chatId) });
+
+      // Handle patient specific actions
+      if (['patient_card_id', 'patient_contact', 'patient_main_menu'].includes(action)) {
+        await this.handlePatientCallback(chatId, action);
+        return;
+      }
+
+      // If user is not staff, block all other commands
+      if (!isStaff) {
+        console.log(`⚠️ Blocked unauthorized staff action: ${action} from chat ${chatId}`);
+        await this.bot.sendMessage(chatId, '⚠️ <b>Access Denied:</b> This option is only available for authorized clinic staff.', {
+          parse_mode: 'HTML'
+        });
+        return;
+      }
+
       switch (action) {
       case 'view_patients':
         await this.handleViewPatients(chatId);
@@ -2078,6 +2119,59 @@ Please use the web interface to create new lab orders.`, {
         success: false,
         message: `Error: ${error.message}`
       };
+    }
+  }
+
+  /**
+   * Helper to create a menu customized for patients.
+   */
+  createPatientMenuKeyboard(patientId) {
+    const inline_keyboard = [];
+    
+    if (patientId) {
+      inline_keyboard.push([
+        { text: '🆔 View My Card ID', callback_data: 'patient_card_id' }
+      ]);
+    }
+    
+    // Web link button to open the dashboard directly
+    inline_keyboard.push([
+      { text: '🔗 Open Patient Dashboard', url: 'http://10.99.120.100:5175/patient' }
+    ]);
+    
+    inline_keyboard.push([
+      { text: '📞 Clinic Info & Contact', callback_data: 'patient_contact' }
+    ]);
+    
+    return { inline_keyboard };
+  }
+
+  /**
+   * Handler for patient specific callbacks.
+   */
+  async handlePatientCallback(chatId, action) {
+    try {
+      const contact = await TelegramContact.findOne({ telegramChatId: String(chatId) });
+      if (!contact) {
+        await this.bot.sendMessage(chatId, '❌ Your account is not linked. Please start the bot and share your contact.');
+        return;
+      }
+
+      const Patient = require('../models/Patient');
+      const patient = await Patient.findOne({ contactNumber: contact.phoneNumber });
+
+      if (action === 'patient_card_id') {
+        if (!patient) {
+          await this.bot.sendMessage(chatId, '⚠️ Your phone number is linked, but you are not registered as a patient in the clinic yet.');
+          return;
+        }
+        await this.bot.sendMessage(chatId, `🏥 <b>New Life Clinic - Card ID</b>\n\n👤 <b>Patient:</b> ${patient.firstName} ${patient.lastName}\n🆔 <b>Card ID:</b> <code>${patient.patientId}</code>\n\n<i>Tap the Card ID above to copy it!</i>`, { parse_mode: 'HTML' });
+      } else if (action === 'patient_contact') {
+        await this.bot.sendMessage(chatId, `🏥 <b>New Life Clinic</b>\n\n📞 <b>Phone:</b> +251 91 123 4567\n📍 <b>Location:</b> Main Office, Addis Ababa, Ethiopia\n🌐 <b>Dashboard:</b> http://10.99.120.100:5175`, { parse_mode: 'HTML' });
+      }
+    } catch (error) {
+      console.error('❌ Error in handlePatientCallback:', error);
+      await this.bot.sendMessage(chatId, '❌ Sorry, an error occurred processing your request.');
     }
   }
 }
