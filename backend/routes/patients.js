@@ -362,6 +362,40 @@ router.post('/', auth, async (req, res) => {
       // Don't fail patient creation if Telegram notification fails
     }
 
+    // Send Card ID to patient's Telegram using their registered phone number
+    try {
+      await telegramService.initialize();
+
+      if (telegramService.isBotInitialized()) {
+        // Prepare card type info for the message
+        let patientCardTypeInfo = null;
+        if (sanitizedData.cardType) {
+          const CardType = require('../models/CardType');
+          const selectedCardType = await CardType.findById(sanitizedData.cardType);
+          if (selectedCardType) {
+            patientCardTypeInfo = {
+              name: selectedCardType.name,
+              price: selectedCardType.price
+            };
+          }
+        }
+
+        const patientTelegramResult = await telegramService.sendCardIdToPatient(
+          patient.toObject(),
+          patientCardTypeInfo
+        );
+
+        if (patientTelegramResult.success) {
+          console.log(`📱 Card ID sent to patient ${patient.firstName} ${patient.lastName} on Telegram`);
+        } else {
+          console.log(`📱 Could not send Card ID to patient on Telegram: ${patientTelegramResult.message}`);
+        }
+      }
+    } catch (patientTelegramError) {
+      console.error('❌ Error sending Card ID to patient on Telegram:', patientTelegramError);
+      // Don't fail patient creation if Telegram notification fails
+    }
+
     // Create automatic daily consolidated invoice for the patient
     try {
       let registrationAmount = 0; // No base registration fee

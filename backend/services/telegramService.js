@@ -1,5 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
 const TelegramConfig = require('../models/TelegramConfig');
+const TelegramContact = require('../models/TelegramContact');
 
 class TelegramService {
   constructor() {
@@ -509,10 +510,56 @@ To set up your Telegram bot:
       }
     });
 
+    // Handle contact messages (when a patient shares their phone number)
+    this.bot.on('contact', async (msg) => {
+      const chatId = msg.chat.id;
+      const contact = msg.contact;
+
+      console.log(`📱 Received contact share from chat ${chatId}:`, contact.phone_number);
+
+      try {
+        const normalizedPhone = this.normalizePhoneNumber(contact.phone_number);
+
+        // Save or update the phone → chatId mapping
+        await TelegramContact.findOneAndUpdate(
+          { phoneNumber: normalizedPhone },
+          {
+            phoneNumber: normalizedPhone,
+            telegramChatId: String(chatId),
+            telegramUsername: msg.chat.username || '',
+            firstName: contact.first_name || '',
+            lastName: contact.last_name || '',
+            linkedAt: new Date()
+          },
+          { upsert: true, new: true }
+        );
+
+        console.log(`✅ Saved Telegram contact mapping: ${normalizedPhone} → ${chatId}`);
+
+        await this.bot.sendMessage(chatId, `✅ <b>Phone number linked successfully!</b>\n\n` +
+          `📞 <b>Phone:</b> ${contact.phone_number}\n\n` +
+          `🏥 When you register at <b>New Life Clinic</b>, your Card ID and dashboard access link will be sent to you here automatically.\n\n` +
+          `Thank you! 🙏`, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🏠 Main Menu', callback_data: 'main_menu' }]
+            ]
+          }
+        });
+      } catch (error) {
+        console.error('❌ Error saving Telegram contact:', error);
+        await this.bot.sendMessage(chatId, '❌ Sorry, there was an error saving your phone number. Please try again.');
+      }
+    });
+
     // Handle text messages (for /start command and other interactions)
     this.bot.on('message', async (msg) => {
       const chatId = msg.chat.id;
       const text = msg.text;
+
+      // Skip if this is a contact message (handled above)
+      if (msg.contact) return;
 
       console.log(`📱 Received message: "${text}" from chat ${chatId}`);
 
@@ -527,16 +574,38 @@ To set up your Telegram bot:
   async handleStartCommand(chatId) {
     const keyboard = this.createMainMenuKeyboard();
 
-    await this.bot.sendMessage(chatId, `🏥 <b>Welcome to New Life Clinic Management System</b>
+    // Check if this user has already linked their phone
+    const existingContact = await TelegramContact.findOne({ telegramChatId: String(chatId) });
 
-👨‍⚕️ <b>Patient Management</b>
-You can:
-• View patient records
-• Search patients
-• Access patient history
-• Manage appointments
+    let welcomeMessage = `🏥 <b>Welcome to New Life Clinic Management System</b>\n\n`;
 
-Use the main menu to navigate.`, {
+    if (!existingContact) {
+      welcomeMessage += `📱 <b>Are you a patient?</b> Share your phone number below so we can send you your Card ID and dashboard access link when you register at the clinic.\n\n`;
+    } else {
+      welcomeMessage += `✅ Your phone <b>${existingContact.phoneNumber}</b> is linked. You'll receive your Card ID here automatically when you register.\n\n`;
+    }
+
+    welcomeMessage += `👨‍⚕️ <b>Patient Management</b>\nYou can:\n• View patient records\n• Search patients\n• Access patient history\n• Manage appointments\n\nUse the main menu to navigate.`;
+
+    // Build reply markup with phone share button for unlinked users
+    const replyMarkup = !existingContact ? {
+      keyboard: [
+        [{ text: '📱 Share My Phone Number', request_contact: true }]
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: true
+    } : keyboard;
+
+    await this.bot.sendMessage(chatId, welcomeMessage, {
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup
+    });
+
+    // If user already shared phone, also show inline menu
+    if (existingContact) return;
+
+    // Send inline menu as a separate message so both keyboards work
+    await this.bot.sendMessage(chatId, '👇 Or use the menu below:', {
       parse_mode: 'HTML',
       reply_markup: keyboard
     });
@@ -1891,6 +1960,124 @@ Please use the web interface to create new lab orders.`, {
     } catch (error) {
       console.error('❌ Error in handleMonthlyRevenue:', error);
       await this.bot.sendMessage(chatId, '❌ Error accessing monthly revenue. Please try again.');
+    }
+  }
+  /**
+   * Normalize phone number to a consistent format for lookup.
+   * Handles Ethiopian phone number formats:
+   *   09xxxxxxxx → +2519xxxxxxxx
+   *   2519xxxxxxxx → +2519xxxxxxxx
+   *   +2519xxxxxxxx → +2519xxxxxxxx
+   *   9xxxxxxxx → +2519xxxxxxxx
+   */
+  normalizePhoneNumber(phone) {
+    if (!phone) return '';
+    // Strip all non-digit characters except leading +
+    let cleaned = phone.replace(/[^\d+]/g, '');
+
+    // Remove leading + for easier processing
+    if (cleaned.startsWith('+')) {
+      cleaned = cleaned.substring(1);
+    }
+
+    // Ethiopian formats
+    if (cleaned.startsWith('0')) {
+      // 09xxxxxxxx → 2519xxxxxxxx
+      cleaned = '251' + cleaned.substring(1);
+    } else if (cleaned.startsWith('9') && cleaned.length === 9) {
+      // 9xxxxxxxx → 2519xxxxxxxx
+      cleaned = '251' + cleaned;
+    } else if (cleaned.startsWith('251')) {
+      // Already in international format
+    }
+
+    return '+' + cleaned;
+  }
+
+  /**
+   * Send patient Card ID and dashboard access link to the patient's Telegram.
+   * Looks up the patient's phone number in the TelegramContact collection.
+   * @param {Object} patientData - The patient document (must have contactNumber, patientId, firstName, lastName)
+   * @param {Object} cardTypeInfo - Optional card type info { name, price }
+   * @returns {Object} { success: boolean, message: string }
+   */
+  async sendCardIdToPatient(patientData, cardTypeInfo = null) {
+    if (!this.isInitialized || !this.bot) {
+      console.log('📱 Telegram bot not initialized, skipping patient card ID message');
+      return { success: false, message: 'Bot not initialized' };
+    }
+
+    try {
+      const phoneNumber = patientData.contactNumber;
+      if (!phoneNumber) {
+        console.log('📱 No contact number for patient, skipping Telegram notification');
+        return { success: false, message: 'No contact number' };
+      }
+
+      // Normalize the phone number and look up the mapping
+      const normalizedPhone = this.normalizePhoneNumber(phoneNumber);
+      console.log(`📱 Looking up Telegram contact for phone: ${normalizedPhone}`);
+
+      const contact = await TelegramContact.findOne({ phoneNumber: normalizedPhone });
+
+      if (!contact) {
+        console.log(`📱 No Telegram contact found for phone ${normalizedPhone} — patient hasn't linked their Telegram yet`);
+        return { success: false, message: 'Patient has not linked their Telegram account' };
+      }
+
+      const patientName = `${patientData.firstName} ${patientData.lastName}`;
+      const patientId = patientData.patientId || patientData._id;
+      const registrationDate = new Date().toLocaleString('en-US', {
+        timeZone: 'Africa/Addis_Ababa',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      let message = `🏥 <b>New Life Clinic - Registration Confirmation</b>\n\n`;
+      message += `✅ <b>You have been successfully registered!</b>\n\n`;
+      message += `👤 <b>Name:</b> ${patientName}\n`;
+      message += `🆔 <b>Card ID:</b> <code>${patientId}</code>\n`;
+
+      if (cardTypeInfo) {
+        message += `💳 <b>Card Type:</b> ${cardTypeInfo.name}\n`;
+      }
+
+      message += `📅 <b>Date:</b> ${registrationDate}\n`;
+      message += `\n📋 <b>Please keep your Card ID for future visits.</b>\n`;
+      message += `\n🔗 <b>Access Your Patient Dashboard:</b>\n`;
+      message += `Use your Card ID <code>${patientId}</code> to sign up and view your medical records, lab results, and more on the patient portal.\n`;
+      message += `\n🏥 <i>Thank you for choosing New Life Clinic!</i>`;
+
+      const result = await this.bot.sendMessage(contact.telegramChatId, message, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🏠 Main Menu', callback_data: 'main_menu' }]
+          ]
+        }
+      });
+
+      // Update last message sent timestamp
+      await TelegramContact.findByIdAndUpdate(contact._id, { lastMessageSentAt: new Date() });
+
+      console.log(`✅ Card ID sent to patient ${patientName} on Telegram (chat: ${contact.telegramChatId})`);
+      return {
+        success: true,
+        patientName,
+        patientId,
+        chatId: contact.telegramChatId,
+        messageId: result.message_id
+      };
+
+    } catch (error) {
+      console.error('❌ Error sending card ID to patient on Telegram:', error);
+      return {
+        success: false,
+        message: `Error: ${error.message}`
+      };
     }
   }
 }
