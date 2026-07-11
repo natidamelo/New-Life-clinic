@@ -148,7 +148,7 @@ const PatientSignup: React.FC = () => {
       
       <div className="z-10 sm:mx-auto sm:w-full sm:max-w-2xl">
         <Link 
-          to="/login"
+          to="/patient/login"
           className={`inline-flex items-center gap-1.5 text-xs font-semibold tracking-wide mb-6 uppercase transition-colors ${
             isDarkMode ? 'text-slate-400 hover:text-cyan-300' : 'text-slate-500 hover:text-teal-600'
           }`}
@@ -483,7 +483,7 @@ const PatientSignup: React.FC = () => {
             </span>
             <span>
               Already have an account?{' '}
-              <Link to="/login" className={`font-bold underline ${isDarkMode ? 'text-cyan-300 hover:text-cyan-200' : 'text-teal-600 hover:text-teal-700'}`}>
+              <Link to="/patient/login" className={`font-bold underline ${isDarkMode ? 'text-cyan-300 hover:text-cyan-200' : 'text-teal-600 hover:text-teal-700'}`}>
                 Sign In
               </Link>
             </span>

@@ -236,7 +236,27 @@ userSchema.statics.findByEmailOrUsername = async function(identifier, clinicId =
   }).setOptions({ skipTenantScope: true });
   if (crossClinic) return crossClinic;
 
-  // 3) Display name ("DR Natan" → "Natan") inside the requested clinic
+  // 3) Try to look up patient by Card ID (patientId) or Phone Number (contactNumber)
+  try {
+    const Patient = require('./Patient');
+    const patientRecord = await Patient.findOne({
+      $or: [
+        { patientId: new RegExp('^' + escaped + '$', 'i') },
+        { contactNumber: trimmed }
+      ]
+    }).setOptions({ skipTenantScope: true });
+
+    if (patientRecord) {
+      const patientUser = await this.findOne({
+        patient: patientRecord._id
+      }).setOptions({ skipTenantScope: true });
+      if (patientUser) return patientUser;
+    }
+  } catch (err) {
+    console.error('Error looking up patient user by card/phone:', err);
+  }
+
+  // 4) Display name ("DR Natan" → "Natan") inside the requested clinic
   const namePart = trimmed.replace(/^dr\.?\s*/i, '').trim();
   if (namePart) {
     const nameEscaped = namePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -249,7 +269,7 @@ userSchema.statics.findByEmailOrUsername = async function(identifier, clinicId =
     }).setOptions({ skipTenantScope: true });
     if (byName) return byName;
 
-    // 4) Fallback: Display name ("DR Natan" → "Natan") cross-clinic
+    // 5) Fallback: Display name ("DR Natan" → "Natan") cross-clinic
     const byNameCross = await this.findOne({
       $or: [
         { firstName: new RegExp('^' + nameEscaped + '$', 'i') },

@@ -15,6 +15,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
   }
 
   if (!isAuthenticated || !user) {
+    if (allowedRoles.includes('patient')) {
+      return <Navigate to="/patient/login" replace />;
+    }
     return <Navigate to="/login" replace />;
   }
 

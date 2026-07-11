@@ -116,6 +116,7 @@ const CCTVDashboard = lazy(() => import('./pages/CCTV/CCTVDashboard'));
 
 // Patient Portal lazy loaded pages
 const PatientSignup = lazy(() => import('./pages/PatientSignup'));
+const PatientLogin = lazy(() => import('./pages/PatientLogin'));
 const PatientDashboard = lazy(() => import('./pages/PatientPortal/PatientDashboard'));
 
 const router = createBrowserRouter([
@@ -125,6 +126,7 @@ const router = createBrowserRouter([
     errorElement: <ErrorFallback />
   },
   createLazyRoute("/login", Login),
+  createLazyRoute("/patient/login", PatientLogin),
   createLazyRoute("/patient/signup", PatientSignup),
   {
     path: "/verify-qr",
