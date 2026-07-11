@@ -565,6 +565,72 @@ To set up your Telegram bot:
 
       if (text === '/start') {
         await this.handleStartCommand(chatId);
+        return;
+      }
+
+      // Detect if user typed a phone number as plain text
+      if (text) {
+        const cleaned = text.replace(/[\s\-\(\)]/g, '');
+        const isPhoneNumber = /^(\+?251|0)?9\d{8}$/.test(cleaned);
+
+        if (isPhoneNumber) {
+          try {
+            const normalizedPhone = this.normalizePhoneNumber(cleaned);
+
+            // Save or update the phone → chatId mapping
+            await TelegramContact.findOneAndUpdate(
+              { phoneNumber: normalizedPhone },
+              {
+                phoneNumber: normalizedPhone,
+                telegramChatId: String(chatId),
+                telegramUsername: msg.chat.username || '',
+                firstName: msg.chat.first_name || '',
+                lastName: msg.chat.last_name || '',
+                linkedAt: new Date()
+              },
+              { upsert: true, new: true }
+            );
+
+            console.log(`✅ Saved Telegram contact from typed phone: ${normalizedPhone} → ${chatId}`);
+
+            // Check if patient is already registered (search all phone formats)
+            const Patient = require('../models/Patient');
+            const phoneVariants = this.getPhoneVariants(normalizedPhone);
+            const patient = await Patient.findOne({ contactNumber: { $in: phoneVariants } });
+
+            let responseMsg = `✅ <b>Phone number linked successfully!</b>\n\n` +
+              `📞 <b>Phone:</b> ${text}\n\n`;
+
+            if (patient) {
+              responseMsg += `👤 <b>Patient:</b> ${patient.firstName} ${patient.lastName}\n`;
+              responseMsg += `🆔 <b>Card ID:</b> <code>${patient.patientId}</code>\n\n`;
+              responseMsg += `<i>Tap the Card ID above to copy it!</i>\n\n`;
+              responseMsg += `🏥 You are already registered at <b>New Life Clinic</b>. Your Card ID is shown above.`;
+            } else {
+              responseMsg += `🏥 When you register at <b>New Life Clinic</b>, your Card ID and dashboard access link will be sent to you here automatically.\n\n` +
+                `Thank you! 🙏`;
+            }
+
+            await this.bot.sendMessage(chatId, responseMsg, {
+              parse_mode: 'HTML',
+              reply_markup: {
+                remove_keyboard: true
+              }
+            });
+
+            // Show the patient menu after linking
+            const patientKeyboard = this.createPatientMenuKeyboard(patient ? patient.patientId : null);
+            await this.bot.sendMessage(chatId, '👇 Use the menu below:', {
+              parse_mode: 'HTML',
+              reply_markup: patientKeyboard
+            });
+
+          } catch (error) {
+            console.error('❌ Error saving typed phone number:', error);
+            await this.bot.sendMessage(chatId, '❌ Sorry, there was an error saving your phone number. Please try again.');
+          }
+          return;
+        }
       }
     });
 
@@ -595,7 +661,8 @@ To set up your Telegram bot:
     if (existingContact) {
       // Linked Patient Flow
       const Patient = require('../models/Patient');
-      const patient = await Patient.findOne({ contactNumber: existingContact.phoneNumber });
+      const phoneVariants = this.getPhoneVariants(existingContact.phoneNumber);
+      const patient = await Patient.findOne({ contactNumber: { $in: phoneVariants } });
 
       let welcomeMessage = `🏥 <b>Welcome to New Life Clinic Patient Bot</b>\n\n`;
       if (patient) {
@@ -2036,6 +2103,25 @@ Please use the web interface to create new lab orders.`, {
   }
 
   /**
+   * Generate all possible Ethiopian phone number variants for database lookup.
+   * Given a normalized phone like +251921316321, returns:
+   * ['+251921316321', '251921316321', '0921316321', '921316321']
+   */
+  getPhoneVariants(normalizedPhone) {
+    const variants = [normalizedPhone];
+    // Remove + prefix
+    const withoutPlus = normalizedPhone.replace(/^\+/, '');
+    variants.push(withoutPlus);
+    // If it starts with 251, add 0-prefix and raw 9-digit versions
+    if (withoutPlus.startsWith('251')) {
+      const local = withoutPlus.substring(3); // e.g. 921316321
+      variants.push('0' + local);  // 0921316321
+      variants.push(local);        // 921316321
+    }
+    return [...new Set(variants)]; // deduplicate
+  }
+
+  /**
    * Send patient Card ID and dashboard access link to the patient's Telegram.
    * Looks up the patient's phone number in the TelegramContact collection.
    * @param {Object} patientData - The patient document (must have contactNumber, patientId, firstName, lastName)
@@ -2055,11 +2141,12 @@ Please use the web interface to create new lab orders.`, {
         return { success: false, message: 'No contact number' };
       }
 
-      // Normalize the phone number and look up the mapping
+      // Normalize the phone number and look up the mapping (try all variants)
       const normalizedPhone = this.normalizePhoneNumber(phoneNumber);
-      console.log(`📱 Looking up Telegram contact for phone: ${normalizedPhone}`);
+      const phoneVariants = this.getPhoneVariants(normalizedPhone);
+      console.log(`📱 Looking up Telegram contact for phone variants: ${phoneVariants.join(', ')}`);
 
-      const contact = await TelegramContact.findOne({ phoneNumber: normalizedPhone });
+      const contact = await TelegramContact.findOne({ phoneNumber: { $in: phoneVariants } });
 
       if (!contact) {
         console.log(`📱 No Telegram contact found for phone ${normalizedPhone} — patient hasn't linked their Telegram yet`);
@@ -2158,7 +2245,8 @@ Please use the web interface to create new lab orders.`, {
       }
 
       const Patient = require('../models/Patient');
-      const patient = await Patient.findOne({ contactNumber: contact.phoneNumber });
+      const phoneVariants = this.getPhoneVariants(contact.phoneNumber);
+      const patient = await Patient.findOne({ contactNumber: { $in: phoneVariants } });
 
       if (action === 'patient_card_id') {
         if (!patient) {
