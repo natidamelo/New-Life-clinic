@@ -2182,7 +2182,7 @@ Please use the web interface to create new lab orders.`, {
       message += `📅 <b>Date:</b> ${registrationDate}\n`;
       message += `\n📋 <b>Please keep your Card ID for future visits.</b>\n`;
       message += `\n🔗 <b>Access Your Patient Dashboard:</b>\n`;
-      message += `Use your Card ID <code>${patientId}</code> to sign up and view your medical records, lab results, and more on the patient portal.\n`;
+      message += `Use your Card ID <code>${patientId}</code> to sign up and view your medical records, lab results, and more on the patient portal:\nhttps://new-life-clinic-4i51.vercel.app/patient\n`;
       message += `\n🏥 <i>Thank you for choosing New Life Clinic!</i>`;
 
       const result = await this.bot.sendMessage(contact.telegramChatId, message, {
@@ -2229,7 +2229,7 @@ Please use the web interface to create new lab orders.`, {
     
     // Web link button to open the dashboard directly
     inline_keyboard.push([
-      { text: '🔗 Open Patient Dashboard', url: 'http://10.99.120.100:5175/patient' }
+      { text: '🔗 Open Patient Dashboard', url: 'https://new-life-clinic-4i51.vercel.app/patient' }
     ]);
     
     inline_keyboard.push([
@@ -2261,7 +2261,7 @@ Please use the web interface to create new lab orders.`, {
         }
         await this.bot.sendMessage(chatId, `🏥 <b>New Life Clinic - Card ID</b>\n\n👤 <b>Patient:</b> ${patient.firstName} ${patient.lastName}\n🆔 <b>Card ID:</b> <code>${patient.patientId}</code>\n\n<i>Tap the Card ID above to copy it!</i>`, { parse_mode: 'HTML' });
       } else if (action === 'patient_contact') {
-        await this.bot.sendMessage(chatId, `🏥 <b>New Life Clinic</b>\n\n📞 <b>Phone:</b> +251 91 123 4567\n📍 <b>Location:</b> Main Office, Addis Ababa, Ethiopia\n🌐 <b>Dashboard:</b> http://10.99.120.100:5175`, { parse_mode: 'HTML' });
+        await this.bot.sendMessage(chatId, `🏥 <b>New Life Clinic</b>\n\n📞 <b>Phone:</b> +251 925 959 219\n✉️ <b>Email:</b> newlifemediumclinic@gmail.com\n📍 <b>Location:</b> Main Office, Addis Ababa, Ethiopia\n🌐 <b>Dashboard:</b> https://new-life-clinic-4i51.vercel.app/patient`, { parse_mode: 'HTML' });
       }
     } catch (error) {
       console.error('❌ Error in handlePatientCallback:', error);
