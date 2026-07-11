@@ -139,6 +139,10 @@ const router = createBrowserRouter([
     errorElement: <ErrorFallback />,
     children: [
       {
+        index: true,
+        element: <Navigate to="/patient/dashboard" replace />
+      },
+      {
         path: "dashboard",
         element: <LazyWrapper><PatientDashboard /></LazyWrapper>
       }
