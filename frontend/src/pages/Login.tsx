@@ -15,6 +15,7 @@ import { getClinicTenantId } from '../utils/authToken';
 import api from '../services/apiService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useClinic } from '../context/ClinicContext';
+import { ClinicalServicesPage } from '../components/ClinicalServicesPage';
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string().required('Username or email is required'),
@@ -1831,76 +1832,23 @@ const Login: React.FC = () => {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
-              className="space-y-8"
             >
-              <div className="text-center space-y-2">
-                <h1 className="text-3xl font-bold tracking-tight text-ink dark:text-paper font-sans">
-                  Our <span className="font-annotation italic text-pulse leading-none">Clinical</span> Services
-                </h1>
-                <p className="max-w-[560px] mx-auto text-sm text-slate font-sans">
-                  Browse our full list of clinic services, lab tests, and imaging procedures available at New Life Clinic.
-                </p>
-              </div>
-
-              {/* Filters & Search */}
-              <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                {/* Search Bar */}
-                <div className="relative w-full md:max-w-xs group">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate" />
-                  <input
-                    type="text"
-                    placeholder="Search services..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="w-full h-11 pl-10 pr-4 text-sm rounded-xl outline-none font-sans bg-paper dark:bg-slate-900 border border-ink/10 dark:border-slate-800 text-ink dark:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pulse focus-visible:ring-offset-2 transition-all duration-200"
-                  />
-                </div>
-
-                {/* Category Buttons (FilterPills) */}
-                <div className="flex flex-wrap gap-2 w-full md:w-auto justify-start md:justify-end">
-                  {categories.map(cat => (
-                    <FilterPill
-                      key={cat}
-                      label={cat === 'All' ? 'All categories' : cat}
-                      active={selectedCategory === cat}
-                      onClick={() => setSelectedCategory(cat)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Services Grid */}
-              {servicesLoading ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                  <div className={`animate-spin rounded-full h-10 w-10 border-t-2 ${isDarkMode ? 'border-pulse' : 'border-pulse'}`} />
-                  <p className="text-xs text-slate-400 mt-4">Loading clinical catalog...</p>
-                </div>
-              ) : filteredServices.length > 0 ? (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredServices.map(service => (
-                    <ServiceCard
-                      key={service._id}
-                      category={service.category}
-                      price={service.price}
-                      title={service.name}
-                      description={service.description}
-                      onBook={() => {
-                        setActiveTab('appointment');
-                        setBookingStep(1);
-                        setBookingDetails(prev => ({
-                          ...prev,
-                          type: service.category.toLowerCase().includes('lab') ? 'lab-test' : service.category.toLowerCase().includes('imaging') ? 'imaging' : 'Consultation',
-                          reason: `Booked service: ${service.name}`
-                        }));
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-20 border border-dashed rounded-2xl border-ink/10 dark:border-slate-800">
-                  <p className="text-slate text-sm font-sans">No services matches your filters. Try search filters.</p>
-                </div>
-              )}
+              <ClinicalServicesPage
+                services={services}
+                isLoading={servicesLoading}
+                doctors={doctors}
+                isDarkMode={isDarkMode}
+                onBookService={(service, details) => {
+                  setActiveTab('appointment');
+                  setBookingStep(1);
+                  setBookingDetails(prev => ({
+                    ...prev,
+                    doctorId: details?.doctorId || '',
+                    type: service.category.toLowerCase().includes('lab') ? 'lab-test' : service.category.toLowerCase().includes('imaging') ? 'imaging' : 'Consultation',
+                    reason: `Booked service: ${service.name}${details ? ` (Date: ${details.date}, Time: ${details.timeSlot})` : ''}`
+                  }));
+                }}
+              />
             </motion.div>
           )}
 
