@@ -726,7 +726,7 @@ const PatientDashboard: React.FC = () => {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 z-10 relative">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-5 sm:space-y-8 z-10 relative">
         
         {/* Patient quick badge & welcome */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
@@ -772,20 +772,20 @@ const PatientDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
             {[
-              { id: 'overview', label: 'My Summary', icon: User },
-              { id: 'vitals', label: 'Vital Signs', icon: Heart },
-              { id: 'labs', label: 'Lab Results', icon: FileSpreadsheet },
-              { id: 'medications', label: 'Medications', icon: Pill },
-              { id: 'records', label: 'Recommendations', icon: Stethoscope },
-              { id: 'profile', label: 'My Profile', icon: Edit3 },
+              { id: 'overview', label: 'Summary', icon: User },
+              { id: 'vitals', label: 'Vitals', icon: Heart },
+              { id: 'labs', label: 'Labs', icon: FileSpreadsheet },
+              { id: 'medications', label: 'Meds', icon: Pill },
+              { id: 'records', label: 'Advice', icon: Stethoscope },
+              { id: 'profile', label: 'Profile', icon: Edit3 },
               { id: 'ai_chat', label: 'Ask AI', icon: MessageSquare }
             ].map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold cursor-pointer whitespace-nowrap transition-all duration-200 border ${
+                className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-[11px] sm:text-xs font-bold cursor-pointer whitespace-nowrap transition-all duration-200 border ${
                   activeTab === tab.id
                     ? isDarkMode 
                       ? 'bg-cyan-500/10 border-cyan-400/35 text-cyan-400' 
@@ -795,7 +795,7 @@ const PatientDashboard: React.FC = () => {
                       : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                 }`}
               >
-                <tab.icon className="h-4 w-4" />
+                <tab.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {tab.label}
               </button>
             ))}
@@ -813,12 +813,12 @@ const PatientDashboard: React.FC = () => {
           >
             {/* Overview Tab */}
             {activeTab === 'overview' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
                 
                 {/* Stats & Demographic Details */}
                 <div className="lg:col-span-2 space-y-6">
                   {/* Summary Card */}
-                  <div className={`border p-6 rounded-3xl grid grid-cols-2 sm:grid-cols-4 gap-6 ${
+                  <div className={`border p-4 sm:p-6 rounded-2xl sm:rounded-3xl flex flex-wrap gap-4 sm:gap-6 ${
                     isDarkMode ? 'bg-[#0f1934]/60 border-slate-800' : 'bg-white border-slate-200'
                   }`}>
                     {[
@@ -827,9 +827,9 @@ const PatientDashboard: React.FC = () => {
                       { label: 'Blood Group', value: patient?.bloodType || 'N/A' },
                       { label: 'Next Checkup', value: patient?.nextCheckup ? new Date(patient.nextCheckup).toLocaleDateString() : 'None Scheduled' }
                     ].map((stat, i) => (
-                      <div key={i} className="space-y-1">
+                      <div key={i} className="min-w-[100px] sm:min-w-[120px] flex-1 space-y-1">
                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">{stat.label}</span>
-                        <span className={`text-base font-extrabold block ${stat.class || ''}`}>{stat.value}</span>
+                        <span className={`text-sm sm:text-base font-extrabold block ${stat.class || ''}`}>{stat.value}</span>
                       </div>
                     ))}
                   </div>
@@ -865,7 +865,7 @@ const PatientDashboard: React.FC = () => {
                     {records.length > 0 ? (
                       <div className="space-y-4">
                         {records.slice(0, 2).map((record, idx) => (
-                          <div key={idx} className={`border p-5 rounded-2xl flex flex-col sm:flex-row items-start gap-4 transition-all ${
+                          <div key={idx} className={`border p-4 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col sm:flex-row items-start gap-4 transition-all ${
                             isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'
                           }`}>
                             <div className={`p-3 rounded-xl shrink-0 ${
@@ -908,7 +908,7 @@ const PatientDashboard: React.FC = () => {
                         ))}
                       </div>
                     ) : (
-                      <div className={`border p-6 rounded-2xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
+                      <div className={`border p-4 sm:p-6 rounded-2xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
                         No finalized medical records available.
                       </div>
                     )}
@@ -922,7 +922,7 @@ const PatientDashboard: React.FC = () => {
                     {patient?.medicalHistory && patient.medicalHistory.length > 0 ? (
                       <div className="space-y-3">
                         {patient.medicalHistory.map((hist, idx) => (
-                          <div key={idx} className={`border p-4 rounded-2xl flex flex-col sm:flex-row justify-between gap-3 ${
+                          <div key={idx} className={`border p-3.5 sm:p-4 rounded-xl sm:rounded-2xl flex flex-col sm:flex-row justify-between gap-3 ${
                             isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'
                           }`}>
                             <div className="space-y-1 text-xs">
@@ -954,7 +954,7 @@ const PatientDashboard: React.FC = () => {
                 {/* Sidebar Cards */}
                 <div className="space-y-6">
                   {/* Emergency Contact */}
-                  <div className={`border p-5 rounded-3xl space-y-4 ${
+                  <div className={`border p-4 sm:p-5 rounded-2xl sm:rounded-3xl space-y-4 ${
                     isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'
                   }`}>
                     <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
@@ -983,7 +983,7 @@ const PatientDashboard: React.FC = () => {
                   </div>
 
                   {/* Clinic Contact details */}
-                  <div className={`border p-5 rounded-3xl space-y-4 ${
+                  <div className={`border p-4 sm:p-5 rounded-2xl sm:rounded-3xl space-y-4 ${
                     isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'
                   }`}>
                     <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Your Care Facility</h4>
