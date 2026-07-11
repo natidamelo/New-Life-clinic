@@ -4,7 +4,7 @@ import {
   Heart, ShieldCheck, Clock, Users, ArrowRight, Activity, Calendar, Star,
   Award, Stethoscope, FileText, ChevronRight, ChevronLeft, Phone, Mail,
   MapPin, CheckCircle, HelpCircle, MessageSquare, Compass, Send, Check, Play, Globe,
-  Pill, AlertCircle, Sparkles
+  Pill, AlertCircle, Sparkles, ChevronDown
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
