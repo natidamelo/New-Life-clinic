@@ -708,6 +708,12 @@ To set up your Telegram bot:
       const User = require('../models/User');
       const isStaff = await User.findOne({ telegramChatId: String(chatId) });
 
+      // Handle main_menu for everyone (handleStartCommand already has role-based logic)
+      if (action === 'main_menu') {
+        await this.handleStartCommand(chatId);
+        return;
+      }
+
       // Handle patient specific actions
       if (['patient_card_id', 'patient_contact', 'patient_main_menu'].includes(action)) {
         await this.handlePatientCallback(chatId, action);
