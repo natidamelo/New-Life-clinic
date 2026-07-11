@@ -1012,7 +1012,7 @@ const PatientDashboard: React.FC = () => {
                 
                 {/* Recharts Vitals Plotting */}
                 {chartData.length > 0 ? (
-                  <div className={`border p-6 rounded-3xl space-y-6 ${
+                  <div className={`border p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-6 ${
                     isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'
                   }`}>
                     <div>
@@ -1048,7 +1048,7 @@ const PatientDashboard: React.FC = () => {
                 <div className="space-y-4">
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Measurements History</h3>
                   {vitals.length > 0 ? (
-                    <div className="overflow-x-auto rounded-3xl border border-slate-700/20">
+                    <div className="overflow-x-auto rounded-2xl sm:rounded-3xl border border-slate-700/20">
                       <table className="w-full text-xs text-left">
                         <thead className={`text-[10px] uppercase font-bold tracking-wider ${
                           isDarkMode ? 'bg-slate-900/60 text-slate-400' : 'bg-slate-50 text-slate-500'
@@ -1089,7 +1089,7 @@ const PatientDashboard: React.FC = () => {
                       </table>
                     </div>
                   ) : (
-                    <div className={`border p-8 rounded-3xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
+                    <div className={`border p-6 sm:p-8 rounded-2xl sm:rounded-3xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
                       No vital signs measurements on record.
                     </div>
                   )}
@@ -1112,11 +1112,11 @@ const PatientDashboard: React.FC = () => {
                     {labs.map((order, idx) => {
                       const hasDetails = order.results || order.notes || order.stoolExamDetails;
                       return (
-                        <div key={idx} className={`border rounded-3xl overflow-hidden ${
+                        <div key={idx} className={`border rounded-2xl sm:rounded-3xl overflow-hidden ${
                           isDarkMode ? 'bg-slate-900/30 border-slate-800' : 'bg-white border-slate-200'
                         }`}>
                           {/* Order Header */}
-                          <div className={`px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b ${
+                          <div className={`px-4 sm:px-6 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b ${
                             isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-50 border-slate-200'
                           }`}>
                             <div>
@@ -1143,7 +1143,7 @@ const PatientDashboard: React.FC = () => {
                           </div>
 
                           {/* Order Tests Content */}
-                          <div className="p-6 space-y-4">
+                          <div className="p-4 sm:p-6 space-y-4">
                             <div className="space-y-2">
                               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Tests In This Order</span>
                               <div className="flex flex-wrap gap-2">
@@ -1224,7 +1224,7 @@ const PatientDashboard: React.FC = () => {
                     })}
                   </div>
                 ) : (
-                  <div className={`border p-8 rounded-3xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
+                  <div className={`border p-6 sm:p-8 rounded-2xl sm:rounded-3xl text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200'}`}>
                     No diagnostic lab orders on file.
                   </div>
                 )}
