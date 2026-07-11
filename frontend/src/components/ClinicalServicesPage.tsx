@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, Stethoscope, Activity, FileText, Heart, Award, Clipboard, 
   AlertCircle, Pill, Clock, ArrowRight, Check, ChevronRight, Mic, 
   MapPin, Phone, Mail, Sparkles, Star, Calendar, User, ShieldCheck, ChevronDown, CheckCircle
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface Service {
   _id: string;
