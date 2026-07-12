@@ -11,6 +11,15 @@ export interface CardType {
   createdAt: string;
   updatedAt: string;
   description?: string;
+  discounts?: {
+    service: number;
+    lab: number;
+    consultation: number;
+  };
+  freeConsultations?: number;
+  freeLabTests?: number;
+  priorityAppointments?: boolean;
+  groupDiscount?: number;
 }
 
 interface CardTypeContextProps {

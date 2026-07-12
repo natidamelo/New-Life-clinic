@@ -50,6 +50,20 @@ const PatientCardSchema = new Schema({
       type: Number,
       default: 0
     },
+    discounts: {
+      service: {
+        type: Number,
+        default: 0
+      },
+      lab: {
+        type: Number,
+        default: 0
+      },
+      consultation: {
+        type: Number,
+        default: 0
+      }
+    },
     freeConsultations: {
       type: Number,
       default: 0

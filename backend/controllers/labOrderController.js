@@ -302,6 +302,10 @@ const createLabOrder = async (req, res) => {
         // Create notification for reception (only if invoice was created successfully)
         if (invoice && invoice._id) {
           try {
+            const billingService = require('../services/billingService');
+            const discountInfo = await billingService.calculateDiscount(patient._id, populatedOrder.totalPrice || 0, 'lab');
+            const netAmount = discountInfo.hasDiscount ? discountInfo.finalAmount : (populatedOrder.totalPrice || 0);
+
             const notificationData = {
               type: 'lab_payment_required',
               title: 'Lab Payment Required',
@@ -314,14 +318,14 @@ const createLabOrder = async (req, res) => {
                 patientId: patient._id,
                 patientName: `${patient.firstName} ${patient.lastName}`,
                 testNames: [populatedOrder.testName],
-                amount: populatedOrder.totalPrice || 0,
-                totalAmount: populatedOrder.totalPrice || 0,
+                amount: netAmount,
+                totalAmount: netAmount,
                 itemCount: 1,
                 invoiceId: invoice._id,
                 invoiceNumber: invoice.invoiceNumber,
                 tests: [{
                   testName: populatedOrder.testName,
-                  price: populatedOrder.totalPrice || 0,
+                  price: netAmount,
                   labOrderId: populatedOrder._id
                 }],
                 paymentStatus: 'pending'
@@ -333,7 +337,7 @@ const createLabOrder = async (req, res) => {
             const notification = new Notification(notificationData);
             await notification.save();
             
-            console.log(`✅ [Single] Created notification for ${patient.firstName} ${patient.lastName}: ${populatedOrder.totalPrice || 0} ETB`);
+            console.log(`✅ [Single] Created notification for ${patient.firstName} ${patient.lastName}: ${netAmount} ETB`);
           } catch (notificationError) {
             console.error('❌ [Single] Error creating notification:', notificationError);
             // Don't fail if notification creation fails
@@ -539,7 +543,23 @@ const createBulkLabOrders = async (req, res) => {
               console.log(`🔗 Linked ${order.testName} to invoice ${invoice.invoiceNumber}`);
             }
             
-            // Create notification
+            // Create notification with per-item discounts
+            const billingService = require('../services/billingService');
+            let discountedTotal = 0;
+            const discountedTests = [];
+            
+            for (const o of ordersNeedingInvoices) {
+              const oPrice = o.totalPrice || 0;
+              const oDiscountInfo = await billingService.calculateDiscount(patient._id, oPrice, 'lab');
+              const oNet = oDiscountInfo.hasDiscount ? oDiscountInfo.finalAmount : oPrice;
+              discountedTotal += oNet;
+              discountedTests.push({
+                testName: o.testName,
+                price: oNet,
+                labOrderId: o._id
+              });
+            }
+
             const notificationData = {
               type: 'lab_payment_required',
               title: 'Lab Payment Required',
@@ -552,16 +572,12 @@ const createBulkLabOrders = async (req, res) => {
                 patientId: patient._id,
                 patientName: `${patient.firstName} ${patient.lastName}`,
                 testNames: ordersNeedingInvoices.map(o => o.testName),
-                amount: totalAmount,
-                totalAmount: totalAmount,
+                amount: discountedTotal,
+                totalAmount: discountedTotal,
                 itemCount: ordersNeedingInvoices.length,
                 invoiceId: invoice._id,
                 invoiceNumber: invoice.invoiceNumber,
-                tests: ordersNeedingInvoices.map(o => ({
-                  testName: o.testName,
-                  price: o.totalPrice || 0,
-                  labOrderId: o._id
-                })),
+                tests: discountedTests,
                 paymentStatus: 'pending'
               },
               priority: 'high',
@@ -806,9 +822,24 @@ const createBulkLabOrders = async (req, res) => {
         // Continue without failing the lab order creation
       }
       
-      // Create notification for reception
+      // Create notification for reception with per-item discounts
       const testNames = createdOrders.map(o => o.testName);
-      const totalAmount = createdOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+      const billingService = require('../services/billingService');
+      
+      let discountedTotal = 0;
+      const discountedTests = [];
+      
+      for (const o of createdOrders) {
+        const oPrice = o.totalPrice || 0;
+        const oDiscountInfo = await billingService.calculateDiscount(patient._id, oPrice, 'lab');
+        const oNet = oDiscountInfo.hasDiscount ? oDiscountInfo.finalAmount : oPrice;
+        discountedTotal += oNet;
+        discountedTests.push({
+          testName: o.testName,
+          price: oNet,
+          labOrderId: o._id
+        });
+      }
       
       const notificationData = {
         type: 'lab_payment_required',
@@ -822,16 +853,12 @@ const createBulkLabOrders = async (req, res) => {
           patientId: patient._id,
           patientName: `${patient.firstName} ${patient.lastName}`,
           testNames: testNames,
-          amount: totalAmount,
-          totalAmount: totalAmount,
+          amount: discountedTotal,
+          totalAmount: discountedTotal,
           itemCount: createdOrders.length,
           invoiceId: invoice._id,
           invoiceNumber: invoice.invoiceNumber,
-          tests: createdOrders.map(o => ({
-            testName: o.testName,
-            price: o.totalPrice || 0,
-            labOrderId: o._id
-          })),
+          tests: discountedTests,
           paymentStatus: 'pending'
         },
         priority: 'high',
@@ -841,7 +868,7 @@ const createBulkLabOrders = async (req, res) => {
       const notification = new Notification(notificationData);
       await notification.save();
       
-      console.log(`✅ Created notification for ${patient.firstName} ${patient.lastName}: ${totalAmount} ETB (${createdOrders.length} tests)`);
+      console.log(`✅ Created notification for ${patient.firstName} ${patient.lastName}: ${discountedTotal} ETB (${createdOrders.length} tests)`);
 
       // Write to patient history: create or update draft medical record with "Lab ordered: ..."
       try {

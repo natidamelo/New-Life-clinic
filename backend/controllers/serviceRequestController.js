@@ -319,6 +319,9 @@ const createServiceRequest = async (req, res) => {
     // Create payment notification for reception (only if invoice was created)
     if (invoice && invoice._id) {
       try {
+        const discountInfo = await billingService.calculateDiscount(patient._id, service.price * quantity, 'service');
+        const netAmount = discountInfo.hasDiscount ? discountInfo.finalAmount : (service.price * quantity);
+
         await new Notification({
           title: 'Service Payment Required',
           message: `Payment required for ${service.name}${quantity > 1 ? ` (x${quantity})` : ''} service for patient ${patient.firstName} ${patient.lastName}`,
@@ -335,7 +338,7 @@ const createServiceRequest = async (req, res) => {
             serviceName: service.name,
             invoiceId: invoice._id,
             invoiceNumber: invoice.invoiceNumber,
-            amount: service.price * quantity,
+            amount: netAmount,
             quantity,
             serviceRequestId: serviceRequest._id
           },

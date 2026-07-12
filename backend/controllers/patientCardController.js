@@ -103,6 +103,21 @@ const createPatientCard = async (req, res) => {
       });
     }
     
+    // Fetch card type benefits
+    const CardType = require('../models/CardType');
+    const cardTypeDoc = await CardType.findOne({ $or: [{ name: type }, { value: type.toLowerCase() }] });
+    const cardBenefits = {
+      discountPercentage: cardTypeDoc ? (cardTypeDoc.discounts?.service || 0) : 0,
+      discounts: {
+        service: cardTypeDoc?.discounts?.service || 0,
+        lab: cardTypeDoc?.discounts?.lab || 0,
+        consultation: cardTypeDoc?.discounts?.consultation || 0
+      },
+      freeConsultations: cardTypeDoc?.freeConsultations || 0,
+      freeLabTests: cardTypeDoc?.freeLabTests || 0,
+      priorityAppointments: cardTypeDoc?.priorityAppointments || false
+    };
+
     // Generate card number
     const cardCount = await PatientCard.countDocuments();
     const cardNumber = `CARD${String(cardCount + 1).padStart(6, '0')}`;
@@ -123,6 +138,7 @@ const createPatientCard = async (req, res) => {
         issuedDate: now,
         expiryDate: new Date(0), // expired until payment
         amountPaid: 0,
+        benefits: cardBenefits,
         paymentHistory: [],
         createdBy: req.user._id
       });
@@ -186,6 +202,7 @@ const createPatientCard = async (req, res) => {
       expiryDate,
       lastPaymentDate: now,
       amountPaid,
+      benefits: cardBenefits,
       paymentHistory: [{
         amount: amountPaid,
         paymentDate: now,

@@ -31,6 +31,42 @@ const CardTypeSchema = new Schema({
     type: String,
     trim: true
   },
+  discounts: {
+    service: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100
+    },
+    lab: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100
+    },
+    consultation: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100
+    }
+  },
+  freeConsultations: {
+    type: Number,
+    default: 0
+  },
+  freeLabTests: {
+    type: Number,
+    default: 0
+  },
+  priorityAppointments: {
+    type: Boolean,
+    default: false
+  },
+  groupDiscount: {
+    type: Number,
+    default: 0
+  },
   isActive: {
     type: Boolean,
     default: true

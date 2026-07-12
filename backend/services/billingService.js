@@ -17,7 +17,7 @@ const billingService = {
    * @param {Number} amount - Original amount
    * @returns {Promise<Object>} - Discount information
    */
-  async calculateDiscount(patientId, amount) {
+  async calculateDiscount(patientId, amount, itemType = 'service') {
     try {
       const card = await PatientCard.findOne({
         patient: patientId,
@@ -51,12 +51,24 @@ const billingService = {
         };
       }
       
-      const discountPercentage = card.benefits.discountPercentage || 0;
+      let discountPercentage = 0;
+      const type = (itemType || 'service').toLowerCase();
+      
+      if (type.includes('service') || type.includes('procedure')) {
+        discountPercentage = card.benefits?.discounts?.service ?? card.benefits?.discountPercentage ?? 0;
+      } else if (type.includes('lab') || type.includes('imag')) {
+        discountPercentage = card.benefits?.discounts?.lab ?? card.benefits?.discountPercentage ?? 0;
+      } else if (type.includes('consult')) {
+        discountPercentage = card.benefits?.discounts?.consultation ?? card.benefits?.discountPercentage ?? 0;
+      } else {
+        discountPercentage = card.benefits?.discountPercentage ?? 0;
+      }
+      
       const discountAmount = (amount * discountPercentage) / 100;
       const finalAmount = amount - discountAmount;
       
       return {
-        hasDiscount: true,
+        hasDiscount: discountPercentage > 0,
         discountPercentage,
         discountAmount,
         finalAmount,
@@ -86,14 +98,33 @@ const billingService = {
       // Generate invoice number
       const invoiceNumber = await MedicalInvoice.generateInvoiceNumber();
       
-      // Calculate totals from items
-      const subtotal = items.reduce((sum, item) => {
-        const itemTotal = item.quantity * item.unitPrice;
-        return sum + itemTotal;
-      }, 0);
+      // Process items and apply card-based discounts
+      let calculatedSubtotal = 0;
+      let calculatedDiscountTotal = 0;
+      let activePatientCardId = null;
       
-      // Get patient card discount
-      const discountInfo = await this.calculateDiscount(patient, subtotal);
+      const processedItems = [];
+      for (const item of items) {
+        const gross = item.quantity * item.unitPrice;
+        calculatedSubtotal += gross;
+        
+        const discountInfo = await this.calculateDiscount(patient, gross, item.itemType || item.category);
+        const discountVal = discountInfo.hasDiscount ? discountInfo.discountAmount : 0;
+        calculatedDiscountTotal += discountVal;
+        
+        if (discountInfo.cardDetails?.cardId) {
+          activePatientCardId = discountInfo.cardDetails.cardId;
+        }
+        
+        processedItems.push({
+          ...item,
+          discount: item.discount || discountVal,
+          tax: item.tax || 0,
+          total: gross - (item.discount || discountVal)
+        });
+      }
+      
+      const finalTotal = calculatedSubtotal - calculatedDiscountTotal;
       
       // Create invoice object
       const invoice = new MedicalInvoice({
@@ -104,14 +135,11 @@ const billingService = {
         medicalRecord,
         visit,
         provider,
-        items: items.map(item => ({
-          ...item,
-          discount: item.discount || 0,
-          tax: item.tax || 0
-        })),
-        subtotal: invoiceData.subtotal || subtotal,
-        total: invoiceData.total || (subtotal - discountInfo.discountAmount),
-        balance: invoiceData.balance || (subtotal - discountInfo.discountAmount),
+        items: processedItems,
+        subtotal: invoiceData.subtotal || finalTotal,
+        total: invoiceData.total || finalTotal,
+        balance: invoiceData.balance || finalTotal,
+        discountTotal: invoiceData.discountTotal || calculatedDiscountTotal,
         dateIssued: new Date(), // Use dateIssued everywhere
         dueDate: dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
         status: 'pending',
@@ -120,8 +148,8 @@ const billingService = {
       });
       
       // If patient card exists, store reference
-      if (discountInfo.cardDetails?.cardId) {
-        invoice.patientCard = discountInfo.cardDetails.cardId;
+      if (activePatientCardId) {
+        invoice.patientCard = activePatientCardId;
       }
       
       // Save without transaction for standalone MongoDB
@@ -916,16 +944,29 @@ const billingService = {
         // Update existing consolidated invoice
         console.log(`📝 Updating existing consolidated invoice: ${existingInvoice.invoiceNumber}`);
         
-        // Add new items to existing invoice
-        const newItems = items.map(item => ({
-          ...item,
-          discount: item.discount || 0,
-          tax: item.tax || 0,
-          total: item.totalPrice || item.unitPrice * item.quantity,
+        // Add new items to existing invoice with per-item discounts
+        const newItems = [];
+        for (const item of items) {
+          const gross = item.totalPrice || item.unitPrice * item.quantity;
+          const itemCat = item.category || serviceType || item.itemType;
+          
+          const discountInfo = await this.calculateDiscount(patient, gross, itemCat);
+          const discountVal = discountInfo.hasDiscount ? discountInfo.discountAmount : 0;
+          
+          if (discountInfo.cardDetails?.cardId) {
+            existingInvoice.patientCard = discountInfo.cardDetails.cardId;
+          }
+          
+          newItems.push({
+            ...item,
+            discount: item.discount || discountVal,
+            tax: item.tax || 0,
+            total: gross - (item.discount || discountVal),
             addedAt: new Date(),
-          addedBy: systemUserId,
-          category: item.category || serviceType
-        }));
+            addedBy: systemUserId,
+            category: itemCat
+          });
+        }
         
         existingInvoice.items.push(...newItems);
         
@@ -976,9 +1017,37 @@ const billingService = {
         
         // Calculate totals
         const subtotal = items.reduce((sum, item) => sum + (item.totalPrice || item.unitPrice * item.quantity), 0);
-        const taxTotal = items.reduce((sum, item) => sum + (item.tax || 0), 0);
-        const discountTotal = items.reduce((sum, item) => sum + (item.discount || 0), 0);
-        const total = subtotal + taxTotal - discountTotal;
+        // Process items and apply card-based discounts
+        const processedItems = [];
+        let activePatientCardId = null;
+        let calculatedSubtotal = 0;
+        let calculatedDiscountTotal = 0;
+        
+        for (const item of items) {
+          const gross = item.totalPrice || item.unitPrice * item.quantity;
+          calculatedSubtotal += gross;
+          
+          const discountInfo = await this.calculateDiscount(patient, gross, item.category || serviceType || item.itemType);
+          const discountVal = discountInfo.hasDiscount ? discountInfo.discountAmount : 0;
+          calculatedDiscountTotal += discountVal;
+          
+          if (discountInfo.cardDetails?.cardId) {
+            activePatientCardId = discountInfo.cardDetails.cardId;
+          }
+          
+          processedItems.push({
+            ...item,
+            discount: item.discount || discountVal,
+            tax: item.tax || 0,
+            total: gross - (item.discount || discountVal),
+            addedAt: new Date(),
+            addedBy: systemUserId,
+            category: item.category || serviceType
+          });
+        }
+        
+        const taxTotal = processedItems.reduce((sum, item) => sum + (item.tax || 0), 0);
+        const total = calculatedSubtotal + taxTotal - calculatedDiscountTotal;
         
         // Create invoice object
         const shouldUseLabFinalizedNote = isLabService && hasFinalizedInvoice;
@@ -990,18 +1059,10 @@ const billingService = {
           medicalRecord,
           visit,
           provider,
-          items: items.map(item => ({
-            ...item,
-            discount: item.discount || 0,
-            tax: item.tax || 0,
-            total: item.totalPrice || item.unitPrice * item.quantity,
-            addedAt: new Date(),
-            addedBy: systemUserId,
-            category: item.category || serviceType
-          })),
-          subtotal,
+          items: processedItems,
+          subtotal: calculatedSubtotal,
           taxTotal,
-          discountTotal,
+          discountTotal: calculatedDiscountTotal,
           total,
           balance: total,
           dateIssued: new Date(),
@@ -1014,6 +1075,10 @@ const billingService = {
           type: 'consolidated',
           finalized: false // Invoice starts as not finalized
         });
+        
+        if (activePatientCardId) {
+          invoice.patientCard = activePatientCardId;
+        }
         
         await invoice.save();
         
