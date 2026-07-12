@@ -571,8 +571,8 @@ const PatientCardManagement: React.FC = () => {
     setSearchTerm(''); 
     setSearchResults([]);
     // Update URL without adding duplicate history entry if already there
-    if (`/billing/patient-cards/${id}` !== location.pathname) {
-      navigate(`/billing/patient-cards/${id}`);
+    if (`/app/billing/patient-cards/${id}` !== location.pathname) {
+      navigate(`/app/billing/patient-cards/${id}`);
     } else {
       // If already on the correct URL, fetch data
       await fetchPatientData(id);

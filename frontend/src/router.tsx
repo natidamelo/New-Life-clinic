@@ -76,6 +76,7 @@ const FacilityDashboard = lazy(() => import('./pages/Facility/FacilityDashboard'
 const Settings = lazy(() => import('./pages/Settings'));
 const ThemeSettings = lazy(() => import('./pages/ThemeSettings'));
 const PatientCardSettings = lazy(() => import('./pages/Settings/PatientCardSettings'));
+const PatientCardManagement = lazy(() => import('./pages/Billing/PatientCardManagement'));
 const ServiceManagement = lazy(() => import('./pages/Services/ServiceManagement'));
 const DataSharePage = lazy(() => import('./pages/DataShare/DataShare'));
 const RegisterPatient = lazy(() => import('./pages/Reception/RegisterPatient'));
@@ -225,7 +226,11 @@ const router = createBrowserRouter([
       },
       {
         path: 'billing/patient-cards',
-        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><LazyWrapper><BillingDashboard /></LazyWrapper></ProtectedRoute>
+        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><LazyWrapper><PatientCardManagement /></LazyWrapper></ProtectedRoute>
+      },
+      {
+        path: 'billing/patient-cards/:patientId',
+        element: <ProtectedRoute allowedRoles={['admin', 'finance', 'reception']}><LazyWrapper><PatientCardManagement /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'billing/reports',
