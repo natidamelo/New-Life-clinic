@@ -396,6 +396,7 @@ const PatientCardManagement: React.FC = () => {
 
   // --- State for existing card check --- 
   const [existingCard, setExistingCard] = useState<PatientCard | null>(null);
+  const [cardUsage, setCardUsage] = useState<any>(null);
   // --- End State for existing card check --- 
 
   // Permissions Check
@@ -534,6 +535,22 @@ const PatientCardManagement: React.FC = () => {
         console.error('Error fetching existing patient card:', cardError);
         toast.error('Could not fetch existing card details.');
         setExistingCard(null); // Ensure card is null on error
+      }
+      
+      // Fetch card usage details dynamically from our new endpoint
+      try {
+        const token = localStorage.getItem('token');
+        const usageRes = await axios.get(`${API_BASE_URL}/api/patient-cards/usage/${id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (usageRes.data && usageRes.data.hasActiveCard) {
+          setCardUsage(usageRes.data);
+        } else {
+          setCardUsage(null);
+        }
+      } catch (usageErr) {
+        console.error('Error fetching card usage:', usageErr);
+        setCardUsage(null);
       }
 
     } catch (err) {
@@ -1161,25 +1178,126 @@ const PatientCardManagement: React.FC = () => {
                       <ListGroup.Item>
                         <strong>Last Payment:</strong> {formatDate(existingCard.lastPaymentDate)}
                       </ListGroup.Item>
-                      {/* Display Benefits */}
+                      {/* Display Benefits and Dynamic Usage details */}
                       <ListGroup.Item>
-                         <strong>Benefits:</strong>
-                         {existingCard.benefits ? (
-                             <ul className="list-unstyled ms-3 mt-1 small text-muted">
-                               <li>Discount: {existingCard.benefits.discountPercentage || 0}%</li>
-                               <li>Free Consultations: {existingCard.benefits.freeConsultations || 0}</li>
-                               <li>Priority Appointments: {existingCard.benefits.priorityAppointments ? 'Yes' : 'No'}</li>
-                               <li>Free Lab Tests: {existingCard.benefits.freeLabTests || 0}</li>
-                             </ul>
-                         ) : (
-                            <span className="text-muted ms-2">N/A</span>
-                         )}
-                       </ListGroup.Item>
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <strong className="text-primary">Card Benefits & Usage Status</strong>
+                          {cardUsage && (
+                            <Badge bg="success" pill>Usage Synced</Badge>
+                          )}
+                        </div>
+                        {cardUsage ? (
+                          <div className="ms-1 mt-1 small">
+                            {/* Area Specific Discounts */}
+                            <div className="mb-3">
+                              <span className="font-weight-bold text-secondary d-block mb-1">Active Discount Rates:</span>
+                              <Row className="g-2 text-center">
+                                <Col xs={4}>
+                                  <div className="p-2 border rounded bg-light">
+                                    <div className="text-muted text-uppercase" style={{ fontSize: '9px' }}>Labs</div>
+                                    <div className="font-weight-bold text-dark" style={{ fontSize: '13px' }}>{cardUsage.benefits.discounts.lab}%</div>
+                                  </div>
+                                </Col>
+                                <Col xs={4}>
+                                  <div className="p-2 border rounded bg-light">
+                                    <div className="text-muted text-uppercase" style={{ fontSize: '9px' }}>Services</div>
+                                    <div className="font-weight-bold text-dark" style={{ fontSize: '13px' }}>{cardUsage.benefits.discounts.service}%</div>
+                                  </div>
+                                </Col>
+                                <Col xs={4}>
+                                  <div className="p-2 border rounded bg-light">
+                                    <div className="text-muted text-uppercase" style={{ fontSize: '9px' }}>Consults</div>
+                                    <div className="font-weight-bold text-dark" style={{ fontSize: '13px' }}>{cardUsage.benefits.discounts.consultation}%</div>
+                                  </div>
+                                </Col>
+                              </Row>
+                            </div>
+
+                            {/* Free lab tests usage */}
+                            <div className="mb-2 p-2 border rounded bg-light">
+                              <div className="d-flex justify-content-between font-weight-bold mb-1" style={{ fontSize: '11px' }}>
+                                <span>Free Lab Tests:</span>
+                                <span className="text-success">
+                                  {cardUsage.benefits.labTests.used} / {cardUsage.benefits.labTests.allowed} Used ({cardUsage.benefits.labTests.remaining} Left)
+                                </span>
+                              </div>
+                              <div className="progress" style={{ height: '6px' }}>
+                                <div 
+                                  className="progress-bar bg-success" 
+                                  role="progressbar" 
+                                  style={{ width: `${(cardUsage.benefits.labTests.used / (cardUsage.benefits.labTests.allowed || 1)) * 100}%` }}
+                                ></div>
+                              </div>
+                            </div>
+
+                            {/* Free consultations usage */}
+                            <div className="mb-3 p-2 border rounded bg-light">
+                              <div className="d-flex justify-content-between font-weight-bold mb-1" style={{ fontSize: '11px' }}>
+                                <span>Free Consultations:</span>
+                                <span className="text-info">
+                                  {cardUsage.benefits.consultations.used} / {cardUsage.benefits.consultations.allowed} Used ({cardUsage.benefits.consultations.remaining} Left)
+                                </span>
+                              </div>
+                              <div className="progress" style={{ height: '6px' }}>
+                                <div 
+                                  className="progress-bar bg-info" 
+                                  role="progressbar" 
+                                  style={{ width: `${(cardUsage.benefits.consultations.used / (cardUsage.benefits.consultations.allowed || 1)) * 100}%` }}
+                                ></div>
+                              </div>
+                            </div>
+
+                            {/* Detailed Usage History */}
+                            {cardUsage.usageHistory && cardUsage.usageHistory.length > 0 && (
+                              <div className="mt-3">
+                                <span className="font-weight-bold text-secondary d-block mb-2">Benefit Consumption Logs:</span>
+                                <div className="border rounded bg-white overflow-auto" style={{ maxHeight: '150px' }}>
+                                  <Table size="sm" hover className="mb-0 small" style={{ fontSize: '11px' }}>
+                                    <thead className="bg-light sticky-top">
+                                      <tr>
+                                        <th>Invoice #</th>
+                                        <th>Date</th>
+                                        <th>Free Items Log</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {cardUsage.usageHistory.map((log: any, idx: number) => (
+                                        <tr key={idx}>
+                                          <td className="font-weight-bold text-primary">{log.invoiceNumber}</td>
+                                          <td>{new Date(log.date).toLocaleDateString()}</td>
+                                          <td>
+                                            <ul className="list-unstyled mb-0 text-muted" style={{ paddingLeft: 0 }}>
+                                              {log.labs.map((l: string, i: number) => (
+                                                <li key={i}>🧪 {l}</li>
+                                              ))}
+                                              {log.consultations.map((c: string, i: number) => (
+                                                <li key={i}>🩺 {c}</li>
+                                              ))}
+                                            </ul>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </Table>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : existingCard.benefits ? (
+                          <ul className="list-unstyled ms-3 mt-1 small text-muted">
+                            <li>Discount: {existingCard.benefits.discountPercentage || 0}%</li>
+                            <li>Free Consultations: {existingCard.benefits.freeConsultations || 0}</li>
+                            <li>Priority Appointments: {existingCard.benefits.priorityAppointments ? 'Yes' : 'No'}</li>
+                            <li>Free Lab Tests: {existingCard.benefits.freeLabTests || 0}</li>
+                          </ul>
+                        ) : (
+                          <span className="text-muted ms-2">N/A</span>
+                        )}
+                      </ListGroup.Item>
                     </ListGroup>
                     
                     {/* --- Action Buttons for Existing Card --- */} 
-                    <div className="d-flex justify-content-end gap-2">
-                       {/* Show Renew button only if card is Active, Grace, or Expired */} 
+                    <div className="d-flex justify-content-end gap-2 mt-3">
                        {(isCardActive(existingCard) || 
                          isCardInGracePeriod(existingCard) || 
                          existingCard.status === PatientCardStatusEnum.EXPIRED) && (

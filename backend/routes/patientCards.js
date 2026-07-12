@@ -62,6 +62,9 @@ const validatePatientCard = [
 // Get all patient cards
 router.get('/', auth, asyncHandler(patientCardController.getPatientCards));
 
+// Get patient card benefit usage details
+router.get('/usage/:patientId', auth, asyncHandler(patientCardController.getPatientCardUsage));
+
 // Get patient card by ID
 router.get('/:id', auth, asyncHandler(patientCardController.getPatientCardById));
 

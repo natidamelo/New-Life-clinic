@@ -448,9 +448,158 @@ const processCardPayment = async (req, res) => {
   }
 };
 
+// @desc    Get patient card benefit usage details
+// @route   GET /api/patient-cards/usage/:patientId
+// @access  Private
+const getPatientCardUsage = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    
+    // Resolve patient
+    const patientDoc = await Patient.findById(patientId).populate('cardType');
+    if (!patientDoc) {
+      return res.status(404).json({ success: false, message: 'Patient not found' });
+    }
+    
+    // 1. Get active card
+    let card = await PatientCard.findOne({
+      patient: patientId,
+      status: { $in: ['Active', 'Grace'] }
+    });
+    
+    let benefits = {
+      discounts: { service: 0, lab: 0, consultation: 0 },
+      freeLabTests: 0,
+      freeConsultations: 0
+    };
+    let activeCardId = null;
+    let cardDetails = null;
+    
+    if (card) {
+      await card.checkExpiry();
+      if (card.isValid) {
+        activeCardId = card._id;
+        benefits = {
+          discounts: {
+            service: card.benefits?.discounts?.service ?? card.benefits?.discountPercentage ?? 0,
+            lab: card.benefits?.discounts?.lab ?? card.benefits?.discountPercentage ?? 0,
+            consultation: card.benefits?.discounts?.consultation ?? card.benefits?.discountPercentage ?? 0
+          },
+          freeLabTests: card.benefits?.freeLabTests ?? 0,
+          freeConsultations: card.benefits?.freeConsultations ?? 0
+        };
+        cardDetails = {
+          cardNumber: card.cardNumber,
+          type: card.type,
+          status: card.status,
+          issuedDate: card.issuedDate,
+          expiryDate: card.expiryDate
+        };
+      }
+    } else if (patientDoc.cardStatus === 'active' && patientDoc.cardType) {
+      const cardTypeDoc = patientDoc.cardType;
+      activeCardId = cardTypeDoc._id;
+      benefits = {
+        discounts: {
+          service: cardTypeDoc.discounts?.service ?? 0,
+          lab: cardTypeDoc.discounts?.lab ?? 0,
+          consultation: cardTypeDoc.discounts?.consultation ?? 0
+        },
+        freeLabTests: cardTypeDoc.freeLabTests ?? 0,
+        freeConsultations: cardTypeDoc.freeConsultations ?? 0
+      };
+      cardDetails = {
+        cardNumber: 'DIRECT',
+        type: cardTypeDoc.name,
+        status: 'Active',
+        issuedDate: patientDoc.cardIssueDate || new Date(),
+        expiryDate: patientDoc.cardExpiryDate || new Date(Date.now() + 365*24*60*60*1000)
+      };
+    }
+    
+    if (!activeCardId) {
+      return res.json({
+        hasActiveCard: false,
+        message: 'Patient does not have an active membership card.'
+      });
+    }
+    
+    // 2. Count used lab tests and consultations
+    let startDate = cardDetails.issuedDate;
+    
+    const invoices = await MedicalInvoice.find({
+      patient: patientId,
+      status: { $nin: ['cancelled', 'refunded'] },
+      createdAt: { $gte: startDate }
+    });
+    
+    let freeLabTestsUsed = 0;
+    let freeConsultationsUsed = 0;
+    const benefitUsageDetails = [];
+    
+    for (const inv of invoices) {
+      let labsInInvoice = [];
+      let consultsInInvoice = [];
+      
+      for (const item of inv.items) {
+        const isLab = item.category === 'lab' || item.itemType === 'lab';
+        const isConsult = item.category === 'consultation' || item.itemType === 'consultation';
+        const isFree = item.unitPrice > 0 && item.discount >= (item.unitPrice * item.quantity);
+        
+        if (isFree) {
+          if (isLab) {
+            freeLabTestsUsed += item.quantity;
+            labsInInvoice.push(`${item.description} (x${item.quantity})`);
+          }
+          if (isConsult) {
+            freeConsultationsUsed += item.quantity;
+            consultsInInvoice.push(`${item.description} (x${item.quantity})`);
+          }
+        }
+      }
+      
+      if (labsInInvoice.length > 0 || consultsInInvoice.length > 0) {
+        benefitUsageDetails.push({
+          invoiceNumber: inv.invoiceNumber,
+          date: inv.createdAt,
+          labs: labsInInvoice,
+          consultations: consultsInInvoice
+        });
+      }
+    }
+    
+    res.json({
+      hasActiveCard: true,
+      card: cardDetails,
+      benefits: {
+        discounts: benefits.discounts,
+        labTests: {
+          allowed: benefits.freeLabTests,
+          used: freeLabTestsUsed,
+          remaining: Math.max(0, benefits.freeLabTests - freeLabTestsUsed)
+        },
+        consultations: {
+          allowed: benefits.freeConsultations,
+          used: freeConsultationsUsed,
+          remaining: Math.max(0, benefits.freeConsultations - freeConsultationsUsed)
+        }
+      },
+      usageHistory: benefitUsageDetails
+    });
+  } catch (error) {
+    console.error('Error fetching card usage details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getPatientCards,
   getPatientCardById,
+  getPatientCardUsage,
   createPatientCard,
   renewPatientCard,
   cancelPatientCard,
