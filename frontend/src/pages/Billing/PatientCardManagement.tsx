@@ -1284,14 +1284,14 @@ const PatientCardManagement: React.FC = () => {
                             )}
                           </div>
                         ) : existingCard.benefits ? (
-                          <ul className="list-unstyled ms-3 mt-1 small text-muted">
-                            <li>Discount: {existingCard.benefits.discountPercentage || 0}%</li>
-                            <li>Free Consultations: {existingCard.benefits.freeConsultations || 0}</li>
-                            <li>Priority Appointments: {existingCard.benefits.priorityAppointments ? 'Yes' : 'No'}</li>
-                            <li>Free Lab Tests: {existingCard.benefits.freeLabTests || 0}</li>
+                          <ul className="list-unstyled ms-3 mt-1 small" style={{ color: '#2c3e50', fontWeight: 500 }}>
+                            <li>• Discount Percentage: {existingCard.benefits.discountPercentage || 0}%</li>
+                            <li>• Free Consultations: {existingCard.benefits.freeConsultations || 0}</li>
+                            <li>• Priority Appointments: {existingCard.benefits.priorityAppointments ? 'Yes' : 'No'}</li>
+                            <li>• Free Lab Tests: {existingCard.benefits.freeLabTests || 0}</li>
                           </ul>
                         ) : (
-                          <span className="text-muted ms-2">N/A</span>
+                          <span className="ms-2">N/A</span>
                         )}
                       </ListGroup.Item>
                     </ListGroup>

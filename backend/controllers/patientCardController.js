@@ -3,6 +3,7 @@
 const PatientCard = require('../models/PatientCard');
 const Patient = require('../models/Patient');
 const MedicalInvoice = require('../models/MedicalInvoice');
+const CardType = require('../models/CardType');
 const mongoose = require('mongoose');
 
 // Map payment method from route (e.g. Cash, Credit Card) to MedicalInvoice enum (cash, card, etc.)
