@@ -132,7 +132,7 @@ class CardTypeManager {
   }
 
   // Update an existing card type
-  async updateCardType(card: { _id: string; name: string; value: string; price: number; validityMonths: number; isActive: boolean; description?: string }) {
+  async updateCardType(card: Partial<CardType> & { _id: string }) {
     try {
       // Make sure we have a valid ID
       if (!card._id) {
@@ -221,7 +221,7 @@ export const cardTypeService = {
   setCardTypes: (cardTypes: CardType[]) => cardTypeManager.setCardTypes(cardTypes),
   fetchCardTypes: () => cardTypeManager.fetchCardTypes(),
   createCardType: (card: Omit<CardType, '_id' | 'createdAt' | 'updatedAt'>) => cardTypeManager.createCardType(card),
-  updateCardType: (card: { _id: string; name: string; value: string; price: number; validityMonths: number; isActive: boolean; description?: string }) => 
+  updateCardType: (card: Partial<CardType> & { _id: string }) => 
     cardTypeManager.updateCardType(card),
   deleteCardType: (id: string) => cardTypeManager.deleteCardType(id),
   addListener: (listener: () => void) => cardTypeManager.addListener(listener)

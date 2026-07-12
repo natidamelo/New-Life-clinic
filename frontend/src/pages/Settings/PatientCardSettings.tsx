@@ -19,7 +19,6 @@ const PatientCardSettings: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editCardType, setEditCardType] = useState<CardType | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '',
     validityMonths: 12,
