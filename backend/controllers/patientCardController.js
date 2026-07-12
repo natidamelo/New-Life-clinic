@@ -28,9 +28,52 @@ const getPatientCards = async (req, res) => {
       query.patient = patient;
     }
     
-    const cards = await PatientCard.find(query)
+    let cards = await PatientCard.find(query)
       .populate('patient', 'firstName lastName patientId')
       .sort({ createdAt: -1 });
+    
+    // Self-healing database logic:
+    // If we are searching for a specific patient, and they have no card document in PatientCard collection,
+    // but their Patient record says they have an active cardType, auto-create the PatientCard!
+    if (patient && cards.length === 0) {
+      const patientDoc = await Patient.findById(patient).populate('cardType');
+      if (patientDoc && (patientDoc.cardStatus || '').toLowerCase() === 'active' && patientDoc.cardType) {
+        const CardType = require('../models/CardType');
+        const cardTypeDoc = patientDoc.cardType;
+        
+        // Generate card number
+        const cardCount = await PatientCard.countDocuments();
+        const cardNumber = `CARD${String(cardCount + 1).padStart(6, '0')}`;
+        
+        const newCard = new PatientCard({
+          patient: patientDoc._id,
+          cardNumber,
+          type: cardTypeDoc.name,
+          status: 'Active',
+          issuedDate: patientDoc.cardIssueDate || new Date(),
+          expiryDate: patientDoc.cardExpiryDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          amountPaid: cardTypeDoc.price || 0,
+          benefits: {
+            discounts: {
+              service: cardTypeDoc.discounts?.service || 0,
+              lab: cardTypeDoc.discounts?.lab || 0,
+              consultation: cardTypeDoc.discounts?.consultation || 0
+            },
+            freeConsultations: cardTypeDoc.freeConsultations || 0,
+            freeLabTests: cardTypeDoc.freeLabTests || 0,
+            priorityAppointments: cardTypeDoc.priorityAppointments || false,
+            discountPercentage: cardTypeDoc.benefits?.discountPercentage || 0
+          }
+        });
+        
+        await newCard.save();
+        console.log(`💡 Self-healed database: Auto-created missing PatientCard ${cardNumber} for active patient ${patientDoc.firstName} ${patientDoc.lastName}`);
+        
+        // Fetch it again to include populated patient details
+        const savedCard = await PatientCard.populate(newCard, { path: 'patient', select: 'firstName lastName patientId' });
+        cards = [savedCard];
+      }
+    }
     
     res.json(cards);
   } catch (error) {
