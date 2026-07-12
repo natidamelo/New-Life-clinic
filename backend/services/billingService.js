@@ -94,6 +94,184 @@ const billingService = {
       throw new ErrorResponse('Error calculating discount: ' + error.message, 500);
     }
   },
+
+  /**
+   * Helper function to apply card benefits (free lab tests, discounts) to an array of billable items
+   */
+  async applyCardBenefitsToInvoice(patientId, items, excludeInvoiceId = null) {
+    try {
+      // 1. Get card benefits
+      let card = await PatientCard.findOne({
+        patient: patientId,
+        status: { $in: ['Active', 'Grace'] }
+      });
+      
+      let benefits = {
+        discounts: { service: 0, lab: 0, consultation: 0 },
+        freeLabTests: 0,
+        freeConsultations: 0
+      };
+      let activeCardId = null;
+      let cardTypeDoc = null;
+      
+      if (card) {
+        await card.checkExpiry();
+        if (card.isValid) {
+          activeCardId = card._id;
+          benefits = {
+            discounts: {
+              service: card.benefits?.discounts?.service ?? card.benefits?.discountPercentage ?? 0,
+              lab: card.benefits?.discounts?.lab ?? card.benefits?.discountPercentage ?? 0,
+              consultation: card.benefits?.discounts?.consultation ?? card.benefits?.discountPercentage ?? 0
+            },
+            freeLabTests: card.benefits?.freeLabTests ?? 0,
+            freeConsultations: card.benefits?.freeConsultations ?? 0
+          };
+        }
+      } else {
+        const Patient = require('../models/Patient');
+        const patientDoc = await Patient.findById(patientId).populate('cardType');
+        const cardStatus = (patientDoc?.cardStatus || '').toLowerCase();
+        
+        if (patientDoc && cardStatus === 'active' && patientDoc.cardType) {
+          cardTypeDoc = patientDoc.cardType;
+          activeCardId = cardTypeDoc._id;
+          benefits = {
+            discounts: {
+              service: cardTypeDoc.discounts?.service ?? 0,
+              lab: cardTypeDoc.discounts?.lab ?? 0,
+              consultation: cardTypeDoc.discounts?.consultation ?? 0
+            },
+            freeLabTests: cardTypeDoc.freeLabTests ?? 0,
+            freeConsultations: cardTypeDoc.freeConsultations ?? 0
+          };
+        }
+      }
+
+      // 2. Count already used free lab tests
+      let freeLabTestsUsed = 0;
+      if (benefits.freeLabTests > 0) {
+        let startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+        if (card && card.issuedDate) {
+          startDate = card.issuedDate;
+        } else {
+          const Patient = require('../models/Patient');
+          const patient = await Patient.findById(patientId);
+          if (patient && patient.cardIssueDate) {
+            startDate = patient.cardIssueDate;
+          }
+        }
+        
+        const query = {
+          patient: patientId,
+          status: { $nin: ['cancelled', 'refunded'] },
+          createdAt: { $gte: startDate }
+        };
+        if (excludeInvoiceId) {
+          query._id = { $ne: excludeInvoiceId };
+        }
+        
+        const invoices = await MedicalInvoice.find(query);
+        for (const inv of invoices) {
+          for (const item of inv.items) {
+            const isLab = item.category === 'lab' || item.itemType === 'lab';
+            const isFree = item.unitPrice > 0 && item.discount >= (item.unitPrice * item.quantity);
+            if (isLab && isFree) {
+              freeLabTestsUsed += item.quantity;
+            }
+          }
+        }
+      }
+      
+      let remainingFreeLabTests = Math.max(0, benefits.freeLabTests - freeLabTestsUsed);
+      
+      // 3. Process items
+      const labItemsIndex = [];
+      const otherItems = [];
+      
+      items.forEach((item, idx) => {
+        const cat = (item.category || item.itemType || '').toLowerCase();
+        if (cat.includes('lab') || cat.includes('imag')) {
+          labItemsIndex.push({ item, idx, unitPrice: item.unitPrice || 0 });
+        } else {
+          otherItems.push({ item, idx });
+        }
+      });
+      
+      // Sort lab items by unit price descending to optimize patient savings
+      labItemsIndex.sort((a, b) => b.unitPrice - a.unitPrice);
+      
+      const processedItems = new Array(items.length);
+      
+      // Process lab items first
+      labItemsIndex.forEach(wrapper => {
+        const item = wrapper.item;
+        const gross = item.quantity * item.unitPrice;
+        let discountVal = 0;
+        
+        if (remainingFreeLabTests >= item.quantity) {
+          discountVal = gross;
+          remainingFreeLabTests -= item.quantity;
+        } else if (remainingFreeLabTests > 0) {
+          const freePortion = remainingFreeLabTests * item.unitPrice;
+          const paidPortion = (item.quantity - remainingFreeLabTests) * item.unitPrice;
+          const discountOnPaid = paidPortion * (benefits.discounts.lab / 100);
+          
+          discountVal = freePortion + discountOnPaid;
+          remainingFreeLabTests = 0;
+        } else {
+          discountVal = gross * (benefits.discounts.lab / 100);
+        }
+        
+        processedItems[wrapper.idx] = {
+          ...item,
+          discount: item.discount || discountVal,
+          tax: item.tax || 0,
+          total: gross - (item.discount || discountVal)
+        };
+      });
+      
+      // Process other items (services, consultations, etc.)
+      otherItems.forEach(wrapper => {
+        const item = wrapper.item;
+        const gross = item.quantity * item.unitPrice;
+        const cat = (item.category || item.itemType || '').toLowerCase();
+        let discountVal = 0;
+        
+        if (cat.includes('service') || cat.includes('procedure')) {
+          discountVal = gross * (benefits.discounts.service / 100);
+        } else if (cat.includes('consult')) {
+          discountVal = gross * (benefits.discounts.consultation / 100);
+        } else {
+          discountVal = 0;
+        }
+        
+        processedItems[wrapper.idx] = {
+          ...item,
+          discount: item.discount || discountVal,
+          tax: item.tax || 0,
+          total: gross - (item.discount || discountVal)
+        };
+      });
+      
+      return {
+        processedItems,
+        activeCardId,
+        discountTotal: processedItems.reduce((sum, item) => sum + (item.discount || 0), 0)
+      };
+    } catch (err) {
+      console.error('Error in applyCardBenefitsToInvoice:', err);
+      return {
+        processedItems: items.map(item => ({
+          ...item,
+          discount: item.discount || 0,
+          total: item.quantity * item.unitPrice
+        })),
+        activeCardId: null,
+        discountTotal: 0
+      };
+    }
+  },
   
   /**
    * Create a new invoice
@@ -108,33 +286,11 @@ const billingService = {
       // Generate invoice number
       const invoiceNumber = await MedicalInvoice.generateInvoiceNumber();
       
-      // Process items and apply card-based discounts
-      let calculatedSubtotal = 0;
-      let calculatedDiscountTotal = 0;
-      let activePatientCardId = null;
+      // Apply card benefits and calculate item discounts
+      const { processedItems, activeCardId, discountTotal } = await this.applyCardBenefitsToInvoice(patient, items);
       
-      const processedItems = [];
-      for (const item of items) {
-        const gross = item.quantity * item.unitPrice;
-        calculatedSubtotal += gross;
-        
-        const discountInfo = await this.calculateDiscount(patient, gross, item.itemType || item.category);
-        const discountVal = discountInfo.hasDiscount ? discountInfo.discountAmount : 0;
-        calculatedDiscountTotal += discountVal;
-        
-        if (discountInfo.cardDetails?.cardId) {
-          activePatientCardId = discountInfo.cardDetails.cardId;
-        }
-        
-        processedItems.push({
-          ...item,
-          discount: item.discount || discountVal,
-          tax: item.tax || 0,
-          total: gross - (item.discount || discountVal)
-        });
-      }
-      
-      const finalTotal = calculatedSubtotal - calculatedDiscountTotal;
+      const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+      const finalTotal = subtotal - discountTotal;
       
       // Create invoice object
       const invoice = new MedicalInvoice({
@@ -146,10 +302,10 @@ const billingService = {
         visit,
         provider,
         items: processedItems,
-        subtotal: invoiceData.subtotal || finalTotal,
+        subtotal: invoiceData.subtotal || subtotal,
         total: invoiceData.total || finalTotal,
         balance: invoiceData.balance || finalTotal,
-        discountTotal: invoiceData.discountTotal || calculatedDiscountTotal,
+        discountTotal: invoiceData.discountTotal || discountTotal,
         dateIssued: new Date(), // Use dateIssued everywhere
         dueDate: dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
         status: 'pending',
@@ -158,8 +314,8 @@ const billingService = {
       });
       
       // If patient card exists, store reference
-      if (activePatientCardId) {
-        invoice.patientCard = activePatientCardId;
+      if (activeCardId) {
+        invoice.patientCard = activeCardId;
       }
       
       // Save without transaction for standalone MongoDB
@@ -520,30 +676,12 @@ const billingService = {
           }
         }
 
-        // Process items and apply card-based discounts
-        const processedItems = [];
-        let activePatientCardId = null;
-        
-        for (const item of updateData.items) {
-          const gross = item.quantity * item.unitPrice;
-          const discountInfo = await this.calculateDiscount(invoice.patient, gross, item.itemType || item.category);
-          const discountVal = discountInfo.hasDiscount ? discountInfo.discountAmount : 0;
-          
-          if (discountInfo.cardDetails?.cardId) {
-            activePatientCardId = discountInfo.cardDetails.cardId;
-          }
-          
-          processedItems.push({
-            ...item,
-            discount: item.discount || discountVal,
-            tax: item.tax || 0,
-            total: gross - (item.discount || discountVal)
-          });
-        }
+        // Apply card benefits (free lab tests, discounts) to updated items
+        const { processedItems, activeCardId } = await this.applyCardBenefitsToInvoice(invoice.patient, updateData.items, invoice._id);
 
         invoice.items = processedItems;
-        if (activePatientCardId) {
-          invoice.patientCard = activePatientCardId;
+        if (activeCardId) {
+          invoice.patientCard = activeCardId;
         }
         invoice.lastUpdatedBy = userId;
         
@@ -978,58 +1116,45 @@ const billingService = {
         // Update existing consolidated invoice
         console.log(`📝 Updating existing consolidated invoice: ${existingInvoice.invoiceNumber}`);
         
-        // Add new items to existing invoice with per-item discounts
-        const newItems = [];
-        for (const item of items) {
-          const gross = item.totalPrice || item.unitPrice * item.quantity;
-          const itemCat = item.category || serviceType || item.itemType;
-          
-          const discountInfo = await this.calculateDiscount(patient, gross, itemCat);
-          const discountVal = discountInfo.hasDiscount ? discountInfo.discountAmount : 0;
-          
-          if (discountInfo.cardDetails?.cardId) {
-            existingInvoice.patientCard = discountInfo.cardDetails.cardId;
-          }
-          
-          newItems.push({
-            ...item,
-            discount: item.discount || discountVal,
+        // Combine existing items and new items
+        const combinedItemsInput = [
+          ...existingInvoice.items.map(item => ({
+            description: item.description,
+            itemType: item.itemType,
+            category: item.category,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
             tax: item.tax || 0,
-            total: gross - (item.discount || discountVal),
+            addedAt: item.addedAt || new Date(),
+            addedBy: item.addedBy || systemUserId,
+            serviceId: item.serviceId,
+            labTestId: item.labTestId,
+            imagingId: item.imagingId,
+            labOrderId: item.labOrderId,
+            procedureId: item.procedureId,
+            metadata: item.metadata
+          })),
+          ...items.map(item => ({
+            ...item,
             addedAt: new Date(),
             addedBy: systemUserId,
-            category: itemCat
-          });
+            category: item.category || serviceType || item.itemType
+          }))
+        ];
+        
+        // Re-apply card benefits to the entire combined items list
+        const { processedItems, activeCardId } = await this.applyCardBenefitsToInvoice(patient, combinedItemsInput, existingInvoice._id);
+        
+        existingInvoice.items = processedItems;
+        if (activeCardId) {
+          existingInvoice.patientCard = activeCardId;
         }
         
-        existingInvoice.items.push(...newItems);
-        
-        // Recalculate totals
-        const subtotal = existingInvoice.items.reduce((sum, item) => sum + (item.total || 0), 0);
-        const taxTotal = existingInvoice.items.reduce((sum, item) => sum + (item.tax || 0), 0);
-        const discountTotal = existingInvoice.items.reduce((sum, item) => sum + (item.discount || 0), 0);
-        const total = subtotal + taxTotal - discountTotal;
-        
-        existingInvoice.subtotal = subtotal;
-        existingInvoice.taxTotal = taxTotal;
-        existingInvoice.discountTotal = discountTotal;
-        existingInvoice.total = total;
-        existingInvoice.balance = Math.max(0, total - (existingInvoice.amountPaid || 0));
-        existingInvoice.status = existingInvoice.balance === 0 ? 'paid' : (existingInvoice.amountPaid > 0 ? 'partial' : 'pending');
-        existingInvoice.lastUpdated = new Date();
-        existingInvoice.lastUpdatedBy = systemUserId;
-        
-        // Update notes to reflect new services
-        const serviceTypes = [...new Set(existingInvoice.items.map(item => item.category))];
-        existingInvoice.notes = `Consolidated invoice with ${serviceTypes.join(', ')} services - Updated on ${new Date().toLocaleString()}`;
-        
+        // Save the invoice - the pre-save hook will handle totals recalculation
         await existingInvoice.save();
         
         console.log(`✅ Updated consolidated invoice: ${existingInvoice.invoiceNumber}`);
         console.log(`   Total items: ${existingInvoice.items.length}`);
-        console.log(`   New total: ETB ${total}`);
-        console.log(`   Balance: ETB ${existingInvoice.balance}`);
-        console.log(`   Status: ${existingInvoice.status}`);
         
         return existingInvoice;
       } else {
@@ -1049,39 +1174,8 @@ const billingService = {
         const patientId = patientDoc.patientId || patientDoc._id.toString();
         const patientName = `${patientDoc.firstName} ${patientDoc.lastName}`;
         
-        // Calculate totals
-        const subtotal = items.reduce((sum, item) => sum + (item.totalPrice || item.unitPrice * item.quantity), 0);
-        // Process items and apply card-based discounts
-        const processedItems = [];
-        let activePatientCardId = null;
-        let calculatedSubtotal = 0;
-        let calculatedDiscountTotal = 0;
-        
-        for (const item of items) {
-          const gross = item.totalPrice || item.unitPrice * item.quantity;
-          calculatedSubtotal += gross;
-          
-          const discountInfo = await this.calculateDiscount(patient, gross, item.category || serviceType || item.itemType);
-          const discountVal = discountInfo.hasDiscount ? discountInfo.discountAmount : 0;
-          calculatedDiscountTotal += discountVal;
-          
-          if (discountInfo.cardDetails?.cardId) {
-            activePatientCardId = discountInfo.cardDetails.cardId;
-          }
-          
-          processedItems.push({
-            ...item,
-            discount: item.discount || discountVal,
-            tax: item.tax || 0,
-            total: gross - (item.discount || discountVal),
-            addedAt: new Date(),
-            addedBy: systemUserId,
-            category: item.category || serviceType
-          });
-        }
-        
-        const taxTotal = processedItems.reduce((sum, item) => sum + (item.tax || 0), 0);
-        const total = calculatedSubtotal + taxTotal - calculatedDiscountTotal;
+        // Process items and apply card-based discounts/benefits
+        const { processedItems, activeCardId } = await this.applyCardBenefitsToInvoice(patient, items);
         
         // Create invoice object
         const shouldUseLabFinalizedNote = isLabService && hasFinalizedInvoice;
@@ -1094,11 +1188,6 @@ const billingService = {
           visit,
           provider,
           items: processedItems,
-          subtotal: calculatedSubtotal,
-          taxTotal,
-          discountTotal: calculatedDiscountTotal,
-          total,
-          balance: total,
           dateIssued: new Date(),
           dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
           status: 'pending',
@@ -1110,8 +1199,8 @@ const billingService = {
           finalized: false // Invoice starts as not finalized
         });
         
-        if (activePatientCardId) {
-          invoice.patientCard = activePatientCardId;
+        if (activeCardId) {
+          invoice.patientCard = activeCardId;
         }
         
         await invoice.save();
@@ -1119,8 +1208,6 @@ const billingService = {
         console.log(`✅ Created new consolidated invoice: ${invoice.invoiceNumber}`);
         console.log(`   Patient: ${patientName}`);
         console.log(`   Items: ${items.length}`);
-        console.log(`   Total: ETB ${total}`);
-        console.log(`   Status: ${invoice.status}`);
         
         return invoice;
       }
