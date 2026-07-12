@@ -19,49 +19,65 @@ const billingService = {
    */
   async calculateDiscount(patientId, amount, itemType = 'service') {
     try {
-      const card = await PatientCard.findOne({
+      let card = await PatientCard.findOne({
         patient: patientId,
         status: { $in: ['Active', 'Grace'] }
       });
       
-      if (!card) {
-        return {
-          hasDiscount: false,
-          discountPercentage: 0,
-          discountAmount: 0,
-          finalAmount: amount,
-          cardDetails: null
-        };
-      }
+      let discountPercentage = 0;
+      let cardDetails = null;
       
-      await card.checkExpiry();
-      if (!card.isValid) {
-        return {
-          hasDiscount: false,
-          discountPercentage: 0,
-          discountAmount: 0,
-          finalAmount: amount,
-          cardDetails: {
+      if (card) {
+        await card.checkExpiry();
+        if (card.isValid) {
+          const type = (itemType || 'service').toLowerCase();
+          
+          if (type.includes('service') || type.includes('procedure')) {
+            discountPercentage = card.benefits?.discounts?.service ?? card.benefits?.discountPercentage ?? 0;
+          } else if (type.includes('lab') || type.includes('imag')) {
+            discountPercentage = card.benefits?.discounts?.lab ?? card.benefits?.discountPercentage ?? 0;
+          } else if (type.includes('consult')) {
+            discountPercentage = card.benefits?.discounts?.consultation ?? card.benefits?.discountPercentage ?? 0;
+          } else {
+            discountPercentage = card.benefits?.discountPercentage ?? 0;
+          }
+          
+          cardDetails = {
             cardId: card._id,
             cardNumber: card.cardNumber,
             type: card.type,
             status: card.status,
-            isValid: false
-          }
-        };
-      }
-      
-      let discountPercentage = 0;
-      const type = (itemType || 'service').toLowerCase();
-      
-      if (type.includes('service') || type.includes('procedure')) {
-        discountPercentage = card.benefits?.discounts?.service ?? card.benefits?.discountPercentage ?? 0;
-      } else if (type.includes('lab') || type.includes('imag')) {
-        discountPercentage = card.benefits?.discounts?.lab ?? card.benefits?.discountPercentage ?? 0;
-      } else if (type.includes('consult')) {
-        discountPercentage = card.benefits?.discounts?.consultation ?? card.benefits?.discountPercentage ?? 0;
+            isValid: true
+          };
+        }
       } else {
-        discountPercentage = card.benefits?.discountPercentage ?? 0;
+        // Fallback: Check if the Patient document has active cardType and cardStatus
+        const patientDoc = await Patient.findById(patientId).populate('cardType');
+        const cardStatus = (patientDoc?.cardStatus || '').toLowerCase();
+        
+        if (patientDoc && cardStatus === 'active' && patientDoc.cardType) {
+          const cardTypeDoc = patientDoc.cardType;
+          const type = (itemType || 'service').toLowerCase();
+          
+          if (type.includes('service') || type.includes('procedure')) {
+            discountPercentage = cardTypeDoc.discounts?.service || 0;
+          } else if (type.includes('lab') || type.includes('imag')) {
+            discountPercentage = cardTypeDoc.discounts?.lab || 0;
+          } else if (type.includes('consult')) {
+            discountPercentage = cardTypeDoc.discounts?.consultation || 0;
+          } else {
+            // Check if there is a general discount percentage on the cardType
+            discountPercentage = cardTypeDoc.benefits?.discountPercentage || 0;
+          }
+          
+          cardDetails = {
+            cardId: cardTypeDoc._id,
+            cardNumber: 'DIRECT',
+            type: cardTypeDoc.name,
+            status: 'active',
+            isValid: true
+          };
+        }
       }
       
       const discountAmount = (amount * discountPercentage) / 100;
@@ -72,16 +88,10 @@ const billingService = {
         discountPercentage,
         discountAmount,
         finalAmount,
-        cardDetails: {
-          cardId: card._id,
-          cardNumber: card.cardNumber,
-          type: card.type,
-          status: card.status,
-          isValid: true
-        }
+        cardDetails
       };
     } catch (error) {
-      throw new ErrorResponse('Error calculating discount', 500);
+      throw new ErrorResponse('Error calculating discount: ' + error.message, 500);
     }
   },
   
@@ -510,7 +520,31 @@ const billingService = {
           }
         }
 
-        invoice.items = updateData.items;
+        // Process items and apply card-based discounts
+        const processedItems = [];
+        let activePatientCardId = null;
+        
+        for (const item of updateData.items) {
+          const gross = item.quantity * item.unitPrice;
+          const discountInfo = await this.calculateDiscount(invoice.patient, gross, item.itemType || item.category);
+          const discountVal = discountInfo.hasDiscount ? discountInfo.discountAmount : 0;
+          
+          if (discountInfo.cardDetails?.cardId) {
+            activePatientCardId = discountInfo.cardDetails.cardId;
+          }
+          
+          processedItems.push({
+            ...item,
+            discount: item.discount || discountVal,
+            tax: item.tax || 0,
+            total: gross - (item.discount || discountVal)
+          });
+        }
+
+        invoice.items = processedItems;
+        if (activePatientCardId) {
+          invoice.patientCard = activePatientCardId;
+        }
         invoice.lastUpdatedBy = userId;
         
         // For insurance invoices, set a flag to preserve balance after recalculation
