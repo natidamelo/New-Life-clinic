@@ -302,7 +302,6 @@ const createLabOrder = async (req, res) => {
         // Create notification for reception (only if invoice was created successfully)
         if (invoice && invoice._id) {
           try {
-            const billingService = require('../services/billingService');
             const discountInfo = await billingService.calculateDiscount(patient._id, populatedOrder.totalPrice || 0, 'lab');
             const netAmount = discountInfo.hasDiscount ? discountInfo.finalAmount : (populatedOrder.totalPrice || 0);
 
@@ -824,7 +823,6 @@ const createBulkLabOrders = async (req, res) => {
       
       // Create notification for reception with per-item discounts
       const testNames = createdOrders.map(o => o.testName);
-      const billingService = require('../services/billingService');
       
       let discountedTotal = 0;
       const discountedTests = [];
