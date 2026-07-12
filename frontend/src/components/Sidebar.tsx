@@ -17,7 +17,8 @@ import {
   DocumentMagnifyingGlassIcon,
   DocumentTextIcon,
   WrenchScrewdriverIcon,
-  QrCodeIcon
+  QrCodeIcon,
+  CreditCardIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { useSafeTheme } from '../hooks/useSafeTheme';
@@ -38,6 +39,7 @@ const adminMenuItems = [
   { path: '/app/profile', icon: UserCircleIcon, label: 'Profile' },
   { path: '/app/settings', icon: CogIcon, label: 'Settings' },
   { path: '/app/theme-settings', icon: CogIcon, label: 'Appearance' },
+  { path: '/app/billing/patient-cards', icon: CreditCardIcon, label: 'Patient Cards' },
   { path: '/app/billing', icon: DashboardIcon, label: 'Billing Dashboard' },
   { path: '/app/billing/expense-manager', icon: DashboardIcon, label: 'Operating Expenses' }, // Updated route
   { path: '/app/billing/financial-advisor', icon: DashboardIcon, label: 'Financial Advisor' },
@@ -63,6 +65,7 @@ const receptionMenuItems = [
   { path: '/app/patients', icon: PatientsIcon, label: 'Patients' },
   { path: '/app/reception/service-request', icon: CogIcon, label: 'Request Service' },
   { path: '/app/appointments', icon: AppointmentsIcon, label: 'Manage Appointments' },
+  { path: '/app/billing/patient-cards', icon: CreditCardIcon, label: 'Patient Cards' },
   { path: '/app/billing/invoices', icon: CurrencyDollarIcon, label: 'Patient Billing' },
   { path: '/app/theme-settings', icon: CogIcon, label: 'Appearance' },
 ];
