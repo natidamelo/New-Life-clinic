@@ -7,6 +7,8 @@ import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
+import { API_BASE_URL } from '../config';
 import {
   generateWoundCareSchedule,
   updateSessionStatus,
@@ -21,6 +23,28 @@ import {
   type WoundCareSchedule as ScheduleType,
   type WoundCareSession
 } from '../utils/scheduleGenerator';
+
+export interface ExtendedWoundCareSession extends Omit<WoundCareSession, 'status'> {
+  status: 'scheduled' | 'completed' | 'missed' | 'rescheduled';
+  photoUrl?: string;
+  photos?: string[];
+}
+
+export interface ExtendedWoundCareSchedule {
+  id: string;
+  patientName: string;
+  frequency: 'daily' | 'twice_daily' | 'every_other_day' | 'weekly' | 'as_needed';
+  duration: number;
+  startDate: Date;
+  endDate: Date;
+  sessions: ExtendedWoundCareSession[];
+  totalSessions: number;
+  completedSessions: number;
+  missedSessions: number;
+  progress: number;
+  nextSession?: ExtendedWoundCareSession;
+  upcomingSessions: ExtendedWoundCareSession[];
+}
 
 interface WoundCareScheduleProps {
   patientName: string;
@@ -47,261 +71,378 @@ export default function WoundCareSchedule({
   onSessionReschedule,
   onCreateFollowUp
 }: WoundCareScheduleProps) {
-  const [schedule, setSchedule] = useState<ScheduleType | null>(null);
-  const [selectedSession, setSelectedSession] = useState<WoundCareSession | null>(null);
+  const { getToken } = useAuth();
+  const [schedule, setSchedule] = useState<ExtendedWoundCareSchedule | null>(null);
+  const [selectedSession, setSelectedSession] = useState<ExtendedWoundCareSession | null>(null);
   const [showAllSessions, setShowAllSessions] = useState(false);
+  
+  // Dialog States
   const [actionNotes, setActionNotes] = useState('');
+  const [sessionPhotos, setSessionPhotos] = useState<string[]>([]);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Generate schedule on component mount or when props change
+  // Fetch live schedule from backend if procedureId is passed
+  const fetchLiveSchedule = async () => {
+    if (!procedureId) return;
+    try {
+      setIsLoading(true);
+      const token = getToken();
+      if (!token) throw new Error('No authentication token found');
+
+      const response = await fetch(`${API_BASE_URL}/api/procedures/${procedureId}/schedule`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSchedule(data);
+      } else {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to load schedule from database');
+      }
+    } catch (error: any) {
+      console.error('Error fetching live schedule:', error);
+      toast.error(`Schedule loading failed: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Generate schedule in memory or fetch from API
   useEffect(() => {
-    const newSchedule = generateWoundCareSchedule(
-      patientName,
-      frequency,
-      duration,
-      startDate
-    );
-    setSchedule(newSchedule);
-  }, [patientName, frequency, duration, startDate]);
+    if (procedureId) {
+      fetchLiveSchedule();
+    } else {
+      const newSchedule = generateWoundCareSchedule(
+        patientName,
+        frequency,
+        duration,
+        startDate
+      );
+      // Cast standard schedule to extended schedule format
+      setSchedule(newSchedule as unknown as ExtendedWoundCareSchedule);
+    }
+  }, [patientName, frequency, duration, startDate, procedureId]);
 
   if (!schedule) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2 text-muted-foreground">Generating schedule...</span>
+      <div className="flex items-center justify-center p-8 bg-white rounded-xl border border-slate-100 shadow-sm">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-3 text-slate-500 text-sm font-semibold">Generating clinical schedule...</span>
       </div>
     );
   }
+
+  const handleSessionPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size exceeds 5MB limit');
+      return;
+    }
+
+    try {
+      setPhotoUploading(true);
+      const token = getToken();
+      if (!token) throw new Error('No authentication token found');
+
+      const uploadFormData = new FormData();
+      uploadFormData.append('photo', file);
+
+      const response = await fetch(`${API_BASE_URL}/api/procedures/upload-photo`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: uploadFormData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSessionPhotos(prev => [...prev, data.photoUrl]);
+        toast.success('Wound photo added successfully');
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+    } catch (error: any) {
+      console.error('Session photo upload error:', error);
+      toast.error(`Upload failed: ${error.message}`);
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
 
   const handleSessionAction = async (sessionId: string, action: 'complete' | 'miss' | 'reschedule') => {
     setIsLoading(true);
     
     try {
-      let updatedSchedule = schedule;
-      
-      switch (action) {
-        case 'complete':
-          updatedSchedule = updateSessionStatus(schedule, sessionId, 'completed', actionNotes, 'Current User');
+      if (procedureId) {
+        // Backend DB updates
+        const token = getToken();
+        if (!token) throw new Error('No authentication token');
+
+        let url = '';
+        let body: any = {};
+
+        if (action === 'complete') {
+          url = `${API_BASE_URL}/api/procedures/${procedureId}/session/${sessionId}/status`;
+          body = { 
+            status: 'completed', 
+            notes: actionNotes, 
+            completedBy: 'Current Nurse User',
+            photos: sessionPhotos 
+          };
+        } else if (action === 'miss') {
+          url = `${API_BASE_URL}/api/procedures/${procedureId}/session/${sessionId}/status`;
+          body = { status: 'missed', notes: actionNotes };
+        } else if (action === 'reschedule') {
+          url = `${API_BASE_URL}/api/procedures/${procedureId}/session/${sessionId}/reschedule`;
+          body = { newDate: rescheduleDate, newTime: rescheduleTime };
+        }
+
+        const response = await fetch(url, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(body)
+        });
+
+        if (response.ok) {
+          toast.success(`Session ${action === 'complete' ? 'completed' : action === 'miss' ? 'marked as missed' : 'rescheduled'}!`);
+          if (action === 'complete') onSessionComplete?.(sessionId, actionNotes);
+          if (action === 'miss') onSessionMiss?.(sessionId, actionNotes);
+          if (action === 'reschedule') onSessionReschedule?.(sessionId, new Date(rescheduleDate), rescheduleTime);
+          
+          // Reload schedule from DB
+          await fetchLiveSchedule();
+        } else {
+          const errData = await response.json();
+          throw new Error(errData.error || 'Failed to update session');
+        }
+      } else {
+        // Fallback preview mode local mock updates
+        let updatedSchedule = schedule as any;
+        if (action === 'complete') {
+          updatedSchedule = updateSessionStatus(schedule as any, sessionId, 'completed', actionNotes, 'Current User');
           onSessionComplete?.(sessionId, actionNotes);
-          toast.success('Session marked as completed!');
-          break;
-          
-        case 'miss':
-          updatedSchedule = updateSessionStatus(schedule, sessionId, 'missed', actionNotes);
+          toast.success('Session completed in preview mode');
+        } else if (action === 'miss') {
+          updatedSchedule = updateSessionStatus(schedule as any, sessionId, 'missed', actionNotes);
           onSessionMiss?.(sessionId, actionNotes);
-          toast.error('Session marked as missed');
-          break;
-          
-        case 'reschedule':
+          toast.success('Session marked missed in preview mode');
+        } else if (action === 'reschedule') {
           if (rescheduleDate && rescheduleTime) {
             const newDate = new Date(rescheduleDate);
-            updatedSchedule = rescheduleSession(schedule, sessionId, newDate, rescheduleTime);
+            updatedSchedule = rescheduleSession(schedule as any, sessionId, newDate, rescheduleTime);
             onSessionReschedule?.(sessionId, newDate, rescheduleTime);
-            toast.success('Session rescheduled successfully!');
+            toast.success('Session rescheduled in preview mode');
           }
-          break;
+        }
+        setSchedule(updatedSchedule);
       }
       
-      setSchedule(updatedSchedule);
       setSelectedSession(null);
       setActionNotes('');
+      setSessionPhotos([]);
       setRescheduleDate('');
       setRescheduleTime('');
       
-    } catch (error) {
-      toast.error('Failed to update session');
-      console.error('Session action error:', error);
+    } catch (error: any) {
+      toast.error(`Session update failed: ${error.message}`);
+      console.error('Session update action error:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const getProgressColor = (progress: number) => {
-    if (progress >= 80) return 'text-primary';
-    if (progress >= 60) return 'text-primary';
-    if (progress >= 40) return 'text-accent-foreground';
-    return 'text-destructive';
+    if (progress >= 80) return 'text-green-600';
+    if (progress >= 50) return 'text-blue-600';
+    return 'text-slate-600';
   };
 
   const getProgressBgColor = (progress: number) => {
-    if (progress >= 80) return 'bg-primary';
-    if (progress >= 60) return 'bg-primary';
-    if (progress >= 40) return 'bg-accent';
-    return 'bg-destructive';
+    if (progress >= 80) return 'text-green-500';
+    if (progress >= 50) return 'text-blue-500';
+    return 'text-slate-500';
   };
 
   const sessionsToShow = showAllSessions ? schedule.sessions : schedule.upcomingSessions;
 
   return (
     <div className={`w-full ${className}`}>
-      <Card className="shadow-xl border-0 bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20 overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-primary-foreground relative overflow-hidden">
-          <div className="absolute inset-0 bg-primary-foreground/10 backdrop-blur-sm"></div>
-          <div className="relative z-10">
-            <CardTitle className="text-2xl font-bold flex items-center gap-3">
-              <div className="p-2 bg-primary-foreground/20 rounded-lg">
-                <CalendarIcon className="h-6 w-6" />
+      <Card className="shadow-lg border border-slate-200 bg-white overflow-hidden rounded-xl">
+        <CardHeader className="bg-slate-50 border-b border-slate-200 p-5">
+          <div>
+            <CardTitle className="text-xl font-bold flex items-center gap-3 text-slate-800">
+              <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <CalendarIcon className="h-5 w-5" />
               </div>
-              Wound Care Schedule
-              <Badge className="bg-primary-foreground/20 text-primary-foreground border-white/30 ml-auto">
+              Wound Care Visit Timeline
+              <Badge className="bg-blue-100 text-blue-800 border-0 ml-auto font-bold uppercase tracking-wider text-[10px]">
                 {getFrequencyDisplayName(frequency)}
               </Badge>
             </CardTitle>
             
             {/* Treatment Details */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
-              <div className="bg-primary-foreground/10 rounded-lg p-3 backdrop-blur-sm">
-                <div className="text-primary/20 font-medium">Patient</div>
-                <div className="font-semibold">{patientName}</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-xs">
+              <div className="bg-white border border-slate-200/80 rounded-lg p-2.5">
+                <div className="text-slate-400 font-semibold uppercase tracking-wider text-[9px] mb-0.5">Patient</div>
+                <div className="font-bold text-slate-700">{patientName}</div>
               </div>
-              <div className="bg-primary-foreground/10 rounded-lg p-3 backdrop-blur-sm">
-                <div className="text-primary/20 font-medium">Frequency</div>
-                <div className="font-semibold">{getFrequencyDisplayName(frequency)}</div>
+              <div className="bg-white border border-slate-200/80 rounded-lg p-2.5">
+                <div className="text-slate-400 font-semibold uppercase tracking-wider text-[9px] mb-0.5">Frequency</div>
+                <div className="font-bold text-slate-700">{getFrequencyDisplayName(frequency)}</div>
               </div>
-              <div className="bg-primary-foreground/10 rounded-lg p-3 backdrop-blur-sm">
-                <div className="text-primary/20 font-medium">Duration</div>
-                <div className="font-semibold">{duration} days</div>
+              <div className="bg-white border border-slate-200/80 rounded-lg p-2.5">
+                <div className="text-slate-400 font-semibold uppercase tracking-wider text-[9px] mb-0.5">Course Duration</div>
+                <div className="font-bold text-slate-700">{duration} days</div>
               </div>
-              <div className="bg-primary-foreground/10 rounded-lg p-3 backdrop-blur-sm">
-                <div className="text-primary/20 font-medium">Total Sessions</div>
-                <div className="font-semibold">{schedule.totalSessions}</div>
+              <div className="bg-white border border-slate-200/80 rounded-lg p-2.5">
+                <div className="text-slate-400 font-semibold uppercase tracking-wider text-[9px] mb-0.5">Total Sessions</div>
+                <div className="font-bold text-slate-700">{schedule.totalSessions} visits</div>
               </div>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="p-6">
-          {/* Progress Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <CardContent className="p-5">
+          {/* Progress Overview Cockpit */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             {/* Progress Circle */}
-            <div className="flex flex-col items-center">
-              <div className="relative w-24 h-24">
-                <svg className="w-24 h-24 transform -rotate-90">
+            <div className="flex flex-col items-center justify-center bg-slate-50/50 p-4 rounded-xl border border-slate-200/80">
+              <div className="relative w-20 h-20">
+                <svg className="w-20 h-20 transform -rotate-90">
                   <circle
-                    cx="48"
-                    cy="48"
-                    r="40"
+                    cx="40"
+                    cy="40"
+                    r="34"
                     stroke="currentColor"
-                    strokeWidth="8"
+                    strokeWidth="6"
                     fill="transparent"
-                    className="text-muted-foreground/30"
+                    className="text-slate-200"
                   />
                   <circle
-                    cx="48"
-                    cy="48"
-                    r="40"
+                    cx="40"
+                    cy="40"
+                    r="34"
                     stroke="currentColor"
-                    strokeWidth="8"
+                    strokeWidth="6"
                     fill="transparent"
-                    strokeDasharray={`${2 * Math.PI * 40}`}
-                    strokeDashoffset={`${2 * Math.PI * 40 * (1 - schedule.progress / 100)}`}
+                    strokeDasharray={`${2 * Math.PI * 34}`}
+                    strokeDashoffset={`${2 * Math.PI * 34 * (1 - schedule.progress / 100)}`}
                     className={`${getProgressBgColor(schedule.progress)} transition-all duration-500`}
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className={`text-2xl font-bold ${getProgressColor(schedule.progress)}`}>
+                  <span className={`text-xl font-extrabold ${getProgressColor(schedule.progress)}`}>
                     {schedule.progress}%
                   </span>
                 </div>
               </div>
-              <span className="mt-2 text-sm font-medium text-muted-foreground">Overall Progress</span>
+              <span className="mt-2 text-[10px] uppercase tracking-wider font-bold text-slate-500">Overall Progress</span>
             </div>
 
             {/* Statistics Cards */}
-            <div className="bg-primary/10 rounded-xl p-4 border border-primary/30">
-              <div className="flex items-center gap-3">
-                <CheckCircleIcon className="h-8 w-8 text-primary" />
-                <div>
-                  <div className="text-2xl font-bold text-primary">{schedule.completedSessions}</div>
-                  <div className="text-sm text-primary">Completed</div>
-                </div>
+            <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200/80 flex items-center gap-3">
+              <CheckCircleIcon className="h-8 w-8 text-green-600" />
+              <div>
+                <div className="text-xl font-extrabold text-slate-800">{schedule.completedSessions}</div>
+                <div className="text-[10px] uppercase font-bold text-slate-500">Completed</div>
               </div>
             </div>
 
-            <div className="bg-destructive/10 rounded-xl p-4 border border-destructive/30">
-              <div className="flex items-center gap-3">
-                <XCircleIcon className="h-8 w-8 text-destructive" />
-                <div>
-                  <div className="text-2xl font-bold text-destructive">{schedule.missedSessions}</div>
-                  <div className="text-sm text-destructive">Missed</div>
-                </div>
+            <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200/80 flex items-center gap-3">
+              <XCircleIcon className="h-8 w-8 text-red-500" />
+              <div>
+                <div className="text-xl font-extrabold text-slate-800">{schedule.missedSessions}</div>
+                <div className="text-[10px] uppercase font-bold text-slate-500">Missed</div>
               </div>
             </div>
 
-            <div className="bg-primary/10 rounded-xl p-4 border border-primary/30">
-              <div className="flex items-center gap-3">
-                <CalendarIcon className="h-8 w-8 text-primary" />
-                <div>
-                  <div className="text-2xl font-bold text-primary">{schedule.upcomingSessions.length}</div>
-                  <div className="text-sm text-primary">Remaining</div>
-                </div>
+            <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200/80 flex items-center gap-3">
+              <CalendarIcon className="h-8 w-8 text-blue-600" />
+              <div>
+                <div className="text-xl font-extrabold text-slate-800">{schedule.sessions.filter(s => s.status === 'scheduled').length}</div>
+                <div className="text-[10px] uppercase font-bold text-slate-500">Remaining</div>
               </div>
             </div>
           </div>
 
-          {/* Next Session Highlight */}
+          {/* Next Scheduled Session Block */}
           {schedule.nextSession && (
-            <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-6 border border-orange-200 mb-8 shadow-lg">
-              <div className="flex items-center justify-between">
+            <div className="bg-blue-50/40 rounded-xl p-5 border border-blue-200/80 mb-6 shadow-2xs">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-xl font-bold text-accent-foreground mb-2 flex items-center gap-2">
-                    <ClockIcon className="h-5 w-5" />
-                    Next Session
+                  <h3 className="text-sm font-bold text-blue-900 mb-2 flex items-center gap-1.5">
+                    <ClockIcon className="h-4.5 w-4.5 text-blue-600" />
+                    Next Scheduled Session
                   </h3>
                   <div className="space-y-1">
-                    <p className="text-lg font-semibold text-accent-foreground">
+                    <p className="text-base font-bold text-slate-800">
                       {formatScheduleDate(schedule.nextSession.date)} at {formatScheduleTime(schedule.nextSession.time)}
                     </p>
-                    <div className="flex gap-2">
-                      <Badge className={getSessionTypeColor(schedule.nextSession.type)}>
+                    <div className="flex gap-1.5 mt-1.5">
+                      <Badge className={`${getSessionTypeColor(schedule.nextSession.type)} text-[9px] uppercase font-bold tracking-wider px-2 py-0.5`}>
                         {schedule.nextSession.type}
                       </Badge>
-                      <Badge className={getPriorityColor(schedule.nextSession.priority)}>
+                      <Badge className={`${getPriorityColor(schedule.nextSession.priority)} text-[9px] uppercase font-bold tracking-wider px-2 py-0.5`}>
                         {schedule.nextSession.priority}
                       </Badge>
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex gap-2">
+                <div className="flex gap-2 self-start md:self-center">
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button
-                        size="default"
-                        onClick={() => setSelectedSession(schedule.nextSession!)}
-                        className="bg-primary hover:bg-primary text-primary-foreground shadow-lg whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedSession(schedule.nextSession!);
+                          setSessionPhotos([]);
+                        }}
+                        className="bg-green-600 hover:bg-green-700 text-white font-semibold text-xs h-8 px-3.5"
                       >
-                        <CheckCircleIcon className="h-4 w-4 mr-1" />
-                        Complete
+                        Complete Session
                       </Button>
                     </DialogTrigger>
                     <SessionActionDialog
                       session={schedule.nextSession}
                       action="complete"
-                      onConfirm={(notes) => handleSessionAction(schedule.nextSession!.id, 'complete')}
+                      onConfirm={() => handleSessionAction(schedule.nextSession!.id, 'complete')}
                       actionNotes={actionNotes}
                       setActionNotes={setActionNotes}
                       isLoading={isLoading}
+                      photos={sessionPhotos}
+                      setPhotos={setSessionPhotos}
+                      photoUploading={photoUploading}
+                      onPhotoUpload={handleSessionPhotoUpload}
                     />
                   </Dialog>
 
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button
-                        size="default"
+                        size="sm"
                         onClick={() => setSelectedSession(schedule.nextSession!)}
-                        className="bg-[hsl(var(--status-error))] hover:bg-[hsl(var(--status-error))] text-[hsl(var(--status-error-foreground))] shadow-lg whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium wound-care-button"
+                        className="bg-red-500 hover:bg-red-600 text-white font-semibold text-xs h-8 px-3.5"
                       >
-                        <XCircleIcon className="h-4 w-4 mr-1" />
-                        Miss
+                        Mark Missed
                       </Button>
                     </DialogTrigger>
                     <SessionActionDialog
                       session={schedule.nextSession}
                       action="miss"
-                      onConfirm={(notes) => handleSessionAction(schedule.nextSession!.id, 'miss')}
+                      onConfirm={() => handleSessionAction(schedule.nextSession!.id, 'miss')}
                       actionNotes={actionNotes}
                       setActionNotes={setActionNotes}
                       isLoading={isLoading}
@@ -311,11 +452,10 @@ export default function WoundCareSchedule({
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button
-                        size="default"
+                        size="sm"
                         onClick={() => setSelectedSession(schedule.nextSession!)}
-                        className="bg-[hsl(var(--status-warning))] hover:bg-[hsl(var(--status-warning))] text-[hsl(var(--status-warning-foreground))] shadow-lg whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium wound-care-button"
+                        className="bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs h-8 px-3.5"
                       >
-                        <ArrowPathIcon className="h-4 w-4 mr-1" />
                         Reschedule
                       </Button>
                     </DialogTrigger>
@@ -336,16 +476,17 @@ export default function WoundCareSchedule({
 
           {/* Sessions List */}
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-muted-foreground">
-                {showAllSessions ? 'All Sessions' : 'Upcoming Sessions'}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-slate-800">
+                {showAllSessions ? 'All Treatment Sessions' : 'Upcoming Sessions'}
               </h3>
               <Button
                 variant="ghost"
+                size="sm"
                 onClick={() => setShowAllSessions(!showAllSessions)}
-                className="text-primary hover:text-primary"
+                className="text-blue-600 hover:text-blue-700 font-bold text-xs"
               >
-                {showAllSessions ? 'Show Upcoming Only' : 'Show All Sessions'}
+                {showAllSessions ? 'Show Upcoming Only' : 'Show Complete Timeline'}
               </Button>
             </div>
 
@@ -354,30 +495,40 @@ export default function WoundCareSchedule({
                 <SessionCard
                   key={session.id}
                   session={session}
-                  onComplete={(notes) => handleSessionAction(session.id, 'complete')}
-                  onMiss={(reason) => handleSessionAction(session.id, 'miss')}
-                  onReschedule={() => setSelectedSession(session)}
                   isLoading={isLoading}
+                  actionNotes={actionNotes}
+                  setActionNotes={setActionNotes}
+                  photos={sessionPhotos}
+                  setPhotos={setSessionPhotos}
+                  photoUploading={photoUploading}
+                  onPhotoUpload={handleSessionPhotoUpload}
+                  rescheduleDate={rescheduleDate}
+                  setRescheduleDate={setRescheduleDate}
+                  rescheduleTime={rescheduleTime}
+                  setRescheduleTime={setRescheduleTime}
+                  onComplete={() => handleSessionAction(session.id, 'complete')}
+                  onMiss={() => handleSessionAction(session.id, 'miss')}
+                  onReschedule={() => handleSessionAction(session.id, 'reschedule')}
                 />
               ))}
             </div>
 
             {sessionsToShow.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground">
-                <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
-                <p className="text-lg">No sessions to display</p>
+              <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                <CalendarIcon className="h-10 w-10 mx-auto mb-3 text-slate-300" />
+                <p className="text-xs text-slate-400 font-semibold">No visits found in queue.</p>
               </div>
             )}
           </div>
 
           {/* Create Follow-up Button */}
           {onCreateFollowUp && (
-            <div className="mt-8 pt-6 border-t border-border/30">
+            <div className="mt-6 pt-5 border-t border-slate-200">
               <Button
                 onClick={() => onCreateFollowUp(frequency, duration, new Date())}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-primary-foreground shadow-lg"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 shadow-xs transition-colors"
               >
-                Create Follow-up Treatment Plan
+                Schedule Follow-up Treatment Plan Course
               </Button>
             </div>
           )}
@@ -390,82 +541,164 @@ export default function WoundCareSchedule({
 // Session Card Component
 function SessionCard({
   session,
+  isLoading,
+  actionNotes,
+  setActionNotes,
+  photos,
+  setPhotos,
+  photoUploading,
+  onPhotoUpload,
+  rescheduleDate,
+  setRescheduleDate,
+  rescheduleTime,
+  setRescheduleTime,
   onComplete,
   onMiss,
-  onReschedule,
-  isLoading
+  onReschedule
 }: {
-  session: WoundCareSession;
-  onComplete: (notes?: string) => void;
-  onMiss: (reason?: string) => void;
-  onReschedule: () => void;
+  session: ExtendedWoundCareSession;
   isLoading: boolean;
+  actionNotes: string;
+  setActionNotes: (notes: string) => void;
+  photos: string[];
+  setPhotos: React.Dispatch<React.SetStateAction<string[]>>;
+  photoUploading: boolean;
+  onPhotoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  rescheduleDate: string;
+  setRescheduleDate: (date: string) => void;
+  rescheduleTime: string;
+  setRescheduleTime: (time: string) => void;
+  onComplete: () => void;
+  onMiss: () => void;
+  onReschedule: () => void;
 }) {
   return (
-    <Card className={`${getStatusColor(session.status)} border-2 hover:shadow-lg transition-all duration-200`}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">{getStatusIcon(session.status)}</span>
-            <div>
-              <p className="font-semibold text-sm">
-                {formatScheduleDate(session.date)}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {formatScheduleTime(session.time)}
-              </p>
+    <Card className={`border border-slate-200 shadow-xs overflow-hidden flex flex-col justify-between ${session.status === 'completed' ? 'bg-slate-50/50' : 'bg-white'}`}>
+      <CardContent className="p-4 flex-1 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm">{getStatusIcon(session.status)}</span>
+              <div>
+                <p className="font-bold text-xs text-slate-800">
+                  {formatScheduleDate(session.date)}
+                </p>
+                <p className="text-[10px] text-slate-400 font-semibold">
+                  {formatScheduleTime(session.time)}
+                </p>
+              </div>
             </div>
+            <Badge className="text-[9px] font-bold bg-slate-100 text-slate-600 border-0">
+              Visit #{session.sessionNumber}
+            </Badge>
           </div>
-          <Badge className="text-xs">
-            Session #{session.sessionNumber}
-          </Badge>
-        </div>
 
-        <div className="flex gap-2 mb-3">
-          <Badge className={`${getSessionTypeColor(session.type)} text-xs`}>
-            {session.type}
-          </Badge>
-          <Badge className={`${getPriorityColor(session.priority)} text-xs`}>
-            {session.priority}
-          </Badge>
-        </div>
+          <div className="flex gap-1.5 mb-2.5">
+            <Badge className={`${getSessionTypeColor(session.type)} text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5`}>
+              {session.type}
+            </Badge>
+            <Badge className={`${getPriorityColor(session.priority)} text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5`}>
+              {session.priority}
+            </Badge>
+          </div>
 
-        {session.notes && (
-          <p className="text-xs text-muted-foreground mb-3 italic">"{session.notes}"</p>
-        )}
+          {session.notes && (
+            <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded border border-slate-100 mb-3 italic">"{session.notes}"</p>
+          )}
+
+          {/* Gallery of Uploaded Photos for Completed Sessions */}
+          {session.status === 'completed' && session.photos && session.photos.length > 0 && (
+            <div className="mt-3 pt-2.5 border-t border-slate-200/80">
+              <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Visit Photos ({session.photos.length})</p>
+              <div className="flex flex-wrap gap-1.5">
+                {session.photos.map((url, idx) => (
+                  <div key={idx} className="w-10 h-10 rounded border border-slate-200 overflow-hidden relative shadow-3xs hover:scale-105 transition-transform bg-white">
+                    <img 
+                      src={`${API_BASE_URL}${url}`} 
+                      alt={`Wound progress ${idx + 1}`} 
+                      className="w-full h-full object-cover cursor-pointer"
+                      onClick={() => window.open(`${API_BASE_URL}${url}`, '_blank')}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {session.status === 'scheduled' && (
-          <div className="flex gap-1">
-            <Button
-              size="default"
-              onClick={() => onComplete()}
-              disabled={isLoading}
-              className="bg-primary hover:bg-primary text-primary-foreground flex-1 whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium"
-            >
-              ✓
-            </Button>
-            <Button
-              size="default"
-              onClick={() => onMiss()}
-              disabled={isLoading}
-              className="bg-[hsl(var(--status-error))] hover:bg-[hsl(var(--status-error))] text-[hsl(var(--status-error-foreground))] flex-1 whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium wound-care-button"
-            >
-              ✗
-            </Button>
-            <Button
-              size="default"
-              onClick={onReschedule}
-              disabled={isLoading}
-              className="bg-[hsl(var(--status-warning))] hover:bg-[hsl(var(--status-warning))] text-[hsl(var(--status-warning-foreground))] whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium wound-care-button"
-            >
-              🔄
-            </Button>
+          <div className="flex gap-1 mt-3">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  size="sm"
+                  onClick={() => setPhotos([])}
+                  disabled={isLoading}
+                  className="bg-green-600 hover:bg-green-700 text-white flex-1 font-bold text-xs h-7"
+                >
+                  ✓ Complete
+                </Button>
+              </DialogTrigger>
+              <SessionActionDialog
+                session={session}
+                action="complete"
+                onConfirm={onComplete}
+                actionNotes={actionNotes}
+                setActionNotes={setActionNotes}
+                isLoading={isLoading}
+                photos={photos}
+                setPhotos={setPhotos}
+                photoUploading={photoUploading}
+                onPhotoUpload={onPhotoUpload}
+              />
+            </Dialog>
+
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  size="sm"
+                  disabled={isLoading}
+                  className="bg-red-500 hover:bg-red-600 text-white flex-1 font-bold text-xs h-7"
+                >
+                  ✗ Miss
+                </Button>
+              </DialogTrigger>
+              <SessionActionDialog
+                session={session}
+                action="miss"
+                onConfirm={onMiss}
+                actionNotes={actionNotes}
+                setActionNotes={setActionNotes}
+                isLoading={isLoading}
+              />
+            </Dialog>
+
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  size="sm"
+                  disabled={isLoading}
+                  className="bg-amber-500 hover:bg-amber-600 text-white flex-1 font-bold text-xs h-7"
+                >
+                  Resched
+                </Button>
+              </DialogTrigger>
+              <RescheduleDialog
+                session={session}
+                onConfirm={onReschedule}
+                rescheduleDate={rescheduleDate}
+                setRescheduleDate={setRescheduleDate}
+                rescheduleTime={rescheduleTime}
+                setRescheduleTime={setRescheduleTime}
+                isLoading={isLoading}
+              />
+            </Dialog>
           </div>
         )}
 
         {session.completedBy && session.completedAt && (
-          <div className="mt-2 text-xs text-muted-foreground">
-            Completed by {session.completedBy} on {formatScheduleDate(session.completedAt)}
+          <div className="mt-2.5 pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-medium">
+            Done by {session.completedBy} on {new Date(session.completedAt).toLocaleDateString()}
           </div>
         )}
       </CardContent>
@@ -480,55 +713,119 @@ function SessionActionDialog({
   onConfirm,
   actionNotes,
   setActionNotes,
-  isLoading
+  isLoading,
+  photos = [],
+  setPhotos,
+  photoUploading,
+  onPhotoUpload
 }: {
-  session: WoundCareSession;
+  session: ExtendedWoundCareSession;
   action: 'complete' | 'miss';
   onConfirm: (notes?: string) => void;
   actionNotes: string;
   setActionNotes: (notes: string) => void;
   isLoading: boolean;
+  photos?: string[];
+  setPhotos?: React.Dispatch<React.SetStateAction<string[]>>;
+  photoUploading?: boolean;
+  onPhotoUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
-    <DialogContent className="sm:max-w-md">
+    <DialogContent className="sm:max-w-md bg-white border border-slate-200 rounded-lg p-5">
       <DialogHeader>
-        <DialogTitle>
-          {action === 'complete' ? 'Complete Session' : 'Mark as Missed'}
+        <DialogTitle className="text-base font-bold text-slate-800">
+          {action === 'complete' ? 'Complete Visit documentation' : 'Mark Session as Missed'}
         </DialogTitle>
       </DialogHeader>
       
-      <div className="space-y-4">
+      <div className="space-y-4 mt-2">
         <div>
-          <p className="text-sm text-muted-foreground mb-2">
+          <p className="text-xs text-slate-500 font-semibold">
             Session: {formatScheduleDate(session.date)} at {formatScheduleTime(session.time)}
           </p>
         </div>
         
         <div>
-          <label className="block text-sm font-medium mb-2">
-            {action === 'complete' ? 'Session Notes' : 'Reason for Missing'}
+          <label className="block text-xs font-bold mb-1.5 text-slate-700">
+            {action === 'complete' ? 'Clinical Session Progress Notes' : 'Reason for Missing visit'}
           </label>
           <Textarea
             value={actionNotes}
             onChange={(e) => setActionNotes(e.target.value)}
             placeholder={action === 'complete' 
-              ? 'Add any notes about the session...' 
+              ? 'Enter clinical notes about wound bed status, dressing changes...' 
               : 'Why was this session missed?'
             }
-            rows={3}
+            className="text-xs border-slate-250 min-h-20"
           />
         </div>
+
+        {/* Multi photo progress upload block */}
+        {action === 'complete' && onPhotoUpload && setPhotos && (
+          <div className="pt-1.5">
+            <label className="block text-xs font-bold mb-2 text-slate-700">Wound progress photos</label>
+            
+            {/* Gallery Grid */}
+            {photos.length > 0 && (
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                {photos.map((url, idx) => (
+                  <div key={idx} className="relative group rounded overflow-hidden border border-slate-200 aspect-square bg-slate-50 shadow-3xs">
+                    <img 
+                      src={`${API_BASE_URL}${url}`} 
+                      alt={`Wound progress ${idx + 1}`} 
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPhotos(prev => prev.filter((_, i) => i !== idx))}
+                      className="absolute top-0.5 right-0.5 bg-red-600/90 text-white rounded-full p-0.5 text-[8px] w-4 h-4 flex items-center justify-center hover:bg-red-700 transition-colors shadow-xs"
+                      title="Remove image"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Photo Capture Area */}
+            <div className="flex flex-col items-center justify-center border border-dashed border-slate-250 rounded-lg p-4 bg-slate-50 hover:bg-slate-100 transition-colors">
+              {photoUploading ? (
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-[10px] text-slate-500 font-semibold">Uploading photo...</span>
+                </div>
+              ) : (
+                <label className="cursor-pointer flex flex-col items-center gap-1.5 w-full text-center">
+                  <span className="text-xl">📷</span>
+                  <div>
+                    <span className="text-xs font-bold text-blue-600 block">Take Photo or Upload Image</span>
+                    <span className="text-[9px] text-slate-400 block mt-0.5">Attach several photos to document wound progress</span>
+                  </div>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    capture="environment" 
+                    className="hidden" 
+                    onChange={onPhotoUpload} 
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+        )}
         
-        <div className="flex gap-2 justify-end">
-          <Button variant="outline" disabled={isLoading}>
+        <div className="flex gap-2 justify-end pt-2">
+          <Button variant="outline" size="sm" disabled={isLoading} className="text-slate-600 text-xs">
             Cancel
           </Button>
           <Button 
             onClick={() => onConfirm(actionNotes)}
             disabled={isLoading}
-            className={action === 'complete' ? 'bg-primary hover:bg-primary' : 'bg-destructive hover:bg-destructive'}
+            size="sm"
+            className={`text-white text-xs font-semibold ${action === 'complete' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-500 hover:bg-red-600'}`}
           >
-            {isLoading ? 'Processing...' : `Mark as ${action === 'complete' ? 'Complete' : 'Missed'}`}
+            {isLoading ? 'Saving...' : `Confirm ${action === 'complete' ? 'Complete' : 'Missed'}`}
           </Button>
         </div>
       </div>
@@ -546,7 +843,7 @@ function RescheduleDialog({
   setRescheduleTime,
   isLoading
 }: {
-  session: WoundCareSession;
+  session: ExtendedWoundCareSession;
   onConfirm: () => void;
   rescheduleDate: string;
   setRescheduleDate: (date: string) => void;
@@ -555,47 +852,50 @@ function RescheduleDialog({
   isLoading: boolean;
 }) {
   return (
-    <DialogContent className="sm:max-w-md">
+    <DialogContent className="sm:max-w-md bg-white border border-slate-200 rounded-lg p-5">
       <DialogHeader>
-        <DialogTitle>Reschedule Session</DialogTitle>
+        <DialogTitle className="text-base font-bold text-slate-800">Reschedule Treatment Visit</DialogTitle>
       </DialogHeader>
       
-      <div className="space-y-4">
+      <div className="space-y-4 mt-2">
         <div>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-xs text-slate-500 font-semibold">
             Current: {formatScheduleDate(session.date)} at {formatScheduleTime(session.time)}
           </p>
         </div>
         
         <div>
-          <label className="block text-sm font-medium mb-2">New Date</label>
+          <label className="block text-xs font-bold mb-1.5 text-slate-700">New Visit Date</label>
           <Input
             type="date"
             value={rescheduleDate}
             onChange={(e) => setRescheduleDate(e.target.value)}
             min={new Date().toISOString().split('T')[0]}
+            className="text-xs border-slate-250"
           />
         </div>
         
         <div>
-          <label className="block text-sm font-medium mb-2">New Time</label>
+          <label className="block text-xs font-bold mb-1.5 text-slate-700">New Visit Time</label>
           <Input
             type="time"
             value={rescheduleTime}
             onChange={(e) => setRescheduleTime(e.target.value)}
+            className="text-xs border-slate-250"
           />
         </div>
         
-        <div className="flex gap-2 justify-end">
-          <Button variant="outline" disabled={isLoading}>
+        <div className="flex gap-2 justify-end pt-2">
+          <Button variant="outline" size="sm" disabled={isLoading} className="text-slate-600 text-xs">
             Cancel
           </Button>
           <Button 
             onClick={onConfirm}
             disabled={isLoading || !rescheduleDate || !rescheduleTime}
-            className="bg-primary hover:bg-primary"
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
           >
-            {isLoading ? 'Rescheduling...' : 'Reschedule Session'}
+            {isLoading ? 'Rescheduling...' : 'Confirm Reschedule'}
           </Button>
         </div>
       </div>

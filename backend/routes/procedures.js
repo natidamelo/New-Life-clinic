@@ -883,7 +883,16 @@ router.patch('/:procedureId/session/:sessionId/status', auth, async (req, res) =
     procedure.status = status;
     if (notes) procedure.postProcedureNotes = notes;
     if (completedBy) procedure.completedBy = completedBy;
-    if (status === 'completed') procedure.completedAt = new Date();
+    if (status === 'completed') {
+      procedure.completedAt = new Date();
+      if (req.body.photos) {
+        if (!procedure.woundAssessment) {
+          procedure.woundAssessment = {};
+        }
+        procedure.woundAssessment.photos = req.body.photos;
+        procedure.woundAssessment.photoUrl = req.body.photos[0] || '';
+      }
+    }
 
     await procedure.save();
 
@@ -976,7 +985,9 @@ router.get('/:procedureId/schedule', auth, async (req, res) => {
         notes: session.postProcedureNotes,
         completedBy: session.completedBy,
         completedAt: session.completedAt,
-        priority: session.priority || 'normal'
+        priority: session.priority || 'normal',
+        photoUrl: session.woundAssessment?.photoUrl || '',
+        photos: session.woundAssessment?.photos || []
       })),
       totalSessions: allSessions.length,
       completedSessions: allSessions.filter(s => s.status === 'completed').length,

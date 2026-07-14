@@ -1961,6 +1961,7 @@ const Procedures: React.FC = () => {
                    frequency={woundAssessmentData.frequency}
                    duration={woundAssessmentData.duration}
                    startDate={new Date()}
+                   procedureId={selectedProcedure?._id}
                    className="w-full max-w-none"
                  />
                </div>
@@ -2124,12 +2125,44 @@ const Procedures: React.FC = () => {
                            <strong className="text-muted-foreground">Tissue:</strong>
                            <p className="text-sm">{visit.woundDetails.woundCharacteristics?.tissueType?.replace('_', ' ') || 'Not set'}</p>
                          </div>
-                         <div>
+                       <div>
                            <strong className="text-muted-foreground">Improvement:</strong>
                            <p className="text-sm">{visit.improvementStatus || 'Not assessed'}</p>
                          </div>
                        </div>
-                     )}
+                      )}
+
+                      {/* Visit Wound Photos Gallery */}
+                      {((visit.woundAssessment?.photos && visit.woundAssessment.photos.length > 0) || visit.woundAssessment?.photoUrl) && (
+                        <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                          <strong className="text-slate-500 text-xs font-bold uppercase tracking-wider block mb-2">📷 Wound Progress Photos</strong>
+                          <div className="flex flex-wrap gap-2">
+                            {visit.woundAssessment.photos && visit.woundAssessment.photos.length > 0 ? (
+                              visit.woundAssessment.photos.map((url: string, idx: number) => (
+                                <div key={idx} className="w-16 h-16 rounded border border-slate-200 overflow-hidden bg-white shadow-2xs relative hover:scale-105 transition-transform">
+                                  <img 
+                                    src={`${API_BASE_URL}${url}`} 
+                                    alt={`Wound progress ${idx + 1}`} 
+                                    className="w-full h-full object-cover cursor-pointer"
+                                    onClick={() => window.open(`${API_BASE_URL}${url}`, '_blank')}
+                                  />
+                                </div>
+                              ))
+                            ) : (
+                              visit.woundAssessment.photoUrl && (
+                                <div className="w-16 h-16 rounded border border-slate-200 overflow-hidden bg-white shadow-2xs relative hover:scale-105 transition-transform">
+                                  <img 
+                                    src={`${API_BASE_URL}${visit.woundAssessment.photoUrl}`} 
+                                    alt="Wound progress" 
+                                    className="w-full h-full object-cover cursor-pointer"
+                                    onClick={() => window.open(`${API_BASE_URL}${visit.woundAssessment.photoUrl}`, '_blank')}
+                                  />
+                                </div>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                      {/* Progress Notes */}
                      {visit.progressNotes && (
