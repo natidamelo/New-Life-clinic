@@ -7,7 +7,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Calendar, Clock, User, Wrench } from 'lucide-react';
+import { Calendar, Clock, User, Wrench, Search, FileText, CheckCircle2, ClipboardList, Layers, AlertCircle, Thermometer, Activity } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import WoundCareSchedule from '../../components/WoundCareSchedule';
 import EarIrrigationAssessment from '../../components/EarIrrigationAssessment';
@@ -190,6 +190,7 @@ const Procedures: React.FC = () => {
   const [selectedProcedure, setSelectedProcedure] = useState<Procedure | null>(null);
   const [filter, setFilter] = useState('all');
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [showWoundAssessmentModal, setShowWoundAssessmentModal] = useState(false);
   const [showVisitHistoryModal, setShowVisitHistoryModal] = useState(false);
   const [visitHistory, setVisitHistory] = useState<any[]>([]);
@@ -771,14 +772,33 @@ const Procedures: React.FC = () => {
   const { grouped, standalone } = groupProcedures(nonBloodPressureProcedures);
   
   const filteredStandalone = standalone.filter(procedure => {
-    if (filter === 'all') return true;
-    return procedure.status === filter;
+    const matchesStatus = filter === 'all' || procedure.status === filter;
+    const matchesSearch = procedure.patientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          procedure.procedureName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (procedure.patientId?.patientId && procedure.patientId.patientId.toLowerCase().includes(searchTerm.toLowerCase()));
+    return matchesStatus && matchesSearch;
   });
 
   const filteredGrouped = Object.entries(grouped).filter(([_, group]) => {
-    if (filter === 'all') return true;
-    return group.main.status === filter || group.sessions.some(session => session.status === filter);
+    const matchesStatus = filter === 'all' || group.main.status === filter || group.sessions.some(session => session.status === filter);
+    const matchesSearch = group.main.patientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          group.main.procedureName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (group.main.patientId?.patientId && group.main.patientId.patientId.toLowerCase().includes(searchTerm.toLowerCase()));
+    return matchesStatus && matchesSearch;
   });
+
+  // Calculate Clinical Stats (EHR Cockpit Overview)
+  const stats = {
+    scheduled: nonBloodPressureProcedures.filter(p => p.status === 'scheduled').length,
+    inProgress: nonBloodPressureProcedures.filter(p => p.status === 'in_progress').length,
+    completedToday: nonBloodPressureProcedures.filter(p => {
+      if (p.status !== 'completed') return false;
+      const today = new Date().toDateString();
+      const updatedDate = new Date(p.completedTime || p.scheduledTime).toDateString();
+      return today === updatedDate;
+    }).length,
+    urgentCount: nonBloodPressureProcedures.filter(p => p.priority === 'urgent' && p.status !== 'completed').length,
+  };
 
   if (loading) {
     return (
@@ -796,294 +816,431 @@ const Procedures: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-6 space-y-6 bg-slate-50/50 min-h-screen">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-slate-200/80 shadow-xs">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Nursing Procedures
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+            <ClipboardList className="w-7 h-7 text-blue-600" />
+            Nursing Procedures Queue
           </h1>
-          <p className="text-muted-foreground mt-1">Manage wound care, dressing changes, and other procedures</p>
+          <p className="text-slate-500 text-sm mt-1">Epic Systems EHR Hyperspace Dashboard • Manage clinical procedures & assessments</p>
         </div>
-                 <div className="flex gap-2">
-           <Button onClick={fetchProcedures} variant="outline" className="border-border/40">
-             Refresh
-           </Button>
-           <Button onClick={() => setShowForm(true)} className="bg-primary hover:bg-primary">
-             <Wrench className="w-4 h-4 mr-2" />
-             New Procedure
-           </Button>
-         </div>
+        <div className="flex gap-2.5">
+          <Button onClick={fetchProcedures} variant="outline" className="border-slate-200 text-slate-600 font-semibold hover:bg-slate-50">
+            Refresh
+          </Button>
+          <Button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">
+            <Wrench className="w-4 h-4 mr-2" />
+            New Procedure
+          </Button>
+        </div>
       </div>
 
+      {/* EHR Performance Cockpit (Quick Stats Overview) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+            <Clock className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider block">Active Queue</span>
+            <span className="text-2xl font-bold text-slate-800">{stats.scheduled} Scheduled</span>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+            <Activity className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider block">Underway</span>
+            <span className="text-2xl font-bold text-slate-800">{stats.inProgress} In Progress</span>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider block">Discharged Today</span>
+            <span className="text-2xl font-bold text-slate-800">{stats.completedToday} Completed</span>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${stats.urgentCount > 0 ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-slate-50 text-slate-400'}`}>
+            <AlertCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider block">Urgent Alerts</span>
+            <span className={`text-2xl font-bold ${stats.urgentCount > 0 ? 'text-red-600' : 'text-slate-800'}`}>{stats.urgentCount} High Priority</span>
+          </div>
+        </div>
+      </div>
 
-
-       {/* Filter */}
-       <div className="flex gap-2">
-         <Select value={filter} onValueChange={setFilter}>
-           <SelectTrigger className="w-48">
-             <SelectValue placeholder="Filter by status" />
-           </SelectTrigger>
-           <SelectContent>
-             <SelectItem value="all">All Procedures</SelectItem>
-             <SelectItem value="scheduled">Scheduled</SelectItem>
-             <SelectItem value="in_progress">In Progress</SelectItem>
-             <SelectItem value="completed">Completed</SelectItem>
-             <SelectItem value="cancelled">Cancelled</SelectItem>
-           </SelectContent>
-         </Select>
-       </div>
+      {/* Chart Search & Filter Controls */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row gap-3 items-center">
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search chart by patient name, MRN/ID or procedure name..."
+            className="pl-9 bg-slate-50/50 border-slate-200 focus:bg-white"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="w-full md:w-auto">
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="w-full md:w-48 border-slate-200">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Procedures</SelectItem>
+              <SelectItem value="scheduled">Scheduled</SelectItem>
+              <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       {/* Procedures List */}
-      <div className="grid gap-4">
+      <div className="grid gap-5">
+        {filteredStandalone.length === 0 && filteredGrouped.length === 0 && (
+          <div className="bg-white p-12 text-center rounded-xl border border-slate-200 shadow-xs">
+            <ClipboardList className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <h3 className="text-lg font-bold text-slate-700">No Procedures Found</h3>
+            <p className="text-slate-400 text-sm mt-1">Try adjusting your chart search term or status filters.</p>
+          </div>
+        )}
+
         {/* Standalone Procedures */}
         {filteredStandalone.map((procedure) => (
-          <Card key={procedure._id} className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="w-5 h-5 text-muted-foreground" />
-                    {procedure.patientName}
-                  </CardTitle>
-                  <p className="text-lg font-semibold text-muted-foreground mt-1">
-                    {procedure.procedureName}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Badge className={getStatusColor(procedure.status)}>
-                    {procedure.status?.replace('_', ' ') || procedure.status}
-                  </Badge>
-                  <Badge className={getPriorityColor(procedure.priority)}>
-                    {procedure.priority}
-                  </Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    {new Date(procedure.scheduledTime).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    {new Date(procedure.scheduledTime).toLocaleTimeString()} ({procedure.duration} min)
-                  </span>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Location: {procedure.location} {procedure.roomNumber && `- Room ${procedure.roomNumber}`}
-                </div>
-              </div>
-              
-              <p className="text-muted-foreground mt-3">{procedure.description}</p>
-
-              {/* Saved Wound Assessment Data */}
-              {procedure.procedureType === 'wound_care' && procedure.woundDetails && (
-                <div className="mt-3 p-3 bg-primary/10 rounded-lg border border-primary/30">
-                  <p className="text-sm font-medium text-primary mb-2">📋 Saved Assessment:</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                    <div className="text-primary">
-                      <strong>Wound Type:</strong> {procedure.woundDetails.woundType?.replace('_', ' ') || 'Not set'}
-                    </div>
-                    <div className="text-primary">
-                      <strong>Location:</strong> {procedure.woundDetails.woundLocation || 'Not set'}
-                    </div>
-                    <div className="text-primary">
-                      <strong>Stage:</strong> {procedure.woundDetails.woundStage?.replace('_', ' ') || 'Not set'}
-                    </div>
-                    <div className="text-primary">
-                      <strong>Tissue:</strong> {procedure.woundDetails.woundCharacteristics?.tissueType?.replace('_', ' ') || 'Not set'}
-                    </div>
-                    {procedure.woundAssessment && (
-                      <>
-                        <div className="text-primary">
-                          <strong>Pain Level:</strong> {procedure.woundAssessment.painLevel}/10
-                        </div>
-                        <div className="text-primary">
-                          <strong>Wound Bed:</strong> {procedure.woundAssessment.woundBed || 'Not set'}
-                        </div>
-                      </>
-                    )}
-                    {procedure.treatmentPlan && (
-                      <>
-                        <div className="text-primary">
-                          <strong>Frequency:</strong> {procedure.treatmentPlan.frequency?.replace('_', ' ') || 'Not set'}
-                        </div>
-                        <div className="text-primary">
-                          <strong>Duration:</strong> {procedure.treatmentPlan.duration} days
-                        </div>
-                      </>
-                    )}
+          <div key={procedure._id} className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col md:flex-row hover:border-blue-400/80 hover:shadow-md transition-all duration-200">
+            {/* Storyboard Panel (Left Column) */}
+            <div className="w-full md:w-64 bg-slate-50/80 p-4 border-r border-slate-200 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                    {procedure.patientName.split(' ').map(n => n[0]).join('')}
                   </div>
-                  {procedure.woundCareSupplies && (
-                    <div className="mt-2 pt-2 border-t border-primary/30">
-                      <p className="text-xs font-medium text-primary mb-1">Supplies:</p>
-                      <div className="text-xs text-primary">
+                  <div>
+                    <h3 className="font-bold text-slate-800 leading-tight text-sm md:text-base">{procedure.patientName}</h3>
+                    <span className="text-[10px] font-mono text-slate-500 block mt-0.5">MRN: {procedure.patientId?.patientId || procedure.patientId?._id?.slice(-8) || 'P-N/A'}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5 pt-3 border-t border-slate-200/80">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium">Status</span>
+                    <Badge className={`px-2 py-0.5 text-[9px] uppercase font-bold tracking-wider ${getStatusColor(procedure.status)}`}>
+                      {procedure.status?.replace('_', ' ') || procedure.status}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium">Priority</span>
+                    <Badge className={`px-2 py-0.5 text-[9px] uppercase font-bold tracking-wider ${getPriorityColor(procedure.priority)}`}>
+                      {procedure.priority}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-slate-400" /> Date</span>
+                    <span className="text-slate-700 font-semibold">{new Date(procedure.scheduledTime).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-slate-400" /> Time</span>
+                    <span className="text-slate-700 font-semibold">{new Date(procedure.scheduledTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-200/80 text-xs text-slate-500 space-y-1">
+                <div>Location: <strong className="text-slate-700">{procedure.location}</strong></div>
+                {procedure.roomNumber && <div>Room: <strong className="text-slate-700">{procedure.roomNumber}</strong></div>}
+                <div>Duration: <strong className="text-slate-700">{procedure.duration} min</strong></div>
+              </div>
+            </div>
+
+            {/* Documentation Flowsheet Panel (Right/Center Column) */}
+            <div className="flex-1 p-5 flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <Activity className="w-4.5 h-4.5 text-blue-600" />
+                    {procedure.procedureName}
+                  </h4>
+                  <span className="text-[10px] text-slate-400 font-mono">Chart ID: {procedure._id.slice(-6).toUpperCase()}</span>
+                </div>
+                <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 mb-4 italic">
+                  "{procedure.description}"
+                </p>
+
+                {/* Flowsheet Section */}
+                {procedure.procedureType === 'wound_care' && procedure.woundDetails ? (
+                  <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
+                    <div className="bg-blue-50/50 px-3.5 py-2 border-b border-slate-200 flex justify-between items-center">
+                      <span className="text-[11px] font-bold text-blue-800 flex items-center gap-1.5">
+                        <ClipboardList className="w-4 h-4 text-blue-600" />
+                        Epic Flowsheet: Clinical Wound Assessment
+                      </span>
+                      {procedure.woundDetails.woundStage && (
+                        <span className="text-[9px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                          {procedure.woundDetails.woundStage?.replace('_', ' ')}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-y-3 gap-x-4 p-3.5 text-xs">
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px] mb-0.5">Wound Type</span>
+                        <span className="text-slate-800 font-bold">{procedure.woundDetails.woundType?.replace('_', ' ') || 'Pending Assessment'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px] mb-0.5">Anatomical Location</span>
+                        <span className="text-slate-800 font-bold">{procedure.woundDetails.woundLocation || 'Pending Assessment'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px] mb-0.5">Tissue Type</span>
+                        <span className="text-slate-800 font-bold">{procedure.woundDetails.woundCharacteristics?.tissueType?.replace('_', ' ') || 'Pending Assessment'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px] mb-0.5">Wound Bed</span>
+                        <span className="text-slate-800 font-bold">{procedure.woundAssessment?.woundBed || 'Pending Assessment'}</span>
+                      </div>
+
+                      <div className="border-t border-slate-100 pt-2.5">
+                        <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px] mb-0.5">Pain Score</span>
+                        <span className={`font-bold text-xs ${procedure.woundAssessment?.painLevel > 5 ? 'text-red-500 animate-pulse' : 'text-slate-800'}`}>
+                          {procedure.woundAssessment?.painLevel !== undefined ? `${procedure.woundAssessment.painLevel}/10` : 'Pending'}
+                        </span>
+                      </div>
+                      <div className="border-t border-slate-100 pt-2.5">
+                        <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px] mb-0.5 flex items-center gap-0.5">
+                          <Thermometer className="w-3.5 h-3.5 text-slate-400" /> Temperature
+                        </span>
+                        <span className="text-slate-800 font-bold">
+                          {procedure.woundAssessment?.temperature !== undefined ? `${procedure.woundAssessment.temperature}°C` : 'Pending'}
+                        </span>
+                      </div>
+                      <div className="border-t border-slate-100 pt-2.5">
+                        <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px] mb-0.5">Frequency</span>
+                        <span className="text-slate-800 font-bold">{procedure.treatmentPlan?.frequency?.replace('_', ' ') || 'Pending'}</span>
+                      </div>
+                      <div className="border-t border-slate-100 pt-2.5">
+                        <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px] mb-0.5">Duration</span>
+                        <span className="text-slate-800 font-bold">{procedure.treatmentPlan?.duration ? `${procedure.treatmentPlan.duration} days` : 'Pending'}</span>
+                      </div>
+                    </div>
+
+                    {procedure.woundCareSupplies && (
+                      <div className="bg-slate-50/50 border-t border-slate-200 px-3.5 py-2 flex items-center flex-wrap gap-1.5">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase mr-1">Supplies Allocated:</span>
                         {procedure.woundCareSupplies.primaryDressing && (
-                          <span className="inline-block bg-primary/20 px-2 py-1 rounded mr-1 mb-1">
+                          <span className="inline-block bg-slate-200/80 text-slate-700 text-[10px] px-2.5 py-0.5 rounded-md font-medium border border-slate-300/40">
                             {procedure.woundCareSupplies.primaryDressing.replace('_', ' ')}
                           </span>
                         )}
                         {procedure.woundCareSupplies.secondaryDressing && procedure.woundCareSupplies.secondaryDressing !== 'none' && (
-                          <span className="inline-block bg-primary/20 px-2 py-1 rounded mr-1 mb-1">
+                          <span className="inline-block bg-slate-200/80 text-slate-700 text-[10px] px-2.5 py-0.5 rounded-md font-medium border border-slate-300/40">
                             {procedure.woundCareSupplies.secondaryDressing.replace('_', ' ')}
                           </span>
                         )}
                         {procedure.woundCareSupplies.cleansingSolution && (
-                          <span className="inline-block bg-primary/20 px-2 py-1 rounded mr-1 mb-1">
+                          <span className="inline-block bg-slate-200/80 text-slate-700 text-[10px] px-2.5 py-0.5 rounded-md font-medium border border-slate-300/40">
                             {procedure.woundCareSupplies.cleansingSolution.replace('_', ' ')}
                           </span>
                         )}
                       </div>
+                    )}
+                  </div>
+                ) : procedure.procedureType === 'ear_irrigation' && procedure.earIrrigationDetails ? (
+                  <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
+                    <div className="bg-blue-50/50 px-3.5 py-2 border-b border-slate-200 flex justify-between items-center">
+                      <span className="text-[11px] font-bold text-blue-800 flex items-center gap-1.5">
+                        <ClipboardList className="w-4 h-4 text-blue-600" />
+                        Epic Flowsheet: Ear Irrigation Assessment
+                      </span>
+                      <span className="text-[9px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                        {procedure.earIrrigationDetails.earSide?.replace('_', ' ')} Ear
+                      </span>
                     </div>
-                  )}
-                </div>
-              )}
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-y-3 gap-x-4 p-3.5 text-xs">
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px] mb-0.5">Condition</span>
+                        <span className="text-slate-800 font-bold">{procedure.earIrrigationDetails.earCondition?.replace('_', ' ') || 'Pending Assessment'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px] mb-0.5">Discharge</span>
+                        <span className="text-slate-800 font-bold">{procedure.earIrrigationDetails.earAnatomy?.discharge || 'Pending Assessment'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px] mb-0.5">Tympanic Membrane</span>
+                        <span className="text-slate-800 font-bold">{procedure.earIrrigationDetails.earAnatomy?.tympanicMembrane || 'Pending Assessment'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px] mb-0.5">Hearing Level</span>
+                        <span className="text-slate-800 font-bold">{procedure.earIrrigationAssessment?.hearingLevel || 'Pending Assessment'}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 border border-dashed border-slate-200 rounded-lg p-5 text-center text-xs text-slate-400">
+                    <FileText className="w-8 h-8 text-slate-300 mx-auto mb-1.5" />
+                    No clinical flowsheet assessment documented yet. Click <strong>Assessment</strong> to begin chart entry.
+                  </div>
+                )}
+              </div>
 
-
-              <div className="flex flex-wrap gap-2 mt-4">
+              {/* Action Buttons Panel */}
+              <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-slate-100">
                 {procedure.status === 'scheduled' && (
                   <Button 
-                    size="default" 
+                    size="sm" 
                     onClick={() => updateStatus(procedure._id, 'in_progress')}
-                    className="bg-accent hover:bg-accent whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium procedure-button"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors"
                   >
                     Start Procedure
                   </Button>
                 )}
                 {procedure.status === 'in_progress' && (
                   <Button 
-                    size="default" 
+                    size="sm" 
                     onClick={() => handleCompleteProcedure(procedure)}
-                    className="bg-primary hover:bg-primary whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium procedure-button"
+                    className="bg-green-600 hover:bg-green-700 text-white font-semibold transition-colors"
                   >
                     Complete
                   </Button>
                 )}
                 {procedure.procedureType === 'wound_care' && procedure.status !== 'completed' && procedure.status !== 'cancelled' && (
                   <Button 
-                    size="default" 
+                    size="sm" 
                     onClick={() => handleWoundAssessment(procedure)}
-                    className="bg-[hsl(var(--status-info))] hover:bg-[hsl(var(--status-info))] text-[hsl(var(--status-info-foreground))] whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium procedure-button"
+                    className="bg-sky-500 hover:bg-sky-600 text-white font-semibold transition-colors"
                   >
                     Wound Assessment
                   </Button>
                 )}
                 {(procedure.procedureType === 'ear_irrigation' || procedure.procedureName.toLowerCase().includes('ear irrigation') || procedure.procedureName.toLowerCase().includes('ear irrgation')) && procedure.status !== 'completed' && procedure.status !== 'cancelled' && (
                   <Button 
-                    size="default" 
+                    size="sm" 
                     onClick={() => handleEarIrrigationAssessment(procedure)}
-                    className="bg-[hsl(var(--status-info))] hover:bg-[hsl(var(--status-info))] text-[hsl(var(--status-info-foreground))] whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium procedure-button"
+                    className="bg-sky-500 hover:bg-sky-600 text-white font-semibold transition-colors"
                   >
                     Ear Assessment
                   </Button>
                 )}
                 {procedure.procedureType === 'wound_care' && procedure.woundDetails && (
                   <Button 
-                    size="default" 
+                    size="sm" 
                     onClick={() => handleViewAssessment(procedure)}
-                    className="bg-[hsl(var(--status-success))] hover:bg-[hsl(var(--status-success))] text-[hsl(var(--status-success-foreground))] whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium procedure-button"
-                  >
-                    View Assessment
-                  </Button>
-                )}
-                {(procedure.procedureType === 'ear_irrigation' || procedure.procedureName.toLowerCase().includes('ear irrigation') || procedure.procedureName.toLowerCase().includes('ear irrgation')) && procedure.earIrrigationDetails && (
-                  <Button 
-                    size="default" 
-                    onClick={() => handleViewAssessment(procedure)}
-                    className="bg-[hsl(var(--status-success))] hover:bg-[hsl(var(--status-success))] text-[hsl(var(--status-success-foreground))] whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium procedure-button"
+                    className="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold transition-colors"
                   >
                     View Assessment
                   </Button>
                 )}
                 {procedure.procedureType === 'wound_care' && (
                   <Button 
-                    size="default" 
-                    onClick={() => fetchVisitHistory(procedure.patientId._id)}
-                    className="bg-[hsl(var(--dept-doctor))] hover:bg-[hsl(var(--dept-doctor))] text-[hsl(var(--dept-doctor-foreground))] whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium procedure-button"
+                    size="sm" 
+                    onClick={() => fetchVisitHistory(procedure.patientId?._id || procedure.patientId)}
+                    className="bg-slate-600 hover:bg-slate-700 text-white font-semibold transition-colors"
                   >
-                    📊 View History
+                    View History
                   </Button>
                 )}
                 {procedure.status !== 'completed' && procedure.status !== 'cancelled' && (
                   <Button 
-                    size="default" 
+                    size="sm" 
                     onClick={() => updateStatus(procedure._id, 'cancelled')}
-                    className="bg-[hsl(var(--status-error))] hover:bg-[hsl(var(--status-error))] text-[hsl(var(--status-error-foreground))] whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium procedure-button"
+                    className="bg-red-500 hover:bg-red-600 text-white font-semibold transition-colors ml-auto"
                   >
                     Cancel
                   </Button>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
 
         {/* Grouped Procedures with Sessions */}
         {filteredGrouped.map(([procedureId, group]) => (
-          <div key={procedureId} className="space-y-2">
-            {/* Main Procedure Card */}
-            <Card className="hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <CardTitle className="flex items-center gap-2">
-                      <User className="w-5 h-5 text-muted-foreground" />
-                      {group.main.patientName}
-                    </CardTitle>
-                    <p className="text-lg font-semibold text-muted-foreground mt-1">
-                      {group.main.procedureName}
-                    </p>
-                    <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        {new Date(group.main.scheduledTime).toLocaleDateString()}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        {new Date(group.main.scheduledTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      </div>
-                    </div>
+          <div key={procedureId} className="bg-white rounded-xl border border-slate-200 border-l-4 border-l-blue-500 shadow-xs overflow-hidden flex flex-col md:flex-row hover:border-blue-400/80 hover:shadow-md transition-all duration-200">
+            {/* Storyboard Panel (Left Column) */}
+            <div className="w-full md:w-64 bg-slate-50/80 p-4 border-r border-slate-200 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                    {group.main.patientName.split(' ').map(n => n[0]).join('')}
                   </div>
-                  <div className="flex gap-2 items-center">
-                    <Badge className={getStatusColor(group.main.status)}>
+                  <div>
+                    <h3 className="font-bold text-slate-800 leading-tight text-sm md:text-base">{group.main.patientName}</h3>
+                    <span className="text-[10px] font-mono text-slate-500 block mt-0.5">MRN: {group.main.patientId?.patientId || group.main.patientId?._id?.slice(-8) || 'P-N/A'}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5 pt-3 border-t border-slate-200/80">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium">Status</span>
+                    <Badge className={`px-2 py-0.5 text-[9px] uppercase font-bold tracking-wider ${getStatusColor(group.main.status)}`}>
                       {group.main.status?.replace('_', ' ')}
                     </Badge>
-                    <Badge className={getPriorityColor(group.main.priority)}>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium">Priority</span>
+                    <Badge className={`px-2 py-0.5 text-[9px] uppercase font-bold tracking-wider ${getPriorityColor(group.main.priority)}`}>
                       {group.main.priority}
                     </Badge>
-                    <Badge className="bg-primary/20 text-primary border-primary/30">
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium">Course</span>
+                    <Badge className="bg-blue-100 text-blue-800 text-[9px] font-bold border-0">
                       {group.sessions.length} Sessions
                     </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-200/80 text-xs text-slate-500 space-y-1">
+                <div>Scheduled: <strong className="text-slate-700">{new Date(group.main.scheduledTime).toLocaleDateString()}</strong></div>
+                <div>Time: <strong className="text-slate-700">{new Date(group.main.scheduledTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</strong></div>
+              </div>
+            </div>
+
+            {/* Documentation Timeline Panel (Right/Center Column) */}
+            <div className="flex-1 p-5 flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-blue-600" />
+                    {group.main.procedureName}
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 font-mono">Course ID: {group.main._id.slice(-6).toUpperCase()}</span>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => toggleProcedureExpansion(procedureId)}
-                      className="p-1"
+                      className="p-1 h-6 w-6 text-slate-400 hover:text-slate-700"
                     >
                       {expandedProcedures.has(procedureId) ? '▼' : '▶'}
                     </Button>
                   </div>
                 </div>
-              </CardHeader>
-              
-              <CardContent>
-                <p className="text-muted-foreground mb-4">{group.main.description}</p>
-                
-                {/* Session Progress Bar */}
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm text-muted-foreground mb-1">
-                    <span>Session Progress</span>
+                <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 mb-4 italic">
+                  "{group.main.description}"
+                </p>
+
+                {/* Session Progress Tracker */}
+                <div className="mb-4 bg-slate-50/50 p-3.5 rounded-lg border border-slate-150 flex flex-col gap-1.5">
+                  <div className="flex justify-between text-xs text-slate-600 font-semibold">
+                    <span>Clinical Session Progress Tracker</span>
                     <span>
-                      {group.sessions.filter(s => s.status === 'completed').length} / {group.sessions.length} completed
+                      {group.sessions.filter(s => s.status === 'completed').length} / {group.sessions.length} Completed
                     </span>
                   </div>
-                  <div className="w-full bg-muted/30 rounded-full h-2">
+                  <div className="w-full bg-slate-200 rounded-full h-2">
                     <div 
-                      className="bg-primary h-2 rounded-full transition-all duration-300"
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                       style={{ 
                         width: `${(group.sessions.filter(s => s.status === 'completed').length / group.sessions.length) * 100}%` 
                       }}
@@ -1091,93 +1248,39 @@ const Procedures: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Main Procedure Actions */}
-                <div className="flex flex-wrap gap-2">
-                  {group.main.status === 'scheduled' && (
-                    <Button 
-                      size="default" 
-                      onClick={() => updateStatus(group.main._id, 'in_progress')}
-                      className="bg-accent hover:bg-accent whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium"
-                    >
-                      Start Procedure
-                    </Button>
-                  )}
-                  {group.main.status === 'in_progress' && (
-                    <Button 
-                      size="default" 
-                      onClick={() => {
-                        setSelectedProcedure(group.main);
-                        setShowCompletionModal(true);
-                      }}
-                      className="bg-primary hover:bg-primary whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium"
-                    >
-                      Complete
-                    </Button>
-                  )}
-                  <Button 
-                    size="default" 
-                    onClick={() => {
-                      setSelectedProcedure(group.main);
-                      setShowWoundAssessmentModal(true);
-                    }}
-                    className="bg-[hsl(var(--status-info))] hover:bg-[hsl(var(--status-info))] text-[hsl(var(--status-info-foreground))] whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium procedure-button"
-                  >
-                    Wound Assessment
-                  </Button>
-                  <Button 
-                    size="default" 
-                    onClick={() => {
-                      setSelectedProcedure(group.main);
-                      setShowWoundAssessmentModal(true);
-                    }}
-                    className="bg-[hsl(var(--status-success))] hover:bg-[hsl(var(--status-success))] text-[hsl(var(--status-success-foreground))] whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium procedure-button"
-                  >
-                    View Assessment
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Expandable Sessions */}
-            {expandedProcedures.has(procedureId) && (
-              <div className="ml-6 space-y-2">
-                {group.sessions.map((session) => (
-                  <Card key={session._id} className="bg-muted/10 border-l-2 border-l-gray-300">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-center">
+                {/* Expandable Sessions visit timeline */}
+                {expandedProcedures.has(procedureId) && (
+                  <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                    <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Visit Timeline</h5>
+                    {group.sessions.map((session) => (
+                      <div key={session._id} className="bg-slate-50/50 border border-slate-200/80 rounded-lg p-3.5 flex justify-between items-center hover:border-slate-300 transition-colors">
                         <div>
-                          <h4 className="font-medium text-muted-foreground">{session.procedureName}</h4>
-                          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              {new Date(session.scheduledTime).toLocaleDateString()}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              {new Date(session.scheduledTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                            </div>
+                          <span className="font-bold text-xs text-slate-800">{session.procedureName}</span>
+                          <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500">
+                            <span className="flex items-center gap-0.5"><Calendar className="w-3.5 h-3.5" /> {new Date(session.scheduledTime).toLocaleDateString()}</span>
+                            <span className="flex items-center gap-0.5"><Clock className="w-3.5 h-3.5" /> {new Date(session.scheduledTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                           </div>
                         </div>
                         <div className="flex gap-2 items-center">
-                          <Badge className={getStatusColor(session.status)}>
+                          <Badge className={`px-2 py-0.5 text-[9px] uppercase font-bold tracking-wider ${getStatusColor(session.status)}`}>
                             {session.status?.replace('_', ' ')}
                           </Badge>
                           {session.status === 'scheduled' && (
                             <>
                               <Button 
-                                size="default" 
+                                size="sm" 
                                 onClick={() => updateStatus(session._id, 'in_progress')}
-                                className="bg-accent hover:bg-accent whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium"
+                                className="bg-blue-600 hover:bg-blue-700 text-white text-[11px] px-2.5 py-1 h-7.5 font-semibold transition-colors"
                               >
                                 Start
                               </Button>
                               <Button 
-                                size="default" 
+                                size="sm" 
                                 onClick={() => {
                                   setSelectedProcedure(session);
                                   setShowCompletionModal(true);
                                 }}
-                                className="bg-primary hover:bg-primary whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium"
+                                className="bg-green-600 hover:bg-green-700 text-white text-[11px] px-2.5 py-1 h-7.5 font-semibold transition-colors"
                               >
                                 Complete
                               </Button>
@@ -1185,23 +1288,68 @@ const Procedures: React.FC = () => {
                           )}
                           {session.status === 'in_progress' && (
                             <Button 
-                              size="default" 
+                              size="sm" 
                               onClick={() => {
-                                setSelectedProcedure(session);
-                                setShowCompletionModal(true);
+                                  setSelectedProcedure(session);
+                                  setShowCompletionModal(true);
                               }}
-                              className="bg-primary hover:bg-primary whitespace-nowrap min-w-fit px-4 py-2 text-sm font-medium"
+                              className="bg-green-600 hover:bg-green-700 text-white text-[11px] px-2.5 py-1 h-7.5 font-semibold transition-colors"
                             >
                               Complete
                             </Button>
                           )}
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Main Actions Panel */}
+              <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-slate-100">
+                {group.main.status === 'scheduled' && (
+                  <Button 
+                    size="sm" 
+                    onClick={() => updateStatus(group.main._id, 'in_progress')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors"
+                  >
+                    Start Procedure
+                  </Button>
+                )}
+                {group.main.status === 'in_progress' && (
+                  <Button 
+                    size="sm" 
+                    onClick={() => {
+                      setSelectedProcedure(group.main);
+                      setShowCompletionModal(true);
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white font-semibold transition-colors"
+                  >
+                    Complete
+                  </Button>
+                )}
+                <Button 
+                  size="sm" 
+                  onClick={() => {
+                    setSelectedProcedure(group.main);
+                    setShowWoundAssessmentModal(true);
+                  }}
+                  className="bg-sky-500 hover:bg-sky-600 text-white font-semibold transition-colors"
+                >
+                  Wound Assessment
+                </Button>
+                <Button 
+                  size="sm" 
+                  onClick={() => {
+                    setSelectedProcedure(group.main);
+                    setShowWoundAssessmentModal(true);
+                  }}
+                  className="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold transition-colors"
+                >
+                  View Assessment
+                </Button>
+              </div>
+            </div>
           </div>
         ))}
       </div>
