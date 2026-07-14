@@ -177,19 +177,32 @@ function generateScheduleId(): string {
 }
 
 // Utility functions for formatting
-export function formatScheduleDate(date: Date): string {
+export function formatScheduleDate(date: Date | string): string {
+  if (!date) return '';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return 'Invalid Date';
   return new Intl.DateTimeFormat('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric'
-  }).format(date);
+  }).format(d);
 }
 
 export function formatScheduleTime(time: string): string {
-  const [hours, minutes] = time.split(':');
-  const hour = parseInt(hours);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const displayHour = hour % 12 || 12;
+  if (!time) return '';
+  if (time.includes('T') || time.includes('-')) {
+    const d = new Date(time);
+    if (isNaN(d.getTime())) return '';
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    time = `${hours}:${minutes}`;
+  }
+  const parts = time.split(':');
+  if (parts.length < 2) return time;
+  const hours = parseInt(parts[0]);
+  const minutes = parts[1];
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHour = hours % 12 || 12;
   return `${displayHour}:${minutes} ${ampm}`;
 }
 
