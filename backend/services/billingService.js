@@ -1177,6 +1177,11 @@ const billingService = {
         // Process items and apply card-based discounts/benefits
         const { processedItems, activeCardId } = await this.applyCardBenefitsToInvoice(patient, items);
         
+        // Calculate initial subtotal, total, and balance
+        const subtotal = processedItems.reduce((sum, item) => sum + (item.total || (item.quantity * item.unitPrice)), 0);
+        const discountTotal = processedItems.reduce((sum, item) => sum + (item.discount || 0), 0);
+        const finalTotal = subtotal; // item.total already has discounts/benefits applied
+        
         // Create invoice object
         const shouldUseLabFinalizedNote = isLabService && hasFinalizedInvoice;
         const invoice = new MedicalInvoice({
@@ -1188,6 +1193,10 @@ const billingService = {
           visit,
           provider,
           items: processedItems,
+          subtotal,
+          total: finalTotal,
+          balance: finalTotal,
+          discountTotal,
           dateIssued: new Date(),
           dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
           status: 'pending',
