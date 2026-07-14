@@ -225,7 +225,8 @@ const procedureSchema = new mongoose.Schema({
     temperature: Number,
     surroundingSkin: String,
     woundBed: String,
-    infectionSigns: [String]
+    infectionSigns: [String],
+    photoUrl: String
   },
   woundCareSupplies: {
     primaryDressing: {

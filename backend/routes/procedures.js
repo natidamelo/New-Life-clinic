@@ -1151,5 +1151,51 @@ router.post('/create-from-service-requests', auth, async (req, res) => {
   }
 });
 
+// Configure multer for wound photos
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = 'uploads/procedures';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'wound-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed for wound photos'), false);
+    }
+  }
+});
+
+router.post('/upload-photo', auth, upload.single('photo'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    // Return relative URL path
+    const photoUrl = `/uploads/procedures/${req.file.filename}`;
+    res.json({ success: true, photoUrl });
+  } catch (error) {
+    console.error('Error uploading wound photo:', error);
+    res.status(500).json({ error: 'Failed to upload photo', details: error.message });
+  }
+});
 
 module.exports = router; 

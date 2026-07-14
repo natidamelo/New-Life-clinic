@@ -202,6 +202,7 @@ const Procedures: React.FC = () => {
     amount: 0
   });
   const [expandedProcedures, setExpandedProcedures] = useState<Set<string>>(new Set());
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [woundAssessmentData, setWoundAssessmentData] = useState({
     patientName: '',
     woundType: 'acute_wound',
@@ -224,8 +225,55 @@ const Procedures: React.FC = () => {
     cleansingSolution: 'normal_saline',
     frequency: 'daily',
     duration: 0,
-    specialInstructions: ''
+    specialInstructions: '',
+    photoUrl: ''
   });
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size exceeds 5MB limit');
+      return;
+    }
+
+    try {
+      setPhotoUploading(true);
+      const token = getToken();
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const uploadFormData = new FormData();
+      uploadFormData.append('photo', file);
+
+      const response = await fetch(`${API_BASE_URL}/api/procedures/upload-photo`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: uploadFormData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setWoundAssessmentData(prev => ({
+          ...prev,
+          photoUrl: data.photoUrl
+        }));
+        toast.success('Wound photo uploaded successfully');
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload photo');
+      }
+    } catch (error: any) {
+      console.error('Photo upload error:', error);
+      toast.error(`Photo upload failed: ${error.message}`);
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
 
   const [showEarIrrigationAssessment, setShowEarIrrigationAssessment] = useState(false);
   const [selectedEarIrrigationProcedure, setSelectedEarIrrigationProcedure] = useState<Procedure | null>(null);
@@ -519,7 +567,8 @@ const Procedures: React.FC = () => {
         cleansingSolution: procedure.woundCareSupplies?.cleansingSolution || 'normal_saline',
         frequency: procedure.treatmentPlan?.frequency || 'daily',
         duration: procedure.treatmentPlan?.duration || 0,
-        specialInstructions: procedure.treatmentPlan?.specialInstructions || ''
+        specialInstructions: procedure.treatmentPlan?.specialInstructions || '',
+        photoUrl: procedure.woundAssessment?.photoUrl || ''
       });
     }
     setShowWoundAssessmentModal(true);
@@ -608,7 +657,8 @@ const Procedures: React.FC = () => {
         cleansingSolution: procedure.woundCareSupplies?.cleansingSolution || 'normal_saline',
         frequency: procedure.treatmentPlan?.frequency || 'daily',
         duration: procedure.treatmentPlan?.duration || 0,
-        specialInstructions: procedure.treatmentPlan?.specialInstructions || ''
+        specialInstructions: procedure.treatmentPlan?.specialInstructions || '',
+        photoUrl: procedure.woundAssessment?.photoUrl || ''
       });
     }
     setShowWoundAssessmentModal(true);
@@ -676,7 +726,8 @@ const Procedures: React.FC = () => {
           temperature: woundAssessmentData.temperature,
           surroundingSkin: woundAssessmentData.surroundingSkin,
           woundBed: woundAssessmentData.woundBed,
-          infectionSigns: woundAssessmentData.infectionSigns
+          infectionSigns: woundAssessmentData.infectionSigns,
+          photoUrl: woundAssessmentData.photoUrl
         },
         woundCareSupplies: {
           primaryDressing: woundAssessmentData.primaryDressing,
@@ -723,7 +774,8 @@ const Procedures: React.FC = () => {
         cleansingSolution: 'normal_saline',
         frequency: 'daily',
         duration: 0,
-        specialInstructions: ''
+        specialInstructions: '',
+        photoUrl: ''
       });
       setSelectedProcedure(null);
       toast.success('Wound assessment updated successfully');
@@ -1031,6 +1083,21 @@ const Procedures: React.FC = () => {
                         <span className="text-slate-800 font-bold">{procedure.treatmentPlan?.duration ? `${procedure.treatmentPlan.duration} days` : 'Pending'}</span>
                       </div>
                     </div>
+
+                    {procedure.woundAssessment?.photoUrl && (
+                      <div className="border-t border-slate-200 bg-slate-50/40 px-3.5 py-2.5 flex items-center gap-3.5">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase">Wound Site Image:</span>
+                        <div className="w-12 h-12 rounded border border-slate-200 overflow-hidden relative shadow-2xs bg-white">
+                          <img 
+                            src={`${API_BASE_URL}${procedure.woundAssessment.photoUrl}`} 
+                            alt="Wound site" 
+                            className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                            onClick={() => window.open(`${API_BASE_URL}${procedure.woundAssessment.photoUrl}`, '_blank')}
+                          />
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-mono">(Click thumbnail to view full image)</span>
+                      </div>
+                    )}
 
                     {procedure.woundCareSupplies && (
                       <div className="bg-slate-50/50 border-t border-slate-200 px-3.5 py-2 flex items-center flex-wrap gap-1.5">
@@ -1747,19 +1814,73 @@ const Procedures: React.FC = () => {
                    </Select>
                  </div>
 
-                 <div>
-                   <Label htmlFor="painLevel">Pain Level (0-10)</Label>
-                   <Input
-                     id="painLevel"
-                     type="number"
-                     value={woundAssessmentData.painLevel}
-                     onChange={(e) => setWoundAssessmentData({...woundAssessmentData, painLevel: parseInt(e.target.value) || 0})}
-                     min="0"
-                     max="10"
-                   />
-                 </div>
-               </div>
-             </div>
+                                  <div>
+                    <Label htmlFor="painLevel">Pain Level (0-10)</Label>
+                    <Input
+                      id="painLevel"
+                      type="number"
+                      value={woundAssessmentData.painLevel}
+                      onChange={(e) => setWoundAssessmentData({...woundAssessmentData, painLevel: parseInt(e.target.value) || 0})}
+                      min="0"
+                      max="10"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <Label className="block mb-1.5 font-semibold text-slate-700">Wound Site Photo</Label>
+                    {woundAssessmentData.photoUrl ? (
+                      <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <div className="w-16 h-16 rounded overflow-hidden border border-slate-300 relative shadow-2xs">
+                          <img 
+                            src={`${API_BASE_URL}${woundAssessmentData.photoUrl}`} 
+                            alt="Wound site preview" 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-xs text-slate-600 block font-medium truncate">wound_image.jpg</span>
+                          <span className="text-[10px] text-green-600 font-semibold block">Attached successfully</span>
+                        </div>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setWoundAssessmentData({...woundAssessmentData, photoUrl: ''})}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 font-bold font-semibold"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-lg p-5 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                        {photoUploading ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            <span className="text-xs text-slate-500 font-semibold">Uploading image...</span>
+                          </div>
+                        ) : (
+                          <label className="cursor-pointer flex flex-col items-center gap-2 w-full text-center">
+                            <span className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shadow-xs">
+                              📷
+                            </span>
+                            <div>
+                              <span className="text-xs font-bold text-blue-600 block">Take Photo or Upload Image</span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">Supports camera capture on mobile</span>
+                            </div>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              capture="environment" 
+                              className="hidden" 
+                              onChange={handlePhotoUpload} 
+                            />
+                          </label>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
 
              {/* Treatment Plan Section */}
              <div className="mt-6 space-y-4">
