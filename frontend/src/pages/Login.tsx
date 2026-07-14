@@ -1372,6 +1372,12 @@ const Login: React.FC = () => {
           {/* Header Actions */}
           <div className="flex items-center gap-3">
             <button
+              onClick={() => navigate('/patient/login')}
+              className="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 border font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white border-teal-500 hover:from-teal-600 hover:to-emerald-600 hover:border-teal-600 shadow-md shadow-teal-500/20 hover:shadow-lg hover:shadow-teal-500/30 hover:scale-102 active:scale-98"
+            >
+              Patient Portal
+            </button>
+            <button
               onClick={() => {
                 setActiveTab(activeTab === 'login' ? 'home' : 'login');
               }}
