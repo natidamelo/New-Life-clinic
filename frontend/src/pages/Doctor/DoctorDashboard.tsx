@@ -2926,7 +2926,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                       </span>
                       <span className="text-gray-300 dark:text-gray-700">•</span>
                       <span className="text-xs text-gray-400">
-                        {new Date(msg.timestamp || msg.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+                        {new Date(msg.timestamp || msg.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
                     <div className="text-sm font-extrabold text-gray-900 dark:text-white">
