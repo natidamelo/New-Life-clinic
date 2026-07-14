@@ -507,6 +507,105 @@ Guidelines:
   }
 });
 
+/**
+ * @route   POST /api/patient-portal/message
+ * @desc    Send a secure message to a doctor/staff member (creates in-app Notification and Telegram alert)
+ * @access  Private (Patient only)
+ */
+router.post('/message', async (req, res, next) => {
+  try {
+    const { recipientId, recipientRole = 'doctor', subject, message } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Message content is required.'
+      });
+    }
+
+    const patient = await Patient.findById(req.user.patient);
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Clinical patient record not found.'
+      });
+    }
+
+    const patientName = `${patient.firstName} ${patient.lastName}`;
+    const Notification = require('../models/Notification');
+    const notificationService = require('../services/notificationService');
+
+    // Create MongoDB in-app notification for the doctor/staff
+    const newNotification = new Notification({
+      clinicId: patient.clinicId || 'default',
+      title: subject || `New message from patient: ${patientName}`,
+      message: message,
+      type: 'new_message',
+      senderId: req.user._id,
+      senderRole: 'patient',
+      recipientId: recipientId || null,
+      recipientRole: recipientRole,
+      priority: 'medium',
+      category: 'patient',
+      data: {
+        patientId: patient._id,
+        patientName: patientName,
+        subject: subject || 'General Inquiry'
+      }
+    });
+
+    await newNotification.save();
+
+    // Optionally send real-time Telegram notification if bot is active
+    try {
+      let recipientUser = null;
+      if (recipientId) {
+        recipientUser = await User.findById(recipientId);
+      }
+      
+      const telegramMessage = `✉️ <b>New Patient Message</b>\n\n` +
+        `<b>From:</b> ${patientName} (Patient)\n` +
+        `<b>Subject:</b> ${subject || 'General Inquiry'}\n` +
+        `<b>Message:</b> ${message}\n\n` +
+        `<i>Please log in to your dashboard to view and reply.</i>`;
+
+      if (recipientUser && recipientUser.telegramNotificationsEnabled && recipientUser.telegramChatId) {
+        const telegramService = require('../services/telegramService');
+        await telegramService.initialize();
+        if (telegramService.isBotInitialized()) {
+          await telegramService.sendMessageToStaff(recipientUser.telegramChatId, telegramMessage, { parse_mode: 'HTML' });
+        }
+      } else {
+        // Broadcast message notification to doctors/relevant staff if no specific recipient ID
+        const recipients = await notificationService.getNotificationRecipients(
+          notificationService.notificationTypes.PATIENT_ASSIGNMENT,
+          { role: recipientRole }
+        );
+        for (const recipient of recipients) {
+          if (recipient.telegramNotificationsEnabled && recipient.telegramChatId) {
+            const telegramService = require('../services/telegramService');
+            await telegramService.initialize();
+            if (telegramService.isBotInitialized()) {
+              await telegramService.sendMessageToStaff(recipient.telegramChatId, telegramMessage, { parse_mode: 'HTML' });
+            }
+          }
+        }
+      }
+    } catch (tgError) {
+      console.warn('[Patient Portal Message] Telegram broadcast failed:', tgError.message);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Message sent successfully.',
+      data: newNotification
+    });
+  } catch (error) {
+    logger.error('Failed to send patient message to doctor', { error: error.message });
+    next(error);
+  }
+});
+
 function getLocalChatFallback(query, context) {
   const q = (query || '').toLowerCase();
   

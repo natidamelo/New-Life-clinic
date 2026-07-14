@@ -834,28 +834,46 @@ const PatientDashboard: React.FC = () => {
   };
 
   // ─────────────────────────────────────────────────────────────
-  // COMPOSE MESSAGE HANDLER (local only)
+  // COMPOSE MESSAGE HANDLER (linked to backend)
   // ─────────────────────────────────────────────────────────────
-  const handleSendSecureMessage = () => {
+  const handleSendSecureMessage = async () => {
     if (!composeSubject.trim() || !composeBody.trim()) {
       toast.error('Please fill in subject and message body.');
       return;
     }
-    const newMsg: SecureMessage = {
-      id: 'msg-' + Math.random().toString(36).substring(7),
-      from: `${patient?.firstName} ${patient?.lastName}`,
-      subject: `[${composeCategory}] ${composeSubject}`,
-      body: composeBody,
-      date: new Date(),
-      read: true,
-      category: composeCategory
-    };
-    setSecureMessages(prev => [newMsg, ...prev]);
-    setComposeSubject('');
-    setComposeBody('');
-    setComposeCategory('General Inquiry');
-    setIsComposing(false);
-    toast.success('Message sent! You will receive a response within 24-48 hours.');
+    
+    try {
+      toast.loading('Sending secure message...', { id: 'send-msg' });
+      
+      const res = await api.post('/api/patient-portal/message', {
+        recipientRole: 'doctor',
+        subject: `[${composeCategory}] ${composeSubject}`,
+        message: composeBody
+      });
+      
+      if (res.data.success) {
+        const newMsg: SecureMessage = {
+          id: res.data.data._id || 'msg-' + Math.random().toString(36).substring(7),
+          from: `${patient?.firstName} ${patient?.lastName}`,
+          subject: `[${composeCategory}] ${composeSubject}`,
+          body: composeBody,
+          date: new Date(),
+          read: true,
+          category: composeCategory
+        };
+        setSecureMessages(prev => [newMsg, ...prev]);
+        setComposeSubject('');
+        setComposeBody('');
+        setComposeCategory('General Inquiry');
+        setIsComposing(false);
+        toast.success('Message sent! You will receive a response within 24-48 hours.', { id: 'send-msg' });
+      } else {
+        toast.error(res.data.message || 'Failed to send message.', { id: 'send-msg' });
+      }
+    } catch (error: any) {
+      console.error('Error sending secure message:', error);
+      toast.error(error.response?.data?.message || 'Server error occurred while sending message.', { id: 'send-msg' });
+    }
   };
 
   // ─────────────────────────────────────────────────────────────
