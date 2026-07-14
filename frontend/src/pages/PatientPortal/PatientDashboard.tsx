@@ -105,6 +105,7 @@ interface MedicalRecordData {
 interface SecureMessage {
   id: string;
   from: string;
+  to?: string;
   subject: string;
   body: string;
   date: Date;
@@ -177,6 +178,8 @@ const PatientDashboard: React.FC = () => {
   const [composeCategory, setComposeCategory] = useState('General Inquiry');
   const [composeSubject, setComposeSubject] = useState('');
   const [composeBody, setComposeBody] = useState('');
+  const [doctorsList, setDoctorsList] = useState<any[]>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState('');
 
   // Mobile more menu
   const [showMobileMore, setShowMobileMore] = useState(false);
@@ -357,6 +360,19 @@ const PatientDashboard: React.FC = () => {
       const prescriptionsRes = await api.get('/api/patient-portal/prescriptions');
       if (prescriptionsRes.data.success) {
         setPrescriptions(prescriptionsRes.data.data);
+      }
+
+      // Fetch active doctors list
+      try {
+        const doctorsRes = await api.get('/api/doctors/all');
+        if (Array.isArray(doctorsRes.data)) {
+          setDoctorsList(doctorsRes.data);
+          if (doctorsRes.data.length > 0) {
+            setSelectedDoctorId(doctorsRes.data[0].id || '');
+          }
+        }
+      } catch (docErr) {
+        console.error('Failed to fetch doctors list:', docErr);
       }
 
     } catch (error: any) {
@@ -845,7 +861,11 @@ const PatientDashboard: React.FC = () => {
     try {
       toast.loading('Sending secure message...', { id: 'send-msg' });
       
+      const selectedDoc = doctorsList.find(d => d.id === selectedDoctorId);
+      const docName = selectedDoc ? `Dr. ${selectedDoc.firstName} ${selectedDoc.lastName}` : 'Doctor (Broadcast)';
+      
       const res = await api.post('/api/patient-portal/message', {
+        recipientId: selectedDoctorId || null,
         recipientRole: 'doctor',
         subject: `[${composeCategory}] ${composeSubject}`,
         message: composeBody
@@ -855,6 +875,7 @@ const PatientDashboard: React.FC = () => {
         const newMsg: SecureMessage = {
           id: res.data.data._id || 'msg-' + Math.random().toString(36).substring(7),
           from: `${patient?.firstName} ${patient?.lastName}`,
+          to: docName,
           subject: `[${composeCategory}] ${composeSubject}`,
           body: composeBody,
           date: new Date(),
@@ -866,7 +887,7 @@ const PatientDashboard: React.FC = () => {
         setComposeBody('');
         setComposeCategory('General Inquiry');
         setIsComposing(false);
-        toast.success('Message sent! You will receive a response within 24-48 hours.', { id: 'send-msg' });
+        toast.success(`Message sent directly to ${docName}! You will receive a response within 24-48 hours.`, { id: 'send-msg' });
       } else {
         toast.error(res.data.message || 'Failed to send message.', { id: 'send-msg' });
       }
@@ -2420,6 +2441,22 @@ const PatientDashboard: React.FC = () => {
                           </select>
                         </div>
                         <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: '#94a3b8' }}>Select Doctor (Confidential)</label>
+                          <select
+                            value={selectedDoctorId}
+                            onChange={e => setSelectedDoctorId(e.target.value)}
+                            className="w-full h-10 px-3 rounded-xl text-xs outline-none"
+                            style={inputStyle}
+                          >
+                            <option value="" style={{ background: isDarkMode ? '#1e293b' : '#ffffff' }}>Broadcast to All Available Doctors</option>
+                            {doctorsList.map(doc => (
+                              <option key={doc.id} value={doc.id} style={{ background: isDarkMode ? '#1e293b' : '#ffffff' }}>
+                                Dr. {doc.firstName} {doc.lastName} ({doc.specialization || 'General Practitioner'})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
                           <label className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: '#94a3b8' }}>Subject</label>
                           <input
                             type="text"
@@ -2471,6 +2508,12 @@ const PatientDashboard: React.FC = () => {
                         <h3 className="text-base font-extrabold">{selectedMessage.subject}</h3>
                         <div className="flex items-center gap-2 text-[11px]" style={{ color: '#64748b' }}>
                           <span className="font-bold">{selectedMessage.from}</span>
+                          {selectedMessage.to && (
+                            <>
+                              <span>•</span>
+                              <span className="font-semibold text-teal-500 dark:text-cyan-400">To: {selectedMessage.to}</span>
+                            </>
+                          )}
                           <span>•</span>
                           <span>{selectedMessage.date.toLocaleDateString('en-US', { dateStyle: 'long' })}</span>
                         </div>
@@ -2512,7 +2555,7 @@ const PatientDashboard: React.FC = () => {
                               {!msg.read && <div className="h-2 w-2 rounded-full shrink-0" style={{ background: '#3b82f6' }} />}
                               <p className="text-sm truncate" style={{ fontWeight: msg.read ? 500 : 700 }}>{msg.subject}</p>
                             </div>
-                            <p className="text-[11px] truncate" style={{ color: '#64748b' }}>From: {msg.from}</p>
+                            <p className="text-[11px] truncate" style={{ color: '#64748b' }}>From: {msg.from} {msg.to && `• To: ${msg.to}`}</p>
                           </div>
                           <span className="text-[10px] shrink-0" style={{ color: '#94a3b8' }}>
                             {msg.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
