@@ -22,7 +22,7 @@ import {
   ClipboardIcon,
   ArrowLeftIcon as ArrowBack,
 } from 'lucide-react';
-import { RefreshCw, Activity, Pill, AlertTriangle, ListChecks, TrendingUp, Search, User as LucideUser, Clock as LucideClock, FileText as LucideFileText, Stethoscope as LucideStethoscope, ArrowUpDown, FlaskConical, Sun, Moon, Link as LinkIcon, Stethoscope, ClipboardList } from 'lucide-react';
+import { RefreshCw, Activity, Pill, AlertTriangle, ListChecks, TrendingUp, Search, User as LucideUser, Clock as LucideClock, FileText as LucideFileText, Stethoscope as LucideStethoscope, ArrowUpDown, FlaskConical, Sun, Moon, Link as LinkIcon, Stethoscope, ClipboardList, Mail } from 'lucide-react';
 import attendanceService from '../../services/attendanceService';
 import { toast, Toaster } from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
@@ -357,7 +357,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
     labResults: 0
   });
   const [selectedPatientForAction, setSelectedPatientForAction] = useState<PatientType | null>(null);
-  const [activeTab, setActiveTab] = useState<'patients' | 'my-appointments' | 'appointments' | 'lab-results' | 'imaging-results' | 'prescriptions' | 'Medical Records' | 'completed-patients'>(initialTab as any);
+  const [activeTab, setActiveTab] = useState<'patients' | 'my-appointments' | 'appointments' | 'lab-results' | 'imaging-results' | 'prescriptions' | 'Medical Records' | 'completed-patients' | 'patient-messages'>(initialTab as any);
   const [labResults, setLabResults] = useState<LabResult[]>([]);
   const [groupedLabResults, setGroupedLabResults] = useState<PatientLabResults[]>([]);
   const [labResultsLoading, setLabResultsLoading] = useState(false);
@@ -419,6 +419,10 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
   const [medicalRecordsPage, setMedicalRecordsPage] = useState(1);
   const [medicalRecordsTotalPages, setMedicalRecordsTotalPages] = useState(1);
   const [medicalRecordsStatusFilter, setMedicalRecordsStatusFilter] = useState<'active' | 'finalized' | 'all'>('active');
+  const [patientMessages, setPatientMessages] = useState<any[]>([]);
+  const [patientMessagesLoading, setPatientMessagesLoading] = useState(false);
+  const [patientMessagesPage, setPatientMessagesPage] = useState(1);
+  const [patientMessagesTotalPages, setPatientMessagesTotalPages] = useState(1);
 
   const [visits, setVisits] = useState<any[]>([]);
   const [nurses, setNurses] = useState<any[]>([]);
@@ -1181,6 +1185,47 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       setIsLoadingCompletedPatients(false);
     }
   };
+
+  // Fetch patient secure messages from the notifications system
+  const fetchPatientMessages = useCallback(async () => {
+    try {
+      setPatientMessagesLoading(true);
+      const res = await api.get('/api/notifications', {
+        params: {
+          type: 'new_message',
+          page: patientMessagesPage,
+          limit: 20
+        }
+      });
+      if (res.data.success) {
+        setPatientMessages(res.data.data || []);
+        setPatientMessagesTotalPages(res.data.pagination?.totalPages || 1);
+      }
+    } catch (err) {
+      console.error('Error fetching patient portal messages:', err);
+      toast.error('Failed to fetch patient portal messages.');
+    } finally {
+      setPatientMessagesLoading(false);
+    }
+  }, [patientMessagesPage]);
+
+  const handleMarkMessageAsRead = async (msgId: string) => {
+    try {
+      await api.put(`/api/notifications/${msgId}/read`);
+      setPatientMessages(prev => prev.map(m => m._id === msgId ? { ...m, read: true } : m));
+      toast.success('Message marked as read');
+    } catch (err) {
+      console.error('Failed to mark message as read:', err);
+      toast.error('Failed to mark message as read');
+    }
+  };
+
+  // Fetch patient messages when tab is activated
+  useEffect(() => {
+    if (activeTab === 'patient-messages' && isAuthenticated) {
+      fetchPatientMessages();
+    }
+  }, [activeTab, fetchPatientMessages, isAuthenticated]);
 
   // Fetch completed patients when the tab is activated or component mounts
   useEffect(() => {
@@ -2825,6 +2870,102 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
     }
   };
 
+  // Render the Patient Messages tab content
+  const renderPatientMessagesTab = () => {
+    if (patientMessagesLoading && patientMessages.length === 0) {
+      return (
+        <div className="flex items-center justify-center p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-border rounded-xl">
+          <RefreshCw className="animate-spin h-6 w-6 text-primary mr-2" />
+          <span className="text-sm font-semibold">Retrieving patient messages...</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-100 rounded-xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-500 flex items-center justify-center flex-shrink-0">
+              <Mail className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-rose-900">Confidential Patient Portal Messages</h2>
+              <p className="text-xs text-rose-600">Secure messages sent by patients directly to you</p>
+            </div>
+          </div>
+          <button
+            onClick={() => fetchPatientMessages()}
+            disabled={patientMessagesLoading}
+            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-rose-700 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            <RefreshCw size={12} className={patientMessagesLoading ? 'animate-spin' : ''} /> Refresh
+          </button>
+        </div>
+
+        {patientMessages.length === 0 ? (
+          <div className="text-center py-12 bg-white dark:bg-slate-900 border border-gray-100 dark:border-border rounded-xl">
+            <Mail className="mx-auto h-8 w-8 text-gray-300 mb-2" />
+            <p className="text-sm text-gray-500 font-medium">No secure patient messages on file.</p>
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-border rounded-xl overflow-hidden shadow-sm">
+            <div className="divide-y divide-gray-100 dark:divide-border">
+              {patientMessages.map((msg) => (
+                <div 
+                  key={msg._id} 
+                  className={`p-4 transition-colors flex flex-col md:flex-row md:items-start justify-between gap-4 ${
+                    msg.read ? 'bg-transparent' : 'bg-rose-50/10 dark:bg-rose-950/5 font-medium'
+                  }`}
+                >
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      {!msg.read && <div className="h-2 w-2 rounded-full shrink-0 bg-rose-500" />}
+                      <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                        {msg.data?.subject || msg.title || 'Patient Message'}
+                      </span>
+                      <span className="text-gray-300 dark:text-gray-700">•</span>
+                      <span className="text-xs text-gray-400">
+                        {new Date(msg.timestamp || msg.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </span>
+                    </div>
+                    <div className="text-sm font-extrabold text-gray-900 dark:text-white">
+                      From: {msg.data?.patientName || (msg.senderId ? `${msg.senderId.firstName} ${msg.senderId.lastName}` : 'Patient')}
+                    </div>
+                    <p className="text-xs text-gray-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                      {msg.message}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 self-end md:self-center">
+                    {!msg.read && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleMarkMessageAsRead(msg._id)}
+                        className="text-xs h-8 cursor-pointer border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-400"
+                      >
+                        Mark as Read
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {patientMessagesTotalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-slate-800/40 border-t border-gray-100 dark:border-border mt-2">
+                <div className="text-xs text-muted-foreground">Page {patientMessagesPage} of {patientMessagesTotalPages}</div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={patientMessagesPage <= 1} onClick={() => setPatientMessagesPage(Math.max(1, patientMessagesPage - 1))}>Previous</Button>
+                  <Button variant="outline" size="sm" disabled={patientMessagesPage >= patientMessagesTotalPages} onClick={() => setPatientMessagesPage(Math.min(patientMessagesTotalPages, patientMessagesPage + 1))}>Next</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Update the Medical Records Tab content
   const renderMedicalRecordsTab = () => (
     <div className="mt-4 space-y-4">
@@ -3279,6 +3420,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
               { value: 'prescriptions', label: 'Prescriptions', icon: '💊', dot: '#22C55E', bg: '#F0FDF4' },
               { value: 'Medical Records', label: 'Medical Records', icon: '📋', dot: '#6366F1', bg: '#EEF2FF' },
               { value: 'completed-patients', label: 'Completed Patients', icon: '✅', dot: '#14B8A6', bg: '#F0FDFA' },
+              { value: 'patient-messages', label: 'Patient Messages', icon: '✉️', dot: '#F43F5E', bg: '#FFF1F2' },
             ].map(tab => (
               <TabsTrigger
                 key={tab.value}
@@ -4271,6 +4413,9 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                 </div>
               </div>
             )}
+          </TabsContent>
+          <TabsContent value="patient-messages" className="mt-4">
+            {renderPatientMessagesTab()}
           </TabsContent>
         </Tabs>
       </div>
