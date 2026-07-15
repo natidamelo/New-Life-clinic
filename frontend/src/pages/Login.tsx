@@ -875,6 +875,13 @@ const Login: React.FC = () => {
   });
   const [cardResult, setCardResult] = useState<any>(null);
   const [cardLoading, setCardLoading] = useState(false);
+  const [cardTypes, setCardTypes] = useState<any[]>([
+    { name: 'Basic', price: 500, discounts: { service: 5 }, freeConsultations: 1, freeLabTests: 0, priorityAppointments: false },
+    { name: 'Premium', price: 1200, discounts: { service: 15 }, freeConsultations: 3, freeLabTests: 0, priorityAppointments: true },
+    { name: 'VIP', price: 2500, discounts: { service: 25 }, freeConsultations: 999, freeLabTests: 5, priorityAppointments: true },
+    { name: 'Family', price: 4000, discounts: { service: 20 }, freeConsultations: 5, freeLabTests: 2, priorityAppointments: true }
+  ]);
+  const [cardTypesLoading, setCardTypesLoading] = useState(false);
 
   // Load public data on mount
   useEffect(() => {
@@ -882,6 +889,7 @@ const Login: React.FC = () => {
     fetchPackages();
     fetchDoctors();
     fetchVitalsStats();
+    fetchCardTypes();
   }, []);
 
   const fetchVitalsStats = async () => {
@@ -946,6 +954,72 @@ const Login: React.FC = () => {
       console.error('Error fetching doctors list:', err);
       setDoctors(FALLBACK_DOCTORS);
     }
+  };
+
+  const fetchCardTypes = async () => {
+    setCardTypesLoading(true);
+    try {
+      const res = await api.get('/api/public/card-types');
+      if (res.data && res.data.success && res.data.data.length > 0) {
+        setCardTypes(res.data.data);
+        // Automatically select the first fetched card type as default if current selected isn't in fetched
+        const fetchedNames = res.data.data.map((c: any) => c.name);
+        if (!fetchedNames.includes(cardForm.cardType) && res.data.data[0]) {
+          setCardForm(prev => ({ ...prev, cardType: res.data.data[0].name }));
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching public card types:', err);
+    } finally {
+      setCardTypesLoading(false);
+    }
+  };
+
+  const getCardBenefits = (ct: any) => {
+    const serviceDisc = ct.discounts?.service || 0;
+    const labDisc = ct.discounts?.lab || 0;
+    const consultDisc = ct.discounts?.consultation || 0;
+    const freeConsult = ct.freeConsultations || 0;
+    const freeLab = ct.freeLabTests || 0;
+    const hasPriority = ct.priorityAppointments || false;
+    const groupDisc = ct.groupDiscount || 0;
+
+    let disc = '';
+    if (serviceDisc > 0) {
+      disc = `${serviceDisc}% Service Discount`;
+    } else if (groupDisc > 0) {
+      disc = `${groupDisc}% Group Discount`;
+    } else {
+      disc = ct.description || 'General membership card';
+    }
+
+    let consult = 'Standard consultations';
+    if (freeConsult > 0) {
+      consult = (freeConsult === 999 || freeConsult > 900) ? 'Unlimited Consultations' : `${freeConsult} Free Consultation${freeConsult > 1 ? 's' : ''}`;
+    } else if (consultDisc > 0) {
+      consult = `${consultDisc}% Consultation Discount`;
+    } else {
+      consult = 'Standard Consultations';
+    }
+
+    let lab = 'Standard appointments';
+    if (freeLab > 0) {
+      lab = `${freeLab} Free Lab Test${freeLab > 1 ? 's' : ''}`;
+      if (hasPriority) {
+        lab += ' & Priority Appts';
+      }
+    } else if (labDisc > 0) {
+      lab = `${labDisc}% Lab Test Discount`;
+      if (hasPriority) {
+        lab += ' & Priority Appts';
+      }
+    } else if (hasPriority) {
+      lab = 'Priority Appointments';
+    } else {
+      lab = 'No free lab tests';
+    }
+
+    return { disc, consult, lab };
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -2166,34 +2240,32 @@ const Login: React.FC = () => {
                     <p className="text-xs text-slate-400">Choose a package tier that best suits your family discount needs.</p>
 
                     <div className="grid sm:grid-cols-2 gap-4">
-                      {[
-                        { type: 'Basic', price: '500 ETB', disc: '5% Service Discount', consult: '1 Free Consultation', lab: 'No free lab tests' },
-                        { type: 'Premium', price: '1200 ETB', disc: '15% Service Discount', consult: '3 Free Consultations', lab: 'Priority Appointments' },
-                        { type: 'VIP', price: '2500 ETB', disc: '25% Service Discount', consult: 'Unlimited Consultations', lab: '5 Free Lab Tests' },
-                        { type: 'Family', price: '4000 ETB', disc: '20% Group Discount', consult: '5 Free Consultations', lab: '2 Free Lab Tests' },
-                      ].map(tier => (
-                        <div
-                          key={tier.type}
-                          onClick={() => setCardForm({...cardForm, cardType: tier.type})}
-                          className={`p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 ${
-                            cardForm.cardType === tier.type
-                              ? isDarkMode
-                                ? 'bg-cyan-400/10 border-cyan-400 shadow-lg shadow-cyan-500/10'
-                                : 'bg-teal-50 border-teal-600 shadow-lg shadow-teal-500/10'
-                              : isDarkMode ? 'border-slate-800 bg-slate-900/20 hover:border-slate-700' : 'border-slate-200 bg-white hover:border-slate-300'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="font-extrabold text-sm tracking-tight">{tier.type} Tier</span>
-                            <span className={`font-black text-xs ${isDarkMode ? 'text-cyan-300' : 'text-teal-600'}`}>{tier.price}</span>
+                      {cardTypes.map(ct => {
+                        const benefits = getCardBenefits(ct);
+                        return (
+                          <div
+                            key={ct._id || ct.name}
+                            onClick={() => setCardForm({...cardForm, cardType: ct.name})}
+                            className={`p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 ${
+                              cardForm.cardType === ct.name
+                                ? isDarkMode
+                                  ? 'bg-cyan-400/10 border-cyan-400 shadow-lg shadow-cyan-500/10'
+                                  : 'bg-teal-50 border-teal-600 shadow-lg shadow-teal-500/10'
+                                : isDarkMode ? 'border-slate-800 bg-slate-900/20 hover:border-slate-700' : 'border-slate-200 bg-white hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="font-extrabold text-sm tracking-tight">{ct.name} Tier</span>
+                              <span className={`font-black text-xs ${isDarkMode ? 'text-cyan-300' : 'text-teal-600'}`}>{ct.price} ETB</span>
+                            </div>
+                            <div className="space-y-1 text-[10px] text-slate-400">
+                              <p className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> {benefits.disc}</p>
+                              <p className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> {benefits.consult}</p>
+                              <p className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> {benefits.lab}</p>
+                            </div>
                           </div>
-                          <div className="space-y-1 text-[10px] text-slate-400">
-                            <p className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> {tier.disc}</p>
-                            <p className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> {tier.consult}</p>
-                            <p className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> {tier.lab}</p>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     <div className="flex gap-3 pt-4">

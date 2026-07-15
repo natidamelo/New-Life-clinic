@@ -6,6 +6,7 @@ const Patient = require('../models/Patient');
 const PatientCard = require('../models/PatientCard');
 const Appointment = require('../models/Appointment');
 const User = require('../models/User');
+const CardType = require('../models/CardType');
 
 // GET /api/public/doctors - Get active staff for booking (doctors, nurses, lab, imaging)
 router.get('/doctors', async (req, res) => {
@@ -52,6 +53,17 @@ router.get('/packages', async (req, res) => {
   } catch (error) {
     console.error('Error fetching public health packages:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch health packages', error: error.message });
+  }
+});
+
+// GET /api/public/card-types - Get all active card types
+router.get('/card-types', async (req, res) => {
+  try {
+    const cardTypes = await CardType.find({ isActive: true }).sort({ price: 1 }).lean();
+    res.json({ success: true, count: cardTypes.length, data: cardTypes });
+  } catch (error) {
+    console.error('Error fetching public card types:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch card types', error: error.message });
   }
 });
 
@@ -127,21 +139,41 @@ router.post('/register-patient', async (req, res) => {
     const expiryDate = new Date(now);
     expiryDate.setFullYear(expiryDate.getFullYear() + 1);
 
+    // Lookup card type in database
+    const cardTypeDoc = await CardType.findOne({
+      isActive: true,
+      $or: [
+        { name: cardType },
+        { value: cardType ? cardType.toLowerCase() : '' }
+      ]
+    }).lean();
+
     let amountPaid = 0;
     let benefits = { discountPercentage: 0, freeConsultations: 0, priorityAppointments: false, freeLabTests: 0 };
 
-    if (cardType === 'Basic') {
-      amountPaid = 500;
-      benefits = { discountPercentage: 5, freeConsultations: 1, priorityAppointments: false, freeLabTests: 0 };
-    } else if (cardType === 'Premium') {
-      amountPaid = 1200;
-      benefits = { discountPercentage: 15, freeConsultations: 3, priorityAppointments: true, freeLabTests: 0 };
-    } else if (cardType === 'VIP') {
-      amountPaid = 2500;
-      benefits = { discountPercentage: 25, freeConsultations: 999, priorityAppointments: true, freeLabTests: 5 };
-    } else if (cardType === 'Family') {
-      amountPaid = 4000;
-      benefits = { discountPercentage: 20, freeConsultations: 5, priorityAppointments: true, freeLabTests: 2 };
+    if (cardTypeDoc) {
+      amountPaid = cardTypeDoc.price;
+      benefits = {
+        discountPercentage: cardTypeDoc.discounts?.service || 0,
+        freeConsultations: cardTypeDoc.freeConsultations || 0,
+        priorityAppointments: cardTypeDoc.priorityAppointments || false,
+        freeLabTests: cardTypeDoc.freeLabTests || 0
+      };
+    } else {
+      // Fallback to legacy hardcoded values
+      if (cardType === 'Basic') {
+        amountPaid = 500;
+        benefits = { discountPercentage: 5, freeConsultations: 1, priorityAppointments: false, freeLabTests: 0 };
+      } else if (cardType === 'Premium') {
+        amountPaid = 1200;
+        benefits = { discountPercentage: 15, freeConsultations: 3, priorityAppointments: true, freeLabTests: 0 };
+      } else if (cardType === 'VIP') {
+        amountPaid = 2500;
+        benefits = { discountPercentage: 25, freeConsultations: 999, priorityAppointments: true, freeLabTests: 5 };
+      } else if (cardType === 'Family') {
+        amountPaid = 4000;
+        benefits = { discountPercentage: 20, freeConsultations: 5, priorityAppointments: true, freeLabTests: 2 };
+      }
     }
 
     const patientCard = new PatientCard({
