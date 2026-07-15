@@ -30,19 +30,14 @@ async function checkDoctorAvailability(doctorId, appointmentDateTime, durationMi
 
   // 2. Verify Working Hours if enabled
   if (doctor.workingHours && doctor.workingHours.enabled) {
-    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const weekdayName = weekdays[newStart.getDay()];
+    // Format YYYY-MM-DD in local timezone
+    const yyyy = newStart.getFullYear();
+    const mm = String(newStart.getMonth() + 1).padStart(2, '0');
+    const dd = String(newStart.getDate()).padStart(2, '0');
+    const dateKey = `${yyyy}-${mm}-${dd}`;
 
-    const allowedDays = doctor.workingHours.days || [];
-    if (!allowedDays.includes(weekdayName)) {
-      return {
-        available: false,
-        message: `${doctor.firstName} ${doctor.lastName} is not scheduled to work on ${weekdayName}s.`
-      };
-    }
-
-    const startHourStr = doctor.workingHours.startTime || '09:00';
-    const endHourStr = doctor.workingHours.endTime || '17:00';
+    const specialDates = doctor.workingHours.specialDates || [];
+    const override = specialDates.find(o => o.date === dateKey);
 
     const getMinutesSinceMidnight = (date) => date.getHours() * 60 + date.getMinutes();
     const getMinutesFromStr = (str) => {
@@ -50,16 +45,57 @@ async function checkDoctorAvailability(doctorId, appointmentDateTime, durationMi
       return h * 60 + m;
     };
 
-    const newStartMinutes = getMinutesSinceMidnight(newStart);
-    const newEndMinutes = getMinutesSinceMidnight(newEnd);
-    const workingStartMinutes = getMinutesFromStr(startHourStr);
-    const workingEndMinutes = getMinutesFromStr(endHourStr);
+    if (override) {
+      // If day is specifically marked as blocked/holiday
+      if (!override.enabled) {
+        return {
+          available: false,
+          message: `${doctor.firstName} ${doctor.lastName} is unavailable (Off/Holiday) on ${dateKey}.`
+        };
+      }
 
-    if (newStartMinutes < workingStartMinutes || newEndMinutes > workingEndMinutes) {
-      return {
-        available: false,
-        message: `${doctor.firstName} ${doctor.lastName} is only available between ${startHourStr} and ${endHourStr}.`
-      };
+      // If day has custom overridden hours
+      const startHourStr = override.startTime || '09:00';
+      const endHourStr = override.endTime || '17:00';
+
+      const newStartMinutes = getMinutesSinceMidnight(newStart);
+      const newEndMinutes = getMinutesSinceMidnight(newEnd);
+      const workingStartMinutes = getMinutesFromStr(startHourStr);
+      const workingEndMinutes = getMinutesFromStr(endHourStr);
+
+      if (newStartMinutes < workingStartMinutes || newEndMinutes > workingEndMinutes) {
+        return {
+          available: false,
+          message: `${doctor.firstName} ${doctor.lastName} is only available between ${startHourStr} and ${endHourStr} on ${dateKey}.`
+        };
+      }
+    } else {
+      // Fallback to default weekly schedule rules
+      const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const weekdayName = weekdays[newStart.getDay()];
+
+      const allowedDays = doctor.workingHours.days || [];
+      if (!allowedDays.includes(weekdayName)) {
+        return {
+          available: false,
+          message: `${doctor.firstName} ${doctor.lastName} is not scheduled to work on ${weekdayName}s.`
+        };
+      }
+
+      const startHourStr = doctor.workingHours.startTime || '09:00';
+      const endHourStr = doctor.workingHours.endTime || '17:00';
+
+      const newStartMinutes = getMinutesSinceMidnight(newStart);
+      const newEndMinutes = getMinutesSinceMidnight(newEnd);
+      const workingStartMinutes = getMinutesFromStr(startHourStr);
+      const workingEndMinutes = getMinutesFromStr(endHourStr);
+
+      if (newStartMinutes < workingStartMinutes || newEndMinutes > workingEndMinutes) {
+        return {
+          available: false,
+          message: `${doctor.firstName} ${doctor.lastName} is only available between ${startHourStr} and ${endHourStr}.`
+        };
+      }
     }
   }
 

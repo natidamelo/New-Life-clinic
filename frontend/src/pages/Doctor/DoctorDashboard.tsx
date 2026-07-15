@@ -380,6 +380,15 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
   const [scheduleEnd, setScheduleEnd] = useState('17:00');
   const [scheduleSaving, setScheduleSaving] = useState(false);
 
+  // Calendar Scheduler overrides states
+  const [scheduleSpecialDates, setScheduleSpecialDates] = useState<{ date: string; enabled: boolean; startTime?: string; endTime?: string; }[]>([]);
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
+  const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [overrideEnabled, setOverrideEnabled] = useState(false);
+  const [overrideStart, setOverrideStart] = useState('09:00');
+  const [overrideEnd, setOverrideEnd] = useState('17:00');
+
   // Initialize schedule settings from logged in user profile
   useEffect(() => {
     if (user && user.workingHours) {
@@ -387,6 +396,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
       setScheduleDays(user.workingHours.days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
       setScheduleStart(user.workingHours.startTime || '09:00');
       setScheduleEnd(user.workingHours.endTime || '17:00');
+      setScheduleSpecialDates(user.workingHours.specialDates || []);
     }
   }, [user]);
 
@@ -2887,6 +2897,24 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
     }
   };
 
+  const getDaysInMonth = (monthDate: Date) => {
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    
+    const days = [];
+    // Pad previous month days
+    for (let i = 0; i < firstDayIndex; i++) {
+      days.push(null);
+    }
+    // Current month days
+    for (let d = 1; d <= totalDays; d++) {
+      days.push(new Date(year, month, d));
+    }
+    return days;
+  };
+
   const handleSaveSchedule = async () => {
     setScheduleSaving(true);
     try {
@@ -2895,7 +2923,8 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
           enabled: scheduleEnabled,
           days: scheduleDays,
           startTime: scheduleStart,
-          endTime: scheduleEnd
+          endTime: scheduleEnd,
+          specialDates: scheduleSpecialDates
         }
       });
       if (response.data?.success) {
@@ -2905,7 +2934,8 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
             enabled: scheduleEnabled,
             days: scheduleDays,
             startTime: scheduleStart,
-            endTime: scheduleEnd
+            endTime: scheduleEnd,
+            specialDates: scheduleSpecialDates
           }
         } as any);
         toast.success('Schedule saved successfully!');
@@ -2924,41 +2954,37 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
     const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     
     return (
-      <div className="space-y-6 max-w-3xl">
+      <div className="space-y-6 max-w-4xl">
         <Card className="border border-gray-200 dark:border-border rounded-2xl shadow-sm overflow-hidden bg-white dark:bg-card">
-          <CardHeader className="border-b border-gray-100 dark:border-border pb-4 bg-gradient-to-r from-gray-50 to-amber-50/10 dark:from-muted/40">
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <span className="text-xl">⏰</span> My Schedule & Working Hours
-            </CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Set your weekly shift schedule and time slots to automatically manage patient self-booking availability.
-            </p>
+          <CardHeader className="border-b border-gray-100 dark:border-border pb-4 bg-gradient-to-r from-gray-50 to-amber-50/10 dark:from-muted/40 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+            <div>
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <span className="text-xl">⏰</span> My Schedule & Working Hours
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Set your weekly shift schedule and time slots to automatically manage patient self-booking availability.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 p-3 rounded-xl border border-amber-500/10 bg-amber-500/[0.02] dark:bg-amber-500/[0.01]">
+              <div className="space-y-0.5">
+                <h4 className="text-xs font-bold">Restrict Bookings</h4>
+                <p className="text-[10px] text-muted-foreground">Enforce schedule rules on booking portal</p>
+              </div>
+              <input
+                type="checkbox"
+                id="schedule-enabled-toggle"
+                checked={scheduleEnabled}
+                onChange={(e) => setScheduleEnabled(e.target.checked)}
+                className="w-9 h-5 rounded-full appearance-none bg-slate-200 dark:bg-slate-700 checked:bg-amber-500 relative transition-colors duration-200 cursor-pointer before:content-[''] before:absolute before:w-4 before:h-4 before:rounded-full before:bg-white before:top-0.5 before:left-0.5 checked:before:translate-x-4 before:transition-transform before:duration-200 shadow-sm"
+              />
+            </div>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
-            {/* Toggle availability checks */}
-            <div className="flex items-start justify-between gap-4 p-4 rounded-xl border border-amber-500/10 bg-amber-500/[0.02] dark:bg-amber-500/[0.01]">
-              <div className="space-y-1">
-                <h4 className="text-sm font-bold">Restrict Bookings by Working Hours</h4>
-                <p className="text-xs text-muted-foreground">
-                  If enabled, patients can only book appointments on your selected days and within your start/end time slots.
-                </p>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="schedule-enabled-toggle"
-                  checked={scheduleEnabled}
-                  onChange={(e) => setScheduleEnabled(e.target.checked)}
-                  className="w-9 h-5 rounded-full appearance-none bg-slate-200 dark:bg-slate-700 checked:bg-amber-500 relative transition-colors duration-200 cursor-pointer before:content-[''] before:absolute before:w-4 before:h-4 before:rounded-full before:bg-white before:top-0.5 before:left-0.5 checked:before:translate-x-4 before:transition-transform before:duration-200 shadow-sm"
-                />
-              </div>
-            </div>
-
             {/* Config inputs */}
             <div className="space-y-6 transition-all duration-300">
               {/* Working Days */}
               <div className="space-y-3">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Available Working Days</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Default Working Days</label>
                 <div className="flex flex-wrap gap-2">
                   {weekdays.map(day => {
                     const isSelected = scheduleDays.includes(day);
@@ -2989,7 +3015,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
               {/* Working Hours Time Picker */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Shift Start Time</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Default Start Time</label>
                   <input
                     type="time"
                     value={scheduleStart}
@@ -2998,13 +3024,148 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Shift End Time</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Default End Time</label>
                   <input
                     type="time"
                     value={scheduleEnd}
                     onChange={(e) => setScheduleEnd(e.target.value)}
                     className="w-full h-11 px-4 text-xs font-medium rounded-xl border border-gray-200 dark:border-border bg-white dark:bg-slate-900 outline-none focus:border-amber-500 transition-colors"
                   />
+                </div>
+              </div>
+
+              {/* Calendar Grid Section */}
+              <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-border">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Interactive Calendar Roster</label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Click any day in the calendar to override default availability (e.g. set holidays, off-days, or custom hours).
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const prev = new Date(currentCalendarMonth);
+                        prev.setMonth(prev.getMonth() - 1);
+                        setCurrentCalendarMonth(prev);
+                      }}
+                      className="p-2 border border-gray-200 dark:border-border hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-xs font-bold transition-all"
+                    >
+                      ←
+                    </button>
+                    <span className="text-xs font-bold min-w-[100px] text-center capitalize">
+                      {currentCalendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = new Date(currentCalendarMonth);
+                        next.setMonth(next.getMonth() + 1);
+                        setCurrentCalendarMonth(next);
+                      }}
+                      className="p-2 border border-gray-200 dark:border-border hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-xs font-bold transition-all"
+                    >
+                      →
+                    </button>
+                  </div>
+                </div>
+
+                {/* Calendar Grid */}
+                <div className="border border-gray-200 dark:border-border rounded-xl overflow-hidden bg-gray-50/50 dark:bg-muted/10">
+                  {/* Days of Week Header */}
+                  <div className="grid grid-cols-7 border-b border-gray-200 dark:border-border text-center bg-gray-50 dark:bg-muted/30">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                      <div key={day} className="py-2 text-[10px] font-bold text-slate-400 uppercase">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Day Cells Grid */}
+                  <div className="grid grid-cols-7 gap-[1px] bg-gray-200 dark:bg-border">
+                    {getDaysInMonth(currentCalendarMonth).map((day, idx) => {
+                      if (!day) {
+                        return <div key={`empty-${idx}`} className="bg-white dark:bg-slate-900 min-h-[76px]" />;
+                      }
+
+                      const yyyy = day.getFullYear();
+                      const mm = String(day.getMonth() + 1).padStart(2, '0');
+                      const dd = String(day.getDate()).padStart(2, '0');
+                      const dateStr = `${yyyy}-${mm}-${dd}`;
+
+                      const override = scheduleSpecialDates.find(o => o.date === dateStr);
+                      const weekdaysList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                      const weekdayName = weekdaysList[day.getDay()];
+                      const isDefaultActive = scheduleDays.includes(weekdayName);
+
+                      let cellBg = 'bg-white dark:bg-slate-900';
+                      let badgeText = '';
+                      let badgeColor = '';
+                      let timeStr = '';
+
+                      if (override) {
+                        if (!override.enabled) {
+                          cellBg = 'bg-red-500/[0.04] dark:bg-red-500/[0.02] hover:bg-red-500/[0.08]';
+                          badgeText = 'Blocked / Off';
+                          badgeColor = 'bg-red-500/10 text-red-500 border border-red-500/20';
+                        } else {
+                          cellBg = 'bg-blue-500/[0.04] dark:bg-blue-500/[0.02] hover:bg-blue-500/[0.08]';
+                          badgeText = 'Custom Shift';
+                          badgeColor = 'bg-blue-500/10 text-blue-500 border border-blue-500/20';
+                          timeStr = `${override.startTime || '09:00'} - ${override.endTime || '17:00'}`;
+                        }
+                      } else if (isDefaultActive) {
+                        cellBg = 'bg-amber-500/[0.03] dark:bg-amber-500/[0.01] hover:bg-amber-500/[0.07]';
+                        badgeText = 'Weekly Workday';
+                        badgeColor = 'bg-amber-500/10 text-amber-600 dark:text-amber-500 border border-amber-500/20';
+                        timeStr = `${scheduleStart} - ${scheduleEnd}`;
+                      } else {
+                        cellBg = 'bg-gray-50 dark:bg-slate-950 hover:bg-slate-200/50 dark:hover:bg-slate-900/60 opacity-60';
+                        badgeText = 'Default Off';
+                        badgeColor = 'bg-gray-200 dark:bg-slate-800 text-gray-400 dark:text-gray-500';
+                      }
+
+                      const today = new Date();
+                      const isToday = today.getDate() === day.getDate() && today.getMonth() === day.getMonth() && today.getFullYear() === day.getFullYear();
+
+                      return (
+                        <div
+                          key={dateStr}
+                          onClick={() => {
+                            setSelectedCalendarDate(dateStr);
+                            const existing = scheduleSpecialDates.find(o => o.date === dateStr);
+                            if (existing) {
+                              setOverrideEnabled(existing.enabled);
+                              setOverrideStart(existing.startTime || scheduleStart);
+                              setOverrideEnd(existing.endTime || scheduleEnd);
+                            } else {
+                              setOverrideEnabled(!isDefaultActive);
+                              setOverrideStart(scheduleStart);
+                              setOverrideEnd(scheduleEnd);
+                            }
+                            setShowOverrideModal(true);
+                          }}
+                          className={`p-2.5 min-h-[82px] flex flex-col justify-between cursor-pointer transition-all border border-transparent hover:border-amber-500/30 ${cellBg}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs font-bold ${isToday ? 'w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center' : 'text-slate-700 dark:text-slate-300'}`}>
+                              {day.getDate()}
+                            </span>
+                            {badgeText && (
+                              <span className={`text-[8px] font-extrabold px-1 py-0.5 rounded ${badgeColor}`}>
+                                {badgeText}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1 text-[9px] font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                            {timeStr || '—'}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -3027,6 +3188,139 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                 )}
               </button>
             </div>
+
+            {/* Calendar override configurations modal */}
+            {showOverrideModal && selectedCalendarDate && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity">
+                <div className="w-full max-w-md bg-white dark:bg-card border border-gray-200 dark:border-border rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                  <div className="px-5 py-4 border-b border-gray-100 dark:border-border flex items-center justify-between bg-gradient-to-r from-gray-50 to-amber-50/10 dark:from-muted/40">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                      📅 Configure Override: {selectedCalendarDate}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowOverrideModal(false)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs font-bold p-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  
+                  <div className="p-6 space-y-5">
+                    {/* Action Selector */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Date Status Override</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {/* Option 1: Revert/Default */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setScheduleSpecialDates(prev => prev.filter(o => o.date !== selectedCalendarDate));
+                            setShowOverrideModal(false);
+                            toast.success(`Removed custom override for ${selectedCalendarDate}`);
+                          }}
+                          className="px-2 py-3 rounded-xl border text-[11px] font-bold text-center bg-white dark:bg-slate-900 border-gray-200 dark:border-border text-gray-700 dark:text-gray-300 hover:border-amber-500/50 transition-all flex flex-col items-center justify-center gap-1"
+                        >
+                          <span className="text-base">↺</span> Revert to Default
+                        </button>
+                        
+                        {/* Option 2: Block/Off */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setScheduleSpecialDates(prev => {
+                              const filtered = prev.filter(o => o.date !== selectedCalendarDate);
+                              return [...filtered, { date: selectedCalendarDate, enabled: false }];
+                            });
+                            setShowOverrideModal(false);
+                            toast.success(`Marked ${selectedCalendarDate} as Blocked/Holiday`);
+                          }}
+                          className={`px-2 py-3 rounded-xl border text-[11px] font-bold text-center transition-all flex flex-col items-center justify-center gap-1 ${
+                            scheduleSpecialDates.find(o => o.date === selectedCalendarDate && !o.enabled)
+                              ? 'bg-red-500 border-red-500 text-white dark:text-slate-950 font-extrabold'
+                              : 'bg-white dark:bg-slate-900 border-gray-200 dark:border-border text-gray-700 dark:text-gray-300 hover:border-red-500/50'
+                          }`}
+                        >
+                          <span className="text-base">🚫</span> Block / Off-Day
+                        </button>
+
+                        {/* Option 3: Custom Hours */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOverrideEnabled(true);
+                          }}
+                          className={`px-2 py-3 rounded-xl border text-[11px] font-bold text-center transition-all flex flex-col items-center justify-center gap-1 ${
+                            overrideEnabled && scheduleSpecialDates.find(o => o.date === selectedCalendarDate && o.enabled)
+                              ? 'bg-blue-500 border-blue-500 text-white dark:text-slate-950 font-extrabold'
+                              : 'bg-white dark:bg-slate-900 border-gray-200 dark:border-border text-gray-700 dark:text-gray-300 hover:border-blue-500/50'
+                          }`}
+                        >
+                          <span className="text-base">⏱</span> Custom Hours
+                        </button>
+                      </div>
+                    </div>
+
+                    {overrideEnabled && (
+                      <div className="space-y-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-gray-100 dark:border-border">
+                        <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                          ⏱ Configure Shift Times
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Start Time</label>
+                            <input
+                              type="time"
+                              value={overrideStart}
+                              onChange={(e) => setOverrideStart(e.target.value)}
+                              className="w-full h-10 px-3 text-xs font-medium rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-slate-900 outline-none focus:border-amber-500 transition-colors"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">End Time</label>
+                            <input
+                              type="time"
+                              value={overrideEnd}
+                              onChange={(e) => setOverrideEnd(e.target.value)}
+                              className="w-full h-10 px-3 text-xs font-medium rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-slate-900 outline-none focus:border-amber-500 transition-colors"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pt-2 border-t border-gray-100 dark:border-border flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowOverrideModal(false)}
+                        className="h-10 px-4 rounded-lg text-xs font-bold text-gray-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScheduleSpecialDates(prev => {
+                            const filtered = prev.filter(o => o.date !== selectedCalendarDate);
+                            return [...filtered, {
+                              date: selectedCalendarDate,
+                              enabled: overrideEnabled,
+                              startTime: overrideStart,
+                              endTime: overrideEnd
+                            }];
+                          });
+                          setShowOverrideModal(false);
+                          toast.success(`Saved custom override for ${selectedCalendarDate}`);
+                        }}
+                        className="h-10 px-4 rounded-lg text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 dark:text-slate-950 dark:hover:bg-amber-400 transition-all shadow-md shadow-amber-500/10"
+                      >
+                        Apply Override
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
