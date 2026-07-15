@@ -56,7 +56,9 @@ const createApp = () => {
   // =========================================
   
   // Security headers with helmet
-  app.use(helmet());
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+  }));
   
   // Add compression middleware to improve response time
   app.use(compression());
@@ -920,10 +922,15 @@ const createApp = () => {
     logger.warn('Rate limiting is DISABLED in development');
   }
   
-  // =========================================
-  // STATIC FILES
-  // =========================================
-  
+  // Ensure upload directories exist at boot
+  const fs = require('fs');
+  const uploadsPath = path.join(__dirname, 'uploads');
+  const proceduresPath = path.join(__dirname, 'uploads', 'procedures');
+  const signaturesPath = path.join(__dirname, 'uploads', 'signatures');
+  if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
+  if (!fs.existsSync(proceduresPath)) fs.mkdirSync(proceduresPath, { recursive: true });
+  if (!fs.existsSync(signaturesPath)) fs.mkdirSync(signaturesPath, { recursive: true });
+
   // Serve static files with caching
   app.use('/static', express.static(path.join(__dirname, 'public'), {
     maxAge: '1d' // Cache static assets for 1 day
