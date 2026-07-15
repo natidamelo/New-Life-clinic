@@ -111,6 +111,32 @@ router.post('/register-patient', async (req, res) => {
       return res.status(400).json({ success: false, message: 'First name, last name, gender, and contact number are required.' });
     }
 
+    // Check if patient already exists with same name & phone number or same email to prevent duplicates
+    const duplicateConditions = [];
+    if (firstName && lastName && contactNumber) {
+      duplicateConditions.push({
+        firstName: new RegExp('^' + firstName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i'),
+        lastName: new RegExp('^' + lastName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i'),
+        contactNumber: contactNumber.trim()
+      });
+    }
+    if (email && email.trim()) {
+      duplicateConditions.push({ email: email.trim().toLowerCase() });
+    }
+
+    if (duplicateConditions.length > 0) {
+      const existing = await Patient.findOne({
+        $or: duplicateConditions
+      }).lean();
+
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          message: 'A patient with the same name and contact number (or email) is already registered.'
+        });
+      }
+    }
+
     // 1. Create Patient
     const parsedAllergies = allergies
       ? String(allergies).split(',').map(a => ({ allergen: a.trim(), severity: 'mild' }))
@@ -220,19 +246,31 @@ router.post('/book-appointment', async (req, res) => {
     let patientDoc;
 
     if (isNewPatient) {
-      patientDoc = new Patient({
-        clinicId: 'new-life',
-        firstName: patientData.firstName.trim(),
-        lastName: patientData.lastName.trim(),
-        gender: patientData.gender || 'other',
-        age: patientData.age ? Number(patientData.age) : undefined,
-        dateOfBirth: patientData.dateOfBirth ? new Date(patientData.dateOfBirth) : undefined,
-        contactNumber: patientData.contactNumber.trim(),
-        email: patientData.email ? patientData.email.trim() : undefined,
-        status: 'Outpatient'
+      // Check if patient already exists to prevent duplicate creation
+      const existingPatient = await Patient.findOne({
+        firstName: new RegExp('^' + patientData.firstName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i'),
+        lastName: new RegExp('^' + patientData.lastName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i'),
+        contactNumber: patientData.contactNumber.trim()
       });
-      await patientDoc.save();
-      patientId = patientDoc._id;
+
+      if (existingPatient) {
+        patientDoc = existingPatient;
+        patientId = existingPatient._id;
+      } else {
+        patientDoc = new Patient({
+          clinicId: 'new-life',
+          firstName: patientData.firstName.trim(),
+          lastName: patientData.lastName.trim(),
+          gender: patientData.gender || 'other',
+          age: patientData.age ? Number(patientData.age) : undefined,
+          dateOfBirth: patientData.dateOfBirth ? new Date(patientData.dateOfBirth) : undefined,
+          contactNumber: patientData.contactNumber.trim(),
+          email: patientData.email ? patientData.email.trim() : undefined,
+          status: 'Outpatient'
+        });
+        await patientDoc.save();
+        patientId = patientDoc._id;
+      }
     } else {
       patientId = appointmentData.patientId;
       patientDoc = await Patient.findById(patientId);
