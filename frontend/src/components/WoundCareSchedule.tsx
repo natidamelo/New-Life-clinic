@@ -698,7 +698,7 @@ function SessionCard({
 
         {session.completedBy && session.completedAt && (
           <div className="mt-2.5 pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-medium">
-            Done by {session.completedBy} on {new Date(session.completedAt).toLocaleDateString()}
+            Done by {session.completedBy} on {formatScheduleDate(session.completedAt)}
           </div>
         )}
       </CardContent>

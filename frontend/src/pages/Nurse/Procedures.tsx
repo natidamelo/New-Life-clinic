@@ -185,6 +185,17 @@ const Procedures: React.FC = () => {
     });
   };
 
+  // Safe Date / Time parsing helper to prevent UI crashes on invalid date values
+  const safeFormatDate = (dateVal: any, timeOnly = false) => {
+    if (!dateVal) return 'N/A';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return 'N/A';
+    if (timeOnly) {
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return d.toLocaleDateString();
+  };
+
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedProcedure, setSelectedProcedure] = useState<Procedure | null>(null);
@@ -845,9 +856,12 @@ const Procedures: React.FC = () => {
     inProgress: nonBloodPressureProcedures.filter(p => p.status === 'in_progress').length,
     completedToday: nonBloodPressureProcedures.filter(p => {
       if (p.status !== 'completed') return false;
+      const timeVal = p.completedTime || p.scheduledTime;
+      if (!timeVal) return false;
+      const d = new Date(timeVal);
+      if (isNaN(d.getTime())) return false;
       const today = new Date().toDateString();
-      const updatedDate = new Date(p.completedTime || p.scheduledTime).toDateString();
-      return today === updatedDate;
+      return today === d.toDateString();
     }).length,
     urgentCount: nonBloodPressureProcedures.filter(p => p.priority === 'urgent' && p.status !== 'completed').length,
   };
@@ -997,11 +1011,11 @@ const Procedures: React.FC = () => {
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-slate-500 font-medium flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-slate-400" /> Date</span>
-                    <span className="text-slate-700 font-semibold">{new Date(procedure.scheduledTime).toLocaleDateString()}</span>
+                    <span className="text-slate-700 font-semibold">{safeFormatDate(procedure.scheduledTime)}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-slate-500 font-medium flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-slate-400" /> Time</span>
-                    <span className="text-slate-700 font-semibold">{new Date(procedure.scheduledTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    <span className="text-slate-700 font-semibold">{safeFormatDate(procedure.scheduledTime, true)}</span>
                   </div>
                 </div>
               </div>
@@ -1268,8 +1282,8 @@ const Procedures: React.FC = () => {
               </div>
 
               <div className="mt-4 pt-3 border-t border-slate-200/80 text-xs text-slate-500 space-y-1">
-                <div>Scheduled: <strong className="text-slate-700">{new Date(group.main.scheduledTime).toLocaleDateString()}</strong></div>
-                <div>Time: <strong className="text-slate-700">{new Date(group.main.scheduledTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</strong></div>
+                <div>Scheduled: <strong className="text-slate-700">{safeFormatDate(group.main.scheduledTime)}</strong></div>
+                <div>Time: <strong className="text-slate-700">{safeFormatDate(group.main.scheduledTime, true)}</strong></div>
               </div>
             </div>
 
@@ -1324,8 +1338,8 @@ const Procedures: React.FC = () => {
                         <div>
                           <span className="font-bold text-xs text-slate-800">{session.procedureName}</span>
                           <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500">
-                            <span className="flex items-center gap-0.5"><Calendar className="w-3.5 h-3.5" /> {new Date(session.scheduledTime).toLocaleDateString()}</span>
-                            <span className="flex items-center gap-0.5"><Clock className="w-3.5 h-3.5" /> {new Date(session.scheduledTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            <span className="flex items-center gap-0.5"><Calendar className="w-3.5 h-3.5" /> {safeFormatDate(session.scheduledTime)}</span>
+                            <span className="flex items-center gap-0.5"><Clock className="w-3.5 h-3.5" /> {safeFormatDate(session.scheduledTime, true)}</span>
                           </div>
                         </div>
                         <div className="flex gap-2 items-center">
@@ -2052,13 +2066,13 @@ const Procedures: React.FC = () => {
                    </div>
                    <div className="text-center">
                      <div className="text-2xl font-bold text-secondary-foreground">
-                       {progressData.firstVisit ? new Date(progressData.firstVisit).toLocaleDateString() : 'N/A'}
+                       {safeFormatDate(progressData.firstVisit)}
                      </div>
                      <div className="text-sm text-secondary-foreground">First Visit</div>
                    </div>
                    <div className="text-center">
                      <div className="text-2xl font-bold text-accent-foreground">
-                       {progressData.lastVisit ? new Date(progressData.lastVisit).toLocaleDateString() : 'N/A'}
+                       {safeFormatDate(progressData.lastVisit)}
                      </div>
                      <div className="text-sm text-accent-foreground">Last Visit</div>
                    </div>
@@ -2083,10 +2097,10 @@ const Procedures: React.FC = () => {
                          </div>
                          <div>
                            <h4 className="font-semibold text-muted-foreground">
-                             Visit #{visit.visitNumber} - {new Date(visit.scheduledTime).toLocaleDateString()}
+                             Visit #{visit.visitNumber} - {safeFormatDate(visit.scheduledTime)}
                            </h4>
                            <p className="text-sm text-muted-foreground">
-                             {new Date(visit.scheduledTime).toLocaleTimeString()} • {visit.assignedNurseName}
+                             {safeFormatDate(visit.scheduledTime, true)} • {visit.assignedNurseName}
                            </p>
                          </div>
                        </div>
