@@ -3036,28 +3036,44 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
 
               {/* Calendar Grid Section */}
               <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-border">
+                {/* Header with Navigation */}
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Interactive Calendar Roster</label>
                     <p className="text-[11px] text-muted-foreground">
-                      Click any day in the calendar to override default availability (e.g. set holidays, off-days, or custom hours).
+                      Click any future day to override default availability (e.g. set holidays, off-days, or custom hours).
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-border rounded-xl p-1 shadow-sm">
+                    {(() => {
+                      const now = new Date();
+                      const isCurrentMonth = currentCalendarMonth.getFullYear() === now.getFullYear() && currentCalendarMonth.getMonth() === now.getMonth();
+                      return (
+                        <button
+                          type="button"
+                          disabled={isCurrentMonth}
+                          onClick={() => {
+                            const prev = new Date(currentCalendarMonth);
+                            prev.setMonth(prev.getMonth() - 1);
+                            setCurrentCalendarMonth(prev);
+                          }}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${
+                            isCurrentMonth
+                              ? 'text-gray-300 dark:text-gray-700 cursor-not-allowed'
+                              : 'text-gray-600 dark:text-gray-300 hover:bg-amber-500/10 hover:text-amber-600 active:scale-95'
+                          }`}
+                        >
+                          ‹
+                        </button>
+                      );
+                    })()}
                     <button
                       type="button"
-                      onClick={() => {
-                        const prev = new Date(currentCalendarMonth);
-                        prev.setMonth(prev.getMonth() - 1);
-                        setCurrentCalendarMonth(prev);
-                      }}
-                      className="p-2 border border-gray-200 dark:border-border hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-xs font-bold transition-all"
+                      onClick={() => setCurrentCalendarMonth(new Date())}
+                      className="px-3 h-8 text-[11px] font-extrabold text-slate-700 dark:text-slate-200 hover:bg-amber-500/10 hover:text-amber-600 rounded-lg transition-all min-w-[120px] text-center"
                     >
-                      ←
-                    </button>
-                    <span className="text-xs font-bold min-w-[100px] text-center capitalize">
                       {currentCalendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                    </span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
@@ -3065,29 +3081,45 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                         next.setMonth(next.getMonth() + 1);
                         setCurrentCalendarMonth(next);
                       }}
-                      className="p-2 border border-gray-200 dark:border-border hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-xs font-bold transition-all"
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-amber-500/10 hover:text-amber-600 active:scale-95 transition-all"
                     >
-                      →
+                      ›
                     </button>
                   </div>
                 </div>
 
+                {/* Color Legend */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1">
+                  {[
+                    { color: 'bg-amber-500', label: 'Workday' },
+                    { color: 'bg-blue-500', label: 'Custom Shift' },
+                    { color: 'bg-red-500', label: 'Blocked / Off' },
+                    { color: 'bg-gray-300 dark:bg-gray-600', label: 'Default Off' },
+                    { color: 'bg-gray-200 dark:bg-gray-700', label: 'Past (locked)' },
+                  ].map(item => (
+                    <div key={item.label} className="flex items-center gap-1.5">
+                      <div className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
+                      <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+
                 {/* Calendar Grid */}
-                <div className="border border-gray-200 dark:border-border rounded-xl overflow-hidden bg-gray-50/50 dark:bg-muted/10">
+                <div className="border border-gray-200 dark:border-border rounded-2xl overflow-hidden shadow-sm">
                   {/* Days of Week Header */}
-                  <div className="grid grid-cols-7 border-b border-gray-200 dark:border-border text-center bg-gray-50 dark:bg-muted/30">
+                  <div className="grid grid-cols-7 bg-gradient-to-r from-slate-50 via-amber-50/20 to-slate-50 dark:from-muted/50 dark:via-amber-900/5 dark:to-muted/50 border-b border-gray-200 dark:border-border">
                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                      <div key={day} className="py-2 text-[10px] font-bold text-slate-400 uppercase">
+                      <div key={day} className="py-2.5 text-center text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                         {day}
                       </div>
                     ))}
                   </div>
 
                   {/* Day Cells Grid */}
-                  <div className="grid grid-cols-7 gap-[1px] bg-gray-200 dark:bg-border">
+                  <div className="grid grid-cols-7 gap-[1px] bg-gray-100 dark:bg-border/50">
                     {getDaysInMonth(currentCalendarMonth).map((day, idx) => {
                       if (!day) {
-                        return <div key={`empty-${idx}`} className="bg-white dark:bg-slate-900 min-h-[76px]" />;
+                        return <div key={`empty-${idx}`} className="bg-white dark:bg-slate-900/80 min-h-[80px]" />;
                       }
 
                       const yyyy = day.getFullYear();
@@ -3095,45 +3127,60 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                       const dd = String(day.getDate()).padStart(2, '0');
                       const dateStr = `${yyyy}-${mm}-${dd}`;
 
+                      const todayRef = new Date();
+                      todayRef.setHours(0, 0, 0, 0);
+                      const dayStart = new Date(day);
+                      dayStart.setHours(0, 0, 0, 0);
+                      const isPast = dayStart < todayRef;
+                      const isToday = dayStart.getTime() === todayRef.getTime();
+
                       const override = scheduleSpecialDates.find(o => o.date === dateStr);
                       const weekdaysList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                       const weekdayName = weekdaysList[day.getDay()];
                       const isDefaultActive = scheduleDays.includes(weekdayName);
 
-                      let cellBg = 'bg-white dark:bg-slate-900';
+                      let cellBg = '';
                       let badgeText = '';
                       let badgeColor = '';
                       let timeStr = '';
+                      let leftBorder = '';
 
-                      if (override) {
+                      if (isPast) {
+                        cellBg = 'bg-gray-50 dark:bg-slate-950/50';
+                        badgeText = '';
+                        badgeColor = '';
+                        timeStr = '';
+                      } else if (override) {
                         if (!override.enabled) {
-                          cellBg = 'bg-red-500/[0.04] dark:bg-red-500/[0.02] hover:bg-red-500/[0.08]';
-                          badgeText = 'Blocked / Off';
-                          badgeColor = 'bg-red-500/10 text-red-500 border border-red-500/20';
+                          cellBg = 'bg-red-50/80 dark:bg-red-950/20';
+                          leftBorder = 'border-l-[3px] border-l-red-400';
+                          badgeText = 'Off';
+                          badgeColor = 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400';
                         } else {
-                          cellBg = 'bg-blue-500/[0.04] dark:bg-blue-500/[0.02] hover:bg-blue-500/[0.08]';
-                          badgeText = 'Custom Shift';
-                          badgeColor = 'bg-blue-500/10 text-blue-500 border border-blue-500/20';
-                          timeStr = `${override.startTime || '09:00'} - ${override.endTime || '17:00'}`;
+                          cellBg = 'bg-blue-50/80 dark:bg-blue-950/20';
+                          leftBorder = 'border-l-[3px] border-l-blue-400';
+                          badgeText = 'Custom';
+                          badgeColor = 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
+                          timeStr = `${override.startTime || '09:00'} – ${override.endTime || '17:00'}`;
                         }
                       } else if (isDefaultActive) {
-                        cellBg = 'bg-amber-500/[0.03] dark:bg-amber-500/[0.01] hover:bg-amber-500/[0.07]';
-                        badgeText = 'Weekly Workday';
-                        badgeColor = 'bg-amber-500/10 text-amber-600 dark:text-amber-500 border border-amber-500/20';
-                        timeStr = `${scheduleStart} - ${scheduleEnd}`;
+                        cellBg = 'bg-amber-50/50 dark:bg-amber-950/10';
+                        leftBorder = 'border-l-[3px] border-l-amber-400';
+                        badgeText = 'Work';
+                        badgeColor = 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
+                        timeStr = `${scheduleStart} – ${scheduleEnd}`;
                       } else {
-                        cellBg = 'bg-gray-50 dark:bg-slate-950 hover:bg-slate-200/50 dark:hover:bg-slate-900/60 opacity-60';
-                        badgeText = 'Default Off';
-                        badgeColor = 'bg-gray-200 dark:bg-slate-800 text-gray-400 dark:text-gray-500';
+                        cellBg = 'bg-white dark:bg-slate-900/80';
+                        badgeText = '';
+                        badgeColor = '';
+                        timeStr = '';
                       }
-
-                      const today = new Date();
-                      const isToday = today.getDate() === day.getDate() && today.getMonth() === day.getMonth() && today.getFullYear() === day.getFullYear();
 
                       return (
                         <div
                           key={dateStr}
                           onClick={() => {
+                            if (isPast) return;
                             setSelectedCalendarDate(dateStr);
                             const existing = scheduleSpecialDates.find(o => o.date === dateStr);
                             if (existing) {
@@ -3147,21 +3194,47 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                             }
                             setShowOverrideModal(true);
                           }}
-                          className={`p-2.5 min-h-[82px] flex flex-col justify-between cursor-pointer transition-all border border-transparent hover:border-amber-500/30 ${cellBg}`}
+                          className={`relative p-2 min-h-[80px] flex flex-col justify-between transition-all duration-200 ${leftBorder} ${cellBg} ${
+                            isPast
+                              ? 'cursor-not-allowed opacity-40'
+                              : 'cursor-pointer hover:shadow-md hover:z-10 hover:scale-[1.02] hover:ring-1 hover:ring-amber-400/40 active:scale-100'
+                          }`}
                         >
-                          <div className="flex items-center justify-between">
-                            <span className={`text-xs font-bold ${isToday ? 'w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center' : 'text-slate-700 dark:text-slate-300'}`}>
+                          {/* Date number */}
+                          <div className="flex items-start justify-between gap-1">
+                            <span className={`text-xs font-bold leading-none ${
+                              isToday
+                                ? 'w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center shadow-sm shadow-amber-500/30'
+                                : isPast
+                                  ? 'text-gray-300 dark:text-gray-600'
+                                  : 'text-slate-700 dark:text-slate-300'
+                            }`}>
                               {day.getDate()}
                             </span>
-                            {badgeText && (
-                              <span className={`text-[8px] font-extrabold px-1 py-0.5 rounded ${badgeColor}`}>
+                            {badgeText && !isPast && (
+                              <span className={`text-[7px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${badgeColor}`}>
                                 {badgeText}
                               </span>
                             )}
                           </div>
-                          <div className="mt-1 text-[9px] font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                            {timeStr || '—'}
-                          </div>
+
+                          {/* Time or dash */}
+                          {!isPast && (
+                            <div className="mt-auto">
+                              {timeStr ? (
+                                <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 tracking-tight">
+                                  {timeStr}
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-medium text-slate-300 dark:text-slate-700">—</span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Today pulse indicator */}
+                          {isToday && (
+                            <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          )}
                         </div>
                       );
                     })}
