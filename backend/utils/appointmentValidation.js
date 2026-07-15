@@ -19,6 +19,11 @@ async function checkDoctorAvailability(doctorId, appointmentDateTime, durationMi
     return { available: false, message: 'Invalid appointment date and time.' };
   }
 
+  const now = new Date();
+  if (newStart < now) {
+    return { available: false, message: 'Appointment date and time must be in the future.' };
+  }
+
   const duration = Number(durationMinutes) || 30;
   const newEnd = new Date(newStart.getTime() + duration * 60000);
 
