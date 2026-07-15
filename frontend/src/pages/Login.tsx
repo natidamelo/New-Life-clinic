@@ -1154,8 +1154,8 @@ const Login: React.FC = () => {
 
   // Submit self-booking appointment
   const handleBookAppointment = async () => {
-    if (!bookingDetails.appointmentDateTime || !bookingDetails.type) {
-      toast.error('Please enter appointment date/time and type.');
+    if (!bookingDetails.doctorId || !bookingDetails.appointmentDateTime || !bookingDetails.type) {
+      toast.error('Please select a doctor, appointment date/time, and type.');
       return;
     }
     setBookingLoading(true);
@@ -1883,17 +1883,17 @@ const Login: React.FC = () => {
                             const type = (bookingDetails.type || '').toLowerCase();
                             const reason = (bookingDetails.reason || '').toLowerCase();
                             let targetRole = 'doctor';
-                            let placeholder = 'Choose Doctor (or leave blank)';
+                            let placeholder = 'Choose Doctor (Required)';
 
                             if (dept.includes('imaging') || dept.includes('ultrasound') || type.includes('imaging') || reason.includes('ultrasound') || reason.includes('x-ray')) {
                               targetRole = 'imaging';
-                              placeholder = 'Choose Specialist (or leave blank)';
+                              placeholder = 'Choose Specialist (Required)';
                             } else if (dept.includes('lab') || dept.includes('diagnostic') || type.includes('lab') || reason.includes('cbc') || reason.includes('blood') || reason.includes('urine')) {
                               targetRole = 'lab';
-                              placeholder = 'Choose Technician (or leave blank)';
+                              placeholder = 'Choose Technician (Required)';
                             } else if (dept.includes('nurse') || dept.includes('vital') || type.includes('procedure') || reason.includes('wound') || reason.includes('injection') || reason.includes('vaccine') || reason.includes('dressing')) {
                               targetRole = 'nurse';
-                              placeholder = 'Choose Nurse (or leave blank)';
+                              placeholder = 'Choose Nurse (Required)';
                             }
 
                             const filtered = doctors.filter(doc => (doc.role || 'doctor') === targetRole);

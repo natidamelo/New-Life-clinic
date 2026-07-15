@@ -242,6 +242,9 @@ router.post('/book-appointment', async (req, res) => {
     if (!appointmentData || !appointmentData.appointmentDateTime || !appointmentData.type) {
       return res.status(400).json({ success: false, message: 'Appointment details (date/time, type) are required.' });
     }
+    if (!appointmentData.doctorId) {
+      return res.status(400).json({ success: false, message: 'Please select a doctor or staff member for your appointment.' });
+    }
 
     // Verify Doctor Availability & Schedule Slots
     const availability = await checkDoctorAvailability(
