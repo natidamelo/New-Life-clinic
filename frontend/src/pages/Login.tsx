@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { toast } from 'react-hot-toast';
+import { toast, Toaster } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useSafeTheme } from '../hooks/useSafeTheme';
 import { 
@@ -2683,7 +2683,9 @@ const Login: React.FC = () => {
             © {new Date().getFullYear()} {clinic?.name || CLINIC_INFO.name}. Smart Health Management. All rights reserved.
           </div>
         </div>
-      </footer>    </div>
+      </footer>
+      <Toaster position="top-right" />
+    </div>
   );
 };
 
