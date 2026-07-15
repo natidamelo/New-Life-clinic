@@ -1975,7 +1975,6 @@ const Procedures: React.FC = () => {
                    frequency={woundAssessmentData.frequency}
                    duration={woundAssessmentData.duration}
                    startDate={new Date()}
-                   procedureId={selectedProcedure?._id}
                    className="w-full max-w-none"
                  />
                </div>
