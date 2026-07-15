@@ -33,9 +33,8 @@ async function checkDoctorAvailability(doctorId, appointmentDateTime, durationMi
     return { available: false, message: 'Selected doctor/staff member not found.' };
   }
 
-  // 2. Verify Working Hours if enabled
-  if (doctor.workingHours && doctor.workingHours.enabled) {
-    // Format YYYY-MM-DD in local timezone
+  // 2. Check date-specific overrides ALWAYS (blocked days apply regardless of enabled toggle)
+  if (doctor.workingHours) {
     const yyyy = newStart.getFullYear();
     const mm = String(newStart.getMonth() + 1).padStart(2, '0');
     const dd = String(newStart.getDate()).padStart(2, '0');
@@ -51,7 +50,7 @@ async function checkDoctorAvailability(doctorId, appointmentDateTime, durationMi
     };
 
     if (override) {
-      // If day is specifically marked as blocked/holiday
+      // If day is specifically marked as blocked/holiday – ALWAYS enforce
       if (!override.enabled) {
         return {
           available: false,
@@ -59,7 +58,7 @@ async function checkDoctorAvailability(doctorId, appointmentDateTime, durationMi
         };
       }
 
-      // If day has custom overridden hours
+      // If day has custom overridden hours – ALWAYS enforce
       const startHourStr = override.startTime || '09:00';
       const endHourStr = override.endTime || '17:00';
 
@@ -74,8 +73,8 @@ async function checkDoctorAvailability(doctorId, appointmentDateTime, durationMi
           message: `${doctor.firstName} ${doctor.lastName} is only available between ${startHourStr} and ${endHourStr} on ${dateKey}.`
         };
       }
-    } else {
-      // Fallback to default weekly schedule rules
+    } else if (doctor.workingHours.enabled) {
+      // Fallback to default weekly schedule rules (only when enabled toggle is ON)
       const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const weekdayName = weekdays[newStart.getDay()];
 
