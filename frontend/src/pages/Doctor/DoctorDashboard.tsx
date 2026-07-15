@@ -2955,7 +2955,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
             </div>
 
             {/* Config inputs */}
-            <div className={`space-y-6 transition-all duration-300 ${!scheduleEnabled ? 'opacity-65 pointer-events-none' : ''}`}>
+            <div className="space-y-6 transition-all duration-300">
               {/* Working Days */}
               <div className="space-y-3">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Available Working Days</label>
