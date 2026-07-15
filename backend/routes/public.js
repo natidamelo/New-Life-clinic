@@ -7,6 +7,7 @@ const PatientCard = require('../models/PatientCard');
 const Appointment = require('../models/Appointment');
 const User = require('../models/User');
 const CardType = require('../models/CardType');
+const { checkDoctorAvailability } = require('../utils/appointmentValidation');
 
 // GET /api/public/doctors - Get active staff for booking (doctors, nurses, lab, imaging)
 router.get('/doctors', async (req, res) => {
@@ -240,6 +241,20 @@ router.post('/book-appointment', async (req, res) => {
     }
     if (!appointmentData || !appointmentData.appointmentDateTime || !appointmentData.type) {
       return res.status(400).json({ success: false, message: 'Appointment details (date/time, type) are required.' });
+    }
+
+    // Verify Doctor Availability & Schedule Slots
+    const availability = await checkDoctorAvailability(
+      appointmentData.doctorId,
+      appointmentData.appointmentDateTime,
+      appointmentData.durationMinutes || 30
+    );
+
+    if (!availability.available) {
+      return res.status(409).json({
+        success: false,
+        message: availability.message || 'The selected doctor is not available at this time.'
+      });
     }
 
     let patientId;

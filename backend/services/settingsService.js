@@ -108,7 +108,7 @@ class SettingsService {
    */
   static async updateUserProfile(userId, profileData) {
     try {
-      const allowedFields = ['firstName', 'lastName', 'email', 'phone', 'specialization'];
+      const allowedFields = ['firstName', 'lastName', 'email', 'phone', 'specialization', 'workingHours'];
       const filteredData = {};
       
       Object.keys(profileData).forEach(key => {

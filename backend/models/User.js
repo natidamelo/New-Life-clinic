@@ -85,6 +85,12 @@ const userSchema = new mongoose.Schema({
     default: null,
     select: false
   },
+  workingHours: {
+    enabled: { type: Boolean, default: false },
+    days: [{ type: String }], // e.g. ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+    startTime: { type: String, default: '09:00' }, // HH:mm format
+    endTime: { type: String, default: '17:00' } // HH:mm format
+  },
   // Telegram notification settings (for all staff)
   telegramChatId: {
     type: String,

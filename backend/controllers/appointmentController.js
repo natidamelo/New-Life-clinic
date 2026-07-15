@@ -1,6 +1,7 @@
 const Appointment = require('../models/Appointment');
 const Patient = require('../models/Patient');
 const User = require('../models/User');
+const { checkDoctorAvailability } = require('../utils/appointmentValidation');
 
 // @desc    Get all appointment
 // @route   GET /api/appointment
@@ -55,7 +56,21 @@ const getappointmentById = async (req, res) => {
 const createappointment = async (req, res) => {
   try {
     const { patient, doctor, dateTime, type, reason, notes, durationMinutes, selectedLabService, selectedImagingService } = req.body;
-    
+
+    // Verify Doctor Availability & Schedule Slots
+    const availability = await checkDoctorAvailability(
+      doctor,
+      dateTime,
+      durationMinutes || 30
+    );
+
+    if (!availability.available) {
+      return res.status(409).json({
+        success: false,
+        message: availability.message || 'The selected doctor is not available at this time.'
+      });
+    }
+
     // Create appointment
     const appointment = new Appointment({
       patientId: patient,
@@ -98,38 +113,14 @@ const createappointment = async (req, res) => {
 // @route   PUT /api/appointment/:id
 // @access  Private
 const updateappointment = async (req, res) => {
-  try {
-    res.json({
-      success: true,
-      message: 'appointment updated successfully'
-    });
-  } catch (error) {
-    console.error('Error updating appointment:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
+  return updateAppointment(req, res);
 };
 
 // @desc    Delete appointment
 // @route   DELETE /api/appointment/:id
 // @access  Private
 const deleteappointment = async (req, res) => {
-  try {
-    res.json({
-      success: true,
-      message: 'appointment deleted successfully'
-    });
-  } catch (error) {
-    console.error('Error deleting appointment:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
+  return deleteAppointment(req, res);
 };
 
 // Additional functions needed by the routes
@@ -314,7 +305,21 @@ const createAppointment = async (req, res) => {
         message: 'Invalid date format provided'
       });
     }
-    
+
+    // Verify Doctor Availability & Schedule Slots
+    const availability = await checkDoctorAvailability(
+      doctor,
+      appointmentDateTime,
+      durationMinutes || 30
+    );
+
+    if (!availability.available) {
+      return res.status(409).json({
+        success: false,
+        message: availability.message || 'The selected doctor is not available at this time.'
+      });
+    }
+
     // Create appointment
     const appointment = new Appointment({
       patientId: patient,
@@ -353,9 +358,75 @@ const createAppointment = async (req, res) => {
 
 const updateAppointment = async (req, res) => {
   try {
+    const { id } = req.params;
+    const { patientId, doctorId, appointmentDateTime, date, time, durationMinutes, duration, type, reason, notes, status, selectedLabService, selectedImagingService } = req.body;
+
+    const existingAppt = await Appointment.findById(id);
+    if (!existingAppt) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    // Determine new date/time if date/time are updated
+    let newDateTime = existingAppt.appointmentDateTime;
+    if (appointmentDateTime) {
+      newDateTime = new Date(appointmentDateTime);
+    } else if (date) {
+      const dateStr = date;
+      const timeStr = time || '09:00';
+      newDateTime = new Date(`${dateStr}T${timeStr}`);
+    }
+
+    const newDoctor = doctorId || existingAppt.doctorId;
+    const newDuration = durationMinutes || duration || existingAppt.durationMinutes || 30;
+
+    // Check doctor availability if doctor, date/time, or duration changed
+    if (
+      (newDoctor && newDoctor.toString() !== existingAppt.doctorId?.toString()) ||
+      newDateTime.getTime() !== existingAppt.appointmentDateTime.getTime() ||
+      Number(newDuration) !== Number(existingAppt.durationMinutes)
+    ) {
+      const availability = await checkDoctorAvailability(
+        newDoctor,
+        newDateTime,
+        newDuration,
+        id
+      );
+
+      if (!availability.available) {
+        return res.status(409).json({
+          success: false,
+          message: availability.message || 'The doctor is not available at this time.'
+        });
+      }
+    }
+
+    // Update fields
+    if (patientId) existingAppt.patientId = patientId;
+    if (doctorId !== undefined) existingAppt.doctorId = doctorId || null;
+    existingAppt.appointmentDateTime = newDateTime;
+    existingAppt.durationMinutes = newDuration;
+    if (type) existingAppt.type = type;
+    if (reason !== undefined) existingAppt.reason = reason;
+    if (notes !== undefined) existingAppt.notes = notes;
+    if (status) existingAppt.status = status;
+    if (selectedLabService !== undefined) existingAppt.selectedLabService = selectedLabService || null;
+    if (selectedImagingService !== undefined) existingAppt.selectedImagingService = selectedImagingService || null;
+
+    const updatedAppt = await existingAppt.save();
+
+    const populated = await Appointment.findById(updatedAppt._id)
+      .populate('patientId', 'firstName lastName patientId')
+      .populate('doctorId', 'firstName lastName')
+      .populate('selectedLabService', 'name price category')
+      .populate('selectedImagingService', 'name price category');
+
     res.json({
       success: true,
-      message: 'Appointment updated successfully'
+      message: 'Appointment updated successfully',
+      data: populated
     });
   } catch (error) {
     console.error('Error updating appointment:', error);
@@ -369,6 +440,14 @@ const updateAppointment = async (req, res) => {
 
 const deleteAppointment = async (req, res) => {
   try {
+    const { id } = req.params;
+    const deleted = await Appointment.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
     res.json({
       success: true,
       message: 'Appointment deleted successfully'

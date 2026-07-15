@@ -274,7 +274,7 @@ interface DoctorDashboardProps {
 }
 
 const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patients' }) => {
-  const { user, getToken, isAuthenticated } = useAuth();
+  const { user, getToken, isAuthenticated, updateUser } = useAuth();
   const { clinic } = useClinic();
   const location = useLocation();
   const navigate = useNavigate();
@@ -357,7 +357,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
     labResults: 0
   });
   const [selectedPatientForAction, setSelectedPatientForAction] = useState<PatientType | null>(null);
-  const [activeTab, setActiveTab] = useState<'patients' | 'my-appointments' | 'appointments' | 'lab-results' | 'imaging-results' | 'prescriptions' | 'Medical Records' | 'completed-patients' | 'patient-messages'>(initialTab as any);
+  const [activeTab, setActiveTab] = useState<'patients' | 'my-appointments' | 'appointments' | 'lab-results' | 'imaging-results' | 'prescriptions' | 'Medical Records' | 'completed-patients' | 'patient-messages' | 'schedule-settings'>(initialTab as any);
   const [labResults, setLabResults] = useState<LabResult[]>([]);
   const [groupedLabResults, setGroupedLabResults] = useState<PatientLabResults[]>([]);
   const [labResultsLoading, setLabResultsLoading] = useState(false);
@@ -372,6 +372,23 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
   const [showMedicalRecordsModal, setShowMedicalRecordsModal] = useState(false);
   const [viewedPatients, setViewedPatients] = useState<Set<string>>(new Set());
   const [viewedLabOrders, setViewedLabOrders] = useState<string[]>([]);
+
+  // Doctor availability schedule settings state
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduleDays, setScheduleDays] = useState<string[]>(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
+  const [scheduleStart, setScheduleStart] = useState('09:00');
+  const [scheduleEnd, setScheduleEnd] = useState('17:00');
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+
+  // Initialize schedule settings from logged in user profile
+  useEffect(() => {
+    if (user && user.workingHours) {
+      setScheduleEnabled(!!user.workingHours.enabled);
+      setScheduleDays(user.workingHours.days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
+      setScheduleStart(user.workingHours.startTime || '09:00');
+      setScheduleEnd(user.workingHours.endTime || '17:00');
+    }
+  }, [user]);
 
   // Load viewed lab orders from localStorage on mount
   useEffect(() => {
@@ -2870,6 +2887,152 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
     }
   };
 
+  const handleSaveSchedule = async () => {
+    setScheduleSaving(true);
+    try {
+      const response = await api.put('/api/settings/profile', {
+        workingHours: {
+          enabled: scheduleEnabled,
+          days: scheduleDays,
+          startTime: scheduleStart,
+          endTime: scheduleEnd
+        }
+      });
+      if (response.data?.success) {
+        updateUser({
+          ...user,
+          workingHours: {
+            enabled: scheduleEnabled,
+            days: scheduleDays,
+            startTime: scheduleStart,
+            endTime: scheduleEnd
+          }
+        } as any);
+        toast.success('Schedule saved successfully!');
+      } else {
+        toast.error(response.data?.message || 'Failed to save schedule.');
+      }
+    } catch (err: any) {
+      console.error('Error saving schedule:', err);
+      toast.error(err.response?.data?.message || 'Failed to save schedule settings.');
+    } finally {
+      setScheduleSaving(false);
+    }
+  };
+
+  const renderScheduleSettingsTab = () => {
+    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    
+    return (
+      <div className="space-y-6 max-w-3xl">
+        <Card className="border border-gray-200 dark:border-border rounded-2xl shadow-sm overflow-hidden bg-white dark:bg-card">
+          <CardHeader className="border-b border-gray-100 dark:border-border pb-4 bg-gradient-to-r from-gray-50 to-amber-50/10 dark:from-muted/40">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <span className="text-xl">⏰</span> My Schedule & Working Hours
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Set your weekly shift schedule and time slots to automatically manage patient self-booking availability.
+            </p>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            {/* Toggle availability checks */}
+            <div className="flex items-start justify-between gap-4 p-4 rounded-xl border border-amber-500/10 bg-amber-500/[0.02] dark:bg-amber-500/[0.01]">
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold">Restrict Bookings by Working Hours</h4>
+                <p className="text-xs text-muted-foreground">
+                  If enabled, patients can only book appointments on your selected days and within your start/end time slots.
+                </p>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="schedule-enabled-toggle"
+                  checked={scheduleEnabled}
+                  onChange={(e) => setScheduleEnabled(e.target.checked)}
+                  className="w-9 h-5 rounded-full appearance-none bg-slate-200 dark:bg-slate-700 checked:bg-amber-500 relative transition-colors duration-200 cursor-pointer before:content-[''] before:absolute before:w-4 before:h-4 before:rounded-full before:bg-white before:top-0.5 before:left-0.5 checked:before:translate-x-4 before:transition-transform before:duration-200 shadow-sm"
+                />
+              </div>
+            </div>
+
+            {/* Config inputs */}
+            <div className={`space-y-6 transition-all duration-300 ${!scheduleEnabled ? 'opacity-65 pointer-events-none' : ''}`}>
+              {/* Working Days */}
+              <div className="space-y-3">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Available Working Days</label>
+                <div className="flex flex-wrap gap-2">
+                  {weekdays.map(day => {
+                    const isSelected = scheduleDays.includes(day);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setScheduleDays(prev => prev.filter(d => d !== day));
+                          } else {
+                            setScheduleDays(prev => [...prev, day]);
+                          }
+                        }}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all duration-300 flex items-center gap-1.5 shadow-sm ${
+                          isSelected
+                            ? 'bg-amber-500 border-amber-500 text-white dark:text-slate-950 font-extrabold scale-[1.02]'
+                            : 'bg-white dark:bg-slate-900 border-gray-200 dark:border-border text-gray-700 dark:text-gray-300 hover:border-amber-500/50'
+                        }`}
+                      >
+                        {isSelected ? '✓' : '+'} {day}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Working Hours Time Picker */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Shift Start Time</label>
+                  <input
+                    type="time"
+                    value={scheduleStart}
+                    onChange={(e) => setScheduleStart(e.target.value)}
+                    className="w-full h-11 px-4 text-xs font-medium rounded-xl border border-gray-200 dark:border-border bg-white dark:bg-slate-900 outline-none focus:border-amber-500 transition-colors"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Shift End Time</label>
+                  <input
+                    type="time"
+                    value={scheduleEnd}
+                    onChange={(e) => setScheduleEnd(e.target.value)}
+                    className="w-full h-11 px-4 text-xs font-medium rounded-xl border border-gray-200 dark:border-border bg-white dark:bg-slate-900 outline-none focus:border-amber-500 transition-colors"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Form actions */}
+            <div className="pt-4 border-t border-gray-100 dark:border-border flex justify-end">
+              <button
+                type="button"
+                onClick={handleSaveSchedule}
+                disabled={scheduleSaving}
+                className="h-11 px-6 rounded-xl text-xs font-extrabold text-white bg-amber-500 hover:bg-amber-600 dark:text-slate-950 dark:hover:bg-amber-400 disabled:opacity-50 transition-all shadow-md shadow-amber-500/10 flex items-center gap-2"
+              >
+                {scheduleSaving ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white dark:border-slate-950/30 dark:border-t-slate-950 rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Schedule'
+                )}
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
   // Render the Patient Messages tab content
   const renderPatientMessagesTab = () => {
     if (patientMessagesLoading && patientMessages.length === 0) {
@@ -3421,6 +3584,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
               { value: 'Medical Records', label: 'Medical Records', icon: '📋', dot: '#6366F1', bg: '#EEF2FF' },
               { value: 'completed-patients', label: 'Completed Patients', icon: '✅', dot: '#14B8A6', bg: '#F0FDFA' },
               { value: 'patient-messages', label: 'Patient Messages', icon: '✉️', dot: '#F43F5E', bg: '#FFF1F2' },
+              { value: 'schedule-settings', label: 'My Schedule', icon: '⏰', dot: '#F59E0B', bg: '#FFFBEB' },
             ].map(tab => (
               <TabsTrigger
                 key={tab.value}
@@ -4416,6 +4580,9 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
           </TabsContent>
           <TabsContent value="patient-messages" className="mt-4">
             {renderPatientMessagesTab()}
+          </TabsContent>
+          <TabsContent value="schedule-settings" className="mt-4">
+            {renderScheduleSettingsTab()}
           </TabsContent>
         </Tabs>
       </div>

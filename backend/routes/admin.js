@@ -432,6 +432,7 @@ router.put('/users/:id', auth, async (req, res) => {
     if (updateData.telegramChatId !== undefined) updateObject.telegramChatId = updateData.telegramChatId;
     if (updateData.telegramNotificationsEnabled !== undefined) updateObject.telegramNotificationsEnabled = updateData.telegramNotificationsEnabled;
     if (updateData.telegramUsername !== undefined) updateObject.telegramUsername = updateData.telegramUsername;
+    if (updateData.workingHours !== undefined) updateObject.workingHours = updateData.workingHours;
     
     if (normalizedPrefs !== undefined) {
       updateObject.notificationPreferences = normalizedPrefs;
