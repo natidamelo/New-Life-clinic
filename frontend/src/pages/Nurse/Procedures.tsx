@@ -2005,7 +2005,7 @@ const Procedures: React.FC = () => {
                <Button 
                  type="button" 
                  onClick={submitWoundAssessment}
-                 className="bg-secondary hover:bg-secondary"
+                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 shadow-sm transition-colors"
                >
                  Save Assessment
                </Button>
