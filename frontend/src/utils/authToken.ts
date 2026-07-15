@@ -53,7 +53,7 @@ export const getAuthToken = (): string | null => {
     }
   }
 
-  console.log('❌ [AuthToken] No token found in any storage location');
+  console.log('ℹ️ [AuthToken] No token found in storage (normal for guests/unauthenticated pages)');
   return null;
 };
 
