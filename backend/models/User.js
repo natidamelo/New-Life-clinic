@@ -125,6 +125,18 @@ const userSchema = new mongoose.Schema({
     dailyRevenue: { type: Boolean, default: true },
     paymentAlerts: { type: Boolean, default: true },
     attendanceUpdates: { type: Boolean, default: true }
+  },
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false
+  },
+  twoFactorSecret: {
+    type: String,
+    select: false
+  },
+  twoFactorTempSecret: {
+    type: String,
+    select: false
   }
 }, {
   timestamps: true

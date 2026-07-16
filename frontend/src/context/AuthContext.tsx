@@ -26,7 +26,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   
   // Methods
-  login: (identifier: string, password: string, clinicId?: string) => Promise<User>;
+  login: (identifier: string, password: string, clinicId?: string) => Promise<any>;
+  verify2FA: (tempToken: string, code: string) => Promise<User>;
   testLogin: (identifier: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -118,14 +119,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   /**
    * Login user with credentials
    */
-  const login = async (identifier: string, password: string, clinicId?: string): Promise<User> => {
+  const login = async (identifier: string, password: string, clinicId?: string): Promise<any> => {
     try {
       console.log('🔄 [AuthContext] Attempting login...');
       setIsLoading(true);
 
       const response = await authService.login({ identifier, password, clinicId });
       
-      if (response.success && response.data.user) {
+      // Intercept 2-Factor Authentication responses
+      if (response.success && (response.twoFactorRequired || response.twoFactorSetupRequired)) {
+        console.log('🔒 [AuthContext] Two-factor authentication required, returning credentials challenge');
+        return response;
+      }
+      
+      if (response.success && response.data?.user) {
         setUser(response.data.user);
         setIsAuthenticated(true);
         
@@ -184,6 +191,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('❌ [AuthContext] Test login failed:', error);
       
       const errorMessage = error.message || 'Test login failed. Please try again.';
+      toast.error(errorMessage, {
+        position: 'top-center',
+        autoClose: 5000,
+      });
+      
+      setUser(null);
+      setIsAuthenticated(false);
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Verify two-factor authentication code
+   */
+  const verify2FA = async (tempToken: string, code: string): Promise<User> => {
+    try {
+      console.log('🔄 [AuthContext] Attempting 2FA verification...');
+      setIsLoading(true);
+
+      const response = await authService.verify2FA(tempToken, code);
+      
+      if (response.success && response.data?.user) {
+        setUser(response.data.user);
+        setIsAuthenticated(true);
+        
+        toast.success('Login successful! Welcome back.', {
+          position: 'top-center',
+          autoClose: 3000,
+        });
+        
+        console.log('✅ [AuthContext] 2FA login successful, user role:', response.data.user.role);
+        return response.data.user;
+      } else {
+        throw new Error(response.message || 'Verification failed');
+      }
+    } catch (error: any) {
+      console.error('❌ [AuthContext] 2FA verification failed:', error);
+      
+      const errorMessage = error.message || 'Verification failed. Please try again.';
       toast.error(errorMessage, {
         position: 'top-center',
         autoClose: 5000,
@@ -300,19 +348,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Context value
   const contextValue: AuthContextType = {
     // State
-        user,
-        isLoading,
+    user,
+    isLoading,
     isAuthenticated,
     
     // Methods
-        login,
+    login,
+    verify2FA,
     testLogin,
-        logout,
+    logout,
     refreshUser,
     updateUser,
-        getRoleBasedRoute: getRoleBasedRouteWithUser,
-        getToken,
-        token: getToken(),
+    getRoleBasedRoute: getRoleBasedRouteWithUser,
+    getToken,
+    token: getToken(),
   };
 
   return (

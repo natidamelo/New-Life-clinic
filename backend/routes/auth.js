@@ -123,6 +123,13 @@ router.post('/patient/register', authController.patientRegister);
 router.get('/patient/check-card/:cardId', authController.checkPatientCard);
 
 /**
+ * @route   POST /api/auth/verify-2fa
+ * @desc    Verify 2FA OTP code and get token
+ * @access  Public
+ */
+router.post('/verify-2fa', authController.verify2FA);
+
+/**
  * @route   POST /api/auth/logout
  * @desc    Logout user
  * @access  Public

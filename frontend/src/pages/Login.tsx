@@ -5,6 +5,7 @@ import * as Yup from 'yup';
 import { toast, Toaster } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useSafeTheme } from '../hooks/useSafeTheme';
+import { User as UserType } from '../types/user';
 import { 
   Moon, Sun, Eye, EyeOff, Users, Activity, ShieldCheck, Clock,
   Calendar, CreditCard, Search, Filter, CheckCircle2, ChevronRight,
@@ -794,13 +795,22 @@ const PackageCard: React.FC<PackageCardProps> = ({
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, login, getRoleBasedRoute } = useAuth();
+  const { user, isAuthenticated, login, verify2FA, getRoleBasedRoute } = useAuth();
   const { clinic } = useClinic();
   const { isDarkMode, toggleTheme } = useSafeTheme();
   
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
+  // 2FA state variables
+  const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
+  const [twoFactorSetup, setTwoFactorSetup] = useState<{
+    qrCode: string;
+    secret: string;
+  } | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
   const [isWarmingUp, setIsWarmingUp] = useState(false);
   const [warmupSeconds, setWarmupSeconds] = useState(0);
   const warmupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1102,8 +1112,23 @@ const Login: React.FC = () => {
       setIsLoading(true);
       try {
         const tenant = (values.clinicId || '').trim() || 'default';
-        const loggedInUser = await login(values.email, values.password, tenant);
+        const result = await login(values.email, values.password, tenant);
         stopWarmup();
+
+        if (result && (result.twoFactorRequired || result.twoFactorSetupRequired)) {
+          setTwoFactorToken(result.tempToken || null);
+          if (result.twoFactorSetupRequired) {
+            setTwoFactorSetup({
+              qrCode: result.qrCode || '',
+              secret: result.secret || ''
+            });
+          } else {
+            setTwoFactorSetup(null);
+          }
+          return;
+        }
+
+        const loggedInUser = result as UserType;
         toast.success(`Welcome back, ${loggedInUser.firstName || loggedInUser.name}!`);
         const isAdmin =
           loggedInUser.role === 'admin' ||
@@ -1127,6 +1152,28 @@ const Login: React.FC = () => {
       }
     },
   });
+
+  const handleVerify2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!twoFactorCode || twoFactorCode.length !== 6 || !/^\d+$/.test(twoFactorCode)) {
+      toast.error('Please enter a valid 6-digit verification code');
+      return;
+    }
+    setTwoFactorLoading(true);
+    try {
+      const loggedInUser = await verify2FA(twoFactorToken!, twoFactorCode);
+      const isAdmin =
+        loggedInUser.role === 'admin' ||
+        loggedInUser.role === 'super_admin' ||
+        (loggedInUser.email && loggedInUser.email.toLowerCase().includes('admin')) ||
+        (loggedInUser.username && loggedInUser.username.toLowerCase().includes('admin'));
+      navigate(isAdmin ? '/app/dashboard' : getRoleBasedRoute(loggedInUser.role));
+    } catch (err: any) {
+      console.error('2FA submission error:', err);
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  };
 
   // Self-Booking patient lookup
   const handleVerifyPatient = async () => {
@@ -2419,169 +2466,265 @@ const Login: React.FC = () => {
                   ['--shine-color' as any]: isDarkMode ? 'rgba(103, 232, 249, 0.12)' : 'rgba(13, 148, 136, 0.08)'
                 }}
               >
-                {/* Heading */}
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className={`h-0.5 w-10 rounded-full bg-gradient-to-r ${isDarkMode ? 'from-cyan-300 via-blue-300 to-indigo-300' : 'from-teal-500 to-cyan-500'}`} />
-                    <span className={`${isDarkMode ? 'text-cyan-300' : 'text-teal-600'} text-xs font-semibold uppercase tracking-widest`}>Secure Sign In</span>
-                  </div>
-                  <h2 className={`text-[2rem] sm:text-[2.2rem] font-extrabold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Welcome back</h2>
-                  <p className={`text-[13px] mt-1.5 ${isDarkMode ? 'text-slate-300/75' : 'text-slate-500'}`}>Sign in to continue to your clinic workspace</p>
-                </div>
-
-                {/* Form */}
-                <form onSubmit={formik.handleSubmit} className="space-y-5">
-                  <div className="space-y-2">
-                    <label htmlFor="email" className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-600'}`}>
-                      Username or Email
-                    </label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
-                        <svg className={`w-4 h-4 transition-colors ${isDarkMode ? 'text-slate-500 group-focus-within:text-cyan-400' : 'text-slate-400 group-focus-within:text-teal-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
+                {twoFactorToken ? (
+                  <form onSubmit={handleVerify2FA} className="space-y-6">
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className={`h-0.5 w-10 rounded-full bg-gradient-to-r ${isDarkMode ? 'from-cyan-300 via-blue-300 to-indigo-300' : 'from-teal-500 to-cyan-500'}`} />
+                        <span className={`${isDarkMode ? 'text-cyan-300' : 'text-teal-600'} text-xs font-semibold uppercase tracking-widest`}>
+                          {twoFactorSetup ? 'MFA Setup' : 'Secure Entry'}
+                        </span>
                       </div>
-                      <input
-                        id="email"
-                        name="email"
-                        type="text"
-                        autoComplete="off"
-                        placeholder="dr.smith or admin@clinic.com"
-                        {...formik.getFieldProps('email')}
-                        style={inputStyle}
-                        className={`auth-login-input w-full h-12 pl-10 pr-4 text-sm rounded-xl outline-none transition-all duration-200 ${
-                          formik.touched.email && formik.errors.email
-                            ? '!border-red-400/50 focus:!border-red-400 focus:!ring-red-400/20'
-                            : ''
-                        }`}
-                        onBlur={formik.handleBlur}
-                      />
-                    </div>
-                    {formik.touched.email && formik.errors.email && (
-                      <p className="text-xs text-red-400 font-medium flex items-center gap-1">
-                        <span>⚠</span> {formik.errors.email}
+                      <h2 className={`text-[1.8rem] sm:text-[2rem] font-extrabold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                        {twoFactorSetup ? 'Configure 2FA' : 'Verify Identity'}
+                      </h2>
+                      <p className={`text-[13px] mt-1.5 ${isDarkMode ? 'text-slate-300/75' : 'text-slate-500'}`}>
+                        {twoFactorSetup 
+                          ? 'Scan this QR code with Google Authenticator or Authy to configure your secure login.' 
+                          : 'Please enter the 6-digit verification code from your authenticator app to complete sign in.'}
                       </p>
-                    )}
-                  </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="password" className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-600'}`}>
-                      Password
-                    </label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
-                        <svg className={`w-4 h-4 transition-colors ${isDarkMode ? 'text-slate-500 group-focus-within:text-cyan-400' : 'text-slate-400 group-focus-within:text-teal-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
+                    {twoFactorSetup && (
+                      <div className="text-center space-y-3">
+                        <img 
+                          src={twoFactorSetup.qrCode} 
+                          alt="2FA QR Code" 
+                          className="mx-auto rounded-xl border border-slate-200/50 bg-white p-2.5 shadow-sm max-w-[170px]"
+                        />
+                        <div className={`p-3 rounded-xl border text-[11px] font-mono break-all ${
+                          isDarkMode 
+                            ? 'bg-slate-900/60 border-slate-800 text-slate-300' 
+                            : 'bg-slate-50 border-slate-200 text-slate-600'
+                        }`}>
+                          <span className="block text-[9px] uppercase tracking-wider text-slate-400 font-sans mb-1 font-bold">Secret Key</span>
+                          {twoFactorSetup.secret}
+                        </div>
                       </div>
-                      <input
-                        id="password"
-                        name="password"
-                        type={showPassword ? 'text' : 'password'}
-                        autoComplete="off"
-                        placeholder="Enter your password"
-                        {...formik.getFieldProps('password')}
-                        style={inputStyle}
-                        className={`auth-login-input w-full h-12 pl-10 pr-11 text-sm rounded-xl outline-none transition-all duration-200 ${
-                          formik.touched.password && formik.errors.password
-                            ? '!border-red-400/50 focus:!border-red-400 focus:!ring-red-400/20'
-                            : ''
-                        }`}
-                        onBlur={formik.handleBlur}
-                      />
-                      <button
-                        type="button"
-                        tabIndex={-1}
-                        onClick={() => setShowPassword(!showPassword)}
-                        className={`absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors ${isDarkMode ? 'text-slate-400 hover:text-cyan-300' : 'text-slate-400 hover:text-teal-600'}`}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    {formik.touched.password && formik.errors.password && (
-                      <p className="text-xs text-red-400 font-medium flex items-center gap-1">
-                        <span>⚠</span> {formik.errors.password}
-                      </p>
                     )}
-                  </div>
 
-                  {showClinicField ? (
                     <div className="space-y-2">
-                      <label htmlFor="clinicId" className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-600'}`}>
-                        Clinic code
+                      <label htmlFor="twoFactorCode" className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-600'}`}>
+                        MFA Verification Code
                       </label>
-                      <input
-                        id="clinicId"
-                        name="clinicId"
-                        type="text"
-                        autoComplete="off"
-                        placeholder="e.g. clinicnew"
-                        {...formik.getFieldProps('clinicId')}
-                        style={inputStyle}
-                        className="auth-login-input w-full h-11 px-4 text-sm rounded-xl outline-none transition-all duration-200"
-                      />
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowClinicField(true)}
-                      className={`text-xs transition-colors ${isDarkMode ? 'text-cyan-300/80 hover:text-cyan-200' : 'text-teal-600/80 hover:text-teal-700'}`}
-                    >
-                      Change clinic ({savedClinicId})
-                    </button>
-                  )}
-
-                  {isWarmingUp && (
-                    <div className="rounded-xl p-4 space-y-2 border"
-                      style={{ background: isDarkMode ? 'rgba(251,191,36,0.08)' : 'rgba(251,191,36,0.05)', borderColor: isDarkMode ? 'rgba(251,191,36,0.2)' : 'rgba(251,191,36,0.3)' }}>
-                      <div className="flex items-center gap-2">
-                        <svg className="animate-spin h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                        <p className="text-xs font-semibold animate-pulse text-amber-500">
-                          Server is waking up — please wait ({warmupSeconds}s)
-                        </p>
-                      </div>
-                      <div className="h-1 rounded-full overflow-hidden bg-amber-500/20">
-                        <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-300 transition-all duration-1000"
-                          style={{ width: `${Math.min((warmupSeconds / WARMUP_MAX_SECONDS) * 100, 100)}%` }}
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
+                          <svg className={`w-4 h-4 transition-colors ${isDarkMode ? 'text-slate-500 group-focus-within:text-cyan-400' : 'text-slate-400 group-focus-within:text-teal-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                          </svg>
+                        </div>
+                        <input
+                          id="twoFactorCode"
+                          name="twoFactorCode"
+                          type="text"
+                          maxLength={6}
+                          pattern="\d*"
+                          placeholder="e.g. 123456"
+                          value={twoFactorCode}
+                          onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
+                          style={inputStyle}
+                          className="auth-login-input w-full h-12 pl-10 pr-4 text-sm rounded-xl outline-none transition-all duration-200"
                         />
                       </div>
                     </div>
-                  )}
 
-                  <button
-                    type="submit"
-                    disabled={isLoading || isWarmingUp || !formik.isValid || !formik.dirty}
-                    className={`relative w-full h-12 rounded-xl text-sm font-bold tracking-wide transition-all duration-300 overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 ${isDarkMode ? 'text-slate-950 focus:ring-cyan-300/50' : 'text-white focus:ring-teal-500/50'} focus:ring-offset-2 focus:ring-offset-transparent mt-2`}
-                    style={{ 
-                      background: isDarkMode 
-                        ? 'linear-gradient(90deg, #67e8f9 0%, #93c5fd 50%, #a5b4fc 100%)' 
-                        : 'linear-gradient(90deg, #0d9488 0%, #0ea5e9 100%)', 
-                      boxShadow: isDarkMode 
-                        ? '0 8px 24px rgba(6,182,212,0.35)' 
-                        : '0 8px 24px rgba(13,148,136,0.2)' 
-                    }}
-                  >
-                    <span className="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors duration-200 rounded-xl" />
-                    <span className="relative flex items-center justify-center gap-2">
-                      {isLoading ? 'Signing in…' : 'Sign in'}
-                    </span>
-                  </button>
-                </form>
+                    <div className="flex flex-col gap-3">
+                      <button
+                        type="submit"
+                        disabled={twoFactorLoading || twoFactorCode.length !== 6}
+                        className={`w-full h-12 rounded-xl text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none ${
+                          isDarkMode 
+                            ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 shadow-cyan-950/20' 
+                            : 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 shadow-teal-600/10'
+                        }`}
+                      >
+                        {twoFactorLoading ? 'Verifying...' : (twoFactorSetup ? 'Verify and Enable' : 'Verify & Sign In')}
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTwoFactorToken(null);
+                          setTwoFactorSetup(null);
+                          setTwoFactorCode('');
+                        }}
+                        className={`w-full h-11 rounded-xl text-xs font-semibold border transition-all duration-150 ${
+                          isDarkMode
+                            ? 'border-slate-800 text-slate-400 hover:bg-slate-900/60 hover:text-white'
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`}
+                      >
+                        Cancel and Back to Login
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    {/* Heading */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className={`h-0.5 w-10 rounded-full bg-gradient-to-r ${isDarkMode ? 'from-cyan-300 via-blue-300 to-indigo-300' : 'from-teal-500 to-cyan-500'}`} />
+                        <span className={`${isDarkMode ? 'text-cyan-300' : 'text-teal-600'} text-xs font-semibold uppercase tracking-widest`}>Secure Sign In</span>
+                      </div>
+                      <h2 className={`text-[2rem] sm:text-[2.2rem] font-extrabold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Welcome back</h2>
+                      <p className={`text-[13px] mt-1.5 ${isDarkMode ? 'text-slate-300/75' : 'text-slate-500'}`}>Sign in to continue to your clinic workspace</p>
+                    </div>
 
-                {/* Patient Sign Up Link */}
-                <div className="text-center text-xs mt-1">
-                  <span className={`${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Are you a patient? </span>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/patient/signup')}
-                    className={`font-semibold underline cursor-pointer transition-colors ${isDarkMode ? 'text-cyan-300 hover:text-cyan-200' : 'text-teal-600 hover:text-teal-700'}`}
-                  >
-                    Create Patient Account
-                  </button>
-                </div>
+                    {/* Form */}
+                    <form onSubmit={formik.handleSubmit} className="space-y-5">
+                      <div className="space-y-2">
+                        <label htmlFor="email" className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-600'}`}>
+                          Username or Email
+                        </label>
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
+                            <svg className={`w-4 h-4 transition-colors ${isDarkMode ? 'text-slate-500 group-focus-within:text-cyan-400' : 'text-slate-400 group-focus-within:text-teal-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                          </div>
+                          <input
+                            id="email"
+                            name="email"
+                            type="text"
+                            autoComplete="off"
+                            placeholder="dr.smith or admin@clinic.com"
+                            {...formik.getFieldProps('email')}
+                            style={inputStyle}
+                            className={`auth-login-input w-full h-12 pl-10 pr-4 text-sm rounded-xl outline-none transition-all duration-200 ${
+                              formik.touched.email && formik.errors.email
+                                ? '!border-red-400/50 focus:!border-red-400 focus:!ring-red-400/20'
+                                : ''
+                            }`}
+                            onBlur={formik.handleBlur}
+                          />
+                        </div>
+                        {formik.touched.email && formik.errors.email && (
+                          <p className="text-xs text-red-400 font-medium flex items-center gap-1">
+                            <span>⚠</span> {formik.errors.email}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <label htmlFor="password" className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-600'}`}>
+                          Password
+                        </label>
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
+                            <svg className={`w-4 h-4 transition-colors ${isDarkMode ? 'text-slate-500 group-focus-within:text-cyan-400' : 'text-slate-400 group-focus-within:text-teal-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                          </div>
+                          <input
+                            id="password"
+                            name="password"
+                            type={showPassword ? 'text' : 'password'}
+                            autoComplete="off"
+                            placeholder="Enter your password"
+                            {...formik.getFieldProps('password')}
+                            style={inputStyle}
+                            className={`auth-login-input w-full h-12 pl-10 pr-11 text-sm rounded-xl outline-none transition-all duration-200 ${
+                              formik.touched.password && formik.errors.password
+                                ? '!border-red-400/50 focus:!border-red-400 focus:!ring-red-400/20'
+                                : ''
+                            }`}
+                            onBlur={formik.handleBlur}
+                          />
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            onClick={() => setShowPassword(!showPassword)}
+                            className={`absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors ${isDarkMode ? 'text-slate-400 hover:text-cyan-300' : 'text-slate-400 hover:text-teal-600'}`}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        {formik.touched.password && formik.errors.password && (
+                          <p className="text-xs text-red-400 font-medium flex items-center gap-1">
+                            <span>⚠</span> {formik.errors.password}
+                          </p>
+                        )}
+                      </div>
+
+                      {showClinicField ? (
+                        <div className="space-y-2">
+                          <label htmlFor="clinicId" className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-600'}`}>
+                            Clinic code
+                          </label>
+                          <input
+                            id="clinicId"
+                            name="clinicId"
+                            type="text"
+                            autoComplete="off"
+                            placeholder="e.g. clinicnew"
+                            {...formik.getFieldProps('clinicId')}
+                            style={inputStyle}
+                            className="auth-login-input w-full h-11 px-4 text-sm rounded-xl outline-none transition-all duration-200"
+                          />
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setShowClinicField(true)}
+                          className={`text-xs transition-colors ${isDarkMode ? 'text-cyan-300/80 hover:text-cyan-200' : 'text-teal-600/80 hover:text-teal-700'}`}
+                        >
+                          Change clinic ({savedClinicId})
+                        </button>
+                      )}
+
+                      {isWarmingUp && (
+                        <div className="rounded-xl p-4 space-y-2 border"
+                          style={{ background: isDarkMode ? 'rgba(251,191,36,0.08)' : 'rgba(251,191,36,0.05)', borderColor: isDarkMode ? 'rgba(251,191,36,0.2)' : 'rgba(251,191,36,0.3)' }}>
+                          <div className="flex items-center gap-2">
+                            <svg className="animate-spin h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            <p className="text-xs font-semibold animate-pulse text-amber-500">
+                              Server is waking up — please wait ({warmupSeconds}s)
+                            </p>
+                          </div>
+                          <div className="h-1 rounded-full overflow-hidden bg-amber-500/20">
+                            <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-300 transition-all duration-1000"
+                              style={{ width: `${Math.min((warmupSeconds / WARMUP_MAX_SECONDS) * 100, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={isLoading || isWarmingUp || !formik.isValid || !formik.dirty}
+                        className={`relative w-full h-12 rounded-xl text-sm font-bold tracking-wide transition-all duration-300 overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 ${isDarkMode ? 'text-slate-950 focus:ring-cyan-300/50' : 'text-white focus:ring-teal-500/50'} focus:ring-offset-2 focus:ring-offset-transparent mt-2`}
+                        style={{ 
+                          background: isDarkMode 
+                            ? 'linear-gradient(90deg, #67e8f9 0%, #93c5fd 50%, #a5b4fc 100%)' 
+                            : 'linear-gradient(90deg, #0d9488 0%, #0ea5e9 100%)', 
+                          boxShadow: isDarkMode 
+                            ? '0 8px 24px rgba(6,182,212,0.35)' 
+                            : '0 8px 24px rgba(13,148,136,0.2)' 
+                        }}
+                      >
+                        <span className="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors duration-200 rounded-xl" />
+                        <span className="relative flex items-center justify-center gap-2">
+                          {isLoading ? 'Signing in…' : 'Sign in'}
+                        </span>
+                      </button>
+                    </form>
+
+                    {/* Patient Sign Up Link */}
+                    <div className="text-center text-xs mt-1">
+                      <span className={`${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Are you a patient? </span>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/patient/signup')}
+                        className={`font-semibold underline cursor-pointer transition-colors ${isDarkMode ? 'text-cyan-300 hover:text-cyan-200' : 'text-teal-600 hover:text-teal-700'}`}
+                      >
+                        Create Patient Account
+                      </button>
+                    </div>
+                  </>
+                )}
 
                 {/* Divider */}
                 <div className="flex items-center gap-3">

@@ -64,7 +64,17 @@ const authController = {
       
       logger.info('Login attempt', { identifier });
       
-      const { user, token } = await authService.loginUser(identifier, password, clinicId);
+      const loginResult = await authService.loginUser(identifier, password, clinicId);
+      
+      if (loginResult.twoFactorRequired || loginResult.twoFactorSetupRequired) {
+        return res.status(200).json({
+          success: true,
+          message: 'Two-factor authentication required',
+          ...loginResult
+        });
+      }
+      
+      const { user, token } = loginResult;
       
       // Look up clinic branding info
       let clinicInfo = null;
@@ -368,6 +378,55 @@ const authController = {
       res.status(200).json({
         success: true,
         message: 'Logged out successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Verify two-factor authentication code and sign in
+   * @route POST /api/auth/verify-2fa
+   */
+  verify2FA: async (req, res, next) => {
+    try {
+      const { tempToken, code } = req.body;
+      
+      if (!tempToken || !code) {
+        return res.status(400).json({
+          success: false,
+          message: 'Verification session and code are required'
+        });
+      }
+      
+      const { user, token } = await authService.verifyTwoFactorCode(tempToken, code);
+      
+      // Look up clinic branding info
+      let clinicInfo = null;
+      try {
+        const Clinic = require('../models/Clinic');
+        const userClinicId = user.clinicId || 'default';
+        const clinic = await Clinic.findOne({ slug: userClinicId });
+        if (clinic) {
+          clinicInfo = {
+            name: clinic.name,
+            slug: clinic.slug,
+            logo: clinic.logo || null,
+            fullName: clinic.fullName || clinic.name,
+            tagline: clinic.tagline || '',
+            address: clinic.address || '',
+            contactEmail: clinic.contactEmail || '',
+            contactPhone: clinic.contactPhone || ''
+          };
+        }
+      } catch (clinicErr) {
+        logger.warn('Could not fetch clinic info during 2FA verification', { error: clinicErr.message });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        data: { user, token, clinic: clinicInfo }
       });
     } catch (error) {
       next(error);

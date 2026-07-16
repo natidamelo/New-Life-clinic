@@ -184,8 +184,53 @@ class AuthService {
       }
 
       // Fetch user with photo and digitalSignature explicitly for login response
-      user = await User.findById(user._id).setOptions({ skipTenantScope: true }).select('+photo +digitalSignature');
+      user = await User.findById(user._id).setOptions({ skipTenantScope: true }).select('+photo +digitalSignature +twoFactorSecret +twoFactorTempSecret');
       
+      // Check for two-factor authentication (admins and super admins only)
+      const isAdminRole = user.role === 'admin' || user.role === 'super_admin';
+      if (isAdminRole) {
+        if (!user.twoFactorEnabled) {
+          // Generate temporary secret if not present
+          let tempSecret = user.twoFactorTempSecret;
+          if (!tempSecret) {
+            const twoFactorUtils = require('../utils/twoFactor');
+            tempSecret = twoFactorUtils.base32Encode(crypto.randomBytes(10));
+            user.twoFactorTempSecret = tempSecret;
+            await user.save();
+          }
+          
+          // Generate QR code data URL
+          const QRCode = require('qrcode');
+          const appName = encodeURIComponent(process.env.VITE_APP_NAME || 'New Life Clinic');
+          const otpauthUrl = `otpauth://totp/${appName}:${user.email || user.username}?secret=${tempSecret}&issuer=${appName}`;
+          const qrCode = await QRCode.toDataURL(otpauthUrl);
+          
+          // Generate 10-minute tempToken
+          const tempPayload = { userId: user._id, role: user.role, type: '2fa_setup' };
+          const tempSecretJwt = process.env.JWT_SECRET || 'clinic-management-system-default-secret-key-12345';
+          const tempToken = jwt.sign(tempPayload, tempSecretJwt, { expiresIn: '10m' });
+          
+          logger.info('User 2FA setup required', { userId: user._id });
+          return {
+            twoFactorSetupRequired: true,
+            tempToken,
+            secret: tempSecret,
+            qrCode
+          };
+        } else {
+          // Generate 10-minute tempToken for login verification
+          const tempPayload = { userId: user._id, role: user.role, type: '2fa_verify' };
+          const tempSecretJwt = process.env.JWT_SECRET || 'clinic-management-system-default-secret-key-12345';
+          const tempToken = jwt.sign(tempPayload, tempSecretJwt, { expiresIn: '10m' });
+          
+          logger.info('User 2FA verification required', { userId: user._id });
+          return {
+            twoFactorRequired: true,
+            tempToken
+          };
+        }
+      }
+
       // Update last login
       user.lastLogin = new Date();
       await user.save();
@@ -461,6 +506,85 @@ class AuthService {
       logger.info('User reactivated successfully', { userId, email: user.email });
     } catch (error) {
       logger.error('User reactivation failed', { error: error.message, userId });
+      throw error;
+    }
+  }
+
+  /**
+   * Verify two-factor authentication code and return final session token
+   * @param {string} tempToken - short-lived 2FA JWT
+   * @param {string} code - 6-digit TOTP code
+   * @returns {Promise<Object>} User object and JWT token
+   */
+  async verifyTwoFactorCode(tempToken, code) {
+    try {
+      logger.info('Starting 2FA verification process');
+      const tempSecret = process.env.JWT_SECRET || 'clinic-management-system-default-secret-key-12345';
+      let decoded;
+      try {
+        decoded = jwt.verify(tempToken, tempSecret);
+      } catch (err) {
+        throw this.createAuthError('Invalid or expired verification session', 401);
+      }
+      
+      const { userId, type } = decoded;
+      if (!userId || !type || (type !== '2fa_verify' && type !== '2fa_setup')) {
+        throw this.createAuthError('Invalid verification token payload', 401);
+      }
+      
+      let user = await User.findById(userId).setOptions({ skipTenantScope: true }).select('+photo +digitalSignature +twoFactorSecret +twoFactorTempSecret');
+      if (!user || !user.isActive) {
+        throw this.createAuthError('User not found or deactivated', 403);
+      }
+      
+      const twoFactorUtils = require('../utils/twoFactor');
+      
+      if (type === '2fa_setup') {
+        const secret = user.twoFactorTempSecret;
+        if (!secret) {
+          throw this.createAuthError('2FA setup session not initialized', 400);
+        }
+        
+        const isValid = twoFactorUtils.verifyTOTP(code, secret);
+        if (!isValid) {
+          throw this.createAuthError('Invalid verification code', 401);
+        }
+        
+        // Setup successful: promote temp secret to active secret
+        user.twoFactorSecret = secret;
+        user.twoFactorTempSecret = undefined;
+        user.twoFactorEnabled = true;
+        user.lastLogin = new Date();
+        await user.save();
+      } else {
+        const secret = user.twoFactorSecret;
+        if (!secret) {
+          throw this.createAuthError('2FA not configured for this user', 400);
+        }
+        
+        const isValid = twoFactorUtils.verifyTOTP(code, secret);
+        if (!isValid) {
+          throw this.createAuthError('Invalid verification code', 401);
+        }
+        
+        user.lastLogin = new Date();
+        await user.save();
+      }
+      
+      // Generate final JWT token
+      const token = this.generateToken(user);
+      
+      // Remove sensitive fields from response
+      const userResponse = user.toObject();
+      delete userResponse.password;
+      delete userResponse.twoFactorSecret;
+      delete userResponse.twoFactorTempSecret;
+      
+      logger.info('2FA verification successful', { userId: user._id, email: user.email, role: user.role });
+      
+      return { user: userResponse, token };
+    } catch (error) {
+      logger.warn('2FA verification failed', { error: error.message });
       throw error;
     }
   }

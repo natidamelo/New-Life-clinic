@@ -44,6 +44,11 @@ interface AuthResponse {
     refreshToken?: string;
   };
   message?: string;
+  twoFactorRequired?: boolean;
+  twoFactorSetupRequired?: boolean;
+  tempToken?: string;
+  secret?: string;
+  qrCode?: string;
 }
 
 // Login credentials interface
@@ -294,37 +299,44 @@ class AuthService {
         console.log('📤 [AuthService] Sending POST to /api/auth/login');
         const response = await api.post('/api/auth/login', loginPayload, { skipAuth: true, timeout: 90000 } as any); // 90s — allow enough time for Render cold start / server spin-up
         
-        if (response.data.success && response.data.data) {
-          const { user, token, refreshToken, clinic } = response.data.data;
-          const u = user as User & { clinicId?: string };
-          if (u.role === 'super_admin') {
-            setClinicTenantId(clinicId);
-          } else {
-            setClinicTenantId(u.clinicId || clinicId);
+        if (response.data.success) {
+          if (response.data.twoFactorRequired || response.data.twoFactorSetupRequired) {
+            console.log('🔒 [AuthService] Two-factor authentication required/setup required, returning temp details');
+            return response.data;
           }
 
-          // Store authentication data
-          this.setToken(token);
-          this.setUser(user);
-          
-          if (clinic) {
-            localStorage.setItem('clinic_branding_data', JSON.stringify(clinic));
-          }
-          
-          if (refreshToken) {
-            localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-          }
+          if (response.data.data) {
+            const { user, token, refreshToken, clinic } = response.data.data;
+            const u = user as User & { clinicId?: string };
+            if (u.role === 'super_admin') {
+              setClinicTenantId(clinicId);
+            } else {
+              setClinicTenantId(u.clinicId || clinicId);
+            }
 
-          // Set up token refresh
-          this.setupTokenRefresh();
-          
-          console.log('✅ [AuthService] Backend login successful');
-          return response.data;
-        } else {
-          const errorMessage = response.data.message || 'Login failed';
-          console.error('❌ [AuthService] Login response indicates failure:', errorMessage);
-          throw new Error(errorMessage);
+            // Store authentication data
+            this.setToken(token);
+            this.setUser(user);
+            
+            if (clinic) {
+              localStorage.setItem('clinic_branding_data', JSON.stringify(clinic));
+            }
+            
+            if (refreshToken) {
+              localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+            }
+
+            // Set up token refresh
+            this.setupTokenRefresh();
+            
+            console.log('✅ [AuthService] Backend login successful');
+            return response.data;
+          }
         }
+        
+        const errorMessage = response.data.message || 'Login failed';
+        console.error('❌ [AuthService] Login response indicates failure:', errorMessage);
+        throw new Error(errorMessage);
       } catch (backendError: any) {
         console.error('❌ [AuthService] Backend authentication failed');
         console.error('   Error details:', {
@@ -466,6 +478,45 @@ class AuthService {
     } catch (error: any) {
       console.error('❌ [AuthService] Test login failed:', error);
       throw new Error(error.response?.data?.message || error.message || 'Test login failed');
+    }
+  }
+
+  /**
+   * Verify two-factor authentication code
+   */
+  public async verify2FA(tempToken: string, code: string): Promise<AuthResponse> {
+    try {
+      console.log('🔄 [AuthService] Verifying 2FA code...');
+      const response = await api.post('/api/auth/verify-2fa', { tempToken, code }, { skipAuth: true } as any);
+      
+      if (response.data.success && response.data.data) {
+        const { user, token, refreshToken, clinic } = response.data.data;
+        const u = user as User & { clinicId?: string };
+        setClinicTenantId(u.clinicId || 'default');
+
+        // Store authentication data
+        this.setToken(token);
+        this.setUser(user);
+        
+        if (clinic) {
+          localStorage.setItem('clinic_branding_data', JSON.stringify(clinic));
+        }
+        
+        if (refreshToken) {
+          localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        }
+
+        // Set up token refresh
+        this.setupTokenRefresh();
+        
+        console.log('✅ [AuthService] 2FA verification and login successful');
+        return response.data;
+      } else {
+        throw new Error(response.data.message || 'Verification failed');
+      }
+    } catch (error: any) {
+      console.error('❌ [AuthService] 2FA verification failed:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Verification failed');
     }
   }
 
