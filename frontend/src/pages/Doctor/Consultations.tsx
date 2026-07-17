@@ -86,19 +86,28 @@ const Consultations: React.FC = () => {
 
       // Filter for consultation patients assigned to this doctor
       const consultationPatients = allPatients.filter((patient: any) => {
-        // Check if patient is assigned to this doctor (either directly or through service request)
+        // Check if patient is assigned to this doctor (either directly, through service request, or appointment)
         const isAssignedToDoctor = patient.assignedDoctorId === currentDoctorId;
         
         // Check if any service request is assigned to this doctor
         const hasServiceRequestAssignedToDoctor = patient.serviceRequests?.some((sr: any) => 
           sr.assignedNurse === currentDoctorId || sr.assignedDoctor === currentDoctorId
         );
+
+        // Check if any checked-in/scheduled appointment is assigned to this doctor
+        const hasAppointmentAssignedToDoctor = patient.appointments?.some((appt: any) => 
+          (appt.doctorId === currentDoctorId || appt.doctorId?._id === currentDoctorId) &&
+          (appt.status === 'Checked In' || appt.status === 'Scheduled')
+        );
         
-        // Check if patient has consultation services
+        // Check if patient has consultation services or consultation appointments
         const hasConsultationService = patient.serviceRequests?.some((sr: any) => 
           sr.service?.category === 'consultation' || 
           sr.service?.category === 'follow-up' || 
           sr.notes?.toLowerCase().includes('consultation')
+        ) || patient.appointments?.some((appt: any) => 
+          ['Consultation', 'consultation', 'New Patient', 'Follow-up', 'follow-up', 'checkup', 'Check-up', 'Procedure', 'Emergency'].includes(appt.type) &&
+          (appt.status === 'Checked In' || appt.status === 'Scheduled')
         );
         
         // More flexible status checking
@@ -107,16 +116,18 @@ const Consultations: React.FC = () => {
           patient.status === 'waiting' || 
           patient.status === 'in-progress';
         
-        // Patient qualifies if they have consultation services AND are assigned to this doctor
-        const qualifies = (isAssignedToDoctor || hasServiceRequestAssignedToDoctor) && hasConsultationService;
+        // Patient qualifies if they have consultation services/appointments AND are assigned to this doctor
+        const qualifies = (isAssignedToDoctor || hasServiceRequestAssignedToDoctor || hasAppointmentAssignedToDoctor) && hasConsultationService;
         
         if (qualifies) {
           console.log(`🔍 [CONSULTATIONS] Found consultation patient: ${patient.firstName} ${patient.lastName}`, {
             isAssignedToDoctor,
             hasServiceRequestAssignedToDoctor,
+            hasAppointmentAssignedToDoctor,
             hasConsultationService,
             status: patient.status,
-            serviceRequests: patient.serviceRequests?.length || 0
+            serviceRequests: patient.serviceRequests?.length || 0,
+            appointments: patient.appointments?.length || 0
           });
         }
         

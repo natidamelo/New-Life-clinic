@@ -909,13 +909,36 @@ router.get('/with-service-requests', auth, async (req, res) => {
       }
       serviceRequestsByPatient[patientId].push(sr);
     });
+
+    // Get all appointments for these patients
+    let appointmentsByPatient = {};
+    try {
+      const Appointment = require('../models/Appointment');
+      const appointments = await Appointment.find({
+        patientId: { $in: patientIds },
+        status: { $in: ['Scheduled', 'Checked In'] }
+      }).lean();
+
+      console.log('🔍 [with-service-requests] Found appointments:', appointments.length);
+
+      appointments.forEach(appt => {
+        const patientId = appt.patientId.toString();
+        if (!appointmentsByPatient[patientId]) {
+          appointmentsByPatient[patientId] = [];
+        }
+        appointmentsByPatient[patientId].push(appt);
+      });
+    } catch (apptError) {
+      console.error('🔍 [with-service-requests] Error loading appointments:', apptError);
+    }
     
-    // Add service requests to each patient
+    // Add service requests and appointments to each patient
     const patientsWithServiceRequests = patients.map(patient => {
       const patientId = patient._id.toString();
       return {
         ...patient,
-        serviceRequests: serviceRequestsByPatient[patientId] || []
+        serviceRequests: serviceRequestsByPatient[patientId] || [],
+        appointments: appointmentsByPatient[patientId] || []
       };
     });
     

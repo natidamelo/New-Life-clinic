@@ -29,6 +29,23 @@ exports.checkInAppointment = async (req, res) => {
       });
     }
 
+    // Enforce history validation for Follow-up and Check-up
+    const isHistoryRequiredType = ['Check-up', 'checkup', 'Follow-up', 'follow-up'].includes(appointment.type);
+    if (isHistoryRequiredType) {
+      const MedicalRecord = require('../models/MedicalRecord');
+      const hasHistory = await MedicalRecord.exists({
+        $or: [{ patient: appointment.patientId?._id || appointment.patientId }, { patientId: appointment.patientId?._id || appointment.patientId }]
+      });
+      
+      if (!hasHistory) {
+        console.log(`❌ [checkInAppointment] Rejecting check-in: type "${appointment.type}" requires history for patient ${appointment.patientId?._id || appointment.patientId}`);
+        return res.status(400).json({
+          success: false,
+          message: `${appointment.type} appointments are only allowed for patients with a medical history. New patients must have a Consultation first.`
+        });
+      }
+    }
+
     console.log('🔍 [checkInAppointment] Found appointment:', {
       id: appointment._id,
       type: appointment.type,
@@ -160,6 +177,21 @@ exports.processAppointmentPayment = async (req, res) => {
     }
 
     await invoice.save();
+
+    if (invoice.status === 'paid') {
+      appointment.status = 'Checked In';
+      await appointment.save();
+
+      const Patient = require('../models/Patient');
+      const now = new Date();
+      await Patient.findByIdAndUpdate(appointment.patientId, {
+        status: 'waiting',
+        assignedDoctorId: appointment.doctorId,
+        isActive: true,
+        lastUpdated: now
+      });
+      console.log(`✅ [processAppointmentPayment] Appointment ${id} status set to Checked In. Patient status set to 'waiting' and assigned to Doctor ${appointment.doctorId}`);
+    }
 
     res.status(200).json({
       success: true,

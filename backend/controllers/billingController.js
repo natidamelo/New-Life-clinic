@@ -1030,6 +1030,45 @@ exports.addPaymentToInvoice = asyncHandler(async (req, res) => {
         }
     }
 
+    // 5.4.5. Update associated appointments and queue patient after payment
+    if (invoice.status === 'paid' && invoice.items && invoice.items.length > 0) {
+        try {
+            const Appointment = require('../models/Appointment');
+            const Patient = require('../models/Patient');
+
+            // Find any appointments associated with this invoice (by metadata.appointmentId)
+            const appointmentIds = [...new Set(
+                (invoice.items || [])
+                    .map((item) => item.metadata && item.metadata.appointmentId)
+                    .filter((id) => id != null && String(id).length > 0)
+            )];
+
+            if (appointmentIds.length > 0) {
+                console.log(`[addPaymentToInvoice] Found ${appointmentIds.length} appointments linked to paid invoice ${invoice.invoiceNumber}`);
+
+                for (const apptId of appointmentIds) {
+                    const appointment = await Appointment.findById(apptId);
+                    if (appointment) {
+                        appointment.status = 'Checked In';
+                        await appointment.save();
+
+                        // Route the patient to the doctor's queue
+                        const now = new Date();
+                        await Patient.findByIdAndUpdate(appointment.patientId, {
+                            status: 'waiting',
+                            assignedDoctorId: appointment.doctorId,
+                            isActive: true,
+                            lastUpdated: now
+                        });
+                        console.log(`✅ [addPaymentToInvoice] Appointment ${apptId} status set to Checked In. Patient ${appointment.patientId} status set to 'waiting' and assigned to Doctor ${appointment.doctorId}`);
+                    }
+                }
+            }
+        } catch (apptErr) {
+            console.error('[addPaymentToInvoice] Error in appointment/patient post-payment logic:', apptErr);
+        }
+    }
+
     // 5.5. Update associated lab orders payment status
     console.log(`[addPaymentToInvoice] Step 5.5: Updating lab orders payment status...`);
     try {

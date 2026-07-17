@@ -57,6 +57,23 @@ const createappointment = async (req, res) => {
   try {
     const { patient, doctor, dateTime, type, reason, notes, durationMinutes, selectedLabService, selectedImagingService } = req.body;
 
+    // Enforce history validation for Follow-up and Check-up
+    const isHistoryRequiredType = ['Check-up', 'checkup', 'Follow-up', 'follow-up'].includes(type);
+    if (isHistoryRequiredType) {
+      const MedicalRecord = require('../models/MedicalRecord');
+      const hasHistory = await MedicalRecord.exists({
+        $or: [{ patient: patient }, { patientId: patient }]
+      });
+      
+      if (!hasHistory) {
+        console.log(`❌ [createappointment] Rejecting creation: type "${type}" requires history for patient ${patient}`);
+        return res.status(400).json({
+          success: false,
+          message: `${type} appointments are only allowed for existing patients with a medical history. New patients must schedule a Consultation first.`
+        });
+      }
+    }
+
     // Verify Doctor Availability & Schedule Slots
     const availability = await checkDoctorAvailability(
       doctor,
@@ -295,6 +312,23 @@ const getAvailableTimeSlots = async (req, res) => {
 const createAppointment = async (req, res) => {
   try {
     const { patient, doctor, dateTime, type, reason, notes, durationMinutes } = req.body;
+
+    // Enforce history validation for Follow-up and Check-up
+    const isHistoryRequiredType = ['Check-up', 'checkup', 'Follow-up', 'follow-up'].includes(type);
+    if (isHistoryRequiredType) {
+      const MedicalRecord = require('../models/MedicalRecord');
+      const hasHistory = await MedicalRecord.exists({
+        $or: [{ patient: patient }, { patientId: patient }]
+      });
+      
+      if (!hasHistory) {
+        console.log(`❌ [createAppointment] Rejecting creation: type "${type}" requires history for patient ${patient}`);
+        return res.status(400).json({
+          success: false,
+          message: `${type} appointments are only allowed for existing patients with a medical history. New patients must schedule a Consultation first.`
+        });
+      }
+    }
     
     // Parse the ISO date string from frontend
     const appointmentDateTime = new Date(dateTime);
