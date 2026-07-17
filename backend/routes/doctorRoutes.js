@@ -185,7 +185,7 @@ router.get('/patients/active', auth, async (req, res) => {
       // When searching: no status, no assignedDoctorId, no isActive filter - search entire clinic
     } else {
       query.isActive = true;
-      query.status = { $ne: 'completed' };
+      query.status = { $nin: ['completed', 'scheduled'] };
       if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
         query.assignedDoctorId = currentDoctorId;
       }
