@@ -122,7 +122,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
           100% { background-position: 0% 50%; }
         }
         .shimmer-gradient {
-          background: linear-gradient(270deg, #0057FF, #2563EB, #00C2FF, #0057FF);
+          background-image: linear-gradient(270deg, #0057FF, #2563EB, #00C2FF, #0057FF);
           background-size: 600% 600%;
           animation: softShimmer 16s ease infinite;
         }
@@ -157,19 +157,19 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
         onMouseLeave={handleMouseLeave}
         className="relative w-full h-[calc(100vh-4rem)] min-h-[720px] flex flex-col justify-between items-center bg-[#F8FBFF] dark:bg-slate-950 transition-colors duration-500 overflow-hidden px-4 sm:px-6 lg:px-8 border-b border-slate-200/50 dark:border-slate-800/40 select-none z-10"
       >
-        {/* Soft Shifting Medical Gradient Background Blobs */}
-        <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-blue-500/10 to-cyan-500/10 blur-[120px] pointer-events-none animate-float-slow" />
-        <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] rounded-full bg-gradient-to-br from-indigo-500/10 to-blue-600/10 blur-[100px] pointer-events-none animate-float-medium" />
+        {/* Soft Shifting Medical Gradient Background Blobs (z-5) */}
+        <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-blue-500/10 to-cyan-500/10 blur-[120px] pointer-events-none animate-float-slow z-5" />
+        <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] rounded-full bg-gradient-to-br from-indigo-500/10 to-blue-600/10 blur-[100px] pointer-events-none animate-float-medium z-5" />
 
-        {/* Large Transparent Medical Cross Watermark in BG */}
-        <div className="absolute right-12 top-24 opacity-[0.02] dark:opacity-[0.03] pointer-events-none scale-125">
+        {/* Large Transparent Medical Cross Watermark in BG (z-0) */}
+        <div className="absolute right-12 top-24 opacity-[0.02] dark:opacity-[0.03] pointer-events-none scale-125 z-0">
           <svg width="400" height="400" viewBox="0 0 100 100" fill="currentColor">
             <path d="M 38 10 H 62 V 38 H 90 V 62 H 62 V 90 H 38 V 62 H 10 V 38 H 38 Z" />
           </svg>
         </div>
 
-        {/* Live ECG Heartbeat Line Background */}
-        <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 opacity-[0.06] dark:opacity-[0.08] pointer-events-none w-full">
+        {/* Live ECG Heartbeat Line Background (z-0) */}
+        <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 opacity-[0.06] dark:opacity-[0.08] pointer-events-none w-full z-0">
           <svg className="w-full h-48 text-blue-500" preserveAspectRatio="none" viewBox="0 0 1000 120" fill="none">
             <path 
               d="M 0 60 H 200 L 210 40 L 220 80 L 230 10 L 240 110 L 250 50 L 255 60 H 450 L 460 40 L 470 80 L 480 10 L 490 110 L 500 50 L 505 60 H 700 L 710 40 L 720 80 L 730 10 L 740 110 L 750 50 L 755 60 H 1000" 
@@ -183,10 +183,10 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
         </div>
 
         {/* Hero Content Center Grid */}
-        <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center flex-grow pt-4">
+        <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center flex-grow pt-4 relative">
           
-          {/* LEFT COLUMN: Texts & Core Actions */}
-          <div className="lg:col-span-6 space-y-6 text-left relative z-20">
+          {/* LEFT COLUMN: Texts & Core Actions (z-40) */}
+          <div className="lg:col-span-6 space-y-6 text-left relative z-40">
             {/* Small Premium Badge */}
             <motion.div 
               initial={{ opacity: 0, y: 15 }}
@@ -205,7 +205,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
               className="text-4xl sm:text-5xl lg:text-[72px] font-black tracking-tight leading-[1.05] text-slate-900 dark:text-white"
             >
               Healthcare <br />
-              <span className="text-transparent bg-clip-text shimmer-gradient">
+              <span className="text-transparent bg-clip-text [-webkit-background-clip:text] [background-clip:text] shimmer-gradient inline-block">
                 {heroHighlight}
               </span>
               {heroTitleEnd}
@@ -298,27 +298,32 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
               transition: 'transform 0.1s ease-out'
             }}
           >
-            {/* Center: Glowing Doctor Circle */}
-            <div className="relative h-64 w-64 md:h-80 md:w-80 rounded-full border border-blue-500/20 bg-gradient-to-tr from-blue-500/20 to-cyan-500/10 p-2 shadow-2xl shadow-blue-500/10 animate-float-slow overflow-hidden">
-              <div className="w-full h-full rounded-full overflow-hidden bg-[#E2EDFF] dark:bg-slate-900 relative">
-                <img 
-                  src="/assets/hero_doctor.png" 
-                  alt="Futuristic Healthcare" 
-                  className="w-full h-full object-cover object-top scale-105"
-                />
-              </div>
+            {/* 1. Glowing background Circle (z-10) */}
+            <div className="absolute h-64 w-64 md:h-80 md:w-80 rounded-full border border-blue-500/20 bg-gradient-to-tr from-blue-500/20 to-cyan-500/10 shadow-2xl shadow-blue-500/10 animate-float-slow z-10" />
+
+            {/* 2. Doctor Image centered inside circular mask, overlays above circle (z-20) */}
+            <div className="absolute h-60 w-60 md:h-76 md:w-76 rounded-full overflow-hidden z-20 animate-float-slow pointer-events-none flex items-center justify-center bg-[#E2EDFF] dark:bg-slate-900">
+              <img 
+                src="/assets/hero_doctor.png" 
+                alt="Professional Doctor Portrait" 
+                className="w-full h-full object-cover object-top scale-105"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=400&q=80";
+                }}
+              />
             </div>
 
             {/* Watermark/Orbiting glass rings */}
-            <div className="absolute inset-0 border border-slate-200/30 dark:border-slate-800/30 rounded-full scale-[1.25] pointer-events-none animate-spin-slow opacity-20" />
+            <div className="absolute inset-0 border border-slate-200/30 dark:border-slate-800/30 rounded-full scale-[1.25] pointer-events-none animate-spin-slow opacity-20 z-10" />
 
-            {/* TELEMETRY GLASS CARDS (Floating Orbiting Widgets) */}
+            {/* 3. TELEMETRY GLASS CARDS (Floating Orbiting Widgets) (z-30) */}
 
             {/* 1. Appointment Today (Top Left) */}
             <motion.div 
               animate={{ y: [0, -6, 0] }}
               transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-              className="absolute -top-4 left-4 p-3 rounded-[24px] border border-white/20 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md shadow-lg text-[10px] w-40 text-left animate-float-slow"
+              className="absolute -top-4 left-4 p-3 rounded-[24px] border border-white/20 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md shadow-lg text-[10px] w-40 text-left z-30 animate-float-slow"
             >
               <div className="flex items-center gap-1.5 text-blue-500 font-bold uppercase tracking-widest text-[9px] mb-1">
                 <Clock className="h-3 w-3" /> Appointment Today
@@ -331,7 +336,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
             <motion.div 
               animate={{ y: [0, 8, 0] }}
               transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
-              className="absolute top-8 right-0 p-3 rounded-[24px] border border-white/20 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md shadow-lg text-[10px] w-28 text-left"
+              className="absolute top-8 right-0 p-3 rounded-[24px] border border-white/20 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md shadow-lg text-[10px] w-28 text-left z-30"
             >
               <div className="flex items-center justify-between">
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Heart Rate</span>
@@ -358,7 +363,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
             <motion.div 
               animate={{ y: [0, -5, 0] }}
               transition={{ repeat: Infinity, duration: 3.5, ease: "easeInOut" }}
-              className="absolute top-1/2 -translate-y-1/2 -right-8 p-3 rounded-[24px] border border-white/20 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md shadow-lg text-[10px] w-28 text-left"
+              className="absolute top-1/2 -translate-y-1/2 -right-8 p-3 rounded-[24px] border border-white/20 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md shadow-lg text-[10px] w-28 text-left z-30"
             >
               <div className="flex items-center gap-1">
                 <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
@@ -371,7 +376,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
             <motion.div 
               animate={{ y: [0, 6, 0] }}
               transition={{ repeat: Infinity, duration: 4.8, ease: "easeInOut" }}
-              className="absolute -bottom-4 left-6 p-4 rounded-[24px] border border-white/20 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md shadow-lg text-[10px] grid grid-cols-2 gap-x-4 gap-y-1 w-64 text-left"
+              className="absolute -bottom-4 left-6 p-4 rounded-[24px] border border-white/20 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md shadow-lg text-[10px] grid grid-cols-2 gap-x-4 gap-y-1 w-64 text-left z-30"
             >
               <div>
                 <span className="text-[8px] font-bold text-slate-400 uppercase block">Doctors</span>
@@ -390,8 +395,8 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
 
         </div>
 
-        {/* BOTTOM SECTION: Floating Glass Search & Shortcuts */}
-        <div className="w-full max-w-4xl mx-auto pb-4 relative z-30 space-y-3">
+        {/* BOTTOM SECTION: Floating Glass Search & Shortcuts (z-40) */}
+        <div className="w-full max-w-4xl mx-auto pb-4 relative z-40 space-y-3">
           {/* Glass Search Panel */}
           <div className="p-2 rounded-[24px] border border-white/30 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md shadow-lg flex items-center gap-2 group hover:scale-[1.01] hover:border-blue-500/30 transition-all duration-300">
             <div className="h-10 w-10 shrink-0 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
@@ -423,8 +428,8 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
           </div>
         </div>
 
-        {/* SCROLL INDICATOR */}
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 animate-bounce pointer-events-none opacity-50 dark:opacity-40">
+        {/* SCROLL INDICATOR (z-40) */}
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 animate-bounce pointer-events-none opacity-50 dark:opacity-40 z-40">
           <div className="w-5 h-8 rounded-full border-2 border-slate-400 dark:border-slate-600 flex items-start justify-center p-1">
             <div className="w-1 h-2 bg-slate-400 dark:bg-slate-600 rounded-full" />
           </div>
