@@ -240,34 +240,95 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
         <AnimatePresence mode="wait">
           {servicesTab === 'services' ? (
             <motion.div key="services" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
-              {services.length > 0 ? (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {services.slice(0, 8).map((service, idx) => (
-                      <div key={service._id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:shadow-md hover:border-blue-500/30 hover:-translate-y-0.5 transition-all group">
-                        <div className={`h-8 w-8 rounded-xl flex items-center justify-center mb-3 ${SERVICE_TAB_COLORS[idx % SERVICE_TAB_COLORS.length]}`}>
-                          <Activity className="h-4 w-4" />
-                        </div>
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">{service.category}</span>
-                        <h4 className="text-xs font-bold mt-0.5 mb-1 line-clamp-1">{service.name}</h4>
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
-                          <span className="text-xs font-black text-blue-500">{service.price} ETB</span>
-                          <button onClick={() => onNavigateTab('appointment')} className="text-[10px] font-bold text-slate-400 group-hover:text-blue-500 flex items-center gap-0.5 transition-colors cursor-pointer">
-                            Book <ChevronRight className="h-3 w-3" />
-                          </button>
-                        </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* 1. Large Feature Card: Full Laboratory Checkup */}
+                <div className="lg:col-span-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden flex flex-col md:flex-row hover:shadow-lg transition-all group">
+                  <div className="md:w-1/2 relative h-48 md:h-auto overflow-hidden">
+                    <img 
+                      src="/assets/full_lab_checkup.png" 
+                      alt="Full Lab Checkup" 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-slate-900/60 to-transparent" />
+                    <span className="absolute bottom-4 left-4 px-2 py-1 rounded bg-blue-500 text-white text-[9px] font-bold uppercase tracking-wider">
+                      Popular Diagnostic Package
+                    </span>
+                  </div>
+                  
+                  <div className="p-6 md:w-1/2 flex flex-col justify-between space-y-4">
+                    <div className="space-y-2">
+                      <h3 className="text-base font-black text-slate-800 dark:text-white">Full Laboratory Checkup</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Complete hematology panel, comprehensive metabolic profile, lipid panels, urine chemistry, and key organ function screenings under one single visit.
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+                      <div>
+                        <span className="text-[9px] text-slate-400 block uppercase font-bold">Standard Price</span>
+                        <span className="text-sm font-black text-blue-500">From 450 ETB</span>
                       </div>
-                    ))}
+                      <button 
+                        onClick={() => onNavigateTab('appointment')} 
+                        className="px-4 py-2 rounded-xl text-[10px] font-bold bg-blue-500 hover:bg-blue-600 text-white cursor-pointer transition-colors shadow-sm"
+                      >
+                        Book Lab Test
+                      </button>
+                    </div>
                   </div>
-                  <div className="text-center pt-2">
-                    <button onClick={() => onNavigateTab('services')} className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-500 hover:text-blue-600 cursor-pointer">
-                      View all services <ArrowRight className="h-3.5 w-3.5" />
-                    </button>
+                </div>
+
+                {/* 2. Core Service List / Grid Column */}
+                <div className="grid grid-cols-1 gap-4">
+                  {/* Card: High Resolution Ultrasound */}
+                  <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:shadow-md hover:border-blue-500/20 transition-all flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
+                      <Award className="h-4.5 w-4.5" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold">3D/4D Obstetric & Abdominal Ultrasound</h4>
+                      <p className="text-[10px] text-slate-500 leading-relaxed">High-definition pelvic, pregnancy, and abdominal sonographies with instant reports.</p>
+                      <button onClick={() => onNavigateTab('appointment')} className="text-[9px] font-bold text-blue-500 hover:underline pt-1 flex items-center gap-0.5 cursor-pointer">
+                        Book scan <ChevronRight className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
-                </>
-              ) : (
-                <div className="text-center py-12 text-xs text-slate-400">No services loaded yet</div>
-              )}
+
+                  {/* Card: Primary Care */}
+                  <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:shadow-md hover:border-blue-500/20 transition-all flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                      <Stethoscope className="h-4.5 w-4.5" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold">Specialist & Doctor Consultations</h4>
+                      <p className="text-[10px] text-slate-500 leading-relaxed">Comprehensive primary health checkups, pediatrics diagnostics, and internal care.</p>
+                      <button onClick={() => onNavigateTab('appointment')} className="text-[9px] font-bold text-blue-500 hover:underline pt-1 flex items-center gap-0.5 cursor-pointer">
+                        Schedule visit <ChevronRight className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card: E-Pharmacy & Meds */}
+                  <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:shadow-md hover:border-blue-500/20 transition-all flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                      <Pill className="h-4.5 w-4.5" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold">Fully-Stocked Pharmacy Services</h4>
+                      <p className="text-[10px] text-slate-500 leading-relaxed">Instant fulfillment of certified clinical prescriptions and patient counseling.</p>
+                      <button onClick={() => onNavigateTab('services')} className="text-[9px] font-bold text-blue-500 hover:underline pt-1 flex items-center gap-0.5 cursor-pointer">
+                        View medications <ChevronRight className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+              <div className="text-center pt-4">
+                <button onClick={() => onNavigateTab('services')} className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-500 hover:text-blue-600 cursor-pointer">
+                  Explore complete list of 250+ services & tests <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </motion.div>
           ) : (
             <motion.div key="departments" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
