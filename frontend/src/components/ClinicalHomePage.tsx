@@ -102,7 +102,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
       `}} />
 
       {/* ─── HERO ─────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-800 p-8 sm:p-12 text-white shadow-2xl shadow-blue-600/30 border border-blue-500/20">
+      <section className="relative overflow-hidden bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-800 p-8 sm:p-12 text-white shadow-2xl shadow-blue-600/30 border-y border-blue-500/20 -mx-4 sm:-mx-6 lg:-mx-8">
         
         {/* Live ECG Scrolling Wave Background */}
         <div className="absolute inset-0 opacity-15 pointer-events-none z-0">
@@ -122,7 +122,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
         <div className="absolute -top-16 -right-16 h-64 w-64 rounded-full bg-blue-400/10 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-10 -left-10 h-48 w-48 rounded-full bg-indigo-400/10 blur-2xl pointer-events-none" />
 
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+        <div className="max-w-7xl mx-auto w-full relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
           <div className="space-y-5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold bg-white/10 border border-white/20 backdrop-blur-md">
               <Sparkles className="h-3.5 w-3.5 text-yellow-300 animate-pulse" />
