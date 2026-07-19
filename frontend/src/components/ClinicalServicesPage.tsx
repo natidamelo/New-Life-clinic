@@ -147,7 +147,7 @@ export const ClinicalServicesPage: React.FC<ClinicalServicesPageProps> = ({
 
   // Dynamic service counts per category
   const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { All: uniqueServices.length };
+    const counts: Record<string, number> = { all: uniqueServices.length };
     uniqueServices.forEach(s => {
       const cat = s.category.toLowerCase();
       // Normalize legacy categories if needed
@@ -156,7 +156,7 @@ export const ClinicalServicesPage: React.FC<ClinicalServicesPageProps> = ({
       else if (cat.includes('ultrasound')) normalized = 'ultrasound';
       else if (cat.includes('imaging')) normalized = 'imaging';
       else if (cat.includes('vaccin')) normalized = 'vaccination';
-      else if (cat.includes('procedure')) normalized = 'procedure';
+      else if (cat.includes('procedure') || cat.includes('injection')) normalized = 'procedure';
       else if (cat.includes('emergency')) normalized = 'emergency';
       else if (cat.includes('pharma')) normalized = 'pharmacy';
       
@@ -178,7 +178,7 @@ export const ClinicalServicesPage: React.FC<ClinicalServicesPageProps> = ({
       else if (sCat.includes('ultrasound')) normalized = 'ultrasound';
       else if (sCat.includes('imaging')) normalized = 'imaging';
       else if (sCat.includes('vaccin')) normalized = 'vaccination';
-      else if (sCat.includes('procedure')) normalized = 'procedure';
+      else if (sCat.includes('procedure') || sCat.includes('injection')) normalized = 'procedure';
       else if (sCat.includes('emergency')) normalized = 'emergency';
       else if (sCat.includes('pharma')) normalized = 'pharmacy';
 
