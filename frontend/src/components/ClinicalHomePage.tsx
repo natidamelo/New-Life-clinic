@@ -476,6 +476,10 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
                         src="/assets/full_lab_checkup.png" 
                         alt="Full Lab Checkup" 
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = "https://images.unsplash.com/photo-1579152249734-b39d79cd35e4?auto=format&fit=crop&w=600&q=80";
+                        }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-slate-900/60 to-transparent" />
                       <span className="absolute bottom-4 left-4 px-2 py-1 rounded bg-blue-500 text-white text-[9px] font-bold uppercase tracking-wider">
