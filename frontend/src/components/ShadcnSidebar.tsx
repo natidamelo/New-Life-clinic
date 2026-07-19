@@ -58,6 +58,7 @@ const adminMenuItems = [
   { path: '/app/dashboard', icon: AdminHomeIcon, label: 'Admin Dashboard' },
   { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
   { path: '/app/clinics', icon: CogIcon, label: 'Clinic Management' },
+  { path: '/app/home-content', icon: DocumentTextIcon, label: 'Home Page Editor' },
   { path: '/app/patient-services', icon: PatientsIcon, label: 'Patient Services' },
   { path: '/app/staff-management', icon: UserPlusIcon, label: 'Staff Management' },
   { path: '/app/pharmacy', icon: BeakerIcon, label: 'Stock Management' },

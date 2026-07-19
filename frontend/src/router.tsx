@@ -110,6 +110,7 @@ const MedicalCertificates = lazy(() => import('./pages/Doctor/MedicalCertificate
 const EMRReferralPaper = lazy(() => import('./components/doctor/EMRReferralPaper'));
 const MedicalTestRequestForm = lazy(() => import('./pages/Doctor/MedicalTestRequestForm'));
 const BusinessIntelligence = lazy(() => import('./pages/Admin/BusinessIntelligence'));
+const HomeContentEditor = lazy(() => import('./pages/Admin/HomeContentEditor'));
 const HealthPackages = lazy(() => import('./pages/Packages/HealthPackages'));
 const PatientRecord = lazy(() => import('./pages/Doctor/PatientRecord'));
 const FinancialAdvisor = lazy(() => import('./pages/Finance/FinancialAdvisor'));
@@ -515,6 +516,10 @@ const router = createBrowserRouter([
       {
         path: 'lab/service-results',
         element: <ProtectedRoute allowedRoles={['admin', 'lab_technician', 'lab']}><LazyWrapper><ServiceResults /></LazyWrapper></ProtectedRoute>
+      },
+      {
+        path: 'home-content',
+        element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><HomeContentEditor /></LazyWrapper></ProtectedRoute>
       },
       {
         path: 'cctv',

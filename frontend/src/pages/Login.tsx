@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useClinic } from '../context/ClinicContext';
 import { ClinicalServicesPage } from '../components/ClinicalServicesPage';
 import { ClinicalHomePage } from '../components/ClinicalHomePage';
+import homeContentService, { HomeContent, DEFAULT_HOME_CONTENT } from '../services/homeContentService';
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string().required('Username or email is required'),
@@ -832,6 +833,7 @@ const Login: React.FC = () => {
   const [doctors, setDoctors] = useState<any[]>(FALLBACK_DOCTORS);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [packagesLoading, setPackagesLoading] = useState(false);
+  const [homeContent, setHomeContent] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   
@@ -900,7 +902,17 @@ const Login: React.FC = () => {
     fetchDoctors();
     fetchVitalsStats();
     fetchCardTypes();
+    fetchHomeContent();
   }, []);
+
+  const fetchHomeContent = async () => {
+    try {
+      const content = await homeContentService.getHomeContent();
+      setHomeContent(content);
+    } catch {
+      // falls back to DEFAULT_HOME_CONTENT already set in state
+    }
+  };
 
   const fetchVitalsStats = async () => {
     try {
@@ -1539,6 +1551,7 @@ const Login: React.FC = () => {
                 services={services}
                 packages={packages}
                 isDarkMode={isDarkMode}
+                homeContent={homeContent}
                 onNavigateTab={(tab) => {
                   setActiveTab(tab);
                   if (tab === 'appointment') setBookingStep(1);

@@ -1117,6 +1117,9 @@ const createApp = () => {
   // Public Patient Portal routes
   app.use('/api/public', require('./routes/public'));
 
+  // Home page content — public GET, admin PUT
+  app.use('/api/home-content', require('./routes/homeContent'));
+
   // Depo Injection routes
   app.use('/api/depo-injections', require('./routes/depoInjectionRoutes'));
 
