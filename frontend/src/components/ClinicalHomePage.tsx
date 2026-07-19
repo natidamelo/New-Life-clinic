@@ -88,15 +88,43 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
   return (
     <div className="space-y-16 pb-8 font-sans">
 
+      {/* ─── STYLE DEFINITION FOR ECG SCROLLING ────────────────────────────── */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes ecgScroll {
+          to {
+            stroke-dashoffset: -1000;
+          }
+        }
+        .animate-ecg {
+          stroke-dasharray: 200 40;
+          animation: ecgScroll 25s linear infinite;
+        }
+      `}} />
+
       {/* ─── HERO ─────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 p-8 sm:p-12 text-white shadow-2xl shadow-blue-500/20">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-800 p-8 sm:p-12 text-white shadow-2xl shadow-blue-600/30 border border-blue-500/20">
+        
+        {/* Live ECG Scrolling Wave Background */}
+        <div className="absolute inset-0 opacity-15 pointer-events-none z-0">
+          <svg className="w-full h-full text-blue-300" preserveAspectRatio="none" viewBox="0 0 1000 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path 
+              d="M 0 60 H 150 L 160 45 L 170 75 L 180 15 L 190 105 L 200 55 L 205 60 H 350 L 360 45 L 370 75 L 380 15 L 390 105 L 400 55 L 405 60 H 550 L 560 45 L 570 75 L 580 15 L 590 105 L 600 55 L 605 60 H 750 L 760 45 L 770 75 L 780 15 L 790 105 L 800 55 L 805 60 H 1000" 
+              stroke="currentColor" 
+              strokeWidth="2.5" 
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="animate-ecg"
+            />
+          </svg>
+        </div>
+
         {/* Background glow blobs */}
-        <div className="absolute -top-16 -right-16 h-64 w-64 rounded-full bg-white/5 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-10 -left-10 h-48 w-48 rounded-full bg-indigo-300/10 blur-2xl pointer-events-none" />
+        <div className="absolute -top-16 -right-16 h-64 w-64 rounded-full bg-blue-400/10 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 h-48 w-48 rounded-full bg-indigo-400/10 blur-2xl pointer-events-none" />
 
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
           <div className="space-y-5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold bg-white/15 border border-white/20 backdrop-blur-sm">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold bg-white/10 border border-white/20 backdrop-blur-md">
               <Sparkles className="h-3.5 w-3.5 text-yellow-300 animate-pulse" />
               {heroBadge}
             </div>
@@ -139,14 +167,39 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
             </div>
           </div>
 
-          {/* Right: compact stats */}
+          {/* Right: compact stats styled as live medical telemetry boards */}
           <div className="grid grid-cols-2 gap-3">
-            {stats.map((stat, i) => (
-              <div key={i} className={`p-4 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm ${i === 4 ? 'col-span-2' : ''}`}>
-                <span className="text-2xl font-black block">{stat.value}</span>
-                <span className="text-[10px] font-bold text-blue-200 uppercase tracking-widest block mt-0.5">{stat.label}</span>
-              </div>
-            ))}
+            {stats.map((stat, i) => {
+              // Map key medical icons for stats
+              let StatIcon = Activity;
+              const labelLower = stat.label.toLowerCase();
+              if (labelLower.includes('doctor')) StatIcon = Stethoscope;
+              else if (labelLower.includes('patient') || labelLower.includes('serve')) StatIcon = Heart;
+              else if (labelLower.includes('service') || labelLower.includes('clinical')) StatIcon = Activity;
+              else if (labelLower.includes('satisfaction') || labelLower.includes('rate')) StatIcon = ShieldCheck;
+              else if (labelLower.includes('experience') || labelLower.includes('yr')) StatIcon = Award;
+
+              return (
+                <div 
+                  key={i} 
+                  className={`p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md relative overflow-hidden group hover:bg-white/10 hover:border-white/20 transition-all duration-300 ${i === 4 ? 'col-span-2' : ''}`}
+                >
+                  {/* Neon active blinking medical indicator */}
+                  <span className="absolute top-3 right-3 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+
+                  {/* Dynamic medical watermark icons */}
+                  <div className="absolute -right-2 -bottom-2 opacity-5 text-white group-hover:opacity-10 group-hover:scale-110 transition-all duration-300 pointer-events-none">
+                    <StatIcon className="h-16 w-16" />
+                  </div>
+
+                  <span className="text-2xl font-black block relative z-10">{stat.value}</span>
+                  <span className="text-[10px] font-bold text-blue-200 uppercase tracking-widest block mt-0.5 relative z-10">{stat.label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
