@@ -85,7 +85,13 @@ router.post('/find-patient', async (req, res) => {
       return res.status(404).json({ success: false, message: 'No patient matches the provided ID and Contact Number.' });
     }
 
-    res.json({ success: true, data: patient });
+    // Find any existing upcoming or recent scheduled appointment
+    const activeAppointment = await Appointment.findOne({
+      patientId: patient._id,
+      status: 'Scheduled'
+    }).populate('doctorId', 'firstName lastName specialization').sort({ appointmentDateTime: -1 }).lean();
+
+    res.json({ success: true, data: { ...patient, activeAppointment } });
   } catch (error) {
     console.error('Error finding patient:', error);
     res.status(500).json({ success: false, message: 'Error checking patient profile', error: error.message });
@@ -374,26 +380,46 @@ router.post('/book-appointment', async (req, res) => {
       }
     }
 
-    // Book appointment
-    const appointment = new Appointment({
-      clinicId: 'new-life',
-      patientId,
-      doctorId: appointmentData.doctorId || undefined,
-      appointmentDateTime: new Date(appointmentData.appointmentDateTime),
-      durationMinutes: appointmentData.durationMinutes ? Number(appointmentData.durationMinutes) : 30,
-      reason: appointmentData.reason ? appointmentData.reason.trim() : 'Self-scheduled visit',
-      type: appointmentData.type,
-      status: 'Scheduled',
-      notes: 'Self-booked via online portal'
-    });
+    // Book or Reschedule appointment
+    let appointment;
+    let isRescheduled = false;
 
-    await appointment.save();
+    if (appointmentData.rescheduleAppointmentId) {
+      appointment = await Appointment.findById(appointmentData.rescheduleAppointmentId);
+      if (appointment) {
+        const originalTime = appointment.appointmentDateTime;
+        appointment.appointmentDateTime = new Date(appointmentData.appointmentDateTime);
+        if (appointmentData.doctorId) appointment.doctorId = appointmentData.doctorId;
+        if (appointmentData.type) appointment.type = appointmentData.type;
+        if (appointmentData.reason) appointment.reason = appointmentData.reason.trim();
+        appointment.status = 'Scheduled';
+        appointment.notes = (appointment.notes || '') + ` | Rescheduled from ${new Date(originalTime).toLocaleString()} on ${new Date().toLocaleString()}`;
+        await appointment.save();
+        isRescheduled = true;
+      }
+    }
 
-    res.status(201).json({
+    if (!appointment) {
+      appointment = new Appointment({
+        clinicId: 'new-life',
+        patientId,
+        doctorId: appointmentData.doctorId || undefined,
+        appointmentDateTime: new Date(appointmentData.appointmentDateTime),
+        durationMinutes: appointmentData.durationMinutes ? Number(appointmentData.durationMinutes) : 30,
+        reason: appointmentData.reason ? appointmentData.reason.trim() : 'Self-scheduled visit',
+        type: appointmentData.type,
+        status: 'Scheduled',
+        notes: 'Self-booked via online portal'
+      });
+      await appointment.save();
+    }
+
+    res.status(isRescheduled ? 200 : 201).json({
       success: true,
-      message: 'Appointment scheduled successfully.',
+      message: isRescheduled ? 'Appointment rescheduled successfully.' : 'Appointment scheduled successfully.',
       data: {
         appointment,
+        isRescheduled,
         patient: {
           _id: patientDoc._id,
           patientId: patientDoc.patientId,

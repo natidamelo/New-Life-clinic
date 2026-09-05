@@ -870,6 +870,8 @@ const Login: React.FC = () => {
   });
   const [bookingResult, setBookingResult] = useState<any>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [rescheduleAppointmentId, setRescheduleAppointmentId] = useState<string | null>(null);
+  const [existingAppointment, setExistingAppointment] = useState<any>(null);
 
   // Patient Card wizard states
   const [cardStep, setCardStep] = useState(1);
@@ -1201,7 +1203,21 @@ const Login: React.FC = () => {
       });
       if (res.data && res.data.success) {
         setReturningPatientData(res.data.data);
-        toast.success(`Patient profile verified: ${res.data.data.firstName} ${res.data.data.lastName}`);
+        if (res.data.data.activeAppointment) {
+          setExistingAppointment(res.data.data.activeAppointment);
+          setRescheduleAppointmentId(res.data.data.activeAppointment._id);
+          setBookingDetails(prev => ({
+            ...prev,
+            doctorId: res.data.data.activeAppointment.doctorId?._id || res.data.data.activeAppointment.doctorId || prev.doctorId,
+            type: res.data.data.activeAppointment.type || prev.type,
+            reason: res.data.data.activeAppointment.reason || prev.reason
+          }));
+          toast.success(`Active appointment found for ${res.data.data.firstName}! Select a new time to reschedule.`);
+        } else {
+          setExistingAppointment(null);
+          setRescheduleAppointmentId(null);
+          toast.success(`Patient profile verified: ${res.data.data.firstName} ${res.data.data.lastName}`);
+        }
         setBookingStep(3);
       }
     } catch (err: any) {
@@ -1229,14 +1245,19 @@ const Login: React.FC = () => {
           type: bookingDetails.type,
           reason: bookingDetails.reason,
           durationMinutes: 30,
-          packageId: bookingDetails.packageId || undefined
+          packageId: bookingDetails.packageId || undefined,
+          rescheduleAppointmentId: rescheduleAppointmentId || undefined
         }
       };
 
       const res = await api.post('/api/public/book-appointment', payload);
       if (res.data && res.data.success) {
         setBookingResult(res.data.data);
-        toast.success('Appointment scheduled successfully!');
+        if (res.data.data?.isRescheduled) {
+          toast.success('Appointment rescheduled successfully!');
+        } else {
+          toast.success('Appointment scheduled successfully!');
+        }
         setBookingStep(4);
       }
     } catch (err: any) {
@@ -1676,26 +1697,35 @@ const Login: React.FC = () => {
                   style={{ width: `${((bookingStep - 1) / 3) * 80}%` }}
                 />
 
-                {[1, 2, 3, 4].map(s => (
-                  <div key={s} className="flex flex-col items-center gap-1.5 relative z-10 flex-1">
-                    <span className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 shadow-sm border ${
-                      bookingStep === s
-                        ? 'bg-pulse text-paper border-pulse scale-110 shadow-pulse/25'
-                        : bookingStep > s
-                        ? 'bg-pulse/15 text-pulse border-pulse/30'
-                        : isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
-                    }`}>
-                      {bookingStep > s ? '✓' : s}
-                    </span>
-                    <span className={`text-[9px] font-extrabold uppercase tracking-widest transition-opacity duration-300 ${
-                      bookingStep === s 
-                        ? 'text-pulse opacity-100' 
-                        : 'text-slate opacity-60'
-                    }`}>
-                      {s === 1 ? 'Status' : s === 2 ? 'Details' : s === 3 ? 'Schedule' : 'Done'}
-                    </span>
-                  </div>
-                ))}
+                {[1, 2, 3, 4].map(s => {
+                  const canClick = s < bookingStep || (s === 3 && (returningPatientData || bookingPatientData.firstName));
+                  return (
+                    <div 
+                      key={s} 
+                      onClick={() => {
+                        if (canClick) setBookingStep(s);
+                      }}
+                      className={`flex flex-col items-center gap-1.5 relative z-10 flex-1 ${canClick ? 'cursor-pointer hover:opacity-80' : ''}`}
+                    >
+                      <span className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 shadow-sm border ${
+                        bookingStep === s
+                          ? 'bg-pulse text-paper border-pulse scale-110 shadow-pulse/25'
+                          : bookingStep > s
+                          ? 'bg-pulse/15 text-pulse border-pulse/30'
+                          : isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
+                      }`}>
+                        {bookingStep > s ? '✓' : s}
+                      </span>
+                      <span className={`text-[9px] font-extrabold uppercase tracking-widest transition-opacity duration-300 ${
+                        bookingStep === s 
+                          ? 'text-pulse opacity-100' 
+                          : 'text-slate opacity-60'
+                      }`}>
+                        {s === 1 ? 'Status' : s === 2 ? 'Details' : s === 3 ? 'Schedule' : 'Done'}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className={`p-6 sm:p-8 rounded-3xl border shadow-xl ${
@@ -1717,8 +1747,8 @@ const Login: React.FC = () => {
                         <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                         <Users className={`h-8 w-8 transition-transform duration-300 group-hover:scale-110 ${isDarkMode ? 'text-cyan-400' : 'text-teal-600'}`} />
                         <div>
-                          <span className="block font-extrabold text-sm text-ink dark:text-paper group-hover:text-pulse transition-colors duration-300">Returning Patient</span>
-                          <span className="block text-[10px] text-slate dark:text-slate-400 mt-1 font-mono">I have my Patient ID</span>
+                          <span className="block font-extrabold text-sm text-ink dark:text-paper group-hover:text-pulse transition-colors duration-300">Returning Patient / Reschedule</span>
+                          <span className="block text-[10px] text-slate dark:text-slate-400 mt-1 font-mono">Book new or reschedule existing</span>
                         </div>
                       </button>
 
@@ -1907,6 +1937,25 @@ const Login: React.FC = () => {
                       </strong>
                     </p>
 
+                    {existingAppointment && (
+                      <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs ${
+                        isDarkMode ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-amber-500/50 bg-amber-50 text-amber-800'
+                      }`}>
+                        <div>
+                          <span className="font-bold block flex items-center gap-1.5">
+                            <RefreshCw className="h-3.5 w-3.5 animate-spin-slow" />
+                            Rescheduling Existing Appointment
+                          </span>
+                          <span className="text-[11px] opacity-80 mt-0.5 block">
+                            Currently set for: {new Date(existingAppointment.appointmentDateTime).toLocaleString()} ({existingAppointment.type})
+                          </span>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider bg-amber-500/20 shrink-0">
+                          Reschedule Mode
+                        </span>
+                      </div>
+                    )}
+
                     <div className="grid sm:grid-cols-2 gap-4 pt-2">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Department</label>
@@ -2041,7 +2090,9 @@ const Login: React.FC = () => {
                           isDarkMode ? 'bg-cyan-400 text-slate-950' : 'bg-teal-600 text-white'
                         }`}
                       >
-                        {bookingLoading ? 'Scheduling...' : 'Confirm Booking'}
+                        {bookingLoading 
+                          ? (rescheduleAppointmentId ? 'Rescheduling...' : 'Scheduling...') 
+                          : (rescheduleAppointmentId ? 'Confirm Reschedule' : 'Confirm Booking')}
                       </button>
                     </div>
                   </div>
@@ -2059,8 +2110,14 @@ const Login: React.FC = () => {
                     </div>
 
                     <div className="space-y-1.5">
-                      <h3 className="text-xl font-black">Appointment Scheduled!</h3>
-                      <p className="text-xs text-slate-400">Your self-appointment booking was successfully saved in the clinical records queue.</p>
+                      <h3 className="text-xl font-black">
+                        {bookingResult.isRescheduled ? 'Appointment Rescheduled!' : 'Appointment Scheduled!'}
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        {bookingResult.isRescheduled 
+                          ? 'Your appointment has been successfully updated to the new date and time.' 
+                          : 'Your self-appointment booking was successfully saved in the clinical records queue.'}
+                      </p>
                     </div>
 
                     {/* Booking Card summary */}
@@ -2089,7 +2146,27 @@ const Login: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="pt-4 flex gap-4">
+                    <div className="pt-4 flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={() => {
+                          setIsNewPatient(false);
+                          if (bookingResult?.patient) {
+                            setReturningPatientData(bookingResult.patient);
+                            setReturningId(bookingResult.patient.patientId || '');
+                            setReturningPhone(bookingResult.patient.contactNumber || '');
+                          }
+                          setExistingAppointment(bookingResult?.appointment || null);
+                          setRescheduleAppointmentId(bookingResult?.appointment?._id || null);
+                          setBookingStep(3);
+                          toast('Pick a new date and time to reschedule.', { icon: '🗓️' });
+                        }}
+                        className={`flex-1 h-11 rounded-xl text-xs font-bold border transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                          isDarkMode ? 'border-amber-500/40 text-amber-300 hover:bg-amber-500/10' : 'border-amber-500/50 text-amber-700 hover:bg-amber-50'
+                        }`}
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        Reschedule Appointment
+                      </button>
                       <button
                         onClick={() => {
                           // Pre-fill card form with patient details so they can get patient card next
