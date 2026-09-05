@@ -113,6 +113,23 @@ interface SecureMessage {
   category: string;
 }
 
+export interface AppointmentData {
+  _id: string;
+  doctorId?: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    specialization?: string;
+    role?: string;
+  };
+  appointmentDateTime: string;
+  durationMinutes: number;
+  type: string;
+  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'In Progress' | 'No Show';
+  reason?: string;
+  notes?: string;
+}
+
 // ─────────────────────────────────────────────────────────────
 // COMPONENT
 // ─────────────────────────────────────────────────────────────
@@ -122,15 +139,34 @@ const PatientDashboard: React.FC = () => {
   const { isDarkMode, toggleTheme } = useSafeTheme();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'vitals' | 'labs' | 'medications' | 'records' | 'messages' | 'profile' | 'ai_chat'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'appointments' | 'vitals' | 'labs' | 'medications' | 'records' | 'messages' | 'profile' | 'ai_chat'>('dashboard');
 
   // Data States
   const [patient, setPatient] = useState<PatientData | null>(null);
+  const [appointments, setAppointments] = useState<AppointmentData[]>([]);
+  const [isAppointmentsLoading, setIsAppointmentsLoading] = useState(false);
   const [vitals, setVitals] = useState<VitalSignsData[]>([]);
   const [labs, setLabs] = useState<LabResultData[]>([]);
   const [records, setRecords] = useState<MedicalRecordData[]>([]);
   const [treatments, setTreatments] = useState<any[]>([]);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
+
+  // Appointment Modals & Action States
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [showBookModal, setShowBookModal] = useState(false);
+  const [selectedAppointmentForReschedule, setSelectedAppointmentForReschedule] = useState<AppointmentData | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('09:00 AM');
+  const [rescheduleDoctorId, setRescheduleDoctorId] = useState('');
+  const [rescheduleReason, setRescheduleReason] = useState('');
+  const [isSubmittingAppointment, setIsSubmittingAppointment] = useState(false);
+
+  // New Booking State
+  const [newApptDoctorId, setNewApptDoctorId] = useState('');
+  const [newApptDate, setNewApptDate] = useState('');
+  const [newApptTime, setNewApptTime] = useState('09:00 AM');
+  const [newApptType, setNewApptType] = useState('General Consultation');
+  const [newApptReason, setNewApptReason] = useState('');
 
   // Loading & Edit States
   const [isLoading, setIsLoading] = useState(true);
@@ -360,6 +396,16 @@ const PatientDashboard: React.FC = () => {
       const prescriptionsRes = await api.get('/api/patient-portal/prescriptions');
       if (prescriptionsRes.data.success) {
         setPrescriptions(prescriptionsRes.data.data);
+      }
+
+      // Fetch appointments
+      try {
+        const apptRes = await api.get('/api/patient-portal/appointments');
+        if (apptRes.data.success) {
+          setAppointments(apptRes.data.data || []);
+        }
+      } catch (apptErr) {
+        console.error('Failed to fetch patient appointments:', apptErr);
       }
 
       // Fetch active doctors list
@@ -898,10 +944,156 @@ const PatientDashboard: React.FC = () => {
   };
 
   // ─────────────────────────────────────────────────────────────
+  // APPOINTMENT HANDLERS
+  // ─────────────────────────────────────────────────────────────
+  const refreshAppointments = async () => {
+    try {
+      setIsAppointmentsLoading(true);
+      const res = await api.get('/api/patient-portal/appointments');
+      if (res.data.success) {
+        setAppointments(res.data.data || []);
+      }
+    } catch (err: any) {
+      console.error('Failed to reload appointments:', err);
+    } finally {
+      setIsAppointmentsLoading(false);
+    }
+  };
+
+  const handleOpenReschedule = (appt: AppointmentData) => {
+    setSelectedAppointmentForReschedule(appt);
+    const apptDate = new Date(appt.appointmentDateTime);
+    const yyyy = apptDate.getFullYear();
+    const mm = String(apptDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(apptDate.getDate()).padStart(2, '0');
+    setRescheduleDate(`${yyyy}-${mm}-${dd}`);
+    
+    // Format 12hr time
+    let hours = apptDate.getHours();
+    const minutes = String(apptDate.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    const timeStr = `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+    setRescheduleTime(timeStr);
+
+    setRescheduleDoctorId(appt.doctorId?._id || '');
+    setRescheduleReason(appt.reason || '');
+    setShowRescheduleModal(true);
+  };
+
+  const handleSaveReschedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAppointmentForReschedule || !rescheduleDate || !rescheduleTime) {
+      toast.error('Please select both a date and time.');
+      return;
+    }
+
+    try {
+      setIsSubmittingAppointment(true);
+
+      // Parse time string e.g. "09:00 AM" or "02:30 PM"
+      const [timePart, meridiem] = rescheduleTime.split(' ');
+      const [h, m] = timePart.split(':');
+      let hourNum = parseInt(h, 10);
+      if (meridiem === 'PM' && hourNum < 12) hourNum += 12;
+      if (meridiem === 'AM' && hourNum === 12) hourNum = 0;
+
+      const combinedDate = new Date(rescheduleDate);
+      combinedDate.setHours(hourNum, parseInt(m, 10), 0, 0);
+
+      const res = await api.post('/api/patient-portal/appointments/reschedule', {
+        appointmentId: selectedAppointmentForReschedule._id,
+        newDateTime: combinedDate.toISOString(),
+        doctorId: rescheduleDoctorId || undefined,
+        reason: rescheduleReason
+      });
+
+      if (res.data.success) {
+        toast.success('Appointment rescheduled successfully!');
+        setShowRescheduleModal(false);
+        await refreshAppointments();
+      } else {
+        toast.error(res.data.message || 'Failed to reschedule.');
+      }
+    } catch (err: any) {
+      console.error('Error rescheduling appointment:', err);
+      toast.error(err.response?.data?.message || 'Failed to reschedule appointment.');
+    } finally {
+      setIsSubmittingAppointment(false);
+    }
+  };
+
+  const handleCancelAppointment = async (apptId: string) => {
+    if (!window.confirm('Are you sure you want to cancel this appointment?')) return;
+    try {
+      setIsSubmittingAppointment(true);
+      const res = await api.post('/api/patient-portal/appointments/cancel', {
+        appointmentId: apptId,
+        reason: 'Cancelled by patient'
+      });
+      if (res.data.success) {
+        toast.success('Appointment cancelled successfully.');
+        await refreshAppointments();
+      } else {
+        toast.error(res.data.message || 'Failed to cancel appointment.');
+      }
+    } catch (err: any) {
+      console.error('Error cancelling appointment:', err);
+      toast.error(err.response?.data?.message || 'Failed to cancel appointment.');
+    } finally {
+      setIsSubmittingAppointment(false);
+    }
+  };
+
+  const handleBookNewAppointment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newApptDate || !newApptTime) {
+      toast.error('Please select both a date and time slot.');
+      return;
+    }
+
+    try {
+      setIsSubmittingAppointment(true);
+
+      const [timePart, meridiem] = newApptTime.split(' ');
+      const [h, m] = timePart.split(':');
+      let hourNum = parseInt(h, 10);
+      if (meridiem === 'PM' && hourNum < 12) hourNum += 12;
+      if (meridiem === 'AM' && hourNum === 12) hourNum = 0;
+
+      const combinedDate = new Date(newApptDate);
+      combinedDate.setHours(hourNum, parseInt(m, 10), 0, 0);
+
+      const res = await api.post('/api/patient-portal/appointments', {
+        appointmentDateTime: combinedDate.toISOString(),
+        doctorId: newApptDoctorId || undefined,
+        type: newApptType,
+        reason: newApptReason || 'Self-booked consultation via patient portal'
+      });
+
+      if (res.data.success) {
+        toast.success('Appointment booked successfully!');
+        setShowBookModal(false);
+        setNewApptDate('');
+        setNewApptReason('');
+        await refreshAppointments();
+      } else {
+        toast.error(res.data.message || 'Failed to book appointment.');
+      }
+    } catch (err: any) {
+      console.error('Error booking appointment:', err);
+      toast.error(err.response?.data?.message || 'Failed to book appointment.');
+    } finally {
+      setIsSubmittingAppointment(false);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────
   // NAVIGATION CONFIG
   // ─────────────────────────────────────────────────────────────
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'appointments', label: 'Appointments', icon: Calendar },
     { id: 'vitals', label: 'Vitals', icon: Heart },
     { id: 'labs', label: 'Labs', icon: FileSpreadsheet },
     { id: 'medications', label: 'Medications', icon: Pill },
@@ -1320,6 +1512,146 @@ const PatientDashboard: React.FC = () => {
                       </motion.button>
                     ))}
                   </div>
+
+                  {/* Appointments Spotlight Widget */}
+                  {(() => {
+                    const upcomingAppts = appointments.filter(a => a.status === 'Scheduled');
+                    return (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between pl-1">
+                          <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2"
+                            style={{ color: isDarkMode ? '#64748b' : '#94a3b8' }}>
+                            <Calendar className="h-3.5 w-3.5" style={{ color: accentColor }} />
+                            Upcoming Appointments ({upcomingAppts.length})
+                          </h3>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setNewApptDate('');
+                                setNewApptReason('');
+                                setShowBookModal(true);
+                              }}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                              style={{
+                                background: accentBg,
+                                color: accentColor,
+                                border: `1px solid ${accentColor}40`
+                              }}
+                            >
+                              <Plus className="h-3 w-3" />
+                              Book New
+                            </button>
+                            <button
+                              onClick={() => setActiveTab('appointments')}
+                              className="text-xs font-semibold hover:underline flex items-center gap-0.5"
+                              style={{ color: accentColor }}
+                            >
+                              View All
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {upcomingAppts.length === 0 ? (
+                          <div className="p-4 rounded-xl flex items-center justify-between" style={solidCard}>
+                            <div className="flex items-center gap-3">
+                              <div className="h-9 w-9 rounded-xl flex items-center justify-center" style={{ background: accentBg }}>
+                                <Calendar className="h-4 w-4" style={{ color: accentColor }} />
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold">No upcoming appointments scheduled</p>
+                                <p className="text-[11px]" style={{ color: '#64748b' }}>Need a doctor consultation or follow-up check?</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setNewApptDate('');
+                                setNewApptReason('');
+                                setShowBookModal(true);
+                              }}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer"
+                              style={{
+                                background: 'linear-gradient(135deg, #14b8a6, #06b6d4)',
+                                color: '#fff',
+                              }}
+                            >
+                              Schedule Now
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {upcomingAppts.slice(0, 2).map((appt) => {
+                              const apptDateObj = new Date(appt.appointmentDateTime);
+                              return (
+                                <motion.div
+                                  key={appt._id}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  className="p-4 rounded-2xl flex flex-col justify-between gap-3 relative overflow-hidden"
+                                  style={{
+                                    ...solidCard,
+                                    borderLeft: `4px solid ${accentColor}`,
+                                  }}
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                      <div className="h-10 w-10 rounded-xl flex flex-col items-center justify-center shrink-0" style={{ background: accentBg }}>
+                                        <span className="text-[10px] font-extrabold uppercase leading-none" style={{ color: accentColor }}>
+                                          {apptDateObj.toLocaleString('en-US', { month: 'short' })}
+                                        </span>
+                                        <span className="text-sm font-extrabold leading-none mt-0.5" style={{ color: accentColor }}>
+                                          {apptDateObj.getDate()}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <h4 className="text-sm font-extrabold">
+                                          {appt.doctorId ? `Dr. ${appt.doctorId.firstName} ${appt.doctorId.lastName}` : 'Clinic Physician Consultation'}
+                                        </h4>
+                                        <p className="text-xs font-medium" style={{ color: '#64748b' }}>
+                                          {appt.doctorId?.specialization || appt.type} • {apptDateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                                      style={{ background: 'rgba(34,197,94,0.1)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.2)' }}>
+                                      {appt.status}
+                                    </span>
+                                  </div>
+
+                                  {appt.reason && (
+                                    <p className="text-xs px-2.5 py-1.5 rounded-lg font-medium" style={{ background: isDarkMode ? 'rgba(51,65,85,0.2)' : 'rgba(241,245,249,0.8)' }}>
+                                      <span className="text-[10px] font-bold text-gray-400 block">REASON:</span>
+                                      {appt.reason}
+                                    </p>
+                                  )}
+
+                                  <div className="flex items-center justify-end gap-2 pt-1 border-t" style={{ borderColor: isDarkMode ? 'rgba(51,65,85,0.3)' : 'rgba(226,232,240,0.8)' }}>
+                                    <button
+                                      onClick={() => handleCancelAppointment(appt._id)}
+                                      className="px-2.5 py-1 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      onClick={() => handleOpenReschedule(appt)}
+                                      className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                                      style={{
+                                        background: 'linear-gradient(135deg, #14b8a6, #06b6d4)',
+                                        color: '#fff',
+                                      }}
+                                    >
+                                      <Clock className="h-3 w-3" />
+                                      Reschedule
+                                    </button>
+                                  </div>
+                                </motion.div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Action Items / To-Do Widget */}
                   <div className="space-y-3">
@@ -2828,6 +3160,241 @@ const PatientDashboard: React.FC = () => {
               )}
 
               {/* ════════════════════════════════════════════════════ */}
+              {/* APPOINTMENTS TAB */}
+              {/* ════════════════════════════════════════════════════ */}
+              {activeTab === 'appointments' && (
+                <div className="space-y-6">
+                  {/* Top Banner */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-6 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden"
+                    style={{
+                      background: isDarkMode
+                        ? 'linear-gradient(135deg, rgba(20,184,166,0.15) 0%, rgba(6,182,212,0.1) 100%)'
+                        : 'linear-gradient(135deg, rgba(204,251,241,0.8) 0%, rgba(207,250,254,0.5) 100%)',
+                      border: isDarkMode ? '1px solid rgba(20,184,166,0.2)' : '1px solid rgba(204,251,241,0.8)',
+                    }}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider"
+                          style={{ background: accentBg, color: accentColor }}>
+                          Patient Appointment Hub
+                        </span>
+                        {isAppointmentsLoading && (
+                          <span className="text-xs text-gray-400 animate-pulse">Syncing...</span>
+                        )}
+                      </div>
+                      <h2 className="text-2xl font-extrabold tracking-tight">Appointments & Scheduling</h2>
+                      <p className="text-xs mt-1" style={{ color: isDarkMode ? '#94a3b8' : '#64748b' }}>
+                        View your scheduled consultations, reschedule times with your doctor, or book a new appointment.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={refreshAppointments}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+                        style={{
+                          background: isDarkMode ? 'rgba(51,65,85,0.4)' : '#ffffff',
+                          border: isDarkMode ? '1px solid rgba(71,85,105,0.4)' : '1px solid rgba(226,232,240,1)',
+                          color: isDarkMode ? '#cbd5e1' : '#475569'
+                        }}
+                      >
+                        Refresh
+                      </button>
+                      <button
+                        onClick={() => {
+                          setNewApptDate('');
+                          setNewApptReason('');
+                          setShowBookModal(true);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-lg cursor-pointer transition-all hover:opacity-90"
+                        style={{
+                          background: 'linear-gradient(135deg, #14b8a6, #06b6d4)',
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Book Appointment
+                      </button>
+                    </div>
+                  </motion.div>
+
+                  {/* Appointments Grid */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 pl-1"
+                      style={{ color: isDarkMode ? '#64748b' : '#94a3b8' }}>
+                      <Calendar className="h-3.5 w-3.5" style={{ color: accentColor }} />
+                      All Scheduled & Past Appointments ({appointments.length})
+                    </h3>
+
+                    {appointments.length === 0 ? (
+                      <div className="p-8 rounded-2xl text-center space-y-3" style={solidCard}>
+                        <div className="h-12 w-12 rounded-2xl mx-auto flex items-center justify-center" style={{ background: accentBg }}>
+                          <Calendar className="h-6 w-6" style={{ color: accentColor }} />
+                        </div>
+                        <h4 className="text-sm font-extrabold">No Appointments Found</h4>
+                        <p className="text-xs max-w-sm mx-auto" style={{ color: '#64748b' }}>
+                          You don't have any appointments on record yet. You can easily schedule an in-person or follow-up doctor visit below.
+                        </p>
+                        <button
+                          onClick={() => {
+                            setNewApptDate('');
+                            setNewApptReason('');
+                            setShowBookModal(true);
+                          }}
+                          className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white cursor-pointer"
+                          style={{ background: 'linear-gradient(135deg, #14b8a6, #06b6d4)' }}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Book Your First Appointment
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {appointments.map(appt => {
+                          const dt = new Date(appt.appointmentDateTime);
+                          const isUpcoming = appt.status === 'Scheduled' && dt.getTime() >= Date.now() - 3600000;
+                          
+                          let badgeBg = 'rgba(100,116,139,0.1)';
+                          let badgeColor = '#64748b';
+                          if (appt.status === 'Scheduled') {
+                            badgeBg = 'rgba(34,197,94,0.1)';
+                            badgeColor = '#16a34a';
+                          } else if (appt.status === 'Cancelled') {
+                            badgeBg = 'rgba(239,68,68,0.1)';
+                            badgeColor = '#ef4444';
+                          } else if (appt.status === 'Completed') {
+                            badgeBg = 'rgba(59,130,246,0.1)';
+                            badgeColor = '#3b82f6';
+                          }
+
+                          return (
+                            <motion.div
+                              key={appt._id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="p-5 rounded-2xl flex flex-col justify-between gap-4 transition-all"
+                              style={{
+                                ...solidCard,
+                                borderLeft: isUpcoming ? `4px solid ${accentColor}` : '4px solid #94a3b8',
+                              }}
+                            >
+                              <div className="space-y-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="h-12 w-12 rounded-2xl flex flex-col items-center justify-center shrink-0 shadow-sm"
+                                      style={{
+                                        background: isUpcoming ? accentBg : (isDarkMode ? 'rgba(51,65,85,0.4)' : '#f1f5f9'),
+                                        border: isUpcoming ? `1px solid ${accentColor}30` : '1px solid rgba(148,163,184,0.2)'
+                                      }}>
+                                      <span className="text-[11px] font-black uppercase leading-none"
+                                        style={{ color: isUpcoming ? accentColor : '#64748b' }}>
+                                        {dt.toLocaleString('en-US', { month: 'short' })}
+                                      </span>
+                                      <span className="text-base font-black leading-none mt-1"
+                                        style={{ color: isUpcoming ? accentColor : (isDarkMode ? '#fff' : '#0f172a') }}>
+                                        {dt.getDate()}
+                                      </span>
+                                    </div>
+
+                                    <div>
+                                      <h4 className="text-sm font-extrabold leading-tight">
+                                        {appt.doctorId ? `Dr. ${appt.doctorId.firstName} ${appt.doctorId.lastName}` : 'Physician Consultation'}
+                                      </h4>
+                                      <p className="text-xs font-semibold mt-0.5" style={{ color: accentColor }}>
+                                        {appt.doctorId?.specialization || 'Clinical Doctor'} • {appt.type}
+                                      </p>
+                                      <p className="text-[11px] font-medium" style={{ color: '#64748b' }}>
+                                        {dt.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric' })} at {dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} ({appt.durationMinutes} min)
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider shrink-0"
+                                    style={{ background: badgeBg, color: badgeColor }}>
+                                    {appt.status}
+                                  </span>
+                                </div>
+
+                                {appt.reason && (
+                                  <div className="p-3 rounded-xl text-xs" style={{ background: isDarkMode ? 'rgba(51,65,85,0.2)' : 'rgba(241,245,249,0.8)' }}>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-0.5">Reason for Visit</span>
+                                    <p className="font-medium">{appt.reason}</p>
+                                  </div>
+                                )}
+
+                                {appt.notes && (
+                                  <div className="text-[11px] text-gray-400 italic">
+                                    {appt.notes}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Card Actions */}
+                              <div className="flex items-center justify-between pt-3 border-t"
+                                style={{ borderColor: isDarkMode ? 'rgba(51,65,85,0.3)' : 'rgba(226,232,240,0.8)' }}>
+                                <span className="text-[10px] font-mono font-semibold" style={{ color: '#94a3b8' }}>
+                                  Ref #{appt._id.slice(-6).toUpperCase()}
+                                </span>
+
+                                <div className="flex items-center gap-2">
+                                  {appt.status === 'Scheduled' && (
+                                    <>
+                                      <button
+                                        onClick={() => handleCancelAppointment(appt._id)}
+                                        disabled={isSubmittingAppointment}
+                                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        onClick={() => handleOpenReschedule(appt)}
+                                        disabled={isSubmittingAppointment}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                                        style={{
+                                          background: 'linear-gradient(135deg, #14b8a6, #06b6d4)',
+                                          color: '#fff',
+                                        }}
+                                      >
+                                        <Clock className="h-3.5 w-3.5" />
+                                        Reschedule
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {appt.status !== 'Scheduled' && (
+                                    <button
+                                      onClick={() => {
+                                        setNewApptDoctorId(appt.doctorId?._id || '');
+                                        setNewApptType(appt.type || 'General Consultation');
+                                        setNewApptReason(appt.reason || '');
+                                        setShowBookModal(true);
+                                      }}
+                                      className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                                      style={{
+                                        background: accentBg,
+                                        color: accentColor,
+                                        border: `1px solid ${accentColor}40`
+                                      }}
+                                    >
+                                      <Plus className="h-3.5 w-3.5" />
+                                      Book Again
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ════════════════════════════════════════════════════ */}
               {/* AI CHAT TAB */}
               {/* ════════════════════════════════════════════════════ */}
               {activeTab === 'ai_chat' && (
@@ -3135,6 +3702,308 @@ const PatientDashboard: React.FC = () => {
 
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* FOOTER (hidden on mobile since bottom nav covers it) */}
+            {/* ════════════════════════════════════════════════════ */}
+      {/* MODAL: RESCHEDULE APPOINTMENT */}
+      {/* ════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {showRescheduleModal && selectedAppointmentForReschedule && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl"
+              style={solidCard}
+            >
+              {/* Modal Header */}
+              <div className="px-6 py-4 flex items-center justify-between border-b"
+                style={{ borderColor: isDarkMode ? 'rgba(51,65,85,0.4)' : 'rgba(226,232,240,0.8)' }}>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl" style={{ background: accentBg }}>
+                    <Calendar className="h-5 w-5" style={{ color: accentColor }} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold">Reschedule Appointment</h3>
+                    <p className="text-xs" style={{ color: '#64748b' }}>
+                      Change your consultation date or doctor
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowRescheduleModal(false)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSaveReschedule} className="p-6 space-y-4">
+                {/* Doctor Selection */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider block text-gray-400">
+                    Select Doctor
+                  </label>
+                  <select
+                    value={rescheduleDoctorId}
+                    onChange={e => setRescheduleDoctorId(e.target.value)}
+                    className="w-full h-11 px-3.5 rounded-xl text-xs outline-none"
+                    style={inputStyle}
+                  >
+                    <option value="">Any Available Physician</option>
+                    {doctorsList.map(doc => (
+                      <option key={doc.id} value={doc.id}>
+                        Dr. {doc.firstName} {doc.lastName} ({doc.specialization || 'General Practice'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date Selection */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider block text-gray-400">
+                    New Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    value={rescheduleDate}
+                    onChange={e => setRescheduleDate(e.target.value)}
+                    className="w-full h-11 px-3.5 rounded-xl text-xs outline-none"
+                    style={inputStyle}
+                  />
+                </div>
+
+                {/* Time Selection */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider block text-gray-400">
+                    Preferred Time Slot *
+                  </label>
+                  <select
+                    value={rescheduleTime}
+                    onChange={e => setRescheduleTime(e.target.value)}
+                    className="w-full h-11 px-3.5 rounded-xl text-xs outline-none"
+                    style={inputStyle}
+                    required
+                  >
+                    {[
+                      '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
+                      '12:00 PM', '12:30 PM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM'
+                    ].map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Reason */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider block text-gray-400">
+                    Reason for Reschedule (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Work conflict, follow-up required"
+                    value={rescheduleReason}
+                    onChange={e => setRescheduleReason(e.target.value)}
+                    className="w-full h-11 px-3.5 rounded-xl text-xs outline-none"
+                    style={inputStyle}
+                  />
+                </div>
+
+                {/* Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t"
+                  style={{ borderColor: isDarkMode ? 'rgba(51,65,85,0.4)' : 'rgba(226,232,240,0.8)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowRescheduleModal(false)}
+                    className="px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
+                    style={{
+                      background: isDarkMode ? 'rgba(51,65,85,0.3)' : '#f1f5f9',
+                      color: isDarkMode ? '#cbd5e1' : '#475569'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingAppointment}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-lg cursor-pointer transition-all hover:opacity-90 disabled:opacity-50"
+                    style={{
+                      background: 'linear-gradient(135deg, #14b8a6, #06b6d4)',
+                    }}
+                  >
+                    {isSubmittingAppointment ? 'Confirming...' : 'Confirm Reschedule'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ════════════════════════════════════════════════════ */}
+      {/* MODAL: BOOK NEW APPOINTMENT */}
+      {/* ════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {showBookModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl"
+              style={solidCard}
+            >
+              {/* Modal Header */}
+              <div className="px-6 py-4 flex items-center justify-between border-b"
+                style={{ borderColor: isDarkMode ? 'rgba(51,65,85,0.4)' : 'rgba(226,232,240,0.8)' }}>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl" style={{ background: accentBg }}>
+                    <Plus className="h-5 w-5" style={{ color: accentColor }} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold">Book Doctor Appointment</h3>
+                    <p className="text-xs" style={{ color: '#64748b' }}>
+                      Schedule a clinic visit or consultation
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowBookModal(false)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleBookNewAppointment} className="p-6 space-y-4">
+                {/* Doctor Selection */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider block text-gray-400">
+                    Select Doctor / Specialist
+                  </label>
+                  <select
+                    value={newApptDoctorId}
+                    onChange={e => setNewApptDoctorId(e.target.value)}
+                    className="w-full h-11 px-3.5 rounded-xl text-xs outline-none"
+                    style={inputStyle}
+                  >
+                    <option value="">General Clinic Physician</option>
+                    {doctorsList.map(doc => (
+                      <option key={doc.id} value={doc.id}>
+                        Dr. {doc.firstName} {doc.lastName} ({doc.specialization || 'General Practice'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Appointment Type */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider block text-gray-400">
+                    Appointment Type
+                  </label>
+                  <select
+                    value={newApptType}
+                    onChange={e => setNewApptType(e.target.value)}
+                    className="w-full h-11 px-3.5 rounded-xl text-xs outline-none"
+                    style={inputStyle}
+                  >
+                    <option value="General Consultation">General Consultation</option>
+                    <option value="Specialist Follow-up">Specialist Follow-up</option>
+                    <option value="Lab Review">Diagnostic / Lab Review</option>
+                    <option value="Prescription Renewal">Prescription Renewal</option>
+                    <option value="Routine Checkup">Routine Physical Checkup</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Date Selection */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold uppercase tracking-wider block text-gray-400">
+                      Date *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      min={new Date().toISOString().split('T')[0]}
+                      value={newApptDate}
+                      onChange={e => setNewApptDate(e.target.value)}
+                      className="w-full h-11 px-3.5 rounded-xl text-xs outline-none"
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  {/* Time Selection */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold uppercase tracking-wider block text-gray-400">
+                      Time Slot *
+                    </label>
+                    <select
+                      value={newApptTime}
+                      onChange={e => setNewApptTime(e.target.value)}
+                      className="w-full h-11 px-3.5 rounded-xl text-xs outline-none"
+                      style={inputStyle}
+                      required
+                    >
+                      {[
+                        '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
+                        '12:00 PM', '12:30 PM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM'
+                      ].map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Reason */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider block text-gray-400">
+                    Reason for Visit / Symptoms
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Briefly describe why you are scheduling this appointment..."
+                    value={newApptReason}
+                    onChange={e => setNewApptReason(e.target.value)}
+                    className="w-full p-3.5 rounded-xl text-xs outline-none resize-none"
+                    style={inputStyle}
+                  />
+                </div>
+
+                {/* Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t"
+                  style={{ borderColor: isDarkMode ? 'rgba(51,65,85,0.4)' : 'rgba(226,232,240,0.8)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowBookModal(false)}
+                    className="px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
+                    style={{
+                      background: isDarkMode ? 'rgba(51,65,85,0.3)' : '#f1f5f9',
+                      color: isDarkMode ? '#cbd5e1' : '#475569'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingAppointment}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-lg cursor-pointer transition-all hover:opacity-90 disabled:opacity-50"
+                    style={{
+                      background: 'linear-gradient(135deg, #14b8a6, #06b6d4)',
+                    }}
+                  >
+                    {isSubmittingAppointment ? 'Booking...' : 'Confirm Appointment'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+
       {/* ═══════════════════════════════════════════════════════════ */}
       <footer
         className="hidden lg:block py-6 text-center text-xs font-medium mt-auto"

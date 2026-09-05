@@ -648,4 +648,151 @@ function getLocalChatFallback(query, context) {
   return `Hello ${context.patientName}! I am M-Bot, your clinical AI assistant.\n\nI can help you understand your prescriptions, vital signs, lab orders, or medical records. \n\nBased on your clinical profile:\n- **Allergies:** ${context.allergiesStr}\n- **Active Medications:** ${context.activeMedsStr}\n\nWhat would you like to know more about? You can ask me questions like: "What medications am I taking?" or "What are my latest vitals?"`;
 }
 
+/**
+ * @route   GET /api/patient-portal/appointments
+ * @desc    Get all appointments for the logged-in patient
+ * @access  Private (Patient only)
+ */
+router.get('/appointments', async (req, res, next) => {
+  try {
+    const Appointment = require('../models/Appointment');
+    const appointments = await Appointment.find({ patientId: req.user.patient })
+      .populate('doctorId', 'firstName lastName specialization role')
+      .sort({ appointmentDateTime: -1 })
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      data: appointments
+    });
+  } catch (error) {
+    logger.error('Failed to fetch patient portal appointments', { error: error.message });
+    next(error);
+  }
+});
+
+/**
+ * @route   POST /api/patient-portal/appointments
+ * @desc    Book a new appointment directly inside patient portal
+ * @access  Private (Patient only)
+ */
+router.post('/appointments', async (req, res, next) => {
+  try {
+    const Appointment = require('../models/Appointment');
+    const { doctorId, appointmentDateTime, type, reason, durationMinutes } = req.body;
+
+    if (!appointmentDateTime || !type) {
+      return res.status(400).json({ success: false, message: 'Date/time and appointment type are required.' });
+    }
+
+    const appointment = new Appointment({
+      clinicId: 'new-life',
+      patientId: req.user.patient,
+      doctorId: doctorId || undefined,
+      appointmentDateTime: new Date(appointmentDateTime),
+      durationMinutes: durationMinutes ? Number(durationMinutes) : 30,
+      reason: reason ? reason.trim() : 'Booked via patient portal',
+      type: type || 'Consultation',
+      status: 'Scheduled',
+      notes: 'Booked via online patient portal'
+    });
+
+    await appointment.save();
+
+    const populated = await Appointment.findById(appointment._id)
+      .populate('doctorId', 'firstName lastName specialization role')
+      .lean();
+
+    res.status(201).json({
+      success: true,
+      message: 'Appointment scheduled successfully!',
+      data: populated
+    });
+  } catch (error) {
+    logger.error('Failed to create patient portal appointment', { error: error.message });
+    next(error);
+  }
+});
+
+/**
+ * @route   POST /api/patient-portal/appointments/reschedule
+ * @desc    Reschedule an existing appointment
+ * @access  Private (Patient only)
+ */
+router.post('/appointments/reschedule', async (req, res, next) => {
+  try {
+    const Appointment = require('../models/Appointment');
+    const { appointmentId, newDateTime, doctorId, reason } = req.body;
+
+    if (!appointmentId || !newDateTime) {
+      return res.status(400).json({ success: false, message: 'Appointment ID and new date/time are required.' });
+    }
+
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      patientId: req.user.patient
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: 'Appointment not found or unauthorized.' });
+    }
+
+    const originalTime = appointment.appointmentDateTime;
+    appointment.appointmentDateTime = new Date(newDateTime);
+    if (doctorId) appointment.doctorId = doctorId;
+    if (reason) appointment.reason = reason.trim();
+    appointment.status = 'Scheduled';
+    appointment.notes = (appointment.notes || '') + ` | Rescheduled from ${new Date(originalTime).toLocaleString()} on ${new Date().toLocaleString()} by patient`;
+
+    await appointment.save();
+
+    const populated = await Appointment.findById(appointment._id)
+      .populate('doctorId', 'firstName lastName specialization role')
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      message: 'Appointment rescheduled successfully!',
+      data: populated
+    });
+  } catch (error) {
+    logger.error('Failed to reschedule patient portal appointment', { error: error.message });
+    next(error);
+  }
+});
+
+/**
+ * @route   POST /api/patient-portal/appointments/cancel
+ * @desc    Cancel an appointment
+ * @access  Private (Patient only)
+ */
+router.post('/appointments/cancel', async (req, res, next) => {
+  try {
+    const Appointment = require('../models/Appointment');
+    const { appointmentId, reason } = req.body;
+
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      patientId: req.user.patient
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: 'Appointment not found or unauthorized.' });
+    }
+
+    appointment.status = 'Cancelled';
+    appointment.notes = (appointment.notes || '') + ` | Cancelled by patient on ${new Date().toLocaleString()}${reason ? `: ${reason}` : ''}`;
+    await appointment.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Appointment cancelled successfully.',
+      data: appointment
+    });
+  } catch (error) {
+    logger.error('Failed to cancel patient portal appointment', { error: error.message });
+    next(error);
+  }
+});
+
 module.exports = router;
