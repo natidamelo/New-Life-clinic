@@ -1607,11 +1607,47 @@ const Login: React.FC = () => {
                 onBookService={(service, details) => {
                   setActiveTab('appointment');
                   setBookingStep(1);
+
+                  // Convert date + timeSlot into formatted datetime-local (YYYY-MM-DDTHH:mm)
+                  let formattedDateTime = '';
+                  if (details?.date) {
+                    let timePart = '10:00';
+                    if (details?.timeSlot) {
+                      const match = details.timeSlot.match(/(\d+):(\d+)\s*(AM|PM)/i);
+                      if (match) {
+                        let hours = parseInt(match[1], 10);
+                        const minutes = match[2];
+                        const ampm = match[3].toUpperCase();
+                        if (ampm === 'PM' && hours < 12) hours += 12;
+                        if (ampm === 'AM' && hours === 12) hours = 0;
+                        timePart = `${String(hours).padStart(2, '0')}:${minutes}`;
+                      }
+                    }
+                    formattedDateTime = `${details.date}T${timePart}`;
+                  }
+
+                  const sCat = (service.category || '').toLowerCase();
+                  const department = (sCat.includes('imaging') || sCat.includes('ultrasound'))
+                    ? 'Imaging / Ultrasound'
+                    : sCat.includes('lab')
+                    ? 'Lab / Diagnostics'
+                    : (sCat.includes('procedure') || sCat.includes('inject'))
+                    ? 'Nursing / Vitals'
+                    : 'General Medicine';
+
+                  const bookingType = (sCat.includes('imaging') || sCat.includes('ultrasound'))
+                    ? 'imaging'
+                    : sCat.includes('lab')
+                    ? 'lab-test'
+                    : 'Consultation';
+
                   setBookingDetails(prev => ({
                     ...prev,
-                    doctorId: details?.doctorId || '',
-                    type: service.category.toLowerCase().includes('lab') ? 'lab-test' : service.category.toLowerCase().includes('imaging') ? 'imaging' : 'Consultation',
-                    reason: `Booked service: ${service.name}${details ? ` (Date: ${details.date}, Time: ${details.timeSlot})` : ''}`
+                    doctorId: details?.doctorId || prev.doctorId || '',
+                    department: department,
+                    type: bookingType,
+                    appointmentDateTime: formattedDateTime || prev.appointmentDateTime,
+                    reason: `Booked service: ${service.name} (${service.price} ETB)${details ? ` (Date: ${details.date}, Time: ${details.timeSlot})` : ''}`
                   }));
                 }}
               />

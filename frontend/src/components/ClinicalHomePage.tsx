@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { HomeContent } from '../services/homeContentService';
+import { normalizeCategory } from './ClinicalServicesPage';
 
 interface Doctor {
   id: string;
@@ -205,7 +206,11 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
 
   // Filter services
   const filteredServices = services.filter((s) => {
-    const matchesCategory = selectedCategory === 'all' || s.category.toLowerCase() === selectedCategory.toLowerCase();
+    const sCat = normalizeCategory(s.category);
+    const matchesCategory = selectedCategory === 'all' 
+      || sCat === selectedCategory.toLowerCase()
+      || (selectedCategory === 'imaging' && (sCat === 'imaging' || sCat === 'ultrasound'))
+      || (selectedCategory === 'procedure' && (sCat === 'procedure' || sCat === 'injection'));
     const query = (servicesSearch || heroSearch).toLowerCase().trim();
     const matchesSearch = !query || s.name.toLowerCase().includes(query) || (s.description && s.description.toLowerCase().includes(query));
     return matchesCategory && matchesSearch;
