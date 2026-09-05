@@ -505,13 +505,21 @@ const authController = {
           await patient.save();
         }
       } else {
-        // 2. If no Patient Card ID is provided, search by email or contactNumber
+        // 2. If no Patient Card ID is provided, search flexibly by email or contactNumber
+        const phoneClean = (contactNumber || '').replace(/\D/g, '');
+        const phoneLast9 = phoneClean.slice(-9);
+
+        const searchOrConditions = [{ email: email.toLowerCase() }];
+        if (contactNumber) {
+          searchOrConditions.push({ contactNumber: contactNumber });
+        }
+        if (phoneLast9 && phoneLast9.length >= 7) {
+          searchOrConditions.push({ contactNumber: new RegExp(phoneLast9 + '$') });
+        }
+
         patient = await Patient.findOne({
           clinicId,
-          $or: [
-            { email: email.toLowerCase() },
-            { contactNumber: contactNumber }
-          ]
+          $or: searchOrConditions
         }).setOptions({ skipTenantScope: true });
 
         if (patient) {

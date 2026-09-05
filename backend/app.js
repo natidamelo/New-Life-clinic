@@ -1180,7 +1180,7 @@ const createApp = () => {
     res.status(200).json({ 
       success: true, 
       message: 'API is responding', 
-      version: '2.1.1-query-fix',
+      version: '2.2.0-patient-portal-appointments',
       timestamp: new Date().toISOString() 
     });
   });

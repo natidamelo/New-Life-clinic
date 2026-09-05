@@ -649,17 +649,75 @@ function getLocalChatFallback(query, context) {
 }
 
 /**
+ * Helper to collect all patient IDs associated with the logged-in patient
+ * (e.g. if separate duplicate records were created via public self-booking with phone/name)
+ */
+async function getAssociatedPatientIds(currentPatientId) {
+  const ids = [currentPatientId];
+  try {
+    const currentPatient = await Patient.findById(currentPatientId).lean();
+    if (!currentPatient) return ids;
+
+    const orConditions = [];
+    const phoneClean = (currentPatient.contactNumber || '').replace(/\D/g, '');
+    const phoneLast9 = phoneClean.slice(-9);
+
+    if (phoneLast9 && phoneLast9.length >= 7) {
+      orConditions.push({ contactNumber: new RegExp(phoneLast9 + '$') });
+    }
+    if (currentPatient.email && currentPatient.email.trim()) {
+      orConditions.push({ email: currentPatient.email.trim().toLowerCase() });
+    }
+    if (currentPatient.patientId && currentPatient.patientId.trim()) {
+      orConditions.push({ patientId: currentPatient.patientId.trim() });
+    }
+
+    if (orConditions.length > 0) {
+      const matches = await Patient.find({ $or: orConditions })
+        .setOptions({ skipTenantScope: true })
+        .select('_id')
+        .lean();
+      matches.forEach(m => {
+        if (m._id && !ids.some(id => id.toString() === m._id.toString())) {
+          ids.push(m._id);
+        }
+      });
+    }
+  } catch (err) {
+    logger.warn('Failed to resolve associated patient IDs:', err.message);
+  }
+  return ids;
+}
+
+/**
  * @route   GET /api/patient-portal/appointments
- * @desc    Get all appointments for the logged-in patient
+ * @desc    Get all appointments for the logged-in patient (including any self-booked slots)
  * @access  Private (Patient only)
  */
 router.get('/appointments', async (req, res, next) => {
   try {
     const Appointment = require('../models/Appointment');
-    const appointments = await Appointment.find({ patientId: req.user.patient })
+    const candidatePatientIds = await getAssociatedPatientIds(req.user.patient);
+
+    const appointments = await Appointment.find({ patientId: { $in: candidatePatientIds } })
+      .setOptions({ skipTenantScope: true })
       .populate('doctorId', 'firstName lastName specialization role')
       .sort({ appointmentDateTime: -1 })
       .lean();
+
+    // Auto-link any appointments that had duplicate patient IDs to the primary linked patient
+    try {
+      const primaryIdStr = req.user.patient.toString();
+      const needsLinking = appointments.filter(a => a.patientId && a.patientId.toString() !== primaryIdStr);
+      if (needsLinking.length > 0) {
+        await Appointment.updateMany(
+          { _id: { $in: needsLinking.map(a => a._id) } },
+          { $set: { patientId: req.user.patient } }
+        ).setOptions({ skipTenantScope: true });
+      }
+    } catch (linkErr) {
+      logger.warn('Failed to auto-link duplicate appointment patient IDs:', linkErr.message);
+    }
 
     res.status(200).json({
       success: true,
@@ -686,7 +744,7 @@ router.post('/appointments', async (req, res, next) => {
     }
 
     const appointment = new Appointment({
-      clinicId: 'new-life',
+      clinicId: req.user.clinicId || 'new-life',
       patientId: req.user.patient,
       doctorId: doctorId || undefined,
       appointmentDateTime: new Date(appointmentDateTime),
@@ -700,6 +758,7 @@ router.post('/appointments', async (req, res, next) => {
     await appointment.save();
 
     const populated = await Appointment.findById(appointment._id)
+      .setOptions({ skipTenantScope: true })
       .populate('doctorId', 'firstName lastName specialization role')
       .lean();
 
@@ -728,10 +787,12 @@ router.post('/appointments/reschedule', async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Appointment ID and new date/time are required.' });
     }
 
+    const candidatePatientIds = await getAssociatedPatientIds(req.user.patient);
+
     const appointment = await Appointment.findOne({
       _id: appointmentId,
-      patientId: req.user.patient
-    });
+      patientId: { $in: candidatePatientIds }
+    }).setOptions({ skipTenantScope: true });
 
     if (!appointment) {
       return res.status(404).json({ success: false, message: 'Appointment not found or unauthorized.' });
@@ -739,6 +800,7 @@ router.post('/appointments/reschedule', async (req, res, next) => {
 
     const originalTime = appointment.appointmentDateTime;
     appointment.appointmentDateTime = new Date(newDateTime);
+    appointment.patientId = req.user.patient; // Ensure linked to current primary patient
     if (doctorId) appointment.doctorId = doctorId;
     if (reason) appointment.reason = reason.trim();
     appointment.status = 'Scheduled';
@@ -747,6 +809,7 @@ router.post('/appointments/reschedule', async (req, res, next) => {
     await appointment.save();
 
     const populated = await Appointment.findById(appointment._id)
+      .setOptions({ skipTenantScope: true })
       .populate('doctorId', 'firstName lastName specialization role')
       .lean();
 
@@ -771,10 +834,12 @@ router.post('/appointments/cancel', async (req, res, next) => {
     const Appointment = require('../models/Appointment');
     const { appointmentId, reason } = req.body;
 
+    const candidatePatientIds = await getAssociatedPatientIds(req.user.patient);
+
     const appointment = await Appointment.findOne({
       _id: appointmentId,
-      patientId: req.user.patient
-    });
+      patientId: { $in: candidatePatientIds }
+    }).setOptions({ skipTenantScope: true });
 
     if (!appointment) {
       return res.status(404).json({ success: false, message: 'Appointment not found or unauthorized.' });
