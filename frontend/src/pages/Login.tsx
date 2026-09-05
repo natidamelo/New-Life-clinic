@@ -1191,15 +1191,15 @@ const Login: React.FC = () => {
 
   // Self-Booking patient lookup
   const handleVerifyPatient = async () => {
-    if (!returningId.trim() || !returningPhone.trim()) {
-      toast.error('Please fill in both Patient ID and phone number.');
+    if (!returningId.trim() && !returningPhone.trim()) {
+      toast.error('Please enter either your Patient ID or phone number.');
       return;
     }
     setBookingLoading(true);
     try {
       const res = await api.post('/api/public/find-patient', {
-        patientId: returningId.trim(),
-        contactNumber: returningPhone.trim()
+        patientId: returningId.trim() || undefined,
+        contactNumber: returningPhone.trim() || undefined
       });
       if (res.data && res.data.success) {
         setReturningPatientData(res.data.data);
@@ -1777,14 +1777,14 @@ const Login: React.FC = () => {
                     <h3 className="text-base font-bold flex items-center gap-2">
                       <Users className="h-4 w-4" /> Returning Patient Verification
                     </h3>
-                    <p className="text-xs text-slate-400">Enter your clinical ID (e.g. P00021-3944) and contact number to retrieve your profile.</p>
+                    <p className="text-xs text-slate-400">Enter your clinical ID (e.g. P27885-7885) or registered contact number to retrieve your profile.</p>
 
                     <div className="space-y-4 pt-2">
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Patient ID</label>
                         <input
                           type="text"
-                          placeholder="e.g. P00025-1445"
+                          placeholder="e.g. P27885-7885"
                           value={returningId}
                           onChange={e => setReturningId(e.target.value)}
                           style={inputStyle}
@@ -1792,10 +1792,10 @@ const Login: React.FC = () => {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Phone Number</label>
+                        <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Phone Number (Optional if ID provided)</label>
                         <input
                           type="text"
-                          placeholder="e.g. +251911223344"
+                          placeholder="e.g. 0911090204 or +251..."
                           value={returningPhone}
                           onChange={e => setReturningPhone(e.target.value)}
                           style={inputStyle}

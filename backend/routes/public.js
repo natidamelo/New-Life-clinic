@@ -68,21 +68,54 @@ router.get('/card-types', async (req, res) => {
   }
 });
 
-// POST /api/public/find-patient - Check if patient exists
+// POST /api/public/find-patient - Check if patient exists (flexible lookup by ID and/or phone)
 router.post('/find-patient', async (req, res) => {
   try {
     const { patientId, contactNumber } = req.body;
-    if (!patientId || !contactNumber) {
-      return res.status(400).json({ success: false, message: 'Patient ID and Contact Number are required.' });
+    const pidClean = (patientId || '').trim();
+    const phoneClean = (contactNumber || '').replace(/\D/g, '');
+    const phoneLast9 = phoneClean.slice(-9);
+
+    if (!pidClean && !phoneLast9) {
+      return res.status(400).json({ success: false, message: 'Please provide either Patient ID or Contact Number.' });
     }
 
-    const patient = await Patient.findOne({
-      patientId: patientId.trim(),
-      contactNumber: contactNumber.trim()
-    }).lean();
+    let patient = null;
+
+    // 1. If both are provided, try exact/flexible match first
+    if (pidClean && phoneLast9) {
+      patient = await Patient.findOne({
+        patientId: new RegExp('^' + pidClean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i'),
+        contactNumber: new RegExp(phoneLast9 + '$')
+      }).lean();
+
+      // If not found together, lookup by unique patientId directly
+      if (!patient) {
+        patient = await Patient.findOne({
+          patientId: new RegExp('^' + pidClean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i')
+        }).lean();
+      }
+
+      // If still not found, lookup by phone directly
+      if (!patient && phoneLast9.length >= 7) {
+        patient = await Patient.findOne({
+          contactNumber: new RegExp(phoneLast9 + '$')
+        }).lean();
+      }
+    } else if (pidClean) {
+      // 2. Lookup by Patient ID only
+      patient = await Patient.findOne({
+        patientId: new RegExp('^' + pidClean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i')
+      }).lean();
+    } else if (phoneLast9 && phoneLast9.length >= 7) {
+      // 3. Lookup by phone number only
+      patient = await Patient.findOne({
+        contactNumber: new RegExp(phoneLast9 + '$')
+      }).lean();
+    }
 
     if (!patient) {
-      return res.status(404).json({ success: false, message: 'No patient matches the provided ID and Contact Number.' });
+      return res.status(404).json({ success: false, message: 'No patient matches the provided ID or Contact Number.' });
     }
 
     // Find any existing upcoming or recent scheduled appointment
