@@ -982,6 +982,31 @@ const ReceptionDashboard: React.FC = () => {
     }
 
     const patientName = `${patient.firstName} ${patient.lastName}`;
+    const patientId = patient._id || patient.id;
+
+    // Check if patient has unpaid invoices or unpaid card - block sending to department until paid
+    const hasUnpaidInvoices = Boolean(patient.hasUnpaidInvoices || (patient.unpaidInvoices && patient.unpaidInvoices.length > 0));
+    const hasUnpaidCard = Boolean((patient as any).hasUnpaidCardInvoice === true);
+    if (hasUnpaidInvoices || hasUnpaidCard) {
+      const unpaidInvoices = patient.unpaidInvoices || [];
+      const totalAmount = unpaidInvoices.reduce((sum: number, inv: any) => sum + (inv.balance ?? inv.total ?? 0), 0);
+      toast.error(`❌ Payment Required: ${patientName} has unpaid bills. Please process payment before assigning to department.`, {
+        duration: 5000,
+        position: 'top-center'
+      });
+      setPaymentNotificationData({
+        message: `Payment required! ${patientName} has unpaid ${hasUnpaidCard ? 'card ' : ''}invoices totaling ETB ${totalAmount > 0 ? totalAmount.toFixed(2) : '500.00'}.`,
+        totalAmount: totalAmount > 0 ? totalAmount : 500,
+        invoices: unpaidInvoices,
+        patientName,
+        patientId,
+        paymentRequirementId: `payment_${patientId}_${Date.now()}`,
+        cardExpired: false,
+        cardInfo: null
+      });
+      setIsPaymentModalOpen(true);
+      return;
+    }
 
     // Check if card is expired - block sending to department if expired
     const graceInfo = getGracePeriodDetails(patient);
@@ -1129,7 +1154,35 @@ const ReceptionDashboard: React.FC = () => {
     const patientId = patientToSendToNurse._id || patientToSendToNurse.id;
     const patientName = `${patientToSendToNurse.firstName} ${patientToSendToNurse.lastName}`;
 
-    // FIRST: Check if card is expired - block sending if expired
+    // FIRST: Check if patient has unpaid invoices or unpaid card
+    const hasUnpaidInvoices = Boolean(patientToSendToNurse.hasUnpaidInvoices || (patientToSendToNurse.unpaidInvoices && patientToSendToNurse.unpaidInvoices.length > 0));
+    const hasUnpaidCard = Boolean((patientToSendToNurse as any).hasUnpaidCardInvoice === true);
+    if (hasUnpaidInvoices || hasUnpaidCard) {
+      const unpaidInvoices = patientToSendToNurse.unpaidInvoices || [];
+      const totalAmount = unpaidInvoices.reduce((sum: number, inv: any) => sum + (inv.balance ?? inv.total ?? 0), 0);
+      toast.error(`❌ Payment Required: ${patientName} has unpaid bills. Please process payment first.`, {
+        duration: 5000,
+        position: 'top-center'
+      });
+      setIsConfirmSendNurseDialogOpen(false);
+      setPatientToSendToNurse(null);
+      setSelectedNurseId(null);
+      setSelectedDoctorId(null);
+      setPaymentNotificationData({
+        message: `Payment required! ${patientName} has unpaid ${hasUnpaidCard ? 'card ' : ''}invoices totaling ETB ${totalAmount > 0 ? totalAmount.toFixed(2) : '500.00'}.`,
+        totalAmount: totalAmount > 0 ? totalAmount : 500,
+        invoices: unpaidInvoices,
+        patientName,
+        patientId,
+        paymentRequirementId: `payment_${patientId}_${Date.now()}`,
+        cardExpired: false,
+        cardInfo: null
+      });
+      setIsPaymentModalOpen(true);
+      return;
+    }
+
+    // SECOND: Check if card is expired - block sending if expired
     const graceInfo = getGracePeriodDetails(patientToSendToNurse);
     const isCardExpired = graceInfo?.isExpired || patientToSendToNurse.cardStatus === 'expired';
 
@@ -1429,7 +1482,7 @@ const ReceptionDashboard: React.FC = () => {
         assignedDoctorId: selectedDoctorId,
         status: 'Admitted',
         vitals: {}, // reset vitals so nurse can record new set
-        forceAssignment: true // bypass payment check for active card holders
+        forceAssignment: Boolean(patientToSendToNurse.cardStatus === 'active' && !patientToSendToNurse.hasUnpaidInvoices && !(patientToSendToNurse as any).hasUnpaidCardInvoice)
       });
 
       if (response.status === 200 || response.data.success) {
@@ -2136,7 +2189,13 @@ const ReceptionDashboard: React.FC = () => {
       return 'bg-gray-100 text-gray-600 border border-gray-300';
     }
 
-    // FIRST: Check grace period BEFORE checking cardStatus
+    // FIRST: Check if patient has unpaid invoices or unpaid card - show payment required
+    const hasUnpaidInvoices = Boolean(patient?.hasUnpaidInvoices || (patient?.unpaidInvoices && patient?.unpaidInvoices.length > 0));
+    const hasUnpaidCard = Boolean(patient?.hasUnpaidCardInvoice === true);
+    if (hasUnpaidInvoices || hasUnpaidCard) {
+      return 'bg-amber-100 text-amber-900 border-2 border-amber-500 font-semibold';
+    }
+
     // Color categorization: Green (Active), Amber/Yellow (Grace Period), Red (Expired)
     const graceInfo = getGracePeriodDetails(patient);
 
@@ -2199,20 +2258,15 @@ const ReceptionDashboard: React.FC = () => {
 
   // Helper function to get grace period details
   const getGracePeriodDetails = (patient: any) => {
-    // Use cardIssueDate if available, otherwise fall back to createdAt (when card was likely issued)
-    const issueDateSource = patient?.cardIssueDate || patient?.createdAt;
+    // If patient has an unpaid invoice or unpaid card, they do NOT qualify for a grace bypass
+    if (patient?.hasUnpaidCardInvoice || patient?.hasUnpaidInvoices || (patient?.unpaidInvoices && patient?.unpaidInvoices.length > 0)) {
+      return null;
+    }
+
+    // Use cardIssueDate if available. If no cardIssueDate and has no paid card fee, do not fake a grace period!
+    const issueDateSource = patient?.cardIssueDate || (patient?.hasPaidCardFee ? patient?.createdAt : null);
 
     if (!issueDateSource) {
-      // Debug: Log when no date is available
-      if (patient?.cardType || patient?.cardStatus) {
-        console.log(`[Grace Period] Patient ${patient.patientId || patient.id} has card but no issue date:`, {
-          patientId: patient.patientId,
-          cardType: patient.cardType,
-          cardStatus: patient.cardStatus,
-          hasCardIssueDate: !!patient.cardIssueDate,
-          hasCreatedAt: !!patient.createdAt
-        });
-      }
       return null;
     }
 
@@ -2244,12 +2298,20 @@ const ReceptionDashboard: React.FC = () => {
     // Handle new backend format: patient.cardStatus, patient.cardType, patient.cardIssueDate
     if (!patient) return 'No Card';
 
+    // FIRST: Check if patient has unpaid invoices or unpaid card - prioritize payment requirement
+    const hasUnpaidInvoices = Boolean(patient.hasUnpaidInvoices || (patient.unpaidInvoices && patient.unpaidInvoices.length > 0));
+    const hasUnpaidCard = Boolean(patient.hasUnpaidCardInvoice === true);
+    if (hasUnpaidInvoices || hasUnpaidCard) {
+      const unpaidTotal = (patient.unpaidInvoices || []).reduce((sum: number, inv: any) => sum + (inv.balance ?? inv.total ?? 0), 0);
+      return `💳 Unpaid (${unpaidTotal > 0 ? `ETB ${unpaidTotal.toFixed(0)}` : 'Payment Due'})`;
+    }
+
     // Check if patient has a card
     if (!patient.cardType && !patient.cardStatus) {
       return 'No Card';
     }
 
-    // FIRST: Check grace period BEFORE checking cardStatus
+    // SECOND: Check grace period BEFORE checking cardStatus
     // If grace period is more than 15 days, card should be expired
     const graceInfo = getGracePeriodDetails(patient);
 
@@ -2793,6 +2855,10 @@ const ReceptionDashboard: React.FC = () => {
                           : waitMins >= 120
                             ? 'bg-yellow-50/60 hover:bg-yellow-100/60'
                             : 'hover:bg-muted/10';
+                      const hasUnpaidInvoices = Boolean(patient.hasUnpaidInvoices || (patient.unpaidInvoices && patient.unpaidInvoices.length > 0));
+                      const hasUnpaidCard = Boolean((patient as any).hasUnpaidCardInvoice === true);
+                      const hasUnpaid = hasUnpaidInvoices || hasUnpaidCard;
+                      const unpaidTotal = (patient.unpaidInvoices || []).reduce((sum: number, inv: any) => sum + (inv.balance ?? inv.total ?? 0), 0);
                       const graceInfo = getGracePeriodDetails(patient);
                       const isCardExpired = graceInfo?.isExpired || patient.cardStatus === 'expired';
 
@@ -2907,6 +2973,9 @@ const ReceptionDashboard: React.FC = () => {
                                   if (patient.hasActiveServiceRequests) {
                                     return "Patient already has active service requests";
                                   }
+                                  if (hasUnpaid) {
+                                    return `Payment Required: Patient has unpaid invoice (${unpaidTotal > 0 ? `ETB ${unpaidTotal.toFixed(2)}` : 'Payment Due'}). Click to process payment before sending to department.`;
+                                  }
                                   if (isCardExpired) {
                                     const daysOverdue = graceInfo?.daysSinceIssue ? graceInfo.daysSinceIssue - 15 : 0;
                                     return `Card Expired - Cannot send to department. Card is ${daysOverdue} days overdue. Please renew the card first.`;
@@ -2924,9 +2993,20 @@ const ReceptionDashboard: React.FC = () => {
                                   size="small"
                                   color="primary"
                                   onClick={() => handleSendToNurse(patient)}
-                                  disabled={patient.hasActiveServiceRequests || isCardExpired}
+                                  disabled={patient.hasActiveServiceRequests}
                                   sx={{
-                                    ...(patient.hasActiveServiceRequests || isCardExpired ? {
+                                    ...(patient.hasActiveServiceRequests ? {
+                                      opacity: 0.5,
+                                      backgroundColor: '#e5e7eb',
+                                      color: '#9ca3af',
+                                      cursor: 'not-allowed',
+                                      '&:hover': { backgroundColor: '#e5e7eb', cursor: 'not-allowed' }
+                                    } : hasUnpaid ? {
+                                      backgroundColor: '#fee2e2',
+                                      color: '#dc2626',
+                                      border: '1px solid #fca5a5',
+                                      '&:hover': { backgroundColor: '#fecaca', color: '#b91c1c' }
+                                    } : isCardExpired ? {
                                       opacity: 0.5,
                                       backgroundColor: '#e5e7eb',
                                       color: '#9ca3af',

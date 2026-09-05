@@ -1287,6 +1287,28 @@ router.put('/:id', auth, async (req, res) => {
         forceAssignment: sanitizedData.forceAssignment
       });
 
+      // Also check if patient has unpaid invoices (consultation, appointment, card, or services)
+      const MedicalInvoice = require('../models/MedicalInvoice');
+      const unpaidInvoices = await MedicalInvoice.find({
+        patient: req.params.id,
+        $or: [
+          { status: { $in: ['pending', 'overdue'] } },
+          { status: { $in: ['partial', 'partially_paid'] }, balance: { $gt: 0 } }
+        ]
+      }).lean();
+
+      if (unpaidInvoices.length > 0 && !sanitizedData.forceAssignment) {
+        const totalAmount = unpaidInvoices.reduce((sum, inv) => sum + (inv.balance ?? inv.total ?? 0), 0);
+        console.log(`⏳ [Patient Update] Patient has unpaid invoices totaling ETB ${totalAmount} - blocking Admitted status change`);
+        return res.status(402).json({
+          success: false,
+          message: `Patient has unpaid invoices totaling ETB ${totalAmount.toFixed(2)}. Please process payment before assigning to medical staff.`,
+          requiresPayment: true,
+          unpaidInvoices,
+          totalAmount
+        });
+      }
+
       if (!cardCheck.hasValidCard) {
         console.log('⏳ [Patient Update] Patient has no valid card payment - blocking Admitted status change');
 
