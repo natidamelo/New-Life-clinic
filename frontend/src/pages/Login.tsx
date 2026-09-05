@@ -1552,9 +1552,20 @@ const Login: React.FC = () => {
                 packages={packages}
                 isDarkMode={isDarkMode}
                 homeContent={homeContent}
-                onNavigateTab={(tab) => {
+                onNavigateTab={(tab, details) => {
                   setActiveTab(tab);
-                  if (tab === 'appointment') setBookingStep(1);
+                  if (tab === 'appointment') {
+                    setBookingStep(1);
+                    if (details) {
+                      setBookingDetails(prev => ({
+                        ...prev,
+                        doctorId: details.doctorId || prev.doctorId,
+                        department: details.department || prev.department,
+                        reason: details.reason || prev.reason,
+                        appointmentDateTime: details.date ? `${details.date} ${details.timeSlot || ''}`.trim() : prev.appointmentDateTime
+                      }));
+                    }
+                  }
                   if (tab === 'card') setCardStep(1);
                 }}
               />
