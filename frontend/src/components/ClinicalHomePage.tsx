@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Heart, ShieldCheck, Clock, Users, ArrowRight, Activity,
@@ -10,6 +10,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { HomeContent } from '../services/homeContentService';
 import { normalizeCategory } from './ClinicalServicesPage';
+import { HeroSection } from './HeroSection';
 
 interface Doctor {
   id: string;
@@ -81,30 +82,30 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
   homeContent,
   onNavigateTab
 }) => {
-  // ── Search & Filter State
+  // â”€â”€ Search & Filter State
   const [heroSearch, setHeroSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [servicesSearch, setServicesSearch] = useState('');
 
-  // ── Interactive Quick-Booking State
+  // â”€â”€ Interactive Quick-Booking State
   const [bookingDept, setBookingDept] = useState('General Medicine');
   const [bookingDay, setBookingDay] = useState<'today' | 'tomorrow' | 'custom'>('today');
   const [bookingDate, setBookingDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedSlot, setSelectedSlot] = useState('09:00 AM');
 
-  // ── Testimonials Carousel State
+  // â”€â”€ Testimonials Carousel State
   const [testimonialIndex, setTestimonialIndex] = useState(0);
 
-  // ── FAQ State
+  // â”€â”€ FAQ State
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
-  // ── Contact Form State
+  // â”€â”€ Contact Form State
   const [contactName, setContactName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactMessage, setContactMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // ── Mouse Parallax Coordinates
+  // â”€â”€ Mouse Parallax Coordinates
   const [parallax, setParallax] = useState({ x: 0, y: 0 });
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -118,12 +119,12 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
     setParallax({ x: 0, y: 0 });
   };
 
-  // ── Content Resolution with Fallbacks
+  // â”€â”€ Content Resolution with Fallbacks
   const hc = homeContent;
   const heroTitle = hc?.heroTitle || 'Healthcare That Puts';
   const heroHighlight = hc?.heroHighlight || 'Your Life';
   const heroTitleEnd = hc?.heroTitleEnd || 'First';
-  const heroSubtitle = hc?.heroSubtitle || 'Experience compassionate care, advanced diagnostics, and expert medical professionals—all in one trusted clinic. Empower your health journey with our premium patient portal.';
+  const heroSubtitle = hc?.heroSubtitle || 'Experience compassionate care, advanced diagnostics, and expert medical professionalsâ€”all in one trusted clinic. Empower your health journey with our premium patient portal.';
   const heroBadge = hc?.heroBadge || 'Accredited Private Clinic in Addis Ababa';
   const trustBadges = hc?.trustBadges?.length ? hc.trustBadges : [
     'Advanced Laboratory', 'Digital Health Card', 'Same-Day Checkups', 'Certified Specialists'
@@ -139,9 +140,9 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
   const contactPhone = hc?.contactPhone || '+251 925 959 219';
   const contactEmailAddr = hc?.contactEmail || 'newlifemediumclinic@gmail.com';
   const workingHours = hc?.workingHours?.length ? hc.workingHours : [
-    { day: 'Monday – Friday', time: '8:00 AM – 8:00 PM' },
-    { day: 'Saturday', time: '8:00 AM – 5:00 PM' },
-    { day: 'Sunday', time: '9:00 AM – 2:00 PM' },
+    { day: 'Monday â€“ Friday', time: '8:00 AM â€“ 8:00 PM' },
+    { day: 'Saturday', time: '8:00 AM â€“ 5:00 PM' },
+    { day: 'Sunday', time: '9:00 AM â€“ 2:00 PM' },
     { day: 'Emergency Care', time: '24/7 Available' },
   ];
 
@@ -149,12 +150,12 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
     {
       quote: "New Life Clinic completely transformed my healthcare experience. The smart portal allowed me to register and generate my digital patient card in seconds, and the doctors were exceptionally thorough.",
       author: "Samuel Kebede",
-      role: "Patient — General Medicine"
+      role: "Patient â€” General Medicine"
     },
     {
       quote: "As a working mother, convenience and precision are everything. Booking self-appointments for my children is seamless, and the pediatric team showed incredible warmth and expertise.",
       author: "Helen Tekle",
-      role: "Patient — Pediatrics & Vaccination"
+      role: "Patient â€” Pediatrics & Vaccination"
     },
     {
       quote: "I am thoroughly impressed by their automated laboratory and instant online test results. Zero waiting time and high-precision diagnostics under one modern roof.",
@@ -243,384 +244,28 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
   return (
     <div className="space-y-0 pb-16 font-sans bg-[#F8FBFF] dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-x-hidden">
 
-      {/* ─── STYLE DEFINITIONS ─────────────────────────────────────────────────── */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes ecgScroll {
-          to { stroke-dashoffset: -1000; }
-        }
-        .animate-ecg {
-          stroke-dasharray: 200 40;
-          animation: ecgScroll 18s linear infinite;
-        }
-        @keyframes softShimmer {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .shimmer-gradient {
-          background-image: linear-gradient(270deg, #0057FF, #2563EB, #00C2FF, #0057FF);
-          background-size: 600% 600%;
-          animation: softShimmer 16s ease infinite;
-        }
-        @keyframes heartbeat {
-          0%, 100% { transform: scale(1); }
-          25% { transform: scale(1.15); }
-          40% { transform: scale(1); }
-          55% { transform: scale(1.15); }
-        }
-        .animate-heartbeat {
-          animation: heartbeat 2s infinite ease-in-out;
-        }
-        @keyframes float-slow {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-8px) rotate(1deg); }
-        }
-        .animate-float-slow {
-          animation: float-slow 6s ease-in-out infinite;
-        }
-        @keyframes float-medium {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-12px); }
-        }
-        .animate-float-medium {
-          animation: float-medium 5s ease-in-out infinite;
-        }
-        .glass-card {
-          background: rgba(255, 255, 255, 0.72);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.6);
-        }
-        .dark .glass-card {
-          background: rgba(15, 23, 42, 0.75);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-      `}} />
-
-      {/* ─── 1. ULTRA-MODERN LUXURY HERO SECTION ───────────────────────────────── */}
-      <section 
+      {/* â”€â”€â”€ 1. HERO SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <HeroSection
+        heroTitle={heroTitle}
+        heroHighlight={heroHighlight}
+        heroTitleEnd={heroTitleEnd}
+        heroSubtitle={heroSubtitle}
+        heroBadge={heroBadge}
+        trustBadges={trustBadges}
+        stats={stats}
+        heroSearch={heroSearch}
+        setHeroSearch={setHeroSearch}
+        setServicesSearch={setServicesSearch}
+        setSelectedCategory={setSelectedCategory}
+        onNavigateTab={onNavigateTab}
+        parallax={parallax}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="relative w-full min-h-[720px] lg:min-h-[780px] flex flex-col justify-between items-center bg-[#F8FBFF] dark:bg-slate-950 transition-colors duration-500 overflow-hidden px-4 sm:px-6 lg:px-8 pt-8 pb-12 border-b border-slate-200/50 dark:border-slate-800/40 select-none z-10"
-      >
-        {/* Soft Shifting Medical Gradient Background Blobs */}
-        <div className="absolute top-1/4 left-1/3 w-[520px] h-[520px] rounded-full bg-gradient-to-tr from-blue-500/10 to-cyan-500/10 blur-[130px] pointer-events-none animate-float-slow z-0" />
-        <div className="absolute top-1/3 right-1/4 w-[420px] h-[420px] rounded-full bg-gradient-to-br from-indigo-500/10 to-blue-600/10 blur-[110px] pointer-events-none animate-float-medium z-0" />
+      />
 
-        {/* Medical Cross Watermark */}
-        <div className="absolute right-12 top-20 opacity-[0.025] dark:opacity-[0.035] pointer-events-none scale-125 z-0">
-          <svg width="400" height="400" viewBox="0 0 100 100" fill="currentColor">
-            <path d="M 38 10 H 62 V 38 H 90 V 62 H 62 V 90 H 38 V 62 H 10 V 38 H 38 Z" />
-          </svg>
-        </div>
 
-        {/* Live ECG Heartbeat Line */}
-        <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 opacity-[0.07] dark:opacity-[0.09] pointer-events-none w-full z-0">
-          <svg className="w-full h-48 text-blue-500" preserveAspectRatio="none" viewBox="0 0 1000 120" fill="none">
-            <path 
-              d="M 0 60 H 200 L 210 40 L 220 80 L 230 10 L 240 110 L 250 50 L 255 60 H 450 L 460 40 L 470 80 L 480 10 L 490 110 L 500 50 L 505 60 H 700 L 710 40 L 720 80 L 730 10 L 740 110 L 750 50 L 755 60 H 1000" 
-              stroke="currentColor" 
-              strokeWidth="2.5" 
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="animate-ecg"
-            />
-          </svg>
-        </div>
 
-        {/* Hero Content Center Grid */}
-        <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-center flex-grow pt-4 relative z-10">
-          
-          {/* LEFT COLUMN: Headline & Core Actions */}
-          <div className="lg:col-span-6 space-y-6 text-left relative z-20">
-            {/* Small Premium Badge */}
-            <motion.div 
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-white/90 dark:bg-slate-900/90 border border-blue-500/20 shadow-sm text-blue-600 dark:text-blue-400 backdrop-blur-md"
-            >
-              <span className="text-amber-400 text-sm">★</span> {heroBadge}
-            </motion.div>
-
-            {/* Giant Modern Headline with Fixed Spacing */}
-            <motion.h1 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-4xl sm:text-5xl lg:text-[68px] font-black tracking-tight leading-[1.08] text-slate-900 dark:text-white"
-            >
-              Healthcare <br />
-              <span className="text-transparent bg-clip-text [-webkit-background-clip:text] [background-clip:text] shimmer-gradient inline-block pr-3">
-                {heroHighlight}
-              </span>
-              <span className="text-slate-900 dark:text-white">
-                {heroTitleEnd}
-              </span>
-            </motion.h1>
-
-            {/* Subtitle */}
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-slate-600 dark:text-slate-300 text-sm sm:text-base lg:text-lg leading-relaxed max-w-xl font-normal"
-            >
-              {heroSubtitle}
-            </motion.p>
-
-            {/* Action Buttons */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="flex flex-wrap gap-4 items-center pt-1"
-            >
-              {/* Premium Gradient Button */}
-              <button
-                onClick={() => onNavigateTab('appointment')}
-                className="px-8 h-12 rounded-full text-xs font-bold tracking-wide shimmer-gradient text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.03] active:scale-[0.97] transition-all cursor-pointer flex items-center gap-2"
-              >
-                <span>Book Appointment</span>
-                <ArrowRight className="h-4 w-4" />
-              </button>
-              
-              {/* Secondary Doctor Button */}
-              <button
-                onClick={() => {
-                  const el = document.getElementById('doctors-section');
-                  el?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="px-7 h-12 rounded-full text-xs font-bold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-[1.03] active:scale-[0.97] transition-all cursor-pointer flex items-center gap-2"
-              >
-                <Stethoscope className="h-4 w-4 text-blue-500" />
-                <span>Find a Doctor</span>
-              </button>
-
-              {/* Patient Card Link */}
-              <button
-                onClick={() => onNavigateTab('card')}
-                className="px-6 h-12 rounded-full text-xs font-bold border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10 hover:scale-[1.03] active:scale-[0.97] transition-all cursor-pointer flex items-center gap-2"
-              >
-                <QrCode className="h-4 w-4" />
-                <span>Get Patient Card</span>
-              </button>
-            </motion.div>
-
-            {/* Trust Badges */}
-            <motion.div 
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="grid grid-cols-2 gap-x-4 gap-y-3 pt-4 border-t border-slate-200/60 dark:border-slate-800/50 max-w-lg"
-            >
-              {trustBadges.slice(0, 4).map((badge, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  <div className="h-5 w-5 rounded-full bg-emerald-500/15 flex items-center justify-center border border-emerald-500/30 shrink-0">
-                    <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <span>{badge}</span>
-                </div>
-              ))}
-            </motion.div>
-
-            {/* Google Rating & Avatar Proof */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.5 }}
-              className="flex items-center gap-3 pt-1"
-            >
-              <div className="flex -space-x-2">
-                {[
-                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80',
-                  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80',
-                  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=80&q=80',
-                  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=80&q=80'
-                ].map((src, i) => (
-                  <img key={i} src={src} alt="Patient Avatar" className="h-8 w-8 rounded-full object-cover border-2 border-white dark:border-slate-900 shadow-sm" />
-                ))}
-              </div>
-              <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 leading-snug">
-                <div className="flex items-center gap-1 text-amber-500 font-bold">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                  ))}
-                  <span className="ml-1 text-slate-800 dark:text-slate-200">4.9 Rating</span>
-                </div>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">Trusted by 30,000+ Happy Patients</span>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* RIGHT COLUMN: Futuristic Health Dashboard with Interactive Parallax */}
-          <div 
-            className="lg:col-span-6 relative flex justify-center items-center h-[420px] md:h-[480px] w-full"
-            style={{
-              transform: `translate(${parallax.x}px, ${parallax.y}px)`,
-              transition: 'transform 0.1s ease-out'
-            }}
-          >
-            {/* Glowing Center Ring */}
-            <div className="absolute h-72 w-72 md:h-88 md:w-88 rounded-full border border-blue-500/25 bg-gradient-to-tr from-blue-500/20 to-cyan-500/10 shadow-2xl shadow-blue-500/15 animate-float-slow z-0" />
-
-            {/* Doctor Image inside circular mask */}
-            <div className="absolute h-64 w-64 md:h-80 md:w-80 rounded-full overflow-hidden z-10 animate-float-slow pointer-events-none flex items-center justify-center bg-gradient-to-b from-[#E2EDFF] to-[#CDE1FF] dark:from-slate-900 dark:to-slate-800 border-4 border-white/60 dark:border-slate-800/60 shadow-xl">
-              <img 
-                src="/assets/hero_doctor.png" 
-                alt="Professional Doctor Portrait" 
-                className="w-full h-full object-cover object-top scale-105"
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=500&q=80";
-                }}
-              />
-            </div>
-
-            {/* Orbiting Glass Rings */}
-            <div className="absolute inset-0 border border-slate-300/30 dark:border-slate-700/30 rounded-full scale-[1.2] pointer-events-none opacity-40 z-0" />
-
-            {/* ── Floating Telemetry Glass Widgets ── */}
-            {/* 1. Appointment Today (Top Left) */}
-            <motion.div 
-              animate={{ y: [0, -7, 0] }}
-              transition={{ repeat: Infinity, duration: 4.2, ease: "easeInOut" }}
-              className="absolute -top-3 left-2 sm:left-4 p-3.5 rounded-2xl glass-card shadow-lg text-[10px] w-44 text-left z-20"
-            >
-              <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest text-[9px] mb-1">
-                <Clock className="h-3.5 w-3.5" /> Next Slot Available
-              </div>
-              <p className="font-extrabold text-sm text-slate-800 dark:text-white">09:30 AM Today</p>
-              <p className="text-slate-500 dark:text-slate-400 font-medium text-[10px]">General Consultation</p>
-            </motion.div>
-
-            {/* 2. Live Heart Rate Card (Top Right) */}
-            <motion.div 
-              animate={{ y: [0, 8, 0] }}
-              transition={{ repeat: Infinity, duration: 4.8, ease: "easeInOut" }}
-              className="absolute top-6 -right-2 sm:right-2 p-3.5 rounded-2xl glass-card shadow-lg text-[10px] w-32 text-left z-20"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Heart Rate</span>
-                <Heart className="h-4 w-4 text-rose-500 animate-heartbeat" />
-              </div>
-              <span className="text-xl font-black text-slate-800 dark:text-white block mt-1">72 BPM</span>
-              <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mt-2 overflow-hidden">
-                <div className="h-full bg-rose-500 rounded-full w-[72%]" />
-              </div>
-            </motion.div>
-
-            {/* 3. Blood Pressure Card (Middle Left) */}
-            <motion.div 
-              animate={{ y: [0, -8, 0] }}
-              transition={{ repeat: Infinity, duration: 4.5, ease: "easeInOut" }}
-              className="absolute top-1/2 -translate-y-1/2 -left-4 sm:-left-6 p-3.5 rounded-2xl glass-card shadow-lg text-[10px] w-36 text-left z-20"
-            >
-              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block">Blood Pressure</span>
-              <span className="text-xl font-black text-slate-800 dark:text-white mt-0.5 block">120 / 80</span>
-              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
-                <CheckCircle className="h-3 w-3" /> Optimal Range
-              </span>
-            </motion.div>
-
-            {/* 4. Patient Satisfaction (Middle Right) */}
-            <motion.div 
-              animate={{ y: [0, -6, 0] }}
-              transition={{ repeat: Infinity, duration: 3.8, ease: "easeInOut" }}
-              className="absolute top-1/2 -translate-y-1/2 -right-4 sm:-right-6 p-3.5 rounded-2xl glass-card shadow-lg text-[10px] w-32 text-left z-20"
-            >
-              <div className="flex items-center gap-1">
-                <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Satisfaction</span>
-              </div>
-              <span className="text-xl font-black text-slate-800 dark:text-white block mt-1">98%</span>
-              <span className="text-[9px] text-slate-400">Verified Patient Care</span>
-            </motion.div>
-
-            {/* 5. Metrics Footer Card (Bottom Center/Left) */}
-            <motion.div 
-              animate={{ y: [0, 6, 0] }}
-              transition={{ repeat: Infinity, duration: 5.2, ease: "easeInOut" }}
-              className="absolute -bottom-6 left-2 sm:left-6 p-4 rounded-2xl glass-card shadow-xl text-[10px] grid grid-cols-2 gap-x-6 gap-y-1 w-64 text-left z-20"
-            >
-              <div>
-                <span className="text-[8px] font-bold text-slate-400 uppercase block">Doctors & Staff</span>
-                <span className="text-base font-black text-blue-600 dark:text-blue-400">30+</span>
-              </div>
-              <div>
-                <span className="text-[8px] font-bold text-slate-400 uppercase block">Experience</span>
-                <span className="text-base font-black text-blue-600 dark:text-blue-400">15+ Yrs</span>
-              </div>
-              <div className="col-span-2 border-t border-slate-200/60 dark:border-slate-800/60 pt-1.5 mt-1 flex justify-between items-center text-[9px]">
-                <span className="text-slate-500">Patients: <b className="text-slate-800 dark:text-slate-200">30,000+</b></span>
-                <span className="text-rose-500 font-extrabold flex items-center gap-1 uppercase tracking-wide">
-                  <AlertCircle className="h-3 w-3 animate-pulse" /> Emergency 24/7
-                </span>
-              </div>
-            </motion.div>
-          </div>
-
-        </div>
-
-        {/* ── Search & Quick Shortcuts ── */}
-        <div className="w-full max-w-4xl mx-auto pt-10 relative z-20 space-y-4">
-          {/* Glass Search Panel */}
-          <div className="p-2 rounded-2xl glass-card shadow-lg flex items-center gap-3 group hover:border-blue-500/40 transition-all duration-300">
-            <div className="h-11 w-11 shrink-0 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <Search className="h-5 w-5" />
-            </div>
-            <input 
-              type="text" 
-              value={heroSearch}
-              onChange={(e) => {
-                setHeroSearch(e.target.value);
-                setServicesSearch(e.target.value);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const el = document.getElementById('services-section');
-                  el?.scrollIntoView({ behavior: 'smooth' });
-                }
-              }}
-              placeholder="Search doctors, clinical tests, procedures, ultrasound, blood panels..." 
-              className="flex-grow bg-transparent text-xs sm:text-sm text-slate-800 dark:text-slate-100 outline-none placeholder-slate-400 py-2"
-            />
-            <button 
-              onClick={() => {
-                const el = document.getElementById('services-section');
-                el?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="px-6 h-11 shrink-0 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20 cursor-pointer flex items-center gap-2"
-            >
-              <span>Explore Services</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Category Shortcut Pills */}
-          <div className="flex flex-wrap gap-2 justify-center">
-            {QUICK_SHORTCUTS.map((s, i) => (
-              <button 
-                key={i} 
-                onClick={() => {
-                  setSelectedCategory(s.key === 'pharmacy' ? 'all' : s.key);
-                  const el = document.getElementById('services-section');
-                  el?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-600 hover:border-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:border-blue-600 transition-all hover:-translate-y-0.5 cursor-pointer shadow-sm"
-              >
-                <s.icon className="h-3.5 w-3.5" />
-                <span>{s.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-      </section>
-
-      {/* ─── 2. INTERACTIVE QUICK-BOOKING TIME SLOT SELECTOR TEASER ────────────── */}
+      {/* â”€â”€â”€ 2. INTERACTIVE QUICK-BOOKING TIME SLOT SELECTOR TEASER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-30">
         <div className="p-6 md:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-blue-500/20 shadow-2xl shadow-blue-500/10 backdrop-blur-xl">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
@@ -628,11 +273,11 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
                 <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                  ⚡ Express Priority Reservation
+                  âš¡ Express Priority Reservation
                 </span>
               </div>
               <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight mt-1">
-                Instant Care Booking — Pick a Specialty & Slot
+                Instant Care Booking â€” Pick a Specialty & Slot
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Reserve your consultation with board-certified physicians in 60 seconds with no upfront fee.
@@ -732,7 +377,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
         </div>
       </section>
 
-      {/* ─── 3. WHY CHOOSE US: HIGH-TECH BENTO GRID ────────────────────────────── */}
+      {/* â”€â”€â”€ 3. WHY CHOOSE US: HIGH-TECH BENTO GRID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 space-y-8">
         <div className="text-center max-w-3xl mx-auto space-y-3">
           <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 inline-block">
@@ -876,7 +521,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
         </div>
       </section>
 
-      {/* ─── 4. INTERACTIVE SERVICES & DIAGNOSTIC TESTS EXPLORER ──────────────── */}
+      {/* â”€â”€â”€ 4. INTERACTIVE SERVICES & DIAGNOSTIC TESTS EXPLORER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section id="services-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 space-y-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div className="space-y-2">
@@ -990,7 +635,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
         </div>
       </section>
 
-      {/* ─── 5. FEATURED DOCTORS & SPECIALISTS SHOWCASE ─────────────────────────── */}
+      {/* â”€â”€â”€ 5. FEATURED DOCTORS & SPECIALISTS SHOWCASE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section id="doctors-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 space-y-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div className="space-y-2">
@@ -1065,7 +710,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
         </div>
       </section>
 
-      {/* ─── 6. 24/7 EMERGENCY & CRITICAL URGENT CARE BANNER ────────────────────── */}
+      {/* â”€â”€â”€ 6. 24/7 EMERGENCY & CRITICAL URGENT CARE BANNER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20">
         <div className="p-8 md:p-10 rounded-3xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-3 max-w-2xl">
@@ -1102,7 +747,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
         </div>
       </section>
 
-      {/* ─── 7. 5-STEP PATIENT JOURNEY INTERACTIVE FLOW ─────────────────────────── */}
+      {/* â”€â”€â”€ 7. 5-STEP PATIENT JOURNEY INTERACTIVE FLOW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 space-y-12">
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 inline-block">
@@ -1172,7 +817,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
         </div>
       </section>
 
-      {/* ─── 8. PREVENTATIVE CARE & HEALTH PACKAGES ────────────────────────────── */}
+      {/* â”€â”€â”€ 8. PREVENTATIVE CARE & HEALTH PACKAGES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showPackages && packages.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 space-y-8">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
@@ -1263,7 +908,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
         </section>
       )}
 
-      {/* ─── 9. VERIFIED PATIENT TESTIMONIALS CAROUSEL ─────────────────────────── */}
+      {/* â”€â”€â”€ 9. VERIFIED PATIENT TESTIMONIALS CAROUSEL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 inline-block">
@@ -1341,7 +986,7 @@ export const ClinicalHomePage: React.FC<ClinicalHomePageProps> = ({
         </div>
       </section>
 
-      {/* ─── 10. FAQ ACCORDION & QUICK CONTACT INQUIRY ──────────────────────────── */}
+      {/* â”€â”€â”€ 10. FAQ ACCORDION & QUICK CONTACT INQUIRY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 space-y-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
           
