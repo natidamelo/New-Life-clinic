@@ -35,6 +35,9 @@ export interface GeminiHPIResult {
     aggravating?: string[];
     relieving?: string[];
     associated?: string[];
+    pertinentNegatives?: string[];
+    timing?: string[];
+    onset?: string[];
   };
   redFlags: string[];
   differentialDiagnoses: DDxItem[];
@@ -646,7 +649,7 @@ export class AIAssistantService {
     return { characterWords, locationHint, onsetHint, associatedHints, aggravatingHints, relievingHints, symptomNoun, negatives };
   }
 
-  static generateHPINarrative(patientData: PatientData): string {
+  static generateHPINarrative(patientData: PatientData, format: 'narrative' | 'structured' = 'narrative'): string {
     const {
       chiefComplaint = '',
       age,
@@ -659,95 +662,196 @@ export class AIAssistantService {
       timing,
       severity,
       associatingSymptoms,
-      associatedSymptoms = []
+      associatedSymptoms = [],
+      aggravatingFactors = [],
+      relievingFactors = []
     } = patientData;
 
-    const parts: string[] = [];
-    const ccText = chiefComplaint?.trim();
+    const rawCc = (chiefComplaint || '').trim();
+    if (!rawCc) return '';
 
-    let introSentence = '';
-    if (ccText) {
-      const agePrefix = age ? `${age}-year-old ` : '';
-      const genderPrefix = gender && gender !== 'unknown' ? `${gender.toLowerCase()} ` : 'patient ';
-      introSentence = `${agePrefix}${genderPrefix}presents with ${ccText}`;
-      
-      const dur = duration?.trim();
-      const ons = onset?.trim()?.toLowerCase();
-      
-      if (dur && ons) {
-        introSentence += ` for ${dur}, ${ons} in onset.`;
-      } else if (dur) {
-        introSentence += ` for ${dur}.`;
-      } else if (ons) {
-        introSentence += `, ${ons} in onset.`;
-      } else {
-        introSentence += `.`;
-      }
+    // Standard clinical acronyms to preserve in uppercase
+    const acronyms = ['GERD', 'UTI', 'URI', 'COPD', 'COVID', 'COVID-19', 'HIV', 'DVT', 'PE', 'CAD', 'CHF', 'CKD', 'HTN', 'DM', 'PUD', 'ACS', 'URTI', 'LRTI', 'PID', 'BPH', 'GERD/PUD'];
+    const isAcronym = acronyms.includes(rawCc.toUpperCase());
+    const cleanCc = isAcronym 
+      ? rawCc.toUpperCase() 
+      : (/^[A-Z][a-z]+(\s+[a-z]+)*$/.test(rawCc) ? rawCc.toLowerCase() : rawCc);
+
+    const ccLower = rawCc.toLowerCase();
+    const isPainComplaint = /pain|ache|aching|cramp|crampy|sore|hurt|colic|colicky|angina|migraine|headache/.test(ccLower);
+    const isFeverComplaint = /fever|chills|febrile|pyrexia|temperature/.test(ccLower);
+    const isRashComplaint = /rash|lesion|erythema|swelling|pruritus|itch|hives|urticaria/.test(ccLower);
+
+    const ageStr = age ? `${age}-year-old ` : '';
+    const genderStr = gender && gender.toLowerCase() !== 'unknown' ? `${gender.toLowerCase()} ` : 'patient ';
+    const ons = (onset || '').trim().toLowerCase();
+    const dur = (duration || '').trim();
+
+    // 1. Precise Chronology & Demographics
+    let opening = '';
+    if (ons && dur) {
+      opening = `The patient is a ${ageStr}${genderStr}who presents with ${ons}-onset ${cleanCc} persisting for ${dur}.`;
+    } else if (dur) {
+      opening = `The patient is a ${ageStr}${genderStr}who presents with ${cleanCc} present for ${dur}.`;
+    } else if (ons) {
+      opening = `The patient is a ${ageStr}${genderStr}who presents with ${cleanCc} of ${ons} onset.`;
+    } else {
+      opening = `The patient is a ${ageStr}${genderStr}who presents with ${cleanCc}.`;
     }
 
-    let painSentence = '';
-    const loc = location?.trim();
-    const char = character?.trim()?.toLowerCase();
-    const rad = radiating?.trim() || (patientData as any).radiating?.trim();
+    // 2. Anatomical Location, Character & Radiation
+    let locationClause = '';
+    const loc = (location || '').trim();
+    const char = (character || '').trim().toLowerCase();
+    const rad = (radiating || (patientData as any).radiating || '').trim();
 
     if (loc || char || rad) {
-      const partsOfPain: string[] = [];
-      if (loc) {
-        let locText = loc;
-        const lowerLoc = loc.toLowerCase();
-        if (!lowerLoc.startsWith('the ') && ['head', 'chest', 'abdomen', 'back', 'jaw', 'neck'].includes(lowerLoc)) {
+      let locText = loc;
+      if (locText) {
+        const lowerLoc = locText.toLowerCase();
+        if (!lowerLoc.startsWith('the ') && !lowerLoc.startsWith('bilateral') && !lowerLoc.startsWith('systemic') && ['head', 'chest', 'abdomen', 'back', 'jaw', 'neck', 'throat', 'pelvis', 'epigastrium'].includes(lowerLoc)) {
           locText = 'the ' + lowerLoc;
         }
-        partsOfPain.push(`located in ${locText}`);
       }
-      if (char) {
-        partsOfPain.push(`described as ${char}`);
-      }
-      if (rad) {
-        const lowerRad = rad.toLowerCase();
-        if (lowerRad === 'none') {
-          partsOfPain.push(`without radiation`);
-        } else {
-          partsOfPain.push(`with radiation to ${rad}`);
+
+      const radText = rad ? (rad.toLowerCase() === 'none' ? 'with no radiation reported' : `with radiation to ${rad}`) : '';
+
+      if (isFeverComplaint) {
+        if (loc && (loc.toLowerCase() === 'systemic' || loc.toLowerCase() === 'generalized')) {
+          locationClause = `Symptoms are systemic and generalized in distribution.`;
+        } else if (loc) {
+          const charDesc = char ? `described as ${char} in character` : '';
+          const joined = [charDesc, radText].filter(Boolean).join(', ');
+          locationClause = `Associated discomfort is localized to ${locText}${joined ? `, ${joined}` : ''}.`;
+        } else if (char) {
+          locationClause = `The fevers are characterized as ${char} in presentation.`;
         }
-      }
-      if (partsOfPain.length > 0) {
-        painSentence = `Pain is ` + partsOfPain.join(', ') + '.';
+      } else if (isRashComplaint) {
+        const charDesc = char ? `described as ${char}` : '';
+        const locDesc = locText ? `localized to ${locText}` : '';
+        const parts = [locDesc, charDesc].filter(Boolean).join(', ');
+        locationClause = `The dermatologic lesion is ${parts}.`;
+      } else if (isPainComplaint || ['sharp', 'dull', 'aching', 'throbbing', 'burning', 'stabbing', 'colicky', 'cramping', 'pressure'].includes(char)) {
+        const parts: string[] = [];
+        if (locText) parts.push(`localized to ${locText}`);
+        if (char) parts.push(`described as ${char} in quality`);
+        if (radText) parts.push(radText);
+        locationClause = `Pain is ${parts.join(', ')}.`;
+      } else {
+        const parts: string[] = [];
+        if (locText) parts.push(`localized to ${locText}`);
+        if (char) parts.push(`described as ${char} in quality`);
+        if (radText) parts.push(radText);
+        locationClause = parts.length > 0 ? `Symptoms are ${parts.join(', ')}.` : '';
       }
     }
 
-    let timingSentence = '';
-    const tim = timing?.trim()?.toLowerCase();
+    // 3. Temporal Course & Severity
+    let timingClause = '';
+    const tim = (timing || '').trim().toLowerCase();
     const sev = severity !== undefined && severity !== null && String(severity).trim() !== '' ? String(severity).trim() : '';
 
     if (tim || sev) {
+      const isNumeric = /^\d+(\.\d+)?$/.test(sev);
+      const sevDisplay = isNumeric ? `${sev}/10` : sev;
+
       if (tim && sev) {
-        const isNumeric = /^\d+(\.\d+)?$/.test(sev);
-        const sevSuffix = isNumeric ? '/10' : '';
-        timingSentence = `The pattern is ${tim}, rated ${sev}${sevSuffix} in intensity.`;
+        timingClause = `The temporal pattern is ${tim}, with severity rated as ${sevDisplay} in intensity.`;
       } else if (tim) {
-        timingSentence = `The pattern is ${tim}.`;
+        timingClause = `The symptoms follow a ${tim} temporal pattern.`;
       } else if (sev) {
-        const isNumeric = /^\d+(\.\d+)?$/.test(sev);
-        const sevSuffix = isNumeric ? '/10' : '';
-        timingSentence = `Pain is rated ${sev}${sevSuffix} in intensity.`;
+        timingClause = `Severity is rated as ${sevDisplay} in intensity.`;
       }
     }
 
-    let associatedSentence = '';
-    const assocValue = associatingSymptoms?.trim() || 
+    // 4. Modifying Factors (Aggravating & Relieving)
+    let modifyingClause = '';
+    const agg = Array.isArray(aggravatingFactors) ? aggravatingFactors.filter(Boolean).join(', ') : String(aggravatingFactors || '').trim();
+    const rel = Array.isArray(relievingFactors) ? relievingFactors.filter(Boolean).join(', ') : String(relievingFactors || '').trim();
+
+    if (agg && rel) {
+      modifyingClause = `Symptoms are aggravated by ${agg} and partially relieved by ${rel}.`;
+    } else if (agg) {
+      modifyingClause = `Symptoms are exacerbated by ${agg}.`;
+    } else if (rel) {
+      modifyingClause = `Symptoms are partially alleviated by ${rel}.`;
+    }
+
+    // 5. Associated Symptoms
+    let associatedClause = '';
+    const assocValue = (associatingSymptoms || '').trim() || 
                        (Array.isArray(associatedSymptoms) ? associatedSymptoms.join(', ') : String(associatedSymptoms || '')).trim();
 
     if (assocValue) {
       if (assocValue.toLowerCase() === 'none') {
-        associatedSentence = `No associated symptoms reported.`;
+        associatedClause = `The patient reports no associated symptoms.`;
       } else {
-        associatedSentence = `Associated with ${assocValue}.`;
+        associatedClause = `Associated symptoms include ${assocValue}.`;
       }
     }
 
-    const finalParagraph = [introSentence, painSentence, timingSentence, associatedSentence].filter(Boolean).join(' ');
-    return finalParagraph;
+    // If structured format requested
+    if (format === 'structured') {
+      const lines = [
+        `• Chronology & Onset: ${opening}`,
+        locationClause ? `• Location & Character: ${locationClause}` : null,
+        timingClause ? `• Severity & Timing: ${timingClause}` : null,
+        modifyingClause ? `• Modifying Factors: ${modifyingClause}` : null,
+        associatedClause ? `• Associated Symptoms: ${associatedClause}` : null
+      ].filter(Boolean);
+      return lines.join('\n');
+    }
+
+    // Flowing narrative prose
+    return [opening, locationClause, timingClause, modifyingClause, associatedClause].filter(Boolean).join(' ');
+  }
+
+  /**
+   * Generates structured bulleted OLDCARTS summary of HPI
+   */
+  static generateStructuredHPI(patientData: PatientData): string {
+    return AIAssistantService.generateHPINarrative(patientData, 'structured');
+  }
+
+  /**
+   * Polishes clinical HPI text: standardizes casing, eliminates duplicate words,
+   * cleans punctuation, and preserves clinical abbreviations.
+   */
+  static polishClinicalHPI(text: string): string {
+    if (!text || !text.trim()) return '';
+    let polished = text.trim();
+
+    // 1. Remove duplicate adjacent words
+    polished = polished.replace(/\b(\w+)\s+\1\b/gi, '$1');
+
+    // 2. Fix casing of common complaint openings
+    polished = polished.replace(/\bpresents with ([A-Z][a-z]+)\b/g, (match, word) => {
+      const acronyms = ['GERD', 'UTI', 'URI', 'COPD', 'COVID', 'HIV', 'DVT', 'PE', 'CAD', 'CHF', 'CKD', 'HTN', 'DM'];
+      if (acronyms.includes(word.toUpperCase())) return `presents with ${word.toUpperCase()}`;
+      return `presents with ${word.toLowerCase()}`;
+    });
+
+    // 3. Fix inaccurate "Pain is located in the head" for fever/systemic complaints
+    polished = polished.replace(/presents with fever[,\s]+([^.]+)\.\s*Pain is located in ([^.]+)\./gi, (match, chron, loc) => {
+      return `presents with fever, ${chron}. Associated discomfort is localized to ${loc}.`;
+    });
+
+    // 4. Standardize punctuation spacing
+    polished = polished.replace(/\s*([,.;:])\s*/g, '$1 ').replace(/\s+/g, ' ');
+    polished = polished.replace(/\s+\./g, '.');
+
+    // 5. Ensure final period
+    if (!/[.!?]$/.test(polished)) {
+      polished += '.';
+    }
+
+    // 6. Ensure initial capital letter
+    polished = polished.charAt(0).toUpperCase() + polished.slice(1);
+
+    // 7. Capitalize first letter following periods
+    polished = polished.replace(/([.!?]\s+)([a-z])/g, (m, p1, p2) => p1 + p2.toUpperCase());
+
+    return polished;
   }
 
   /**
@@ -1792,6 +1896,24 @@ export class AIAssistantService {
     const catAssoc = (categoryAssoc[category] || []).filter(a => !extractedAssoc.some(e => e.includes(a.split(' ')[0])));
     const associated = [...extractedAssoc, ...catAssoc].slice(0, 3);
 
+    const categoryNegatives: Record<string, string[]> = {
+      abdominal:   ['denies hematemesis', 'denies melena', 'denies fever', 'denies jaundice', 'denies diarrhea'],
+      headache:    ['denies visual aura', 'denies photophobia', 'denies neck stiffness', 'denies numbness/weakness', 'denies head trauma'],
+      chest_pain:  ['denies radiation to arm/jaw', 'denies diaphoresis', 'denies dyspnea at rest', 'denies syncope'],
+      respiratory: ['denies hemoptysis', 'denies chest pain', 'denies high fever', 'denies wheezing'],
+      fever:       ['denies neck stiffness', 'denies photophobia', 'denies rash', 'denies shortness of breath', 'denies vomiting'],
+      back_pain:   ['denies radiating leg pain', 'denies numbness/tingling', 'denies bowel/bladder incontinence', 'denies saddle anesthesia'],
+      dizziness:   ['denies hearing loss', 'denies tinnitus', 'denies focal weakness', 'denies syncope'],
+      flank:       ['denies hematuria', 'denies high fever', 'denies dysuria', 'denies vomiting'],
+      musculoskeletal: ['denies joint locking', 'denies erythema/warmth', 'denies systemic fever'],
+      urinary:     ['denies gross hematuria', 'denies flank pain', 'denies fever/chills', 'denies urethral discharge'],
+      skin:        ['denies mucosal involvement', 'denies fever', 'denies breathing difficulty', 'denies new medications'],
+      general:     ['denies fever', 'denies weight loss', 'denies acute distress', 'denies shortness of breath']
+    };
+
+    const timingOptions = ['Constant', 'Intermittent', 'Episodic', 'Nocturnal', 'Morning'];
+    const onsetOptions  = ['Sudden', 'Acute', 'Gradual', 'Subacute', 'Chronic'];
+
     const hpiText = (patientData.historyOfPresentIllness || '').toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").replace(/\s+/g, " ");
 
     const cleanAndCheckPhrases = (phrases: string[]): string[] => {
@@ -1804,14 +1926,17 @@ export class AIAssistantService {
     };
 
     return {
-      duration:    cleanAndCheckPhrases(durationOptions),
-      severity:    cleanAndCheckPhrases(severityOptions),
-      progression: cleanAndCheckPhrases(progressionOptions),
-      location:    cleanAndCheckPhrases(locations),
-      character:   cleanAndCheckPhrases(characters.length > 0 ? characters : (categoryChars[category] || []).slice(0, 3)),
-      aggravating: cleanAndCheckPhrases(aggravating.length > 0 ? aggravating : (categoryAgg[category] || []).slice(0, 3)),
-      relieving:   cleanAndCheckPhrases(relieving.length > 0  ? relieving  : (categoryRel[category] || []).slice(0, 3)),
-      associated:  cleanAndCheckPhrases(associated.length > 0 ? associated : (categoryAssoc[category] || []).slice(0, 3))
+      duration:           cleanAndCheckPhrases(durationOptions),
+      severity:           cleanAndCheckPhrases(severityOptions),
+      progression:        cleanAndCheckPhrases(progressionOptions),
+      location:           cleanAndCheckPhrases(locations),
+      character:          cleanAndCheckPhrases(characters.length > 0 ? characters : (categoryChars[category] || []).slice(0, 3)),
+      aggravating:        cleanAndCheckPhrases(aggravating.length > 0 ? aggravating : (categoryAgg[category] || []).slice(0, 3)),
+      relieving:          cleanAndCheckPhrases(relieving.length > 0  ? relieving  : (categoryRel[category] || []).slice(0, 3)),
+      associated:         cleanAndCheckPhrases(associated.length > 0 ? associated : (categoryAssoc[category] || []).slice(0, 3)),
+      pertinentNegatives: cleanAndCheckPhrases(categoryNegatives[category] || categoryNegatives.general),
+      timing:             cleanAndCheckPhrases(timingOptions),
+      onset:              cleanAndCheckPhrases(onsetOptions)
     };
   }
 

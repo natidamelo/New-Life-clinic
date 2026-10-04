@@ -124,7 +124,8 @@ import {
   LocationOn as LocationIcon,
   CalendarToday as CalendarIcon,
   AccessTime as TimeIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  ContentCopy as ContentCopyIcon
 } from '@mui/icons-material';
 import {
   Hearing as HearingIcon,
@@ -1209,6 +1210,8 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   const [hpiHistory, setHpiHistory] = useState<string[]>([]);
   const [hpiHistoryIndex, setHpiHistoryIndex] = useState<number>(-1);
   const [isHpiAiDrafted, setIsHpiAiDrafted] = useState(false);
+  const [hpiFormatMode, setHpiFormatMode] = useState<'narrative' | 'structured'>('narrative');
+  const [hpiCopied, setHpiCopied] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [useAmharic, setUseAmharic] = useState(true);
@@ -2172,7 +2175,9 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
       character: '',
       associatingSymptoms: '',
       radiating: '',
-      timing: ''
+      timing: '',
+      aggravating: '',
+      relieving: ''
     },
     vitalSigns: {
       temperature: '98.6',
@@ -4497,99 +4502,105 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
   }, [isHpiManuallyEdited]);
 
   // Data Flow: OLDCARTS state -> template function -> HPI textarea
-  const generateHPIText = (cc: typeof formData.chiefComplaint) => {
-    const parts: string[] = [];
-    const age = patientData?.age;
-    const gender = patientData?.gender?.toLowerCase();
-    const ccText = cc.description?.trim();
+  const generateHPIText = (cc: typeof formData.chiefComplaint, format: 'narrative' | 'structured' = hpiFormatMode) => {
+    return AIAssistantService.generateHPINarrative({
+      chiefComplaint: cc.description,
+      age: patientData?.age,
+      gender: patientData?.gender,
+      onset: cc.onset,
+      location: cc.location,
+      duration: cc.duration,
+      character: cc.character,
+      radiating: cc.radiating,
+      timing: cc.timing,
+      severity: cc.severity,
+      associatingSymptoms: cc.associatingSymptoms,
+      aggravatingFactors: (cc as any).aggravating ? [(cc as any).aggravating] : [],
+      relievingFactors: (cc as any).relieving ? [(cc as any).relieving] : []
+    }, format);
+  };
 
-    let introSentence = '';
-    if (ccText) {
-      const agePrefix = age ? `${age}-year-old ` : '';
-      const genderPrefix = gender && gender !== 'unknown' ? `${gender} ` : 'patient ';
-      introSentence = `${agePrefix}${genderPrefix}presents with ${ccText}`;
-      
-      const duration = cc.duration?.trim();
-      const onset = cc.onset?.trim()?.toLowerCase();
-      
-      if (duration && onset) {
-        introSentence += ` for ${duration}, ${onset} in onset.`;
-      } else if (duration) {
-        introSentence += ` for ${duration}.`;
-      } else if (onset) {
-        introSentence += `, ${onset} in onset.`;
-      } else {
-        introSentence += `.`;
-      }
-    }
-
-    let painSentence = '';
-    const location = cc.location?.trim();
-    const character = cc.character?.trim()?.toLowerCase();
-    const radiating = cc.radiating?.trim();
-
-    if (location || character || radiating) {
-      const partsOfPain: string[] = [];
-      if (location) {
-        let locText = location;
-        const lowerLoc = location.toLowerCase();
-        if (!lowerLoc.startsWith('the ') && ['head', 'chest', 'abdomen', 'back', 'jaw', 'neck'].includes(lowerLoc)) {
-          locText = 'the ' + lowerLoc;
+  const handleFormatModeChange = (newMode: 'narrative' | 'structured') => {
+    setHpiFormatMode(newMode);
+    const newText = generateHPIText(formData.chiefComplaint, newMode);
+    if (newText) {
+      setFormData(prev => {
+        const updated = {
+          ...prev,
+          historyOfPresentIllness: newText,
+          chiefComplaint: {
+            ...prev.chiefComplaint,
+            hpi: newText
+          }
+        };
+        if (!isFirstRender.current) {
+          autoSaveDraft(updated);
+          memorySystem.updateData();
         }
-        partsOfPain.push(`located in ${locText}`);
-      }
-      if (character) {
-        partsOfPain.push(`described as ${character}`);
-      }
-      if (radiating) {
-        const lowerRad = radiating.toLowerCase();
-        if (lowerRad === 'none') {
-          partsOfPain.push(`without radiation`);
-        } else {
-          partsOfPain.push(`with radiation to ${radiating}`);
+        return updated;
+      });
+      debouncedUpdateInsightsFromHPI(newText);
+    }
+  };
+
+  const handlePolishHPI = () => {
+    const currentHpi = (formData as any).historyOfPresentIllness || '';
+    if (!currentHpi.trim()) {
+      toast.info('Enter or auto-fill an HPI narrative first to polish.');
+      return;
+    }
+    const polished = AIAssistantService.polishClinicalHPI(currentHpi);
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        historyOfPresentIllness: polished,
+        chiefComplaint: {
+          ...prev.chiefComplaint,
+          hpi: polished
         }
+      };
+      if (!isFirstRender.current) {
+        autoSaveDraft(updated);
+        memorySystem.updateData();
       }
-      if (partsOfPain.length > 0) {
-        painSentence = `Pain is ` + partsOfPain.join(', ') + '.';
-      }
+      return updated;
+    });
+    // Add to undo history
+    setHpiHistory(prev => {
+      const newHistory = prev.slice(0, hpiHistoryIndex + 1);
+      newHistory.push(polished);
+      setHpiHistoryIndex(newHistory.length - 1);
+      return newHistory;
+    });
+    debouncedUpdateInsightsFromHPI(polished);
+    toast.success('HPI polished to clinical documentation standards ✨');
+  };
+
+  const handleCopyHPI = () => {
+    const currentHpi = (formData as any).historyOfPresentIllness || '';
+    if (!currentHpi.trim()) {
+      toast.info('No HPI text to copy.');
+      return;
     }
+    navigator.clipboard.writeText(currentHpi);
+    setHpiCopied(true);
+    toast.success('HPI narrative copied to clipboard 📋');
+    setTimeout(() => setHpiCopied(false), 2000);
+  };
 
-    let timingSentence = '';
-    const timing = cc.timing?.trim()?.toLowerCase();
-    const severity = cc.severity !== undefined && cc.severity !== null && String(cc.severity).trim() !== '' ? String(cc.severity).trim() : '';
-
-    if (timing || severity) {
-      if (timing && severity) {
-        const isNumeric = /^\d+(\.\d+)?$/.test(severity);
-        const sevSuffix = isNumeric ? '/10' : '';
-        timingSentence = `The pattern is ${timing}, rated ${severity}${sevSuffix} in intensity.`;
-      } else if (timing) {
-        timingSentence = `The pattern is ${timing}.`;
-      } else if (severity) {
-        const isNumeric = /^\d+(\.\d+)?$/.test(severity);
-        const sevSuffix = isNumeric ? '/10' : '';
-        timingSentence = `Pain is rated ${severity}${sevSuffix} in intensity.`;
-      }
+  const handleChecklistClick = (key: string) => {
+    const el = document.getElementById(`oldcarts-field-${key}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const input = el.querySelector('input') || el.querySelector('textarea');
+      if (input) (input as HTMLElement).focus();
     }
-
-    let associatedSentence = '';
-    const associating = cc.associatingSymptoms?.trim();
-    if (associating) {
-      if (associating.toLowerCase() === 'none') {
-        associatedSentence = `No associated symptoms reported.`;
-      } else {
-        associatedSentence = `Associated with ${associating}.`;
-      }
-    }
-
-    const finalParagraph = [introSentence, painSentence, timingSentence, associatedSentence].filter(Boolean).join(' ');
-    return finalParagraph;
   };
 
   const debouncedMergeOldcartsIntoHpi = useMemo(
     () => debounce((cc: typeof formData.chiefComplaint) => {
       if (isHpiManuallyEditedRef.current) return;
-      const newHpi = generateHPIText(cc);
+      const newHpi = generateHPIText(cc, hpiFormatMode);
       setFormData(prev => {
         const updated = {
           ...prev,
@@ -4607,7 +4618,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
       });
       debouncedUpdateInsightsFromHPI(newHpi);
     }, 300),
-    [debouncedUpdateInsightsFromHPI]
+    [debouncedUpdateInsightsFromHPI, hpiFormatMode]
   );
 
   const handleOldcartsChange = (field: string, value: string) => {
@@ -4639,7 +4650,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
   };
 
   const handleRegenerateHpi = () => {
-    const newHpi = generateHPIText(formData.chiefComplaint);
+    const newHpi = generateHPIText(formData.chiefComplaint, hpiFormatMode);
     setFormData(prev => {
       const updated = {
         ...prev,
@@ -4686,41 +4697,145 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           { key: 'location', label: 'Location (L)', present: !!formData.chiefComplaint.location?.trim() },
           { key: 'duration', label: 'Duration (D)', present: !!formData.chiefComplaint.duration?.trim() },
           { key: 'character', label: 'Character (C)', present: !!formData.chiefComplaint.character?.trim() },
-          { key: 'associating', label: 'Associating Symptoms (A)', present: !!formData.chiefComplaint.associatingSymptoms?.trim() },
+          { key: 'aggravating', label: 'Aggravating Factors (A)', present: !!(formData.chiefComplaint as any).aggravating?.trim() },
+          { key: 'relieving', label: 'Relieving Factors (A)', present: !!(formData.chiefComplaint as any).relieving?.trim() },
+          { key: 'associating', label: 'Associated Symptoms (A)', present: !!formData.chiefComplaint.associatingSymptoms?.trim() },
           { key: 'radiating', label: 'Radiating (R)', present: !!formData.chiefComplaint.radiating?.trim() },
           { key: 'timing', label: 'Timing (T)', present: !!formData.chiefComplaint.timing?.trim() },
           { key: 'severity', label: 'Severity (S)', present: !!(formData.chiefComplaint.severity !== undefined && formData.chiefComplaint.severity !== null && String(formData.chiefComplaint.severity).trim() !== '') }
         ];
-        const oldcartsScore = oldcartsChecklist.filter(item => item.present).length / 8;
+        const oldcartsScore = oldcartsChecklist.filter(item => item.present).length / oldcartsChecklist.length;
 
-        const renderOldcartsInput = (label: string, fieldKey: string, placeholder: string, chips: string[]) => {
+        const smartLocationChips = useMemo(() => {
+          const c = (formData.chiefComplaint.description || '').toLowerCase();
+          if (c.includes('fever') || c.includes('chill')) return ['Head', 'Systemic', 'Generalized', 'Chest', 'Abdomen'];
+          if (c.includes('headache') || c.includes('migraine')) return ['Frontal', 'Temporal', 'Occipital', 'Bilateral', 'Generalized'];
+          if (c.includes('chest')) return ['Substernal', 'Left precordial', 'Epigastric', 'Anterior chest'];
+          if (c.includes('abdom') || c.includes('stomach') || c.includes('epigastric')) return ['Epigastric', 'Periumbilical', 'RUQ', 'RLQ', 'Lower abdomen'];
+          if (c.includes('back') || c.includes('lumbar')) return ['Lumbar spine', 'Lumbosacral', 'Thoracic', 'Cervical/Neck'];
+          if (c.includes('throat') || c.includes('cough')) return ['Pharynx/Throat', 'Upper airway', 'Chest/Trachea'];
+          return ['Chest', 'Abdomen', 'Head', 'Back', 'Extremities', 'Systemic'];
+        }, [formData.chiefComplaint.description]);
+
+        const smartAssocChips = useMemo(() => {
+          const c = (formData.chiefComplaint.description || '').toLowerCase();
+          if (c.includes('fever') || c.includes('chill')) return ['Chills/rigors', 'Headache', 'Body aches', 'Nausea', 'Fatigue', 'Cough', 'None'];
+          if (c.includes('headache') || c.includes('migraine')) return ['Photophobia', 'Nausea/vomiting', 'Phonophobia', 'Neck stiffness', 'Dizziness', 'None'];
+          if (c.includes('chest')) return ['Shortness of breath', 'Diaphoresis', 'Palpitations', 'Nausea', 'Lightheadedness', 'None'];
+          if (c.includes('abdom') || c.includes('stomach') || c.includes('epigastric')) return ['Nausea', 'Vomiting', 'Diarrhea', 'Anorexia', 'Bloating', 'None'];
+          return ['Nausea', 'Fever', 'Cough', 'Fatigue', 'Dizziness', 'None'];
+        }, [formData.chiefComplaint.description]);
+
+        const smartPertinentNegatives = useMemo(() => {
+          const c = (formData.chiefComplaint.description || '').toLowerCase();
+          if (c.includes('fever') || c.includes('chill') || c.includes('infect')) {
+            return ['Denies neck stiffness or photophobia', 'Denies focal skin rash or lesions', 'Denies shortness of breath or cough', 'Denies dysuria or flank pain', 'Denies nausea, vomiting, or diarrhea'];
+          }
+          if (c.includes('headache') || c.includes('migraine')) {
+            return ['Denies visual aura or vision changes', 'Denies focal weakness or sensory deficits', 'Denies fever or neck rigidity', 'Denies recent head trauma', 'Denies nausea or vomiting'];
+          }
+          if (c.includes('chest')) {
+            return ['Denies radiation to left arm or jaw', 'Denies diaphoresis or cold clammy skin', 'Denies dyspnea on exertion', 'Denies palpitations or presyncope', 'Denies orthopnea or PND'];
+          }
+          if (c.includes('abdom') || c.includes('stomach') || c.includes('epigastric')) {
+            return ['Denies hematemesis or melena', 'Denies bright red blood per rectum (BRBPR)', 'Denies fever or chills', 'Denies radiating back pain', 'No history of NSAID overuse'];
+          }
+          if (c.includes('cough') || c.includes('shortness') || c.includes('breath')) {
+            return ['Denies hemoptysis', 'Denies orthopnea or paroxysmal nocturnal dyspnea', 'Denies pleuritic chest pain', 'Denies audible wheezing or stridor', 'Denies lower extremity edema'];
+          }
+          return ['Denies fever, chills, or weight loss', 'Denies shortness of breath or chest pain', 'Denies nausea or vomiting', 'No prior similar episodes'];
+        }, [formData.chiefComplaint.description]);
+
+        const appendToHpi = (phrase: string) => {
+          const current = (formData as any).historyOfPresentIllness || '';
+          const trimmed = current.trim();
+          let newText = '';
+          if (!trimmed) {
+            newText = phrase.endsWith('.') ? phrase : `${phrase}.`;
+          } else {
+            const endsWithPunct = /[.!?]$/.test(trimmed);
+            const connector = endsWithPunct ? ' ' : '. ';
+            const formattedPhrase = phrase.charAt(0).toUpperCase() + phrase.slice(1);
+            newText = `${trimmed}${connector}${formattedPhrase}${phrase.endsWith('.') ? '' : '.'}`;
+          }
+          const updated = {
+            ...formData,
+            historyOfPresentIllness: newText,
+            chiefComplaint: {
+              ...formData.chiefComplaint,
+              hpi: newText
+            }
+          };
+          setFormData(updated);
+          setIsHpiAiDrafted(false);
+          setIsHpiManuallyEdited(true);
+          if (!isFirstRender.current) { autoSaveDraft(updated); memorySystem.updateData(); }
+          debouncedUpdateInsightsFromHPI(newText);
+          toast.success(`Appended to HPI: "${phrase.length > 30 ? phrase.slice(0, 30) + '…' : phrase}"`);
+        };
+
+        const renderOldcartsInput = (label: string, fieldKey: string, placeholder: string, chips: string[], isMulti: boolean = false) => {
           const currentValue = (formData.chiefComplaint as any)[fieldKey] || '';
-          const theme = useTheme();
           
+          const handleChipClick = (chip: string) => {
+            if (isMulti) {
+              if (chip === 'None') {
+                handleOldcartsChange(fieldKey, currentValue === 'None' ? '' : 'None');
+                return;
+              }
+              const currentList = currentValue
+                .split(',')
+                .map((s: string) => s.trim())
+                .filter((s: string) => s && s.toLowerCase() !== 'none');
+              
+              const exists = currentList.some((s: string) => s.toLowerCase() === chip.toLowerCase());
+              const updatedList = exists
+                ? currentList.filter((s: string) => s.toLowerCase() !== chip.toLowerCase())
+                : [...currentList, chip];
+              
+              handleOldcartsChange(fieldKey, updatedList.join(', '));
+            } else {
+              const isSelected = currentValue.toLowerCase() === chip.toLowerCase();
+              handleOldcartsChange(fieldKey, isSelected ? '' : chip);
+            }
+          };
+
           return (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <Typography variant="caption" fontWeight={600} color="text.secondary">
-                {label}
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 0.5 }}>
+            <Box id={`oldcarts-field-${fieldKey}`} sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, transition: 'all 0.2s ease' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="caption" fontWeight={700} sx={{ color: currentValue ? '#0f766e' : 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                  {label}
+                  {currentValue && <CheckCircleIcon sx={{ fontSize: '0.85rem', color: '#10b981' }} />}
+                </Typography>
+                {isMulti && (
+                  <Typography variant="caption" sx={{ fontSize: '0.62rem', color: 'text.disabled', fontStyle: 'italic' }}>
+                    Multi-select
+                  </Typography>
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 0.25 }}>
                 {chips.map(chip => {
-                  const isSelected = currentValue === chip;
+                  const isSelected = isMulti
+                    ? currentValue.split(',').map((s: string) => s.trim().toLowerCase()).includes(chip.toLowerCase())
+                    : currentValue.toLowerCase() === chip.toLowerCase();
+
                   return (
                     <Chip
                       key={chip}
                       label={chip}
                       size="small"
                       variant={isSelected ? 'filled' : 'outlined'}
-                      color={isSelected ? 'primary' : 'default'}
-                      onClick={() => handleOldcartsChange(fieldKey, chip)}
+                      onClick={() => handleChipClick(chip)}
                       sx={{ 
                         fontSize: '0.68rem', 
-                        height: 20, 
+                        height: 22, 
                         cursor: 'pointer',
-                        transition: 'all 0.2s',
+                        fontWeight: isSelected ? 600 : 500,
+                        borderRadius: '6px',
+                        transition: 'all 0.15s ease-in-out',
                         ...(isSelected 
-                          ? { bgcolor: '#0d9488', color: 'white', '&:hover': { bgcolor: '#0f766e' } }
-                          : { '&:hover': { bgcolor: alpha('#0d9488', 0.05), borderColor: '#0d9488' } }
+                          ? { bgcolor: '#0d9488', color: 'white', borderColor: '#0d9488', boxShadow: '0 1px 3px rgba(13,148,136,0.25)', '&:hover': { bgcolor: '#0f766e' } }
+                          : { borderColor: '#cbd5e1', color: 'text.primary', bgcolor: 'transparent', '&:hover': { bgcolor: alpha('#0d9488', 0.08), borderColor: '#0d9488', color: '#0d9488' } }
                         )
                       }}
                     />
@@ -4736,10 +4851,11 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                 disabled={mode === 'view'}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    fontSize: '0.8rem',
-                    bgcolor: currentValue ? alpha('#0d9488', 0.02) : 'transparent',
+                    fontSize: '0.82rem',
+                    bgcolor: currentValue ? alpha('#0d9488', 0.03) : '#fafbfc',
+                    borderRadius: '8px',
                     '& fieldset': {
-                      borderColor: currentValue ? '#0d9488' : '#cbd5e1',
+                      borderColor: currentValue ? '#0d9488' : '#e2e8f0',
                       borderWidth: currentValue ? '1.5px' : '1px',
                     },
                     '&:hover fieldset': {
@@ -4747,6 +4863,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                     },
                     '&.Mui-focused fieldset': {
                       borderColor: '#0d9488',
+                      boxShadow: '0 0 0 3px rgba(13,148,136,0.15)'
                     }
                   }
                 }}
@@ -4758,35 +4875,44 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
         const renderSeverityInput = () => {
           const currentValue = formData.chiefComplaint.severity || '';
           const sliderValue = typeof currentValue === 'number' || !isNaN(Number(currentValue)) ? Number(currentValue) : 0;
-          const theme = useTheme();
           
           return (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <Typography variant="caption" fontWeight={600} color="text.secondary">
-                Severity (S)
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 0.5 }}>
-                {['Mild', 'Moderate', 'Severe'].map(chip => {
-                  const isSelected = currentValue === chip;
+            <Box id="oldcarts-field-severity" sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="caption" fontWeight={700} sx={{ color: currentValue ? '#0f766e' : 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                  Severity (S)
+                  {currentValue && <CheckCircleIcon sx={{ fontSize: '0.85rem', color: '#10b981' }} />}
+                </Typography>
+                {currentValue && (
+                  <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#0d9488' }}>
+                    {sliderValue > 0 ? `${sliderValue}/10` : currentValue}
+                  </Typography>
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 0.25 }}>
+                {[
+                  { label: 'Mild (2/10)', val: '2' },
+                  { label: 'Moderate (5/10)', val: '5' },
+                  { label: 'Severe (8/10)', val: '8' }
+                ].map(item => {
+                  const isSelected = String(currentValue) === item.val || String(currentValue).toLowerCase() === item.label.split(' ')[0].toLowerCase();
                   return (
                     <Chip
-                      key={chip}
-                      label={chip}
+                      key={item.val}
+                      label={item.label}
                       size="small"
                       variant={isSelected ? 'filled' : 'outlined'}
-                      color={isSelected ? 'primary' : 'default'}
-                      onClick={() => {
-                        const score = chip === 'Mild' ? '2' : (chip === 'Moderate' ? '5' : '8');
-                        handleOldcartsChange('severity', score);
-                      }}
+                      onClick={() => handleOldcartsChange('severity', isSelected ? '' : item.val)}
                       sx={{ 
                         fontSize: '0.68rem', 
-                        height: 20, 
+                        height: 22, 
                         cursor: 'pointer',
-                        transition: 'all 0.2s',
+                        fontWeight: isSelected ? 600 : 500,
+                        borderRadius: '6px',
+                        transition: 'all 0.15s ease-in-out',
                         ...(isSelected 
-                          ? { bgcolor: '#0d9488', color: 'white', '&:hover': { bgcolor: '#0f766e' } }
-                          : { '&:hover': { bgcolor: alpha('#0d9488', 0.05), borderColor: '#0d9488' } }
+                          ? { bgcolor: '#0d9488', color: 'white', borderColor: '#0d9488', boxShadow: '0 1px 3px rgba(13,148,136,0.25)', '&:hover': { bgcolor: '#0f766e' } }
+                          : { borderColor: '#cbd5e1', color: 'text.primary', bgcolor: 'transparent', '&:hover': { bgcolor: alpha('#0d9488', 0.08), borderColor: '#0d9488', color: '#0d9488' } }
                         )
                       }}
                     />
@@ -4794,7 +4920,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                 })}
               </Box>
               <Grid container spacing={1.5} alignItems="center">
-                <Grid size={{ xs: 8 }}>
+                <Grid size={{ xs: 7, sm: 8 }}>
                   <Slider
                     value={sliderValue}
                     min={0}
@@ -4805,12 +4931,12 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                     disabled={mode === 'view'}
                     sx={{
                       color: currentValue ? '#0d9488' : '#94a3b8',
-                      height: 4,
+                      height: 5,
                       '& .MuiSlider-thumb': {
-                        width: 14,
-                        height: 14,
+                        width: 16,
+                        height: 16,
                         bgcolor: currentValue ? '#0d9488' : '#64748b',
-                        boxShadow: 'none',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                         '&:hover, &.Mui-focusVisible': {
                           boxShadow: '0px 0px 0px 8px rgba(13, 148, 136, 0.16)'
                         }
@@ -4818,21 +4944,21 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                     }}
                   />
                 </Grid>
-                <Grid size={{ xs: 4 }}>
+                <Grid size={{ xs: 5, sm: 4 }}>
                   <TextField
                     fullWidth
                     size="small"
-                    placeholder="e.g. 0-10 or Mild"
+                    placeholder="0-10 or text"
                     value={currentValue}
                     onChange={(e) => handleOldcartsChange('severity', e.target.value)}
                     disabled={mode === 'view'}
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         fontSize: '0.8rem',
-                        bgcolor: currentValue ? alpha('#0d9488', 0.02) : 'transparent',
+                        bgcolor: currentValue ? alpha('#0d9488', 0.03) : '#fafbfc',
+                        borderRadius: '8px',
                         '& fieldset': {
-                          borderColor: currentValue ? '#0d9488' : '#cbd5e1',
-                          borderWidth: currentValue ? '1.5px' : '1px',
+                          borderColor: currentValue ? '#0d9488' : '#e2e8f0',
                         },
                         '&:hover fieldset': {
                           borderColor: '#0d9488',
@@ -4896,35 +5022,62 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                         <Box sx={{ 
                           border: '1px solid', 
                           borderColor: 'divider', 
-                          borderRadius: 2, 
-                          p: 2.2, 
-                          bgcolor: alpha('#0d9488', 0.01) 
+                          borderRadius: 2.5, 
+                          p: 2.5, 
+                          bgcolor: alpha('#0d9488', 0.015),
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
                         }}>
-                          <Typography variant="subtitle2" color="text.primary" fontWeight={700} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                            🩺 OLDCARTS Builder
-                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5, flexWrap: 'wrap', gap: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="subtitle2" color="text.primary" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: '0.92rem' }}>
+                                🩺 OLDCARTS Clinical Framework
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'text.secondary', display: { xs: 'none', sm: 'inline-block' } }}>
+                                Systematic symptom characterization
+                              </Typography>
+                            </Box>
+                            <Chip
+                              size="small"
+                              label={`${oldcartsChecklist.filter(i => i.present).length} of ${oldcartsChecklist.length} Documented`}
+                              sx={{
+                                fontWeight: 700,
+                                fontSize: '0.68rem',
+                                height: 22,
+                                bgcolor: oldcartsScore >= 0.8 ? 'success.50' : oldcartsScore >= 0.4 ? 'info.50' : 'warning.50',
+                                color: oldcartsScore >= 0.8 ? 'success.dark' : oldcartsScore >= 0.4 ? 'info.dark' : 'warning.dark',
+                                border: '1px solid',
+                                borderColor: oldcartsScore >= 0.8 ? 'success.200' : oldcartsScore >= 0.4 ? 'info.200' : 'warning.200'
+                              }}
+                            />
+                          </Box>
                           
                           <Grid container spacing={2.5}>
                             <Grid size={{ xs: 12, sm: 6 }}>
-                              {renderOldcartsInput('Onset (O)', 'onset', 'How/when did it start? (e.g. Sudden / 2 days ago)', ['Sudden', 'Gradual', 'Acute', 'Chronic'])}
+                              {renderOldcartsInput('Onset (O)', 'onset', 'How/when did it start? (e.g. Sudden / 2 days ago)', ['Sudden', 'Gradual', 'Acute', 'Subacute', 'Chronic'])}
                             </Grid>
                             <Grid size={{ xs: 12, sm: 6 }}>
-                              {renderOldcartsInput('Location (L)', 'location', 'Where is it located? (e.g. Left chest / abdomen)', ['Chest', 'Abdomen', 'Head', 'Back'])}
+                              {renderOldcartsInput('Location (L)', 'location', 'Where is it located? (e.g. Left chest / frontal)', smartLocationChips)}
                             </Grid>
                             <Grid size={{ xs: 12, sm: 6 }}>
-                              {renderOldcartsInput('Duration (D)', 'duration', 'How long does it last? (e.g. 2 hours / 3 days)', ['Hours', 'Days', 'Weeks', 'Months'])}
+                              {renderOldcartsInput('Duration (D)', 'duration', 'How long does it last? (e.g. 2 hours / 3 days)', ['Hours', '24-48 hours', '3-5 days', '1-2 weeks', '1 month+'])}
                             </Grid>
                             <Grid size={{ xs: 12, sm: 6 }}>
-                              {renderOldcartsInput('Character (C)', 'character', 'How does it feel? (e.g. Sharp / dull pressure)', ['Sharp', 'Dull', 'Burning', 'Aching', 'Throbbing'])}
+                              {renderOldcartsInput('Character (C)', 'character', 'How does it feel? (e.g. Sharp / dull pressure)', ['Sharp', 'Dull ache', 'Throbbing', 'Burning', 'Pressure', 'Cramping', 'Stabbing'])}
                             </Grid>
                             <Grid size={{ xs: 12, sm: 6 }}>
-                              {renderOldcartsInput('Associating Symptoms (A)', 'associatingSymptoms', 'Any other symptoms? (e.g. Nausea / cough)', ['Nausea', 'Fever', 'Cough', 'None'])}
+                              {renderOldcartsInput('Aggravating Factors', 'aggravating', 'What worsens it? (e.g. Exertion / meals)', ['Exertion', 'Stress', 'Food/Meals', 'Movement', 'Lying flat', 'Cold air'], true)}
                             </Grid>
                             <Grid size={{ xs: 12, sm: 6 }}>
-                              {renderOldcartsInput('Radiating (R)', 'radiating', 'Does pain spread? (e.g. To the back / left arm)', ['None', 'To the back', 'To the jaw', 'To the arm'])}
+                              {renderOldcartsInput('Relieving Factors', 'relieving', 'What improves it? (e.g. Rest / medication)', ['Rest', 'Medication', 'Antipyretics', 'Sleep', 'Hydration', 'Warm/Cold compress'], true)}
                             </Grid>
                             <Grid size={{ xs: 12, sm: 6 }}>
-                              {renderOldcartsInput('Timing (T)', 'timing', 'Timing pattern? (e.g. Constant / episodic)', ['Constant', 'Intermittent', 'Episodic', 'Morning', 'Night'])}
+                              {renderOldcartsInput('Associated Symptoms (A)', 'associatingSymptoms', 'Any other symptoms? (e.g. Nausea / fever)', smartAssocChips, true)}
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                              {renderOldcartsInput('Radiating (R)', 'radiating', 'Does it spread? (e.g. To back / left arm)', ['None', 'To the back', 'To the left arm', 'To the jaw/neck', 'Down lower extremities'])}
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                              {renderOldcartsInput('Timing (T)', 'timing', 'Timing pattern? (e.g. Constant / episodic)', ['Constant', 'Intermittent', 'Episodic', 'Nocturnal', 'Morning', 'Postprandial'])}
                             </Grid>
                             <Grid size={{ xs: 12, sm: 6 }}>
                               {renderSeverityInput()}
@@ -4932,87 +5085,189 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                           </Grid>
                         </Box>
 
-                        {/* Generated/Editable HPI narrative */}
-                        <Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                History of Present Illness (HPI)
+                        {/* Generated/Editable HPI narrative Card */}
+                        <Box sx={{ 
+                          border: '1px solid', 
+                          borderColor: 'divider', 
+                          borderRadius: 2.5, 
+                          p: 2.5, 
+                          bgcolor: 'background.paper',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                        }}>
+                          {/* Top Header & Actions Bar */}
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, flexWrap: 'wrap', gap: 1.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                              <Typography variant="subtitle2" color="text.primary" fontWeight={700} sx={{ fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                                📋 History of Present Illness (HPI)
                               </Typography>
                               {isHpiAiDrafted && (
-                                <Chip size="small" label="✨ AI-Drafted" sx={{ fontSize: '0.6rem', height: '16px', bgcolor: 'primary.50', color: 'primary.main', border: '1px solid', borderColor: 'primary.200' }} />
+                                <Chip size="small" label="✨ AI-Drafted" sx={{ fontSize: '0.62rem', height: 20, bgcolor: 'primary.50', color: 'primary.main', border: '1px solid', borderColor: 'primary.200', fontWeight: 600 }} />
                               )}
                               {!isHpiManuallyEdited ? (
-                                <Chip size="small" label="✨ Auto-Generated" sx={{ fontSize: '0.6rem', height: '16px', bgcolor: alpha('#0d9488', 0.1), color: '#0d9488', border: '1px solid', borderColor: alpha('#0d9488', 0.3) }} />
+                                <Chip size="small" label="⚡ Auto-Synced" sx={{ fontSize: '0.62rem', height: 20, bgcolor: alpha('#0d9488', 0.1), color: '#0d9488', border: '1px solid', borderColor: alpha('#0d9488', 0.3), fontWeight: 600 }} />
                               ) : (
                                 <Button
                                   size="small"
-                                  variant="text"
+                                  variant="outlined"
                                   onClick={handleRegenerateHpi}
                                   startIcon={<RefreshIcon sx={{ fontSize: '0.8rem' }} />}
-                                  sx={{ textTransform: 'none', fontSize: '0.68rem', py: 0, px: 1, height: '18px', color: 'warning.main', '&:hover': { bgcolor: 'warning.50' } }}
+                                  sx={{ textTransform: 'none', fontSize: '0.68rem', py: 0.2, px: 1, height: 22, color: 'warning.dark', borderColor: 'warning.main', bgcolor: 'warning.50', '&:hover': { bgcolor: 'warning.100' } }}
                                 >
-                                  Regenerate HPI from OLDCARTS
+                                  Re-sync OLDCARTS
                                 </Button>
                               )}
                               {hpiHistoryIndex >= 0 && (
-                                <Box sx={{ display: 'flex', gap: 0.5, ml: 1 }}>
-                                  <Tooltip title="Undo">
-                                    <span><IconButton size="small" disabled={hpiHistoryIndex <= 0} onClick={handleHpiUndo} sx={{ p: 0.2 }}><ArrowBackIcon sx={{ fontSize: '0.9rem' }}/></IconButton></span>
+                                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                  <Tooltip title="Undo edit">
+                                    <span><IconButton size="small" disabled={hpiHistoryIndex <= 0} onClick={handleHpiUndo} sx={{ p: 0.3 }}><ArrowBackIcon sx={{ fontSize: '0.85rem' }}/></IconButton></span>
                                   </Tooltip>
-                                  <Tooltip title="Redo">
-                                    <span><IconButton size="small" disabled={hpiHistoryIndex >= hpiHistory.length - 1} onClick={handleHpiRedo} sx={{ p: 0.2 }}><ArrowForwardIcon sx={{ fontSize: '0.9rem' }}/></IconButton></span>
+                                  <Tooltip title="Redo edit">
+                                    <span><IconButton size="small" disabled={hpiHistoryIndex >= hpiHistory.length - 1} onClick={handleHpiRedo} sx={{ p: 0.3 }}><ArrowForwardIcon sx={{ fontSize: '0.85rem' }}/></IconButton></span>
                                   </Tooltip>
                                 </Box>
                               )}
                             </Box>
-                            {mode !== 'view' && (
-                              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                <Tooltip title={isRecording ? 'Stop Recording' : 'Amharic Voice-to-Text'}>
-                                  <IconButton 
-                                    onClick={handleVoiceRecording} 
-                                    color={isRecording ? 'error' : 'primary'}
-                                    sx={{ border: '1px solid', borderColor: isRecording ? 'error.main' : 'divider' }}
-                                    size="small"
-                                  >
-                                    <div className={isRecording ? 'animate-pulse' : ''}>🎤</div>
-                                  </IconButton>
-                                </Tooltip>
-                                <FormControlLabel
-                                  control={<Switch size="small" checked={useAmharic} onChange={(e) => setUseAmharic(e.target.checked)} />}
-                                  label={<Typography variant="caption">{useAmharic ? 'AM' : 'EN'}</Typography>}
-                                  sx={{ m: 0 }}
-                                />
-                                <Tooltip title={geminiAvailable ? 'Generate HPI with Gemini AI' : 'Auto-fill HPI based on chief complaint'}>
-                                  <Button
-                                    size="small"
-                                    variant={geminiAvailable ? 'contained' : 'outlined'}
-                                    startIcon={hpiAutoFillLoading ? <CircularProgress size={12} color="inherit" /> : <SparkleIcon sx={{ fontSize: '0.9rem' }} />}
-                                    onClick={autoFillHPI}
-                                    disabled={hpiAutoFillLoading || !formData.chiefComplaint.description}
-                                    sx={{
-                                      textTransform: 'none',
-                                      fontSize: '0.72rem',
-                                      py: 0.3,
-                                      px: 1,
-                                      ...(geminiAvailable
-                                        ? { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff', '&:hover': { background: 'linear-gradient(135deg, #5a6fd6 0%, #663d93 100%)' } }
-                                        : { borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'primary.50' } })
-                                    }}
-                                  >
-                                    {hpiAutoFillLoading ? 'Generating…' : geminiAvailable ? '✨ AI Fill HPI' : 'Auto-fill HPI'}
-                                  </Button>
-                                </Tooltip>
+
+                            {/* Mode Switcher & Quick Actions */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                              {/* Narrative vs Structured Toggle */}
+                              <Box sx={{ display: 'inline-flex', bgcolor: 'grey.100', p: 0.3, borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
+                                <Button
+                                  size="small"
+                                  onClick={() => handleFormatModeChange('narrative')}
+                                  variant={hpiFormatMode === 'narrative' ? 'contained' : 'text'}
+                                  sx={{
+                                    py: 0.2,
+                                    px: 1.2,
+                                    fontSize: '0.7rem',
+                                    fontWeight: 600,
+                                    textTransform: 'none',
+                                    borderRadius: '6px',
+                                    minWidth: 0,
+                                    ...(hpiFormatMode === 'narrative'
+                                      ? { bgcolor: '#0d9488', color: 'white', boxShadow: '0 1px 2px rgba(13,148,136,0.3)', '&:hover': { bgcolor: '#0f766e' } }
+                                      : { color: 'text.secondary', '&:hover': { bgcolor: 'grey.200' } })
+                                  }}
+                                >
+                                  📄 Narrative
+                                </Button>
+                                <Button
+                                  size="small"
+                                  onClick={() => handleFormatModeChange('structured')}
+                                  variant={hpiFormatMode === 'structured' ? 'contained' : 'text'}
+                                  sx={{
+                                    py: 0.2,
+                                    px: 1.2,
+                                    fontSize: '0.7rem',
+                                    fontWeight: 600,
+                                    textTransform: 'none',
+                                    borderRadius: '6px',
+                                    minWidth: 0,
+                                    ...(hpiFormatMode === 'structured'
+                                      ? { bgcolor: '#0d9488', color: 'white', boxShadow: '0 1px 2px rgba(13,148,136,0.3)', '&:hover': { bgcolor: '#0f766e' } }
+                                      : { color: 'text.secondary', '&:hover': { bgcolor: 'grey.200' } })
+                                  }}
+                                >
+                                  📑 Structured
+                                </Button>
                               </Box>
-                            )}
+
+                              {/* Polish & Copy */}
+                              <Tooltip title="AI polish: optimize clinical grammar, casing, and phrasing">
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={handlePolishHPI}
+                                  startIcon={<SparkleIcon sx={{ fontSize: '0.85rem' }} />}
+                                  disabled={mode === 'view' || !(formData as any).historyOfPresentIllness?.trim()}
+                                  sx={{
+                                    textTransform: 'none',
+                                    fontSize: '0.72rem',
+                                    py: 0.3,
+                                    px: 1,
+                                    height: 28,
+                                    borderColor: '#0d9488',
+                                    color: '#0d9488',
+                                    fontWeight: 600,
+                                    '&:hover': { bgcolor: alpha('#0d9488', 0.08), borderColor: '#0f766e' }
+                                  }}
+                                >
+                                  Polish
+                                </Button>
+                              </Tooltip>
+
+                              <Tooltip title={hpiCopied ? 'Copied to clipboard!' : 'Copy HPI narrative'}>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={handleCopyHPI}
+                                  startIcon={hpiCopied ? <CheckIcon sx={{ fontSize: '0.85rem' }} /> : <ContentCopyIcon sx={{ fontSize: '0.85rem' }} />}
+                                  disabled={!(formData as any).historyOfPresentIllness?.trim()}
+                                  sx={{
+                                    textTransform: 'none',
+                                    fontSize: '0.72rem',
+                                    py: 0.3,
+                                    px: 1,
+                                    height: 28,
+                                    borderColor: hpiCopied ? 'success.main' : 'divider',
+                                    color: hpiCopied ? 'success.main' : 'text.secondary',
+                                    '&:hover': { bgcolor: 'grey.50' }
+                                  }}
+                                >
+                                  {hpiCopied ? 'Copied' : 'Copy'}
+                                </Button>
+                              </Tooltip>
+
+                              {mode !== 'view' && (
+                                <>
+                                  <Tooltip title={isRecording ? 'Stop Recording' : 'Amharic Voice-to-Text'}>
+                                    <IconButton 
+                                      onClick={handleVoiceRecording} 
+                                      color={isRecording ? 'error' : 'primary'}
+                                      sx={{ border: '1px solid', borderColor: isRecording ? 'error.main' : 'divider', height: 28, width: 28 }}
+                                      size="small"
+                                    >
+                                      <div className={isRecording ? 'animate-pulse' : ''} style={{ fontSize: '0.85rem' }}>🎤</div>
+                                    </IconButton>
+                                  </Tooltip>
+                                  <FormControlLabel
+                                    control={<Switch size="small" checked={useAmharic} onChange={(e) => setUseAmharic(e.target.checked)} />}
+                                    label={<Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>{useAmharic ? 'AM' : 'EN'}</Typography>}
+                                    sx={{ m: 0 }}
+                                  />
+                                  <Tooltip title={geminiAvailable ? 'Generate clinical HPI with Gemini AI' : 'Auto-fill HPI based on chief complaint'}>
+                                    <Button
+                                      size="small"
+                                      variant={geminiAvailable ? 'contained' : 'outlined'}
+                                      startIcon={hpiAutoFillLoading ? <CircularProgress size={12} color="inherit" /> : <SparkleIcon sx={{ fontSize: '0.9rem' }} />}
+                                      onClick={autoFillHPI}
+                                      disabled={hpiAutoFillLoading || !formData.chiefComplaint.description}
+                                      sx={{
+                                        textTransform: 'none',
+                                        fontSize: '0.72rem',
+                                        py: 0.3,
+                                        px: 1.2,
+                                        height: 28,
+                                        fontWeight: 600,
+                                        ...(geminiAvailable
+                                          ? { background: 'linear-gradient(135deg, #0d9488 0%, #0284c7 100%)', color: '#fff', '&:hover': { background: 'linear-gradient(135deg, #0f766e 0%, #0369a1 100%)' } }
+                                          : { borderColor: 'primary.main', color: 'primary.main', '&:hover': { bgcolor: 'primary.50' } })
+                                      }}
+                                    >
+                                      {hpiAutoFillLoading ? 'Generating…' : geminiAvailable ? '✨ AI Fill' : 'Auto-fill'}
+                                    </Button>
+                                  </Tooltip>
+                                </>
+                              )}
+                            </Box>
                           </Box>
+
                           {isRecording && (
-                            <Box sx={{ mb: 1, p: 1.5, bgcolor: 'error.50', border: '1px dashed', borderColor: 'error.main', borderRadius: 1 }}>
+                            <Box sx={{ mb: 1.5, p: 1.5, bgcolor: 'error.50', border: '1px dashed', borderColor: 'error.main', borderRadius: 1.5 }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                                 <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
                                   <span className="animate-pulse">🔴</span> Ambient Listening...
                                 </Typography>
-                                {/* Role Toggle Buttons */}
                                 <Box sx={{ display: 'flex', gap: 0.5, bgcolor: 'white', borderRadius: 2, p: 0.3, border: '1px solid', borderColor: 'divider' }}>
                                   <Button
                                     size="small"
@@ -5050,6 +5305,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                               </Typography>
                             </Box>
                           )}
+
                           <Box sx={{ position: 'relative' }}>
                             {/* Contradiction Warning Banner */}
                             {contradictions.length > 0 && (
@@ -5076,8 +5332,8 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                               fullWidth
                               size="small"
                               multiline
-                              rows={6}
-                              placeholder="Provide a detailed history of the present illness, or click Auto-fill HPI..."
+                              rows={7}
+                              placeholder="Document the patient's history of present illness systematically or auto-generate from OLDCARTS above..."
                               value={(formData as any).historyOfPresentIllness || ''}
                               onChange={(e) => {
                                 const updated = {
@@ -5089,10 +5345,9 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                                   }
                                 };
                                 setFormData(updated);
-                                setIsHpiAiDrafted(false); // Manual edit clears badge
-                                setIsHpiManuallyEdited(true); // Stop auto-merge
+                                setIsHpiAiDrafted(false);
+                                setIsHpiManuallyEdited(true);
                                 if (!isFirstRender.current) { autoSaveDraft(updated); memorySystem.updateData(); }
-                                // Update suggestions as user types
                                 const ccDesc = formData.chiefComplaint.description || '';
                                 if (ccDesc) {
                                   const suggestions = AIAssistantService.getHPICompletions(e.target.value, ccDesc);
@@ -5104,9 +5359,21 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                               disabled={mode === 'view' || isTranscribing}
                               sx={{ 
                                 '& .MuiOutlinedInput-root': { 
-                                  fontSize: '0.875rem',
+                                  fontSize: '0.88rem',
+                                  lineHeight: 1.65,
+                                  letterSpacing: '0.01em',
+                                  bgcolor: '#fafbfc',
+                                  borderRadius: '10px',
                                   '& fieldset': {
-                                    borderColor: (formData as any).historyOfPresentIllness?.trim() ? '#0d9488' : '#ffe082',
+                                    borderColor: (formData as any).historyOfPresentIllness?.trim() ? '#0d9488' : '#e2e8f0',
+                                    borderWidth: (formData as any).historyOfPresentIllness?.trim() ? '1.5px' : '1px'
+                                  },
+                                  '&:hover fieldset': {
+                                    borderColor: '#0d9488',
+                                  },
+                                  '&.Mui-focused fieldset': {
+                                    borderColor: '#0d9488',
+                                    boxShadow: '0 0 0 3px rgba(13,148,136,0.12)'
                                   }
                                 } 
                               }}
@@ -5117,6 +5384,22 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                                 <Typography variant="body2" color="primary" fontWeight="bold">Processing Audio...</Typography>
                               </Box>
                             )}
+
+                            {/* Status Footer: Word Count, Format, and Precision */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 0.75, px: 0.5, flexWrap: 'wrap', gap: 1 }}>
+                              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                                <span>{((formData as any).historyOfPresentIllness || '').trim() ? ((formData as any).historyOfPresentIllness || '').trim().split(/\s+/).length : 0} words</span>
+                                <span>•</span>
+                                <span>{((formData as any).historyOfPresentIllness || '').length} characters</span>
+                                <span>•</span>
+                                <span style={{ fontWeight: 600, color: '#0d9488' }}>
+                                  {hpiFormatMode === 'structured' ? 'Bulleted OLDCARTS' : 'Clinical Narrative'}
+                                </span>
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.68rem', fontStyle: 'italic' }}>
+                                High-yield medical documentation
+                              </Typography>
+                            </Box>
 
                             {/* Real-time spelling/grammar validation helper */}
                             {hpiGrammarErrors.length > 0 && (
@@ -5183,114 +5466,109 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                               </Alert>
                             )}
                           </Box>
-                          {/* HPI smart suggestion chips */}
-                          {showHpiSuggestions && mode !== 'view' && (
-                            <Box sx={{ mt: 1.5, p: 1.5, border: '1px solid', borderColor: geminiAvailable ? 'primary.light' : 'grey.300', borderRadius: 1.5, bgcolor: geminiAvailable ? 'primary.50' : 'grey.50' }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                <Typography variant="caption" sx={{ fontWeight: 600, color: geminiAvailable ? 'primary.main' : 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <SparkleIcon sx={{ fontSize: '0.8rem' }} />
-                                  {geminiAvailable ? 'AI Suggested phrases — click to fill:' : 'Suggested phrases — click to append:'}
+
+                          {/* Upgraded Categorized Suggested Phrases & Pertinent Negatives */}
+                          {mode !== 'view' && (
+                            <Box sx={{ mt: 2, p: 2, border: '1px solid', borderColor: '#e2e8f0', borderRadius: 2, bgcolor: alpha('#0d9488', 0.02) }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, color: '#0f766e', display: 'flex', alignItems: 'center', gap: 0.6, fontSize: '0.78rem' }}>
+                                  <SparkleIcon sx={{ fontSize: '0.9rem', color: '#0d9488' }} />
+                                  Suggested Clinical Phrases & Pertinent Negatives (Click to append)
                                 </Typography>
-                                <Chip label="Dismiss" size="small" onClick={() => { setShowHpiSuggestions(false); setHasDismissedSuggestions(true); }} sx={{ fontSize: '0.65rem', height: '18px', cursor: 'pointer' }} />
+                                {showHpiSuggestions && (
+                                  <Chip label="Hide suggestions" size="small" onClick={() => setShowHpiSuggestions(false)} sx={{ fontSize: '0.62rem', height: 18, cursor: 'pointer' }} />
+                                )}
                               </Box>
 
-                              {/* Form-field phrases */}
-                              {(['duration', 'severity', 'progression', 'location'] as const).some(k => (geminiPhrases[k] || []).length > 0) && (
-                                <Box sx={{ mb: 1 }}>
-                                  {(['duration', 'severity', 'progression', 'location'] as const).map(field => {
-                                    const phrases = geminiPhrases[field] || [];
-                                    if (!phrases.length) return null;
-                                    const label = field.charAt(0).toUpperCase() + field.slice(1);
-                                    return (
-                                      <Box key={field} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
-                                        <Typography variant="caption" sx={{ color: 'text.disabled', minWidth: 64, fontStyle: 'italic', fontSize: '0.68rem' }}>{label}</Typography>
-                                        {phrases.slice(0, 4).map((phrase, idx) => (
-                                          <Chip
-                                            key={idx}
-                                            label={phrase}
-                                            size="small"
-                                            variant="filled"
-                                            onClick={() => {
-                                              handleOldcartsChange(field, phrase);
-                                            }}
-                                            sx={{ fontSize: '0.68rem', height: '20px', cursor: 'pointer', bgcolor: 'primary.100', color: 'primary.dark', '&:hover': { bgcolor: 'primary.200' } }}
-                                          />
-                                        ))}
-                                      </Box>
-                                    );
-                                  })}
-                                </Box>
-                              )}
-
-                              {/* Inline HPI phrases */}
-                              {(['character', 'aggravating', 'relieving', 'associated'] as const).some(k => (geminiPhrases[k] || []).length > 0) && (
-                                <Box>
-                                  <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.68rem', fontStyle: 'italic', display: 'block', mb: 0.5 }}>Append to HPI:</Typography>
-                                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                    {(['character', 'aggravating', 'relieving', 'associated'] as const).flatMap(field =>
-                                      (geminiPhrases[field] || []).slice(0, 2).map((phrase, idx) => (
-                                        <Chip
-                                          key={`${field}-${idx}`}
-                                          label={phrase.length > 52 ? phrase.slice(0, 52) + '…' : phrase}
-                                          size="small"
-                                          variant="outlined"
-                                          icon={<SparkleIcon sx={{ fontSize: '0.7rem !important' }} />}
-                                          onClick={() => {
-                                            const current = (formData as any).historyOfPresentIllness || '';
-                                            const sep = current && !current.endsWith(' ') && !current.endsWith('\n') ? ' ' : '';
-                                            const newText = current + sep + phrase;
-                                            const updated = {
-                                              ...formData,
-                                              historyOfPresentIllness: newText,
-                                              chiefComplaint: {
-                                                ...formData.chiefComplaint,
-                                                hpi: newText
-                                              }
-                                            };
-                                            setFormData(updated);
-                                            setIsHpiManuallyEdited(true);
-                                            if (!isFirstRender.current) { autoSaveDraft(updated); memorySystem.updateData(); }
-                                            debouncedUpdateInsightsFromHPI(newText);
-                                          }}
-                                          sx={{ fontSize: '0.68rem', height: '20px', cursor: 'pointer', borderColor: 'primary.light', color: 'primary.main', '&:hover': { bgcolor: 'primary.50' } }}
-                                        />
-                                      ))
-                                    )}
+                              <Stack spacing={1.2}>
+                                {/* Pertinent Negatives Row */}
+                                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flexWrap: 'wrap' }}>
+                                  <Typography variant="caption" sx={{ color: '#0f766e', fontWeight: 700, minWidth: 80, fontSize: '0.68rem', pt: 0.3 }}>
+                                    🛡️ Negatives:
+                                  </Typography>
+                                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.6, flex: 1 }}>
+                                    {smartPertinentNegatives.map((neg, idx) => (
+                                      <Chip
+                                        key={idx}
+                                        label={`+ ${neg}`}
+                                        size="small"
+                                        variant="outlined"
+                                        onClick={() => appendToHpi(neg)}
+                                        sx={{
+                                          fontSize: '0.68rem',
+                                          height: 22,
+                                          cursor: 'pointer',
+                                          bgcolor: '#ffffff',
+                                          borderColor: alpha('#0d9488', 0.4),
+                                          color: '#0f766e',
+                                          fontWeight: 500,
+                                          '&:hover': { bgcolor: alpha('#0d9488', 0.08), borderColor: '#0d9488' }
+                                        }}
+                                      />
+                                    ))}
                                   </Box>
                                 </Box>
-                              )}
 
-                              {/* Fallback */}
-                              {Object.keys(geminiPhrases).length === 0 && hpiSuggestions.length > 0 && (
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                  {hpiSuggestions.map((suggestion, idx) => (
-                                    <Chip
-                                      key={idx}
-                                      label={suggestion.length > 55 ? suggestion.slice(0, 55) + '…' : suggestion}
-                                      size="small"
-                                      variant="outlined"
-                                      icon={<SparkleIcon sx={{ fontSize: '0.75rem !important' }} />}
-                                      onClick={() => {
-                                        const current = (formData as any).historyOfPresentIllness || '';
-                                        const separator = current && !current.endsWith(' ') && !current.endsWith('\n') ? ' ' : '';
-                                        const newText = current + separator + suggestion;
-                                        const updated = {
-                                          ...formData,
-                                          historyOfPresentIllness: newText,
-                                          chiefComplaint: {
-                                            ...formData.chiefComplaint,
-                                            hpi: newText
-                                          }
-                                        };
-                                        setFormData(updated);
-                                        setShowHpiSuggestions(false);
-                                        debouncedUpdateInsightsFromHPI(newText);
-                                      }}
-                                      sx={{ fontSize: '0.7rem', height: '22px', cursor: 'pointer', borderColor: 'primary.light', color: 'primary.main', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main' } }}
-                                    />
-                                  ))}
-                                </Box>
-                              )}
+                                {/* Form-field / Descriptors Row if phrases exist */}
+                                {(['character', 'aggravating', 'relieving', 'associated'] as const).some(k => (geminiPhrases[k] || []).length > 0) && (
+                                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flexWrap: 'wrap' }}>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, minWidth: 80, fontSize: '0.68rem', pt: 0.3 }}>
+                                      ⚡ Modifiers:
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.6, flex: 1 }}>
+                                      {(['character', 'aggravating', 'relieving', 'associated'] as const).flatMap(field =>
+                                        (geminiPhrases[field] || []).slice(0, 3).map((phrase, idx) => (
+                                          <Chip
+                                            key={`${field}-${idx}`}
+                                            label={`+ ${phrase}`}
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={() => appendToHpi(phrase)}
+                                            sx={{
+                                              fontSize: '0.68rem',
+                                              height: 22,
+                                              cursor: 'pointer',
+                                              bgcolor: '#ffffff',
+                                              borderColor: '#cbd5e1',
+                                              color: 'text.primary',
+                                              '&:hover': { bgcolor: 'grey.100', borderColor: 'grey.400' }
+                                            }}
+                                          />
+                                        ))
+                                      )}
+                                    </Box>
+                                  </Box>
+                                )}
+
+                                {/* Fallback autocomplete suggestions */}
+                                {hpiSuggestions.length > 0 && (
+                                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flexWrap: 'wrap' }}>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, minWidth: 80, fontSize: '0.68rem', pt: 0.3 }}>
+                                      💡 Autocomplete:
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.6, flex: 1 }}>
+                                      {hpiSuggestions.slice(0, 4).map((suggestion, idx) => (
+                                        <Chip
+                                          key={idx}
+                                          label={`+ ${suggestion}`}
+                                          size="small"
+                                          variant="outlined"
+                                          onClick={() => appendToHpi(suggestion)}
+                                          sx={{
+                                            fontSize: '0.68rem',
+                                            height: 22,
+                                            cursor: 'pointer',
+                                            bgcolor: '#ffffff',
+                                            borderColor: '#cbd5e1',
+                                            color: 'text.primary',
+                                            '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' }
+                                          }}
+                                        />
+                                      ))}
+                                    </Box>
+                                  </Box>
+                                )}
+                              </Stack>
                             </Box>
                           )}
                         </Box>
@@ -5423,43 +5701,117 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
 
                     {/* Right Column: OLDCARTS Validation summary panel (Sidebar) */}
                     <Grid size={{ xs: 12, md: 3.5 }}>
-                      <Paper sx={{ p: 2.2, height: '100%', border: '1px solid', borderColor: 'divider', borderRadius: 2.2, bgcolor: 'background.paper', boxShadow: 'none' }}>
-                        <Typography variant="body2" fontWeight={700} color="text.primary" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                          📋 OLDCARTS Validation
-                        </Typography>
+                      <Paper sx={{ p: 2.5, height: '100%', border: '1px solid', borderColor: 'divider', borderRadius: 2.5, bgcolor: 'background.paper', boxShadow: 'none' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                          <Typography variant="body2" fontWeight={700} color="text.primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            📋 OLDCARTS Validation
+                          </Typography>
+                          <Chip
+                            size="small"
+                            label={`${Math.round(oldcartsScore * 100)}%`}
+                            sx={{
+                              fontWeight: 700,
+                              fontSize: '0.68rem',
+                              height: 20,
+                              bgcolor: oldcartsScore >= 0.8 ? 'success.50' : oldcartsScore >= 0.5 ? 'info.50' : 'warning.50',
+                              color: oldcartsScore >= 0.8 ? 'success.dark' : oldcartsScore >= 0.5 ? 'info.dark' : 'warning.dark'
+                            }}
+                          />
+                        </Box>
                         
                         {/* Progress Bar */}
                         <Box sx={{ mb: 2 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.8 }}>
-                            <Typography variant="caption" color="text.secondary">HPI Completeness</Typography>
-                            <Typography variant="caption" fontWeight="bold" color="#0d9488">{Math.round(oldcartsScore * 100)}%</Typography>
+                            <Typography variant="caption" color="text.secondary">Clinical Completeness</Typography>
+                            <Typography variant="caption" fontWeight="bold" sx={{ color: oldcartsScore >= 0.8 ? '#10b981' : oldcartsScore >= 0.5 ? '#0d9488' : '#f59e0b' }}>
+                              {oldcartsChecklist.filter(i => i.present).length} / {oldcartsChecklist.length} Fields
+                            </Typography>
                           </Box>
-                          <LinearProgress variant="determinate" value={oldcartsScore * 100} sx={{ height: 6, borderRadius: 3, bgcolor: 'grey.100', '& .MuiLinearProgress-bar': { bgcolor: '#0d9488' } }} />
+                          <LinearProgress 
+                            variant="determinate" 
+                            value={oldcartsScore * 100} 
+                            sx={{ 
+                              height: 7, 
+                              borderRadius: 4, 
+                              bgcolor: '#f1f5f9', 
+                              '& .MuiLinearProgress-bar': { 
+                                bgcolor: oldcartsScore >= 0.8 ? '#10b981' : oldcartsScore >= 0.5 ? '#0d9488' : '#f59e0b',
+                                borderRadius: 4
+                              } 
+                            }} 
+                          />
                         </Box>
 
-                        <Stack spacing={1}>
+                        <Stack spacing={0.8}>
                           {oldcartsChecklist.map(item => (
-                            <Box key={item.key} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0.5 }}>
-                              <Typography variant="caption" color="text.secondary" fontWeight={500}>{item.label}</Typography>
+                            <Box 
+                              key={item.key} 
+                              onClick={() => handleChecklistClick(item.key)}
+                              sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'space-between', 
+                                py: 0.7, 
+                                px: 1,
+                                borderRadius: 1.5,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease-in-out',
+                                bgcolor: item.present ? alpha('#10b981', 0.04) : 'transparent',
+                                border: '1px solid',
+                                borderColor: item.present ? alpha('#10b981', 0.15) : 'transparent',
+                                '&:hover': {
+                                  bgcolor: alpha('#0d9488', 0.08),
+                                  borderColor: '#0d9488'
+                                }
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box
+                                  sx={{
+                                    width: 20,
+                                    height: 20,
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '0.62rem',
+                                    fontWeight: 700,
+                                    bgcolor: item.present ? '#10b981' : '#e2e8f0',
+                                    color: item.present ? 'white' : 'text.secondary'
+                                  }}
+                                >
+                                  {item.present ? '✓' : item.key.charAt(0).toUpperCase()}
+                                </Box>
+                                <Typography variant="caption" sx={{ fontWeight: item.present ? 600 : 500, color: item.present ? 'text.primary' : 'text.secondary', fontSize: '0.74rem' }}>
+                                  {item.label}
+                                </Typography>
+                              </Box>
                               <Chip 
                                 size="small" 
-                                label={item.present ? 'Complete' : 'Missing'} 
-                                color={item.present ? 'success' : 'warning'} 
-                                variant={item.present ? 'filled' : 'outlined'}
+                                label={item.present ? 'Documented' : '+ Document'} 
                                 sx={{ 
-                                  height: 18, 
+                                  height: 19, 
                                   fontSize: '0.62rem', 
-                                  fontWeight: 'bold',
-                                  minWidth: 68,
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  minWidth: 78,
                                   ...(item.present 
-                                    ? { bgcolor: 'success.50', color: 'success.dark', border: '1px solid', borderColor: 'success.200' }
-                                    : { bgcolor: 'warning.50', color: 'warning.dark', border: '1px solid', borderColor: 'warning.200' }
+                                    ? { bgcolor: alpha('#10b981', 0.12), color: '#047857', border: '1px solid', borderColor: alpha('#10b981', 0.3) }
+                                    : { bgcolor: alpha('#f59e0b', 0.08), color: '#b45309', border: '1px dashed', borderColor: alpha('#f59e0b', 0.4) }
                                   )
                                 }}
                               />
                             </Box>
                           ))}
                         </Stack>
+
+                        <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.68rem', display: 'block', textAlign: 'center', fontStyle: 'italic' }}>
+                            {oldcartsScore === 1 
+                              ? '🌟 Complete OLDCARTS documentation recorded'
+                              : '💡 Click any missing item to scroll & focus'}
+                          </Typography>
+                        </Box>
                       </Paper>
                     </Grid>
                   </Grid>
