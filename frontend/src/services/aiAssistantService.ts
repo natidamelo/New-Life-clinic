@@ -60,7 +60,7 @@ export interface AISuggestion {
 
 export interface PhysicalExamSuggestions {
   general: string[];
-  heent: { head: string[]; eyes: string[]; ears: string[]; nose: string[]; throat: string[] };
+  heent: { head: string[]; eyes: string[]; ears: string[]; nose: string[]; throat: string[]; neck?: string[] };
   cardiovascular: string[];
   respiratory: string[];
   gastrointestinal: string[];
@@ -2158,20 +2158,21 @@ export class AIAssistantService {
     const complaint = chiefComplaint.toLowerCase();
 
     const defaultNormal: PhysicalExamSuggestions = {
-      general: ['Alert', 'Oriented x3 (person, place, time)', 'No acute distress', 'Well-appearing', 'Well-nourished'],
+      general: ['Alert, oriented x4', 'No acute distress (NAD)', 'Well-appearing', 'Well-nourished'],
       heent: {
-        head: ['Normocephalic', 'Atraumatic'],
-        eyes: ['PERRLA', 'EOMI', 'No icterus', 'No conjunctival pallor'],
-        ears: ['TMs intact bilaterally', 'No erythema', 'No discharge'],
-        nose: ['Patent nares', 'No discharge', 'No tenderness'],
-        throat: ['Moist mucous membranes', 'No erythema', 'No exudates', 'Tonsils normal']
+        head: ['Normocephalic, atraumatic (NC/AT)', 'No scalp tenderness or deformity'],
+        eyes: ['PERRLA', 'EOMI', 'Sclerae anicteric', 'Conjunctivae pink without injection or discharge'],
+        ears: ['TMs intact, pearly gray bilaterally', 'Canals clear, no discharge'],
+        nose: ['Patent nares bilaterally', 'Mucosa pink and moist, no discharge or congestion'],
+        throat: ['Oral mucosa moist', 'No pharyngeal erythema', 'No exudates', 'Tonsils normal (1+)', 'Uvula midline'],
+        neck: ['Supple, full ROM', 'No cervical lymphadenopathy', 'No thyromegaly', 'No JVD or carotid bruits']
       },
-      cardiovascular: ['Regular rate and rhythm', 'S1 S2 present', 'No murmurs', 'No rubs', 'No gallops', 'Peripheral pulses intact'],
-      respiratory: ['Clear to auscultation bilaterally', 'No wheezes', 'No rales', 'No rhonchi', 'Normal respiratory effort'],
-      gastrointestinal: ['Soft', 'Non-tender', 'Non-distended', 'Normal bowel sounds', 'No organomegaly', 'No guarding', 'No rebound tenderness'],
-      neurological: ['Alert and oriented x3', 'Cranial nerves II-XII intact', 'Motor strength 5/5 all extremities', 'Sensation intact', 'Reflexes 2+ symmetric'],
-      musculoskeletal: ['Full range of motion', 'No joint swelling', 'No tenderness', 'Normal gait'],
-      skin: ['Warm', 'Dry', 'Intact', 'No rashes', 'No lesions', 'Good turgor']
+      cardiovascular: ['Regular rate and rhythm (RRR)', 'Normal S1 and S2 present', 'No murmurs, rubs, or gallops', 'Peripheral pulses 2+ intact', 'Capillary refill < 2s', 'No peripheral edema'],
+      respiratory: ['Clear to auscultation bilaterally (CTAB)', 'Normal vesicular breath sounds', 'No wheezes, rales, or rhonchi', 'Normal unlabored respiratory effort', 'Symmetric chest expansion'],
+      gastrointestinal: ['Soft, non-tender, non-distended', 'Normoactive bowel sounds in all 4 quadrants', 'No organomegaly (no HSM)', 'No guarding or rebound tenderness', 'Murphy\'s sign negative'],
+      neurological: ['Alert and oriented x4', 'Cranial nerves II-XII intact', 'Motor strength 5/5 all extremities', 'Sensation intact to light touch', 'DTRs 2+ symmetric', 'Normal steady gait'],
+      musculoskeletal: ['Full active and passive ROM in all major joints', 'No joint swelling, erythema, or warmth', 'No tenderness', 'Normal gait and posture'],
+      skin: ['Warm, dry, intact', 'Good skin turgor', 'No rashes, petechiae, or suspicious lesions', 'No jaundice or cyanosis']
     };
 
     // Customize based on chief complaint

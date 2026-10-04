@@ -278,7 +278,8 @@ const medicalRecordSchema = new mongoose.Schema({
       eyes: String,
       ears: String,
       nose: String,
-      throat: String
+      throat: String,
+      neck: String
     },
     cardiovascular: String,
     respiratory: String,

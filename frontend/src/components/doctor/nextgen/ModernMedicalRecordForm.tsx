@@ -125,7 +125,9 @@ import {
   CalendarToday as CalendarIcon,
   AccessTime as TimeIcon,
   Refresh as RefreshIcon,
-  ContentCopy as ContentCopyIcon
+  ContentCopy as ContentCopyIcon,
+  DoneAll as DoneAllIcon,
+  RestartAlt as ResetIcon
 } from '@mui/icons-material';
 import {
   Hearing as HearingIcon,
@@ -227,6 +229,7 @@ interface PhysicalExaminationData {
     ears: string;
     nose: string;
     throat: string;
+    neck?: string;
   };
   cardiovascular: string;
   respiratory: string;
@@ -294,6 +297,8 @@ const debounce = <T extends (...args: any[]) => any>(
         result.nose = part.replace('nose:', '').trim();
       } else if (part.startsWith('throat:')) {
         result.throat = part.replace('throat:', '').trim();
+      } else if (part.startsWith('neck:')) {
+        result.neck = part.replace('neck:', '').trim();
       }
     });
 
@@ -328,11 +333,13 @@ const debounce = <T extends (...args: any[]) => any>(
           ears: pe.systems?.ears || { status: 'none' as const, findings: '' },
           nose: pe.systems?.nose || { status: 'none' as const, findings: '' },
           throat: pe.systems?.throat || { status: 'none' as const, findings: '' },
+          neck: pe.systems?.neck || { status: 'none' as const, findings: '' },
           cardiovascular: pe.systems?.cardiovascular || { status: 'none' as const, findings: '' },
           respiratory: pe.systems?.respiratory || { status: 'none' as const, findings: '' },
           abdomen: pe.systems?.abdomen || { status: 'none' as const, findings: '' },
           musculoskeletal: pe.systems?.musculoskeletal || { status: 'none' as const, findings: '' },
           neurological: pe.systems?.neurological || { status: 'none' as const, findings: '' },
+          skin: pe.systems?.skin || { status: 'none' as const, findings: '' },
           genitourinary: pe.systems?.genitourinary || { status: 'none' as const, findings: '' }
         }
       };
@@ -370,6 +377,7 @@ const debounce = <T extends (...args: any[]) => any>(
     let heentEars = '';
     let heentNose = '';
     let heentThroat = '';
+    let heentNeck = '';
     
     if (legacyPE.heent) {
       if (typeof legacyPE.heent === 'object') {
@@ -378,6 +386,7 @@ const debounce = <T extends (...args: any[]) => any>(
         heentEars = legacyPE.heent.ears || '';
         heentNose = legacyPE.heent.nose || '';
         heentThroat = legacyPE.heent.throat || '';
+        heentNeck = legacyPE.heent.neck || '';
       } else if (typeof legacyPE.heent === 'string') {
         const parsed = parseHeentString(legacyPE.heent);
         heentHead = parsed.head || '';
@@ -385,6 +394,7 @@ const debounce = <T extends (...args: any[]) => any>(
         heentEars = parsed.ears || '';
         heentNose = parsed.nose || '';
         heentThroat = parsed.throat || '';
+        heentNeck = parsed.neck || '';
       }
     }
 
@@ -413,6 +423,10 @@ const debounce = <T extends (...args: any[]) => any>(
         status: heentThroat ? 'normal' as const : 'none' as const,
         findings: heentThroat
       },
+      neck: {
+        status: heentNeck ? 'normal' as const : 'none' as const,
+        findings: heentNeck
+      },
       cardiovascular: {
         status: legacyPE.cardiovascular ? 'normal' as const : 'none' as const,
         findings: legacyPE.cardiovascular || ''
@@ -432,6 +446,10 @@ const debounce = <T extends (...args: any[]) => any>(
       neurological: {
         status: legacyPE.neurological ? 'normal' as const : 'none' as const,
         findings: legacyPE.neurological || ''
+      },
+      skin: {
+        status: legacyPE.skin ? 'normal' as const : 'none' as const,
+        findings: legacyPE.skin || ''
       },
       genitourinary: {
         status: 'none' as const,
@@ -638,132 +656,263 @@ const quickPickPhrases: Record<string, Array<{ text: string; isAbnormal: boolean
     { text: "Well-nourished", isAbnormal: false },
     { text: "In no acute distress (NAD)", isAbnormal: false },
     { text: "Alert and cooperative", isAbnormal: false },
-    { text: "Ill-appearing", isAbnormal: true },
+    { text: "Alert, oriented x4", isAbnormal: false },
+    { text: "Febrile appearing", isAbnormal: true },
     { text: "Mild distress", isAbnormal: true },
     { text: "Moderate distress", isAbnormal: true },
     { text: "Severe distress", isAbnormal: true },
+    { text: "Ill-appearing", isAbnormal: true },
     { text: "Lethargic", isAbnormal: true },
-    { text: "Dehydrated", isAbnormal: true }
+    { text: "Dehydrated", isAbnormal: true },
+    { text: "Diaphoretic", isAbnormal: true },
+    { text: "Cachectic", isAbnormal: true }
   ],
   head: [
-    { text: "Normocephalic, atraumatic", isAbnormal: false },
-    { text: "No visible lesions", isAbnormal: false },
+    { text: "Normocephalic, atraumatic (NC/AT)", isAbnormal: false },
+    { text: "No visible lesions or deformity", isAbnormal: false },
+    { text: "Symmetrical facial features", isAbnormal: false },
     { text: "Tenderness on palpation", isAbnormal: true },
     { text: "Visible deformity", isAbnormal: true },
     { text: "Scalp laceration", isAbnormal: true },
-    { text: "Hematoma", isAbnormal: true }
+    { text: "Hematoma present", isAbnormal: true },
+    { text: "Temporal artery tenderness", isAbnormal: true },
+    { text: "Facial asymmetry", isAbnormal: true }
   ],
   eyes: [
     { text: "PERRLA", isAbnormal: false },
     { text: "EOMI", isAbnormal: false },
     { text: "Sclerae anicteric", isAbnormal: false },
-    { text: "Conjunctivae normal", isAbnormal: false },
+    { text: "Conjunctivae pink, no injection", isAbnormal: false },
     { text: "No discharge", isAbnormal: false },
     { text: "Conjunctival injection", isAbnormal: true },
-    { text: "Icterus", isAbnormal: true },
     { text: "Pale conjunctiva", isAbnormal: true },
+    { text: "Scleral icterus", isAbnormal: true },
     { text: "Pupils sluggish", isAbnormal: true },
+    { text: "Subconjunctival hemorrhage", isAbnormal: true },
     { text: "Strabismus", isAbnormal: true },
-    { text: "Discharge present", isAbnormal: true }
+    { text: "Nystagmus", isAbnormal: true },
+    { text: "Papilledema", isAbnormal: true },
+    { text: "Purulent discharge", isAbnormal: true },
+    { text: "Periorbital edema", isAbnormal: true }
   ],
   ears: [
-    { text: "TMs intact bilaterally", isAbnormal: false },
+    { text: "TMs intact, pearly gray bilaterally", isAbnormal: false },
+    { text: "Normal light reflex", isAbnormal: false },
     { text: "External canals clear", isAbnormal: false },
-    { text: "No discharge", isAbnormal: false },
+    { text: "No discharge or erythema", isAbnormal: false },
     { text: "TM erythematous", isAbnormal: true },
+    { text: "TM bulging", isAbnormal: true },
+    { text: "Fluid behind TM (effusion)", isAbnormal: true },
     { text: "Cerumen impaction", isAbnormal: true },
-    { text: "Discharge present", isAbnormal: true },
-    { text: "Tenderness", isAbnormal: true },
-    { text: "Fluid behind TM", isAbnormal: true }
+    { text: "Tragal tenderness", isAbnormal: true },
+    { text: "Hemotympanum", isAbnormal: true },
+    { text: "Otorrhea / discharge", isAbnormal: true }
   ],
   nose: [
-    { text: "No congestion", isAbnormal: false },
-    { text: "Nasal mucosa pink", isAbnormal: false },
-    { text: "No discharge", isAbnormal: false },
+    { text: "Patent nares bilaterally", isAbnormal: false },
+    { text: "Nasal mucosa pink and moist", isAbnormal: false },
+    { text: "No discharge or congestion", isAbnormal: false },
+    { text: "Nasal septum midline", isAbnormal: false },
     { text: "Nasal congestion", isAbnormal: true },
-    { text: "Clear discharge", isAbnormal: true },
+    { text: "Clear rhinorrhea", isAbnormal: true },
     { text: "Purulent discharge", isAbnormal: true },
+    { text: "Boggy turbinates", isAbnormal: true },
     { text: "Septal deviation", isAbnormal: true },
-    { text: "Epistaxis", isAbnormal: true }
+    { text: "Epistaxis", isAbnormal: true },
+    { text: "Sinus tenderness (maxillary/frontal)", isAbnormal: true }
   ],
   throat: [
+    { text: "Oral mucosa moist", isAbnormal: false },
     { text: "No pharyngeal erythema", isAbnormal: false },
-    { text: "Tonsils normal", isAbnormal: false },
-    { text: "Mucosa moist", isAbnormal: false },
+    { text: "Tonsils normal (1+)", isAbnormal: false },
     { text: "No exudates", isAbnormal: false },
+    { text: "Uvula midline", isAbnormal: false },
     { text: "Mild pharyngeal erythema", isAbnormal: true },
-    { text: "Exudates present", isAbnormal: true },
-    { text: "Tonsillar enlargement", isAbnormal: true },
+    { text: "Severe pharyngeal erythema", isAbnormal: true },
+    { text: "Tonsillar exudates", isAbnormal: true },
+    { text: "Tonsillar enlargement (3+/4+)", isAbnormal: true },
     { text: "Cobblestoning", isAbnormal: true },
-    { text: "Dry mucosa", isAbnormal: true }
+    { text: "Dry oral mucosa", isAbnormal: true },
+    { text: "Oral thrush / candidiasis", isAbnormal: true },
+    { text: "Aphthous ulcers", isAbnormal: true },
+    { text: "Uvula deviation", isAbnormal: true }
+  ],
+  neck: [
+    { text: "Supple, full ROM", isAbnormal: false },
+    { text: "No meningismus", isAbnormal: false },
+    { text: "No cervical lymphadenopathy", isAbnormal: false },
+    { text: "No thyromegaly", isAbnormal: false },
+    { text: "No JVD", isAbnormal: false },
+    { text: "No carotid bruits", isAbnormal: false },
+    { text: "Neck stiffness / Meningismus", isAbnormal: true },
+    { text: "Cervical lymphadenopathy (tender)", isAbnormal: true },
+    { text: "Cervical lymphadenopathy (firm/fixed)", isAbnormal: true },
+    { text: "Thyromegaly / Goiter", isAbnormal: true },
+    { text: "JVD present", isAbnormal: true },
+    { text: "Carotid bruit present", isAbnormal: true }
   ],
   cardiovascular: [
-    { text: "Regular rate and rhythm", isAbnormal: false },
-    { text: "S1, S2 normal", isAbnormal: false },
+    { text: "Regular rate and rhythm (RRR)", isAbnormal: false },
+    { text: "Normal S1, S2 present", isAbnormal: false },
     { text: "No murmurs/rubs/gallops", isAbnormal: false },
+    { text: "Peripheral pulses 2+ intact", isAbnormal: false },
     { text: "Capillary refill <2s", isAbnormal: false },
+    { text: "No peripheral edema", isAbnormal: false },
     { text: "Tachycardia", isAbnormal: true },
     { text: "Bradycardia", isAbnormal: true },
-    { text: "Systolic murmur", isAbnormal: true },
+    { text: "Systolic ejection murmur", isAbnormal: true },
+    { text: "Holosystolic murmur", isAbnormal: true },
     { text: "Diastolic murmur", isAbnormal: true },
-    { text: "Irregular rhythm", isAbnormal: true },
-    { text: "Pedal edema present", isAbnormal: true }
+    { text: "Irregularly irregular rhythm (AFib)", isAbnormal: true },
+    { text: "S3 gallop", isAbnormal: true },
+    { text: "S4 gallop", isAbnormal: true },
+    { text: "Pericardial friction rub", isAbnormal: true },
+    { text: "Trace pedal edema", isAbnormal: true },
+    { text: "2+ pitting edema", isAbnormal: true },
+    { text: "3+ pitting edema", isAbnormal: true },
+    { text: "Diminished peripheral pulses", isAbnormal: true }
   ],
   respiratory: [
-    { text: "Clear to auscultation bilaterally", isAbnormal: false },
-    { text: "Symmetric expansion", isAbnormal: false },
+    { text: "Clear to auscultation bilaterally (CTAB)", isAbnormal: false },
+    { text: "Symmetric chest expansion", isAbnormal: false },
+    { text: "Normal vesicular breath sounds", isAbnormal: false },
     { text: "No wheezes/rales/rhonchi", isAbnormal: false },
+    { text: "Unlabored breathing", isAbnormal: false },
     { text: "No accessory muscle use", isAbnormal: false },
-    { text: "Bilateral wheezing", isAbnormal: true },
-    { text: "Crackles present", isAbnormal: true },
-    { text: "Rhonchi present", isAbnormal: true },
-    { text: "Diminished breath sounds", isAbnormal: true },
+    { text: "Bilateral expiratory wheezes", isAbnormal: true },
+    { text: "Inspiratory stridor", isAbnormal: true },
+    { text: "Crackles at bilateral bases", isAbnormal: true },
+    { text: "Rhonchi", isAbnormal: true },
+    { text: "Diminished breath sounds at bases", isAbnormal: true },
     { text: "Tachypnea", isAbnormal: true },
-    { text: "Accessory muscle use", isAbnormal: true }
+    { text: "Accessory muscle use", isAbnormal: true },
+    { text: "Intercostal retractions", isAbnormal: true },
+    { text: "Prolonged expiratory phase", isAbnormal: true }
   ],
   abdomen: [
     { text: "Soft, non-tender", isAbnormal: false },
     { text: "Non-distended", isAbnormal: false },
-    { text: "Bowel sounds normoactive", isAbnormal: false },
-    { text: "No masses or organomegaly", isAbnormal: false },
-    { text: "Tenderness present", isAbnormal: true },
-    { text: "Distended", isAbnormal: true },
-    { text: "Bowel sounds absent", isAbnormal: true },
-    { text: "Bowel sounds hyperactive", isAbnormal: true },
+    { text: "Normoactive bowel sounds", isAbnormal: false },
+    { text: "No organomegaly (no HSM)", isAbnormal: false },
+    { text: "No guarding or rebound", isAbnormal: false },
+    { text: "Murphy's sign negative", isAbnormal: false },
+    { text: "McBurney's point negative", isAbnormal: false },
+    { text: "Epigastric tenderness", isAbnormal: true },
+    { text: "RUQ tenderness", isAbnormal: true },
+    { text: "RLQ tenderness (McBurney's)", isAbnormal: true },
+    { text: "Suprapubic tenderness", isAbnormal: true },
+    { text: "Diffuse abdominal tenderness", isAbnormal: true },
+    { text: "Abdominal distension", isAbnormal: true },
+    { text: "Hyperactive bowel sounds", isAbnormal: true },
+    { text: "Absent bowel sounds", isAbnormal: true },
+    { text: "Voluntary guarding", isAbnormal: true },
+    { text: "Involuntary rigidity", isAbnormal: true },
     { text: "Rebound tenderness", isAbnormal: true },
-    { text: "Guarding present", isAbnormal: true },
-    { text: "Murphy's sign positive", isAbnormal: true }
+    { text: "Positive Murphy's sign", isAbnormal: true },
+    { text: "Positive McBurney's sign", isAbnormal: true },
+    { text: "Palpable hepatomegaly", isAbnormal: true },
+    { text: "Palpable splenomegaly", isAbnormal: true }
   ],
   musculoskeletal: [
-    { text: "Full range of motion (ROM) all joints", isAbnormal: false },
-    { text: "No joint swelling/tenderness", isAbnormal: false },
-    { text: "Normal gait", isAbnormal: false },
-    { text: "Limited ROM", isAbnormal: true },
-    { text: "Joint swelling", isAbnormal: true },
+    { text: "Full ROM all major joints", isAbnormal: false },
+    { text: "Normal muscle bulk and tone", isAbnormal: false },
+    { text: "No joint swelling or effusion", isAbnormal: false },
+    { text: "No joint tenderness or warmth", isAbnormal: false },
+    { text: "Normal steady gait", isAbnormal: false },
+    { text: "Spine non-tender, normal alignment", isAbnormal: false },
+    { text: "Limited range of motion", isAbnormal: true },
+    { text: "Joint swelling / effusion", isAbnormal: true },
     { text: "Joint tenderness", isAbnormal: true },
+    { text: "Joint warmth / erythema", isAbnormal: true },
     { text: "Joint deformity", isAbnormal: true },
     { text: "Antalgic gait", isAbnormal: true },
-    { text: "Spine tenderness", isAbnormal: true }
+    { text: "Midline spinal tenderness", isAbnormal: true },
+    { text: "Paraspinal muscle spasm", isAbnormal: true },
+    { text: "Positive straight leg raise (SLR)", isAbnormal: true },
+    { text: "Crepitus on movement", isAbnormal: true }
   ],
   neurological: [
     { text: "Alert and oriented x4", isAbnormal: false },
     { text: "Cranial nerves II-XII intact", isAbnormal: false },
-    { text: "Motor strength 5/5 all extremities", isAbnormal: false },
-    { text: "Sensory intact", isAbnormal: false },
-    { text: "Disoriented", isAbnormal: true },
-    { text: "Motor weakness", isAbnormal: true },
-    { text: "Deep tendon reflexes asymmetric", isAbnormal: true },
-    { text: "Gait unsteady", isAbnormal: true },
-    { text: "Tremor present", isAbnormal: true }
+    { text: "Motor strength 5/5 in all extremities", isAbnormal: false },
+    { text: "Sensation intact to light touch", isAbnormal: false },
+    { text: "DTRs 2+ symmetric", isAbnormal: false },
+    { text: "Romberg negative, normal gait", isAbnormal: false },
+    { text: "Lethargic / Somnolent", isAbnormal: true },
+    { text: "Disoriented to time/place", isAbnormal: true },
+    { text: "Facial droop (CN VII)", isAbnormal: true },
+    { text: "Motor weakness / Hemiparesis", isAbnormal: true },
+    { text: "Pronator drift present", isAbnormal: true },
+    { text: "Sensory deficit / Numbness", isAbnormal: true },
+    { text: "Hyperreflexia (3+/4+)", isAbnormal: true },
+    { text: "Hyporeflexia (0/1+)", isAbnormal: true },
+    { text: "Positive Babinski sign", isAbnormal: true },
+    { text: "Ataxic / Unsteady gait", isAbnormal: true },
+    { text: "Tremor present", isAbnormal: true },
+    { text: "Dysmetria on finger-to-nose", isAbnormal: true }
+  ],
+  skin: [
+    { text: "Warm, dry, intact", isAbnormal: false },
+    { text: "Good skin turgor", isAbnormal: false },
+    { text: "No rashes or suspicious lesions", isAbnormal: false },
+    { text: "No jaundice or cyanosis", isAbnormal: false },
+    { text: "Diaphoretic / Clammy", isAbnormal: true },
+    { text: "Pallor", isAbnormal: true },
+    { text: "Jaundice / Scleral icterus", isAbnormal: true },
+    { text: "Cyanosis (central/peripheral)", isAbnormal: true },
+    { text: "Erythematous rash", isAbnormal: true },
+    { text: "Maculopapular rash", isAbnormal: true },
+    { text: "Urticaria / Hives", isAbnormal: true },
+    { text: "Petechiae / Purpura", isAbnormal: true },
+    { text: "Poor skin turgor (tenting)", isAbnormal: true },
+    { text: "Skin lesion / ulceration", isAbnormal: true }
   ],
   genitourinary: [
     { text: "External genitalia normal", isAbnormal: false },
-    { text: "No CVA tenderness", isAbnormal: false },
-    { text: "CVA tenderness present", isAbnormal: true },
+    { text: "No CVA tenderness bilaterally", isAbnormal: false },
+    { text: "No suprapubic tenderness", isAbnormal: false },
+    { text: "Right CVA tenderness", isAbnormal: true },
+    { text: "Left CVA tenderness", isAbnormal: true },
+    { text: "Bilateral CVA tenderness", isAbnormal: true },
     { text: "Suprapubic tenderness", isAbnormal: true },
-    { text: "Hernia present", isAbnormal: true },
-    { text: "Discharge present", isAbnormal: true }
+    { text: "Inguinal hernia present", isAbnormal: true },
+    { text: "Genital discharge / lesions", isAbnormal: true }
   ]
+};
+
+const standardNormalFindings: Record<string, string> = {
+  generalAppearance: "Alert, well-appearing, well-nourished, in no acute distress (NAD).",
+  head: "Normocephalic, atraumatic (NC/AT). No scalp tenderness or visible deformity.",
+  eyes: "PERRLA, EOMI, sclerae anicteric, conjunctivae pink without injection or discharge.",
+  ears: "TMs intact, pearly gray bilaterally with normal light reflex. Canals clear.",
+  nose: "Patent nares bilaterally, nasal mucosa pink and moist, no discharge or congestion.",
+  throat: "Oral mucosa moist, oropharynx clear without erythema or exudates. Tonsils normal (1+), uvula midline.",
+  neck: "Supple, full ROM. No cervical lymphadenopathy, no thyromegaly, no JVD or carotid bruits.",
+  cardiovascular: "Regular rate and rhythm (RRR), normal S1/S2 present. No murmurs, gallops, or friction rubs. Peripheral pulses 2+ intact, capillary refill < 2s, no edema.",
+  respiratory: "Clear to auscultation bilaterally (CTAB). Normal vesicular breath sounds. No wheezes, rales, or rhonchi. Normal unlabored respiratory effort.",
+  abdomen: "Soft, non-tender, non-distended. Normoactive bowel sounds in all 4 quadrants. No organomegaly, no guarding or rebound tenderness. Murphy's sign negative.",
+  musculoskeletal: "Full active and passive ROM in all major joints. Normal muscle bulk and tone. No joint swelling, erythema, or tenderness. Normal steady gait.",
+  neurological: "Alert and oriented x4. Cranial nerves II-XII intact. Motor strength 5/5 in all extremities. Sensation intact. DTRs 2+ symmetric.",
+  skin: "Warm, dry, intact. Good skin turgor. No rashes, petechiae, suspicious lesions, or jaundice.",
+  genitourinary: "External genitalia normal. No suprapubic tenderness, no CVA tenderness, no abnormal discharge."
+};
+
+const abnormalKeywords = [
+  'distress', 'ill-appearing', 'lethargic', 'febrile', 'dehydrat',
+  'erythema', 'injection', 'icterus', 'pallor', 'sluggish', 'strabismus', 'discharge',
+  'congestion', 'rhinorrhea', 'exudate', 'enlarge', 'tonsill', 'turgor',
+  'murmur', 'rub', 'gallop', 'tachycardia', 'bradycardia', 'irregular', 'edema',
+  'wheeze', 'crackles', 'rhonchi', 'stridor', 'tachypnea', 'retraction',
+  'tender', 'distend', 'guarding', 'rebound', 'rigidity', 'murphy', 'mcburney', 'mass',
+  'swelling', 'deformity', 'antalgic', 'weakness', 'spasm', 'unsteady', 'tremor',
+  'paraspinal', 'stiffness', 'meningism', 'photophob', 'kernig', 'brudzinski', 'rash', 'lesion', 'ulcer'
+];
+
+const classifyFindingsStatus = (findings: string): 'none' | 'normal' | 'abnormal' => {
+  if (!findings || !findings.trim()) return 'none';
+  const lower = findings.toLowerCase();
+  const isAbn = abnormalKeywords.some(kw => lower.includes(kw));
+  return isAbn ? 'abnormal' : 'normal';
 };
 
 export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = ({
@@ -2231,11 +2380,13 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
         ears: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
         nose: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
         throat: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
+        neck: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
         cardiovascular: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
         respiratory: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
         abdomen: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
         musculoskeletal: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
         neurological: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
+        skin: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' },
         genitourinary: { status: 'none' as 'none' | 'normal' | 'abnormal', findings: '' }
       }
     },
@@ -2769,75 +2920,99 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
       gender: patientData.gender
     });
 
+    const genText = suggestions.general.join(', ');
+    const headText = suggestions.heent.head.join(', ');
+    const eyesText = suggestions.heent.eyes.join(', ');
+    const earsText = suggestions.heent.ears.join(', ');
+    const noseText = suggestions.heent.nose.join(', ');
+    const throatText = suggestions.heent.throat.join(', ');
+    const neckText = (suggestions.heent.neck || ['Supple, full ROM', 'No cervical lymphadenopathy', 'No thyromegaly']).join(', ');
+    const cvText = suggestions.cardiovascular.join(', ');
+    const respText = suggestions.respiratory.join(', ');
+    const giText = suggestions.gastrointestinal.join(', ');
+    const mskText = suggestions.musculoskeletal.join(', ');
+    const neuroText = suggestions.neurological.join(', ');
+    const skinText = suggestions.skin.join(', ');
+    const guText = 'External genitalia normal, no suprapubic tenderness, no CVA tenderness';
+
     const updated = {
       ...formData,
       physicalExamination: {
         ...formData.physicalExamination,
-        general: suggestions.general.join(', '),
+        general: genText,
         heent: {
-          head: suggestions.heent.head.join(', '),
-          eyes: suggestions.heent.eyes.join(', '),
-          ears: suggestions.heent.ears.join(', '),
-          nose: suggestions.heent.nose.join(', '),
-          throat: suggestions.heent.throat.join(', ')
+          head: headText,
+          eyes: eyesText,
+          ears: earsText,
+          nose: noseText,
+          throat: throatText,
+          neck: neckText
         },
-        cardiovascular: suggestions.cardiovascular.join(', '),
-        respiratory: suggestions.respiratory.join(', '),
-        gastrointestinal: suggestions.gastrointestinal.join(', '),
-        neurological: suggestions.neurological.join(', '),
-        musculoskeletal: suggestions.musculoskeletal.join(', '),
-        skin: suggestions.skin.join(', ')
+        cardiovascular: cvText,
+        respiratory: respText,
+        gastrointestinal: giText,
+        neurological: neuroText,
+        musculoskeletal: mskText,
+        skin: skinText
       },
       physicalExam: {
         ...formData.physicalExam,
         systems: {
           generalAppearance: {
-            status: suggestions.general.length > 0 ? 'normal' as const : 'none' as const,
-            findings: suggestions.general.join(', ')
+            status: classifyFindingsStatus(genText),
+            findings: genText
           },
           head: {
-            status: suggestions.heent.head.length > 0 ? 'normal' as const : 'none' as const,
-            findings: suggestions.heent.head.join(', ')
+            status: classifyFindingsStatus(headText),
+            findings: headText
           },
           eyes: {
-            status: suggestions.heent.eyes.length > 0 ? 'normal' as const : 'none' as const,
-            findings: suggestions.heent.eyes.join(', ')
+            status: classifyFindingsStatus(eyesText),
+            findings: eyesText
           },
           ears: {
-            status: suggestions.heent.ears.length > 0 ? 'normal' as const : 'none' as const,
-            findings: suggestions.heent.ears.join(', ')
+            status: classifyFindingsStatus(earsText),
+            findings: earsText
           },
           nose: {
-            status: suggestions.heent.nose.length > 0 ? 'normal' as const : 'none' as const,
-            findings: suggestions.heent.nose.join(', ')
+            status: classifyFindingsStatus(noseText),
+            findings: noseText
           },
           throat: {
-            status: suggestions.heent.throat.length > 0 ? 'normal' as const : 'none' as const,
-            findings: suggestions.heent.throat.join(', ')
+            status: classifyFindingsStatus(throatText),
+            findings: throatText
+          },
+          neck: {
+            status: classifyFindingsStatus(neckText),
+            findings: neckText
           },
           cardiovascular: {
-            status: suggestions.cardiovascular.length > 0 ? 'normal' as const : 'none' as const,
-            findings: suggestions.cardiovascular.join(', ')
+            status: classifyFindingsStatus(cvText),
+            findings: cvText
           },
           respiratory: {
-            status: suggestions.respiratory.length > 0 ? 'normal' as const : 'none' as const,
-            findings: suggestions.respiratory.join(', ')
+            status: classifyFindingsStatus(respText),
+            findings: respText
           },
           abdomen: {
-            status: suggestions.gastrointestinal.length > 0 ? 'normal' as const : 'none' as const,
-            findings: suggestions.gastrointestinal.join(', ')
+            status: classifyFindingsStatus(giText),
+            findings: giText
           },
           musculoskeletal: {
-            status: suggestions.musculoskeletal.length > 0 ? 'normal' as const : 'none' as const,
-            findings: suggestions.musculoskeletal.join(', ')
+            status: classifyFindingsStatus(mskText),
+            findings: mskText
           },
           neurological: {
-            status: suggestions.neurological.length > 0 ? 'normal' as const : 'none' as const,
-            findings: suggestions.neurological.join(', ')
+            status: classifyFindingsStatus(neuroText),
+            findings: neuroText
+          },
+          skin: {
+            status: classifyFindingsStatus(skinText),
+            findings: skinText
           },
           genitourinary: {
-            status: 'none' as const,
-            findings: ''
+            status: 'normal' as const,
+            findings: guText
           }
         }
       }
@@ -3216,14 +3391,15 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
             eyes: formData.physicalExam.systems.eyes.findings || '',
             ears: formData.physicalExam.systems.ears.findings || '',
             nose: formData.physicalExam.systems.nose.findings || '',
-            throat: formData.physicalExam.systems.throat.findings || ''
+            throat: formData.physicalExam.systems.throat.findings || '',
+            neck: formData.physicalExam.systems.neck?.findings || ''
           },
           cardiovascular: formData.physicalExam.systems.cardiovascular.findings || '',
           respiratory: formData.physicalExam.systems.respiratory.findings || '',
           gastrointestinal: formData.physicalExam.systems.abdomen.findings || '',
           neurological: formData.physicalExam.systems.neurological.findings || '',
           musculoskeletal: formData.physicalExam.systems.musculoskeletal.findings || '',
-          skin: formData.physicalExam.systems.generalAppearance.findings || '',
+          skin: formData.physicalExam.systems.skin?.findings || '',
           summary: formData.physicalExamination?.summary || ''
         },
         vitalSigns: {
@@ -4358,8 +4534,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
     const updated = { ...legacyPE };
     if (systemKey === 'generalAppearance') {
       updated.general = findings;
-      updated.skin = findings;
-    } else if (['head', 'eyes', 'ears', 'nose', 'throat'].includes(systemKey)) {
+    } else if (['head', 'eyes', 'ears', 'nose', 'throat', 'neck'].includes(systemKey)) {
       updated.heent = {
         ...(updated.heent || {}),
         [systemKey]: findings
@@ -4374,6 +4549,8 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
       updated.musculoskeletal = findings;
     } else if (systemKey === 'neurological') {
       updated.neurological = findings;
+    } else if (systemKey === 'skin') {
+      updated.skin = findings;
     }
     return updated;
   };
@@ -4429,6 +4606,172 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
     });
   };
 
+  const handleSetSystemStatus = (systemKey: string, nextStatus: 'none' | 'normal' | 'abnormal') => {
+    setFormData(prev => {
+      const current = prev.physicalExam.systems[systemKey as keyof typeof prev.physicalExam.systems] || { status: 'none', findings: '' };
+      let newFindings = current.findings;
+
+      if (nextStatus === 'normal' && !current.findings.trim()) {
+        newFindings = standardNormalFindings[systemKey] || 'Within normal limits.';
+      } else if (nextStatus === 'none') {
+        newFindings = '';
+      }
+
+      const updatedSystems = {
+        ...prev.physicalExam.systems,
+        [systemKey]: {
+          status: nextStatus,
+          findings: newFindings
+        }
+      };
+
+      const updatedLegacyPE = syncLegacyPE(prev.physicalExamination, systemKey, newFindings);
+
+      const updated = {
+        ...prev,
+        physicalExam: {
+          ...prev.physicalExam,
+          systems: updatedSystems
+        },
+        physicalExamination: updatedLegacyPE
+      };
+
+      if (!isFirstRender.current) autoSaveDraft(updated);
+      return updated;
+    });
+
+    if (nextStatus === 'abnormal') {
+      setExpandedSystems(prev => ({ ...prev, [systemKey]: true }));
+    }
+  };
+
+  const handleSetAllNormal = () => {
+    setFormData(prev => {
+      const updatedSystems = { ...prev.physicalExam.systems };
+      Object.keys(standardNormalFindings).forEach(sysKey => {
+        updatedSystems[sysKey as keyof typeof updatedSystems] = {
+          status: 'normal',
+          findings: standardNormalFindings[sysKey]
+        };
+      });
+
+      const updatedLegacyPE = { ...prev.physicalExamination };
+      updatedLegacyPE.general = standardNormalFindings.generalAppearance;
+      updatedLegacyPE.heent = {
+        head: standardNormalFindings.head,
+        eyes: standardNormalFindings.eyes,
+        ears: standardNormalFindings.ears,
+        nose: standardNormalFindings.nose,
+        throat: standardNormalFindings.throat,
+        neck: standardNormalFindings.neck
+      };
+      updatedLegacyPE.cardiovascular = standardNormalFindings.cardiovascular;
+      updatedLegacyPE.respiratory = standardNormalFindings.respiratory;
+      updatedLegacyPE.gastrointestinal = standardNormalFindings.abdomen;
+      updatedLegacyPE.musculoskeletal = standardNormalFindings.musculoskeletal;
+      updatedLegacyPE.neurological = standardNormalFindings.neurological;
+      updatedLegacyPE.skin = standardNormalFindings.skin;
+
+      const updated = {
+        ...prev,
+        physicalExam: {
+          ...prev.physicalExam,
+          systems: updatedSystems
+        },
+        physicalExamination: updatedLegacyPE
+      };
+
+      if (!isFirstRender.current) autoSaveDraft(updated);
+      return updated;
+    });
+    toast.success('✨ All 14 examination systems documented as Normal (WNL)!');
+  };
+
+  const handleClearAllPhysicalExam = () => {
+    setFormData(prev => {
+      const updatedSystems = { ...prev.physicalExam.systems };
+      Object.keys(updatedSystems).forEach(sysKey => {
+        updatedSystems[sysKey as keyof typeof updatedSystems] = {
+          status: 'none',
+          findings: ''
+        };
+      });
+
+      const updatedLegacyPE = {
+        general: '',
+        heent: { head: '', eyes: '', ears: '', nose: '', throat: '', neck: '' },
+        cardiovascular: '',
+        respiratory: '',
+        gastrointestinal: '',
+        neurological: '',
+        musculoskeletal: '',
+        skin: '',
+        summary: ''
+      };
+
+      const updated = {
+        ...prev,
+        physicalExam: {
+          ...prev.physicalExam,
+          systems: updatedSystems
+        },
+        physicalExamination: updatedLegacyPE
+      };
+
+      if (!isFirstRender.current) autoSaveDraft(updated);
+      return updated;
+    });
+    toast.info('Physical examination cleared.');
+  };
+
+  const handleCopyPhysicalExamNote = () => {
+    const lines: string[] = ['PHYSICAL EXAMINATION:'];
+    const v = formData.physicalExam.vitals;
+    const vitalsParts: string[] = [];
+    if (v.bloodPressure) vitalsParts.push(`BP ${v.bloodPressure} mmHg`);
+    if (v.heartRate) vitalsParts.push(`HR ${v.heartRate} bpm`);
+    if (v.temperature) vitalsParts.push(`Temp ${v.temperature} °C`);
+    if (v.spo2) vitalsParts.push(`SpO2 ${v.spo2}%`);
+    if (v.respiratoryRate) vitalsParts.push(`RR ${v.respiratoryRate}/min`);
+    if (v.weight) vitalsParts.push(`Weight ${v.weight} kg`);
+    if (vitalsParts.length > 0) lines.push(`Vitals: ${vitalsParts.join(', ')}`);
+    lines.push('');
+
+    const sysNames: Record<string, string> = {
+      generalAppearance: 'General Appearance',
+      head: 'Head',
+      eyes: 'Eyes',
+      ears: 'Ears',
+      nose: 'Nose',
+      throat: 'Throat',
+      neck: 'Neck & Lymphatics',
+      cardiovascular: 'Cardiovascular',
+      respiratory: 'Respiratory',
+      abdomen: 'Abdomen',
+      musculoskeletal: 'Musculoskeletal',
+      neurological: 'Neurological',
+      skin: 'Skin',
+      genitourinary: 'Genitourinary'
+    };
+
+    let docCount = 0;
+    Object.entries(formData.physicalExam.systems).forEach(([key, val]: [string, any]) => {
+      if (val && val.status !== 'none' && val.findings?.trim()) {
+        docCount++;
+        const tag = val.status === 'abnormal' ? '[ABNORMAL]' : '[NORMAL]';
+        lines.push(`• ${sysNames[key] || key} ${tag}: ${val.findings.trim()}`);
+      }
+    });
+
+    if (docCount === 0) {
+      toast.info('No physical examination findings to copy.');
+      return;
+    }
+
+    navigator.clipboard.writeText(lines.join('\n'));
+    toast.success('📋 Physical exam summary copied to clipboard!');
+  };
+
   const cycleStatus = (systemKey: string) => {
     setFormData(prev => {
       const currentStatus = prev.physicalExam.systems[systemKey as keyof typeof prev.physicalExam.systems]?.status || 'none';
@@ -4467,7 +4810,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
       let nextStatus: 'none' | 'normal' | 'abnormal' = currentSystem.status;
 
       if (value.trim().length > 0 && currentSystem.status === 'none') {
-        nextStatus = 'normal';
+        nextStatus = classifyFindingsStatus(value);
       } else if (value.trim().length === 0 && currentSystem.status === 'normal') {
         nextStatus = 'none';
       }
@@ -5873,58 +6216,100 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           { key: 'ears', displayName: 'Ears', icon: HearingIcon },
           { key: 'nose', displayName: 'Nose', icon: SecurityIcon },
           { key: 'throat', displayName: 'Throat', icon: RecordVoiceOverIcon },
+          { key: 'neck', displayName: 'Neck & Lymph', icon: AccessibilityNewIcon },
           { key: 'cardiovascular', displayName: 'Cardiovascular', icon: HeartIcon },
           { key: 'respiratory', displayName: 'Respiratory', icon: LungsIcon },
-          { key: 'abdomen', displayName: 'Abdomen', icon: MedicalServicesIcon },
+          { key: 'abdomen', displayName: 'Abdomen / GI', icon: MedicalServicesIcon },
           { key: 'musculoskeletal', displayName: 'Musculoskeletal', icon: AccessibilityNewIcon },
           { key: 'neurological', displayName: 'Neurological', icon: AIIcon },
+          { key: 'skin', displayName: 'Skin & Turgor', icon: HealingIcon },
           { key: 'genitourinary', displayName: 'Genitourinary', icon: FlashOnIcon }
         ];
 
         const tabGroups: Record<string, string[]> = {
           'All systems': [
-            'generalAppearance', 'head', 'eyes', 'ears', 'nose', 'throat', 
+            'generalAppearance', 'head', 'eyes', 'ears', 'nose', 'throat', 'neck',
             'cardiovascular', 'respiratory', 'abdomen', 'musculoskeletal', 
-            'neurological', 'genitourinary'
+            'neurological', 'skin', 'genitourinary'
           ],
-          'HEENT': ['head', 'eyes', 'ears', 'nose', 'throat'],
+          'HEENT & Neck': ['head', 'eyes', 'ears', 'nose', 'throat', 'neck'],
           'Cardiorespiratory': ['cardiovascular', 'respiratory'],
-          'Abdomen/GI': ['abdomen'],
-          'Neuro/Musculoskeletal': ['neurological', 'musculoskeletal'],
-          'Other': ['generalAppearance', 'genitourinary']
+          'Abdomen / GI': ['abdomen'],
+          'Neuro / MSK': ['neurological', 'musculoskeletal'],
+          'Skin & GU': ['generalAppearance', 'skin', 'genitourinary']
         };
 
         const tabsList = [
           'All systems',
-          'HEENT',
+          'HEENT & Neck',
           'Cardiorespiratory',
-          'Abdomen/GI',
-          'Neuro/Musculoskeletal',
-          'Other'
+          'Abdomen / GI',
+          'Neuro / MSK',
+          'Skin & GU'
         ];
 
         const toggleExpandSystem = (key: string) => {
           setExpandedSystems(prev => ({ ...prev, [key]: !prev[key] }));
         };
 
-        const handleAppendFinding = (systemKey: string, phrase: string) => {
-          const currentSystem = formData.physicalExam.systems[systemKey as keyof typeof formData.physicalExam.systems] || { findings: '' };
+        const handleToggleFinding = (systemKey: string, phraseText: string, isAbnormalPhrase: boolean) => {
+          const currentSystem = formData.physicalExam.systems[systemKey as keyof typeof formData.physicalExam.systems] || { status: 'none', findings: '' };
           const currentVal = currentSystem.findings || '';
+          const lowerVal = currentVal.toLowerCase();
+          const lowerPhrase = phraseText.toLowerCase();
+
           let newVal = '';
-          if (currentVal.trim() === '') {
-            newVal = phrase;
+          if (lowerVal.includes(lowerPhrase)) {
+            // Remove phrase cleanly
+            const escaped = phraseText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(^|,\\s*)${escaped}(,\\s*|$)`, 'i');
+            newVal = currentVal.replace(regex, (match, p1, p2) => {
+              if (p1 && p2) return ', ';
+              return '';
+            }).trim();
+            newVal = newVal.replace(/^,\s*/, '').replace(/,\s*$/, '').replace(/,\s*,/g, ',');
           } else {
-            const cleanVal = currentVal.trim();
-            if (cleanVal.endsWith(',')) {
-              newVal = `${cleanVal} ${phrase}`;
+            // Append phrase
+            if (!currentVal.trim()) {
+              newVal = phraseText;
             } else {
-              newVal = `${cleanVal}, ${phrase}`;
+              const cleanVal = currentVal.trim().replace(/,\s*$/, '');
+              newVal = `${cleanVal}, ${phraseText}`;
             }
           }
-          handleSystemFindingsChange(systemKey, newVal);
+
+          let nextStatus: 'none' | 'normal' | 'abnormal' = 'none';
+          if (!newVal.trim()) {
+            nextStatus = 'none';
+          } else if (isAbnormalPhrase && !lowerVal.includes(lowerPhrase)) {
+            nextStatus = 'abnormal';
+          } else {
+            nextStatus = classifyFindingsStatus(newVal);
+          }
+
+          setFormData(prev => {
+            const updatedSystems = {
+              ...prev.physicalExam.systems,
+              [systemKey]: {
+                status: nextStatus,
+                findings: newVal
+              }
+            };
+            const updatedLegacyPE = syncLegacyPE(prev.physicalExamination, systemKey, newVal);
+            const updated = {
+              ...prev,
+              physicalExam: {
+                ...prev.physicalExam,
+                systems: updatedSystems
+              },
+              physicalExamination: updatedLegacyPE
+            };
+            if (!isFirstRender.current) autoSaveDraft(updated);
+            return updated;
+          });
         };
 
-        const filteredSystems = systemConfig.filter(sys => tabGroups[activeExamTab].includes(sys.key));
+        const filteredSystems = systemConfig.filter(sys => (tabGroups[activeExamTab] || tabGroups['All systems']).includes(sys.key));
 
         const totalExamined = Object.values(formData.physicalExam.systems).filter((sys: any) => sys.status !== 'none').length;
         const totalAbnormal = Object.values(formData.physicalExam.systems).filter((sys: any) => sys.status === 'abnormal').length;
@@ -5932,35 +6317,137 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
         return (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <GradientCard>
-              <Box sx={{ px: 2.5, pt: 2, pb: 0.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <MedicalIcon sx={{ fontSize: '1.25rem', color: 'secondary.main' }} />
+                  <Box sx={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 2,
+                    bgcolor: 'secondary.50',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'secondary.main',
+                    border: '1px solid',
+                    borderColor: 'secondary.200'
+                  }}>
+                    <MedicalIcon sx={{ fontSize: '1.3rem' }} />
+                  </Box>
                   <Box>
-                    <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.3 }}>Physical Examination</Typography>
-                    <Typography variant="body2" color="text.secondary">Systematic physical assessment findings</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.3 }}>Physical Examination</Typography>
+                      <Chip
+                        size="small"
+                        label={`${totalExamined}/14 Examined`}
+                        color={totalExamined === 14 ? 'success' : totalExamined > 0 ? 'primary' : 'default'}
+                        sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                      />
+                      {totalAbnormal > 0 && (
+                        <Chip
+                          size="small"
+                          label={`${totalAbnormal} Abnormal`}
+                          color="error"
+                          sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700 }}
+                        />
+                      )}
+                    </Box>
+                    <Typography variant="caption" color="text.secondary">Comprehensive 14-system systematic clinical evaluation</Typography>
                   </Box>
                 </Box>
                 {mode !== 'view' && (
-                  <Tooltip title={physicalExamAutoFilled ? 'Re-fill physical exam based on chief complaint' : 'Auto-fill physical exam based on chief complaint'}>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<SparkleIcon sx={{ fontSize: '0.9rem' }} />}
-                      onClick={autoFillPhysicalExam}
-                      disabled={!formData.chiefComplaint.description}
-                      sx={{
-                        textTransform: 'none',
-                        fontSize: '0.72rem',
-                        py: 0.3,
-                        px: 1,
-                        borderColor: 'secondary.main',
-                        color: 'secondary.main',
-                        '&:hover': { bgcolor: 'secondary.50' }
-                      }}
-                    >
-                      {physicalExamAutoFilled ? 'Re-fill Exam' : 'Auto-fill Exam'}
-                    </Button>
-                  </Tooltip>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    <Tooltip title="Document all 14 systems as Normal / Within Normal Limits (WNL) in one click">
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<DoneAllIcon sx={{ fontSize: '0.95rem' }} />}
+                        onClick={handleSetAllNormal}
+                        sx={{
+                          textTransform: 'none',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          py: 0.5,
+                          px: 1.2,
+                          borderRadius: 1.5,
+                          borderColor: 'success.main',
+                          color: 'success.dark',
+                          bgcolor: (theme) => alpha(theme.palette.success.main, 0.05),
+                          '&:hover': {
+                            bgcolor: (theme) => alpha(theme.palette.success.main, 0.12),
+                            borderColor: 'success.dark'
+                          }
+                        }}
+                      >
+                        Set All Normal (WNL)
+                      </Button>
+                    </Tooltip>
+
+                    <Tooltip title={physicalExamAutoFilled ? 'Re-fill physical exam based on chief complaint' : 'Auto-fill physical exam based on chief complaint'}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<SparkleIcon sx={{ fontSize: '0.9rem' }} />}
+                        onClick={autoFillPhysicalExam}
+                        disabled={!formData.chiefComplaint.description}
+                        sx={{
+                          textTransform: 'none',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          py: 0.5,
+                          px: 1.2,
+                          borderRadius: 1.5,
+                          borderColor: 'secondary.main',
+                          color: 'secondary.main',
+                          bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.04),
+                          '&:hover': { bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.1) }
+                        }}
+                      >
+                        {physicalExamAutoFilled ? 'Re-fill Exam' : 'Auto-fill Exam'}
+                      </Button>
+                    </Tooltip>
+
+                    <Tooltip title="Copy formatted PE & vitals note to clipboard">
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<ContentCopyIcon sx={{ fontSize: '0.85rem' }} />}
+                        onClick={handleCopyPhysicalExamNote}
+                        sx={{
+                          textTransform: 'none',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          py: 0.5,
+                          px: 1.1,
+                          borderRadius: 1.5,
+                          borderColor: 'divider',
+                          color: 'text.secondary',
+                          '&:hover': { bgcolor: 'action.hover', color: 'text.primary' }
+                        }}
+                      >
+                        Copy PE Note
+                      </Button>
+                    </Tooltip>
+
+                    <Tooltip title="Clear all documented physical examination findings">
+                      <Button
+                        size="small"
+                        variant="text"
+                        startIcon={<ResetIcon sx={{ fontSize: '0.85rem' }} />}
+                        onClick={handleClearAllPhysicalExam}
+                        disabled={totalExamined === 0}
+                        sx={{
+                          textTransform: 'none',
+                          fontSize: '0.75rem',
+                          color: 'text.secondary',
+                          py: 0.5,
+                          px: 0.9,
+                          '&:hover': { color: 'error.main', bgcolor: 'error.lighter' }
+                        }}
+                      >
+                        Clear All
+                      </Button>
+                    </Tooltip>
+                  </Box>
                 )}
               </Box>
               <CardContent sx={{ p: 2.5, display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -6036,60 +6523,104 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
 
                 {/* Filter Tabs Section */}
                 <Box>
-                  <Typography variant="body2" fontWeight={700} color="text.primary" mb={2}>
+                  <Typography variant="body2" fontWeight={700} color="text.primary" mb={1.5}>
                     System-Based Examination
                   </Typography>
 
                   <Box sx={{
                     display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
                     gap: 1,
-                    overflowX: 'auto',
-                    pb: 1.5,
-                    borderBottom: '1px solid',
-                    borderColor: 'divider',
-                    mb: 2,
-                    '&::-webkit-scrollbar': { display: 'none' },
-                    msOverflowStyle: 'none',
-                    scrollbarWidth: 'none'
+                    mb: 2
                   }}>
-                    {tabsList.map((tab) => {
-                      const isActive = activeExamTab === tab;
-                      return (
-                        <Button
-                          key={tab}
-                          variant="outlined"
-                          size="small"
-                          onClick={() => setActiveExamTab(tab)}
-                          sx={{
-                            textTransform: 'none',
-                            borderRadius: '20px',
-                            px: 2,
-                            py: 0.5,
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            whiteSpace: 'nowrap',
-                            ...(isActive ? {
-                              bgcolor: '#EFF6FF',
-                              borderColor: '#93C5FD',
-                              color: '#1D4ED8',
-                              '&:hover': {
+                    <Box sx={{
+                      display: 'flex',
+                      gap: 1,
+                      overflowX: 'auto',
+                      pb: 0.5,
+                      '&::-webkit-scrollbar': { display: 'none' },
+                      msOverflowStyle: 'none',
+                      scrollbarWidth: 'none'
+                    }}>
+                      {tabsList.map((tab) => {
+                        const isActive = activeExamTab === tab;
+                        const tabKeys = tabGroups[tab] || [];
+                        const tabAbnormalCount = tabKeys.filter(k => (formData.physicalExam.systems as any)[k]?.status === 'abnormal').length;
+                        const tabExaminedCount = tabKeys.filter(k => (formData.physicalExam.systems as any)[k]?.status && (formData.physicalExam.systems as any)[k]?.status !== 'none').length;
+
+                        return (
+                          <Button
+                            key={tab}
+                            variant="outlined"
+                            size="small"
+                            onClick={() => setActiveExamTab(tab)}
+                            sx={{
+                              textTransform: 'none',
+                              borderRadius: '20px',
+                              px: 1.8,
+                              py: 0.4,
+                              fontSize: '0.78rem',
+                              fontWeight: 600,
+                              whiteSpace: 'nowrap',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 0.8,
+                              ...(isActive ? {
                                 bgcolor: '#EFF6FF',
                                 borderColor: '#93C5FD',
-                              }
-                            } : {
-                              color: 'text.secondary',
-                              borderColor: 'divider',
-                              '&:hover': {
-                                bgcolor: 'grey.50',
-                                borderColor: 'grey.300',
-                              }
-                            })
-                          }}
-                        >
-                          {tab}
-                        </Button>
-                      );
-                    })}
+                                color: '#1D4ED8',
+                                '&:hover': {
+                                  bgcolor: '#EFF6FF',
+                                  borderColor: '#93C5FD',
+                                }
+                              } : {
+                                color: 'text.secondary',
+                                borderColor: 'divider',
+                                '&:hover': {
+                                  bgcolor: 'grey.50',
+                                  borderColor: 'grey.300',
+                                }
+                              })
+                            }}
+                          >
+                            <span>{tab}</span>
+                            {tabAbnormalCount > 0 ? (
+                              <Box sx={{
+                                width: 18,
+                                height: 18,
+                                borderRadius: '50%',
+                                bgcolor: 'error.main',
+                                color: 'white',
+                                fontSize: '0.65rem',
+                                fontWeight: 700,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}>
+                                {tabAbnormalCount}
+                              </Box>
+                            ) : tabExaminedCount > 0 ? (
+                              <Box sx={{
+                                width: 18,
+                                height: 18,
+                                borderRadius: '50%',
+                                bgcolor: isActive ? '#BFDBFE' : 'grey.200',
+                                color: isActive ? '#1E40AF' : 'text.secondary',
+                                fontSize: '0.65rem',
+                                fontWeight: 600,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}>
+                                {tabExaminedCount}
+                              </Box>
+                            ) : null}
+                          </Button>
+                        );
+                      })}
+                    </Box>
                   </Box>
 
                   {/* Systems Rows Section */}
@@ -6107,156 +6638,248 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                       const status = systemState.status || 'none';
                       const isExpanded = !!expandedSystems[system.key];
                       const isAbnormal = status === 'abnormal';
+                      const isNormal = status === 'normal';
 
-                      // Determine colors based on status and mode
+                      // Determine colors based on status
+                      const leftBorderColor = isAbnormal ? '#ef4444' : isNormal ? '#10b981' : 'transparent';
+
                       const rowBg = isAbnormal
                         ? (theme: any) => alpha(theme.palette.error.main, theme.palette.mode === 'dark' ? 0.12 : 0.04)
+                        : isNormal
+                        ? (theme: any) => alpha(theme.palette.success.main, theme.palette.mode === 'dark' ? 0.08 : 0.02)
                         : 'background.paper';
-
-                      const textColor = isAbnormal
-                        ? (theme: any) => theme.palette.mode === 'dark' ? theme.palette.error.light : theme.palette.error.dark
-                        : 'text.primary';
-
-                      const findingsColor = isAbnormal
-                        ? (theme: any) => theme.palette.mode === 'dark' ? theme.palette.error.light : theme.palette.error.dark
-                        : 'text.secondary';
 
                       const iconBg = isAbnormal
                         ? (theme: any) => alpha(theme.palette.error.main, 0.15)
-                        : 'grey.50';
+                        : isNormal
+                        ? (theme: any) => alpha(theme.palette.success.main, 0.12)
+                        : 'grey.100';
 
                       const iconColor = isAbnormal
                         ? 'error.main'
+                        : isNormal
+                        ? 'success.main'
                         : 'text.secondary';
+
+                      const labelColor = isAbnormal
+                        ? (theme: any) => theme.palette.mode === 'dark' ? theme.palette.error.light : theme.palette.error.dark
+                        : isNormal
+                        ? (theme: any) => theme.palette.mode === 'dark' ? theme.palette.success.light : theme.palette.success.dark
+                        : 'text.primary';
 
                       return (
                         <Box key={system.key} sx={{
                           borderBottom: idx < filteredSystems.length - 1 ? '1px solid' : 'none',
                           borderColor: 'divider',
+                          borderLeft: `4px solid ${leftBorderColor}`,
+                          transition: 'all 0.2s',
                         }}>
                           {/* Main Row */}
                           <Box sx={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 2,
-                            py: '13px',
-                            px: 2.5,
+                            gap: 1.5,
+                            py: 1.25,
+                            px: 2,
                             bgcolor: rowBg,
                             transition: 'all 0.2s',
                             '&:hover': {
                               bgcolor: isAbnormal
-                                ? (theme: any) => alpha(theme.palette.error.main, theme.palette.mode === 'dark' ? 0.16 : 0.06)
+                                ? (theme: any) => alpha(theme.palette.error.main, theme.palette.mode === 'dark' ? 0.16 : 0.07)
+                                : isNormal
+                                ? (theme: any) => alpha(theme.palette.success.main, theme.palette.mode === 'dark' ? 0.12 : 0.04)
                                 : (theme: any) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'grey.25'
                             }
                           }}>
                             {/* Centered Icon */}
-                            <Box sx={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: '50%',
-                              bgcolor: iconBg,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: iconColor,
-                              flexShrink: 0
-                            }}>
-                              <SystemIcon sx={{ fontSize: '1.1rem' }} />
-                            </Box>
+                            <Tooltip title={isAbnormal ? 'Abnormal finding' : isNormal ? 'Normal / WNL' : 'Not examined'}>
+                              <Box sx={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: 1.5,
+                                bgcolor: iconBg,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: iconColor,
+                                flexShrink: 0,
+                                transition: 'all 0.2s'
+                              }}>
+                                <SystemIcon sx={{ fontSize: '1.15rem' }} />
+                              </Box>
+                            </Tooltip>
 
-                            {/* 90px Fixed Width Label */}
+                            {/* Fixed Width Label */}
                             <Typography sx={{
-                              width: 90,
+                              width: { xs: 85, sm: 120 },
                               flexShrink: 0,
-                              fontWeight: 500,
-                              fontSize: '14px',
-                              color: textColor
+                              fontWeight: status !== 'none' ? 600 : 500,
+                              fontSize: '0.85rem',
+                              color: labelColor,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
                             }}>
                               {system.displayName}
                             </Typography>
 
-                            {/* Transparent Flex-Grow Input */}
+                            {/* Flexible Findings Input */}
                             <InputBase
                               fullWidth
                               value={findingsValue}
-                              placeholder={`Enter ${system.displayName.toLowerCase()} findings...`}
+                              placeholder={`Enter ${system.displayName.toLowerCase()} findings or select quick chips below...`}
                               disabled={mode === 'view'}
                               onChange={(e) => handleSystemFindingsChange(system.key, e.target.value)}
                               inputProps={{ 
                                 style: { 
-                                  fontSize: '13px',
-                                  color: isAbnormal ? undefined : 'text.secondary'
+                                  fontSize: '0.82rem',
+                                  padding: '4px 8px'
                                 } 
                               }}
                               sx={{
                                 flexGrow: 1,
-                                color: findingsColor,
-                                borderBottom: '1px solid transparent',
-                                '&:hover': { borderBottom: mode === 'view' ? 'none' : '1px solid', borderColor: 'divider' },
-                                '&.Mui-focused': { borderBottom: '1px solid', borderColor: isAbnormal ? 'error.main' : 'primary.main' }
+                                bgcolor: (theme: any) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                                borderRadius: 1.5,
+                                border: '1px solid',
+                                borderColor: isAbnormal ? 'error.light' : isNormal ? 'success.light' : 'divider',
+                                px: 0.5,
+                                '&:hover': {
+                                  borderColor: isAbnormal ? 'error.main' : isNormal ? 'success.main' : 'primary.light'
+                                },
+                                '&.Mui-focused': {
+                                  borderColor: isAbnormal ? 'error.main' : isNormal ? 'success.main' : 'primary.main',
+                                  bgcolor: 'background.paper',
+                                  boxShadow: isAbnormal ? '0 0 0 2px rgba(239, 68, 68, 0.15)' : '0 0 0 2px rgba(16, 185, 129, 0.15)'
+                                }
                               }}
                             />
 
                             {/* Controls Area (Right) */}
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
-                              {/* Expand/Collapse Button */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0 }}>
                               {mode !== 'view' && (
-                                <IconButton
+                                <>
+                                  {/* Segmented Status Pill */}
+                                  <Box sx={{
+                                    display: 'inline-flex',
+                                    borderRadius: '8px',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    p: '2px',
+                                    bgcolor: (theme: any) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'grey.100',
+                                    gap: '2px'
+                                  }}>
+                                    {/* Normal Button */}
+                                    <Tooltip title={isNormal ? 'Active: Normal (click to reset)' : 'Mark as Normal (WNL)'}>
+                                      <Box
+                                        onClick={() => handleSetSystemStatus(system.key, isNormal ? 'none' : 'normal')}
+                                        sx={{
+                                          cursor: 'pointer',
+                                          px: 1,
+                                          py: '3px',
+                                          borderRadius: '6px',
+                                          fontSize: '0.72rem',
+                                          fontWeight: 600,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: 0.4,
+                                          transition: 'all 0.15s',
+                                          ...(isNormal ? {
+                                            bgcolor: '#10b981',
+                                            color: '#ffffff',
+                                            boxShadow: '0 1px 3px rgba(16, 185, 129, 0.35)'
+                                          } : {
+                                            color: 'text.secondary',
+                                            '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.12)', color: '#047857' }
+                                          })
+                                        }}
+                                      >
+                                        <CheckIcon sx={{ fontSize: '0.85rem' }} />
+                                        <span>Normal</span>
+                                      </Box>
+                                    </Tooltip>
+
+                                    {/* Abnormal Button */}
+                                    <Tooltip title={isAbnormal ? 'Active: Abnormal (click to reset)' : 'Mark as Abnormal'}>
+                                      <Box
+                                        onClick={() => handleSetSystemStatus(system.key, isAbnormal ? 'none' : 'abnormal')}
+                                        sx={{
+                                          cursor: 'pointer',
+                                          px: 1,
+                                          py: '3px',
+                                          borderRadius: '6px',
+                                          fontSize: '0.72rem',
+                                          fontWeight: 600,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: 0.4,
+                                          transition: 'all 0.15s',
+                                          ...(isAbnormal ? {
+                                            bgcolor: '#ef4444',
+                                            color: '#ffffff',
+                                            boxShadow: '0 1px 3px rgba(239, 68, 68, 0.35)'
+                                          } : {
+                                            color: 'text.secondary',
+                                            '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.12)', color: '#b91c1c' }
+                                          })
+                                        }}
+                                      >
+                                        <WarningIcon sx={{ fontSize: '0.85rem' }} />
+                                        <span>Abnormal</span>
+                                      </Box>
+                                    </Tooltip>
+                                  </Box>
+
+                                  {/* Clear Button (if documented) */}
+                                  {(status !== 'none' || findingsValue.trim()) && (
+                                    <Tooltip title="Clear this system">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleSetSystemStatus(system.key, 'none')}
+                                        sx={{
+                                          p: 0.5,
+                                          color: 'text.disabled',
+                                          '&:hover': { color: 'error.main', bgcolor: 'error.lighter' }
+                                        }}
+                                      >
+                                        <CloseIcon sx={{ fontSize: '0.9rem' }} />
+                                      </IconButton>
+                                    </Tooltip>
+                                  )}
+                                </>
+                              )}
+
+                              {/* Expand/Collapse Quick Phrases Button */}
+                              <Tooltip title={isExpanded ? 'Collapse quick phrases' : 'Expand quick clinical phrases'}>
+                                <Button
                                   size="small"
+                                  variant="outlined"
                                   onClick={() => toggleExpandSystem(system.key)}
+                                  endIcon={
+                                    <ExpandMoreIcon sx={{
+                                      transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                      transition: 'transform 0.2s',
+                                      fontSize: '1rem !important'
+                                    }} />
+                                  }
                                   sx={{
-                                    transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                                    transition: 'transform 0.2s',
-                                    p: 0.5,
-                                    color: isAbnormal ? 'error.main' : 'text.secondary'
+                                    textTransform: 'none',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 500,
+                                    py: '2px',
+                                    px: 0.8,
+                                    minWidth: 'auto',
+                                    borderRadius: 1.5,
+                                    borderColor: isExpanded ? 'primary.main' : 'divider',
+                                    bgcolor: isExpanded ? 'primary.50' : 'transparent',
+                                    color: isExpanded ? 'primary.main' : 'text.secondary',
+                                    '&:hover': {
+                                      borderColor: 'primary.light',
+                                      bgcolor: 'action.hover'
+                                    }
                                   }}
                                 >
-                                  <ExpandMoreIcon sx={{ fontSize: '1.2rem' }} />
-                                </IconButton>
-                              )}
-
-                              {/* Warning Triangle Icon (Only when Abnormal) */}
-                              {isAbnormal && (
-                                <Tooltip title="Abnormal findings reported">
-                                  <WarningIcon sx={{ fontSize: '1.1rem', color: 'error.main' }} />
-                                </Tooltip>
-                              )}
-
-                              {/* Clickable Status Dot */}
-                              <Tooltip title={mode === 'view' ? '' : 'Cycle status: Gray (None) -> Green (Normal) -> Red (Abnormal)'}>
-                                <Box
-                                  onClick={() => mode !== 'view' && cycleStatus(system.key)}
-                                  sx={{
-                                    cursor: mode === 'view' ? 'default' : 'pointer',
-                                    width: 24,
-                                    height: 24,
-                                    borderRadius: '50%',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s',
-                                    '&:hover': mode === 'view' ? {} : { bgcolor: isAbnormal ? 'rgba(239, 68, 68, 0.08)' : 'grey.100' }
-                                  }}
-                                >
-                                  <Box
-                                    sx={{
-                                      width: 10,
-                                      height: 10,
-                                      borderRadius: '50%',
-                                      bgcolor: (() => {
-                                        if (status === 'normal') return '#22c55e';
-                                        if (status === 'abnormal') return '#ef4444';
-                                        return '#d1d5db';
-                                      })(),
-                                      boxShadow: (() => {
-                                        if (status === 'normal') return '0 0 6px rgba(34, 197, 94, 0.4)';
-                                        if (status === 'abnormal') return '0 0 6px rgba(239, 68, 68, 0.4)';
-                                        return 'none';
-                                      })(),
-                                      transition: 'all 0.2s'
-                                    }}
-                                  />
-                                </Box>
+                                  Phrases
+                                </Button>
                               </Tooltip>
                             </Box>
                           </Box>
@@ -6273,57 +6896,120 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                               >
                                 <Box sx={{
                                   px: 2.5,
-                                  pb: 2.5,
-                                  pt: 0.5,
-                                  bgcolor: isAbnormal
-                                    ? (theme: any) => alpha(theme.palette.error.main, theme.palette.mode === 'dark' ? 0.08 : 0.02)
-                                    : (theme: any) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.01)' : 'grey.25',
+                                  pb: 2,
+                                  pt: 1.5,
+                                  bgcolor: (theme: any) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.015)' : 'grey.25',
                                   borderTop: '1px dashed',
                                   borderColor: 'divider',
                                   display: 'flex',
-                                  flexWrap: 'wrap',
-                                  gap: 1
+                                  flexDirection: 'column',
+                                  gap: 1.5
                                 }}>
-                                  {quickPickPhrases[system.key]?.map((phrase, pIdx) => {
+                                  {(() => {
+                                    const phrases = quickPickPhrases[system.key] || [];
+                                    const normalPhrases = phrases.filter(p => !p.isAbnormal);
+                                    const abnormalPhrases = phrases.filter(p => p.isAbnormal);
+
                                     return (
-                                      <Chip
-                                        key={pIdx}
-                                        label={phrase.text}
-                                        size="small"
-                                        onClick={() => handleAppendFinding(system.key, phrase.text)}
-                                        sx={{
-                                          fontSize: '0.75rem',
-                                          height: '26px',
-                                          cursor: 'pointer',
-                                          transition: 'all 0.15s',
-                                          ...(phrase.isAbnormal ? {
-                                            border: '1px solid',
-                                            borderColor: 'error.200',
-                                            bgcolor: (theme: any) => alpha(theme.palette.error.main, 0.05),
-                                            color: (theme: any) => theme.palette.mode === 'dark' ? theme.palette.error.light : theme.palette.error.dark,
-                                            '&:hover': {
-                                              bgcolor: (theme: any) => alpha(theme.palette.error.main, 0.12),
-                                              borderColor: 'error.400'
-                                            }
-                                          } : {
-                                            border: '1px solid',
-                                            borderColor: 'success.100',
-                                            bgcolor: (theme: any) => alpha(theme.palette.success.main, 0.05),
-                                            color: (theme: any) => theme.palette.mode === 'dark' ? theme.palette.success.light : theme.palette.success.dark,
-                                            '&:hover': {
-                                              bgcolor: (theme: any) => alpha(theme.palette.success.main, 0.12),
-                                              borderColor: 'success.300'
-                                            }
-                                          })
-                                        }}
-                                      />
+                                      <>
+                                        {normalPhrases.length > 0 && (
+                                          <Box>
+                                            <Typography variant="caption" sx={{ color: '#047857', fontWeight: 700, fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.75 }}>
+                                              <CheckIcon sx={{ fontSize: '0.85rem' }} /> Normal Findings (WNL)
+                                            </Typography>
+                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                              {normalPhrases.map((phrase, pIdx) => {
+                                                const isSelected = findingsValue.toLowerCase().includes(phrase.text.toLowerCase());
+                                                return (
+                                                  <Chip
+                                                    key={`norm-${pIdx}`}
+                                                    label={phrase.text}
+                                                    size="small"
+                                                    icon={isSelected ? <CheckIcon sx={{ fontSize: '0.85rem !important', color: 'inherit !important' }} /> : undefined}
+                                                    onClick={() => handleToggleFinding(system.key, phrase.text, false)}
+                                                    sx={{
+                                                      fontSize: '0.74rem',
+                                                      height: '26px',
+                                                      cursor: 'pointer',
+                                                      fontWeight: isSelected ? 600 : 400,
+                                                      transition: 'all 0.15s',
+                                                      ...(isSelected ? {
+                                                        bgcolor: '#10b981',
+                                                        color: '#ffffff',
+                                                        border: '1px solid #059669',
+                                                        boxShadow: '0 1px 3px rgba(16, 185, 129, 0.3)',
+                                                        '&:hover': { bgcolor: '#059669' }
+                                                      } : {
+                                                        bgcolor: (theme: any) => alpha(theme.palette.success.main, 0.05),
+                                                        borderColor: 'success.200',
+                                                        border: '1px solid',
+                                                        color: '#047857',
+                                                        '&:hover': {
+                                                          bgcolor: (theme: any) => alpha(theme.palette.success.main, 0.14),
+                                                          borderColor: 'success.main'
+                                                        }
+                                                      })
+                                                    }}
+                                                  />
+                                                );
+                                              })}
+                                            </Box>
+                                          </Box>
+                                        )}
+
+                                        {abnormalPhrases.length > 0 && (
+                                          <Box>
+                                            <Typography variant="caption" sx={{ color: '#b91c1c', fontWeight: 700, fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.75 }}>
+                                              <WarningIcon sx={{ fontSize: '0.85rem' }} /> Abnormal Findings
+                                            </Typography>
+                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                              {abnormalPhrases.map((phrase, pIdx) => {
+                                                const isSelected = findingsValue.toLowerCase().includes(phrase.text.toLowerCase());
+                                                return (
+                                                  <Chip
+                                                    key={`abn-${pIdx}`}
+                                                    label={phrase.text}
+                                                    size="small"
+                                                    icon={isSelected ? <CheckIcon sx={{ fontSize: '0.85rem !important', color: 'inherit !important' }} /> : undefined}
+                                                    onClick={() => handleToggleFinding(system.key, phrase.text, true)}
+                                                    sx={{
+                                                      fontSize: '0.74rem',
+                                                      height: '26px',
+                                                      cursor: 'pointer',
+                                                      fontWeight: isSelected ? 600 : 400,
+                                                      transition: 'all 0.15s',
+                                                      ...(isSelected ? {
+                                                        bgcolor: '#ef4444',
+                                                        color: '#ffffff',
+                                                        border: '1px solid #dc2626',
+                                                        boxShadow: '0 1px 3px rgba(239, 68, 68, 0.3)',
+                                                        '&:hover': { bgcolor: '#dc2626' }
+                                                      } : {
+                                                        bgcolor: (theme: any) => alpha(theme.palette.error.main, 0.05),
+                                                        borderColor: 'error.200',
+                                                        border: '1px solid',
+                                                        color: '#b91c1c',
+                                                        '&:hover': {
+                                                          bgcolor: (theme: any) => alpha(theme.palette.error.main, 0.14),
+                                                          borderColor: 'error.main'
+                                                        }
+                                                      })
+                                                    }}
+                                                  />
+                                                );
+                                              })}
+                                            </Box>
+                                          </Box>
+                                        )}
+
+                                        {phrases.length === 0 && (
+                                          <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                            No predefined quick phrases available for this system.
+                                          </Typography>
+                                        )}
+                                      </>
                                     );
-                                  })}
-                                  {(!quickPickPhrases[system.key] || quickPickPhrases[system.key].length === 0) && (
-                                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                      No quick phrases available for this system.
-                                    </Typography>
-                                  )}
+                                  })()}
                                 </Box>
                               </motion.div>
                             )}
@@ -6343,35 +7029,53 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                 justifyContent: 'space-between',
                 px: 2.5,
                 py: 1.5,
-                bgcolor: 'grey.50',
+                bgcolor: (theme: any) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'grey.50',
                 borderTop: '1px solid',
                 borderColor: 'divider',
                 borderRadius: '0 0 12px 12px',
                 flexWrap: 'wrap',
-                gap: 1
+                gap: 1.5
               }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Systems Examined: <strong>{totalExamined} / 12</strong>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    Systems Examined: <strong>{totalExamined} / 14</strong>
                   </Typography>
-                  {totalAbnormal > 0 && (
+                  {totalAbnormal > 0 ? (
                     <Box sx={{
                       bgcolor: '#ef4444',
                       color: 'white',
                       fontSize: '0.75rem',
                       fontWeight: 700,
-                      px: 1,
-                      py: 0.2,
-                      borderRadius: '10px',
+                      px: 1.2,
+                      py: 0.3,
+                      borderRadius: '12px',
                       display: 'inline-flex',
-                      alignItems: 'center'
+                      alignItems: 'center',
+                      gap: 0.5
                     }}>
-                      {totalAbnormal} Abnormal
+                      <WarningIcon sx={{ fontSize: '0.85rem' }} />
+                      {totalAbnormal} Abnormal Systems
                     </Box>
-                  )}
+                  ) : totalExamined === 14 ? (
+                    <Box sx={{
+                      bgcolor: '#10b981',
+                      color: 'white',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      px: 1.2,
+                      py: 0.3,
+                      borderRadius: '12px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 0.5
+                    }}>
+                      <CheckIcon sx={{ fontSize: '0.85rem' }} />
+                      Full Exam Complete (WNL)
+                    </Box>
+                  ) : null}
                 </Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                  Click status dots to cycle status: Gray (None) → Green (Normal) → Red (Abnormal)
+                <Typography variant="caption" color="text.secondary">
+                  💡 Tip: Click <strong>[Normal]</strong> or <strong>[Abnormal]</strong> on any system row, or click <strong>Phrases</strong> to pick findings.
                 </Typography>
               </Box>
 
