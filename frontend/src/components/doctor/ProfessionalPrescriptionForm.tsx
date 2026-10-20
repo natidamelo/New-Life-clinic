@@ -17,6 +17,7 @@ import type { Service } from '../../types/service';
 import { useClinic } from '../../context/ClinicContext';
 // PrescriptionExtensionModal import removed - simplified prescription system
 import { formatDisplayAge } from '../../utils/formatters';
+import { generateMedicalReportHeaderHTML, getMedicalReportHeaderStyles, formatFileNo } from '../../utils/medicalReportHeader';
 
 // Add logo path constants
 const LOGO_PATH = '/assets/images/logo.jpg';
@@ -3552,78 +3553,37 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                                  }
                              }
                          }
-                    </style>
+                    
+                            ${getMedicalReportHeaderStyles()}
+</style>
                                  </head>
                  <body>
                      <div class="prescription-container">
-                         <div class="prescription-header">
-                             <img src="${clinic?.logo || LOGO_PATH}" alt="Logo" class="clinic-logo" onerror="this.style.display='none'">
-                             <div class="clinic-info-center">
-                                 <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
-                                 <div class="clinic-subtitle"><strong>Pharmaceutical Services</strong></div>
-                             </div>
-                             <div class="clinic-contact-right">
-                                 <strong>📍 ${clinic?.address || 'Lafto beside Kebron Guest House'}</strong><br>
-                                 <strong>📞 ${clinic?.contactPhone || '+251925959219'}</strong>
-                             </div>
-                         </div>
-                         <div class="document-type-badge">
-                             <span>── Medical Prescription ──</span>
-                         </div>
-                         <div class="prescription-meta" style="display:flex;justify-content:space-between;font-size:9px;color:#333;background:#f5f5f5;padding:4px 6px;border-radius:4px;border:1px solid #ccc;margin-bottom:8px;">
-                             <div><strong>Date:</strong> ${currentDate}</div>
-                             <div><strong>Status:</strong> Active</div>
-                             <div><strong>ID:</strong> ${Date.now().toString().slice(-6)}</div>
-                         </div>
+                         ${generateMedicalReportHeaderHTML({
+                            reportTitle: 'PRESCRIPTION & MEDICATION Report',
+                            clinic,
+                            patient: {
+                                name: [patient.firstName, patient.lastName].filter(Boolean).join(' ') || (patient as any).name || 'Unknown Patient',
+                                mrn: patient.patientId || (patient as any).mrn || patient._id || '05428826',
+                                dob: patient.dateOfBirth || (patient as any).dob,
+                                age: patient.age,
+                                gender: patient.gender,
+                                patientLocation: patient.roomNumber ? `Inpatient (Room ${patient.roomNumber})` : (patient.status === 'Inpatient' ? 'Inpatient' : 'Walk-In'),
+                                serviceLocation: clinic?.branch || 'Bole'
+                            },
+                            reportInfo: {
+                                modalityLabel: 'MEDICATION',
+                                orderDateTime: currentDate,
+                                fileNo: formatFileNo(patient.patientId || patient._id, Date.now().toString().slice(-6)),
+                                doneDateTime: new Date(),
+                                doneBy: 'Clinical Pharmacy / Dispensing Staff',
+                                requestedBy: (user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Attending Physician') || 'Attending Physician',
+                                reportDateTime: new Date(),
+                                reportDoneBy: (user ? `Dr. ${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Dr. Prescribing Physician') + ' (Medical Practitioner)'
+                            }
+                        })}
 
-                         <div class="patient-section">
-                             <div class="patient-title">
-                                 👤 Patient Information
-                             </div>
-                             <div class="patient-info">
-                                 <div class="info-item">
-                                     <span class="info-label">Full Name:</span>
-                                     <span class="info-value">${patient.firstName} ${patient.lastName}</span>
-                                 </div>
-                                 <div class="info-item">
-                                     <span class="info-label">Age:</span>
-                                     <span class="info-value">${patient.age !== undefined && patient.age !== null ? formatDisplayAge(patient.age) : 'Not specified'}</span>
-                                 </div>
-                                 <div class="info-item">
-                                     <span class="info-label">Gender:</span>
-                                     <span class="info-value">${patient.gender || 'Not specified'}</span>
-                                 </div>
-                                 <div class="info-item">
-                                     <span class="info-label">Patient ID:</span>
-                                     <span class="info-value">${patient.patientId || patient._id}</span>
-                                 </div>
-                                 ${patient.phoneNumber ? `
-                                     <div class="info-item">
-                                         <span class="info-label">Phone:</span>
-                                         <span class="info-value">${patient.phoneNumber}</span>
-                                     </div>
-                                 ` : ''}
-                                ${patient.address ? `
-                                    <div class="info-item">
-                                        <span class="info-label">Address:</span>
-                                        <span class="info-value">${patient.address}</span>
-                                    </div>
-                                ` : ''}
-                                <div class="info-item" style="grid-column: 1 / -1; display: flex; align-items: center; gap: 15px;">
-                                    <span class="info-label">Patient Type:</span>
-                                    <label style="display: flex; align-items: center; gap: 5px;">
-                                        <input type="checkbox" style="width: 14px; height: 14px; border: 1px solid #333;">
-                                        <span>In-patient</span>
-                                    </label>
-                                    <label style="display: flex; align-items: center; gap: 5px;">
-                                        <input type="checkbox" style="width: 14px; height: 14px; border: 1px solid #333;">
-                                        <span>Out-patient</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                         <div class="prescription-title">
+                        <div class="prescription-title">
                              💊 Prescription Details
                          </div>
 

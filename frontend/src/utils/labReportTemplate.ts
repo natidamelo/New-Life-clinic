@@ -1,4 +1,6 @@
 // Professional Lab Report Template
+import { generateMedicalReportHeaderHTML, getMedicalReportHeaderStyles, formatFileNo } from './medicalReportHeader';
+
 export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?: any) => {
   const getResultFlag = (value: string, normalRange: string) => {
     if (!value || !normalRange || normalRange === 'Not specified' || normalRange.trim() === '') {
@@ -366,57 +368,35 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?:
             .footer { background: white !important; color: black !important; border-top: 1px solid black !important; }
             .sig-line { border-bottom: 1px solid black !important; }
           }
+          ${getMedicalReportHeaderStyles()}
         </style>
       </head>
       <body>
         <div class="page">
-          <!-- Header -->
-          <div class="header">
-            ${clinic?.logo ? `
-              <img src="${clinic.logo}" alt="Logo" class="header-logo" onerror="this.style.display='none'" />
-            ` : `
-              <div class="header-logo-fallback">${(clinic?.name || 'New Life')[0].toUpperCase()}</div>
-            `}
-            <div class="header-info-center">
-              <div class="header-clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic'}</div>
-              <div class="header-subtitle">Comprehensive Lab Analysis</div>
-            </div>
-            <div class="header-contact-right">
-              📍 ${clinic?.address || 'Lafto, beside Kebron Guest House'}<br>
-              📞 ${clinic?.phone || clinic?.phoneNumber || '+251925959219'}<br>
-              <span class="header-date">${reportDate} at ${reportTime}</span><br>
-              <span class="report-id-badge"># ${reportId}</span>
-            </div>
-          </div>
-          <div class="document-type-badge">
-            <span>── Laboratory Report ──</span>
-          </div>
-
-          <!-- Patient Info -->
-          <div class="patient-section">
-            <div class="patient-grid">
-              <div class="patient-card">
-                <div class="patient-card-label">Patient Name</div>
-                <div class="patient-card-value">${selectedPatient.patientName || '<span class="not-recorded">Not recorded</span>'}</div>
-              </div>
-              <div class="patient-card">
-                <div class="patient-card-label">Patient ID</div>
-                <div class="patient-card-value" style="font-family:monospace">${selectedPatient.patientId || '<span class="not-recorded">N/A</span>'}</div>
-              </div>
-              <div class="patient-card">
-                <div class="patient-card-label">Gender</div>
-                <div class="patient-card-value">${selectedPatient.gender || '<span class="not-recorded">Not recorded</span>'}</div>
-              </div>
-              <div class="patient-card">
-                <div class="patient-card-label">Age</div>
-                <div class="patient-card-value">${selectedPatient.age ? selectedPatient.age + ' yrs' : '<span class="not-recorded">Not recorded</span>'}</div>
-              </div>
-              <div class="patient-card">
-                <div class="patient-card-label">Date of Birth</div>
-                <div class="patient-card-value">${selectedPatient.dob || '<span class="not-recorded">Not recorded</span>'}</div>
-              </div>
-            </div>
-          </div>
+          <!-- Official Medical Header -->
+          ${generateMedicalReportHeaderHTML({
+            reportTitle: 'LABORATORY Report',
+            clinic,
+            patient: {
+              name: selectedPatient.patientName,
+              mrn: selectedPatient.patientId,
+              dob: selectedPatient.dob,
+              age: selectedPatient.age,
+              gender: selectedPatient.gender,
+              patientLocation: selectedPatient.patientLocation || (selectedPatient.status === 'Inpatient' ? 'Inpatient' : 'Walk-In'),
+              serviceLocation: clinic?.branch || 'Bole'
+            },
+            reportInfo: {
+              modalityLabel: 'LAB',
+              orderDateTime: selectedPatient.tests?.[0]?.orderDate || new Date(),
+              fileNo: formatFileNo(selectedPatient.patientId, reportId),
+              doneDateTime: new Date(),
+              doneBy: selectedPatient.verifiedBy || 'Tensae Nebiyou (Lab Tech)',
+              requestedBy: selectedPatient.physician || 'Referral',
+              reportDateTime: new Date(),
+              reportDoneBy: selectedPatient.verifiedBy ? (selectedPatient.verifiedBy.startsWith('Dr.') ? selectedPatient.verifiedBy : 'Dr. ' + selectedPatient.verifiedBy) + ' (Pathologist / Lab Director)' : (selectedPatient.physician ? selectedPatient.physician + ' (Medical Director)' : 'Dr. DR Natan (Pathologist / Lab Director)')
+            }
+          })}
 
           <!-- Results -->
           <div class="section-title">Laboratory Results</div>

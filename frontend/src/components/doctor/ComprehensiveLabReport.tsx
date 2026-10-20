@@ -7,6 +7,7 @@ import { useClinic } from '../../context/ClinicContext';
 
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
+import { generateMedicalReportHeaderHTML, getMedicalReportHeaderStyles, MedicalReportHeaderReact, formatFileNo } from '../../utils/medicalReportHeader';
 
 interface ComprehensiveLabReportProps {
   patientResults: PatientLabResults;
@@ -302,36 +303,34 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
               font-style: italic;
               color: #666;
             }
+            ${getMedicalReportHeaderStyles()}
           </style>
         </head>
         <body>
           <div class="watermark">Confidential Medical Record</div>
-          <div class="report-header">
-            <div class="report-header-left">
-              <img src="${clinic?.logo || LOGO_PATH}" class="clinic-logo" alt="Logo" onerror="this.onerror=null; this.src='${LOGO_FALLBACK}';" />
-              <div>
-                <div class="report-title">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic'}</div>
-                <div class="clinic-info">Comprehensive Laboratory Analysis</div>
-              </div>
-            </div>
-            <div class="report-header-right">
-              <div>📍 ${clinic?.address || 'Lafto, beside Kebron Guest House'}</div>
-              <div>📞 ${clinic?.contactPhone || '+251925959219'}</div>
-              <div>Date: ${new Date().toLocaleDateString()}</div>
-              <div>Report #${(patientResults as any).reportId || Math.random().toString(36).substring(2, 10).toUpperCase()}</div>
-            </div>
-          </div>
-          <div class="document-type-badge">
-            <span>── Laboratory Report ──</span>
-          </div>
-          
-          <div class="patient-info">
-            <div class="info-item"><span class="info-label">Patient Name:</span> ${patientResults.patientName || '<span class="missing-data">Not recorded</span>'}</div>
-            <div class="info-item"><span class="info-label">Patient ID:</span> ${patientResults.patientId || '<span class="missing-data">Not recorded</span>'}</div>
-            <div class="info-item"><span class="info-label">Age & Gender:</span> ${patientResults.age !== undefined && patientResults.age !== null ? formatDisplayAge(patientResults.age) : 'Unknown'}, ${patientResults.gender || 'Unknown'}</div>
-            <div class="info-item"><span class="info-label">Physician:</span> ${patientResults.physician || 'Dr. Assigned'}</div>
-            <div class="info-item" style="border: 1px solid #cce5ff; background: #e6f2ff; padding: 2px 4px; border-radius: 3px;"><span class="info-label" style="color: #004085;">Report Date:</span> <span style="font-weight:bold; color:#004085;">${new Date().toLocaleDateString()}</span></div>
-          </div>
+          ${generateMedicalReportHeaderHTML({
+            reportTitle: 'LABORATORY Report',
+            clinic,
+            patient: {
+              name: patientResults.patientName,
+              mrn: patientResults.patientId,
+              dob: patientResults.dob,
+              age: patientResults.age,
+              gender: patientResults.gender,
+              patientLocation: (patientResults as any).patientLocation || (patientResults.status === 'Inpatient' ? 'Inpatient' : 'Walk-In'),
+              serviceLocation: clinic?.branch || 'Bole'
+            },
+            reportInfo: {
+              modalityLabel: 'LAB',
+              orderDateTime: patientResults.latestDate || patientResults.tests?.[0]?.orderDate || new Date(),
+              fileNo: formatFileNo(patientResults.patientId, (patientResults as any).reportId || patientResults.tests?.[0]?._id),
+              doneDateTime: patientResults.latestDate || new Date(),
+              doneBy: patientResults.verifiedBy || 'Tensae Nebiyou (Lab Tech)',
+              requestedBy: patientResults.physician || 'Referral',
+              reportDateTime: new Date(),
+              reportDoneBy: patientResults.verifiedBy ? (patientResults.verifiedBy.startsWith('Dr.') ? patientResults.verifiedBy : 'Dr. ' + patientResults.verifiedBy) + ' (Pathologist / Lab Director)' : (patientResults.physician ? patientResults.physician + ' (Medical Director)' : 'Dr. DR Natan (Pathologist / Lab Director)')
+            }
+          })}
             
             <div class="results-title">Results</div>
             
@@ -440,6 +439,7 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
       // Add some additional styling
       const style = document.createElement('style');
       style.textContent = `
+        ${getMedicalReportHeaderStyles()}
         table { 
           width: 100%; 
           border-collapse: collapse; 
@@ -1482,29 +1482,29 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
     // Generate the header only if requested
     if (includeHeader) {
       html += `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #444;">
-          <div style="display: flex; align-items: center;">
-            <img src="${clinic?.logo || LOGO_PATH}" style="max-width: 80px; max-height: 80px; margin-right: 15px;" alt="${clinic?.name || 'New Life Medium Clinic'} Logo" onerror="this.onerror=null; this.src='${LOGO_FALLBACK}';" />
-            <div>
-              <div style="font-size: 20px; font-weight: bold; margin-bottom: 3px; color: #222;">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic'}</div>
-              <div style="font-size: 12px; margin-bottom: 3px;">Comprehensive Lab Report</div>
-              <div style="font-size: 11px; color: #555;">Location: ${clinic?.address || 'Lafto, beside Kebron Guest House'}</div>
-              <div style="font-size: 11px; color: #555;">Phone: ${clinic?.contactPhone || '+251925959219'}</div>
-            </div>
-          </div>
-          <div style="text-align: right;">
-            <div>Date: ${new Date().toLocaleDateString()}</div>
-            <div>Report ID: ${Math.random().toString(36).substring(2, 10).toUpperCase()}</div>
-          </div>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; padding: 10px; background-color: #f9f9f9; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 11px; margin-bottom: 15px;">
-          <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Patient Name:</span> ${patientResults.patientName || '<span style="color: #888; font-style: italic;">Not recorded</span>'}</div>
-          <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Patient ID:</span> ${patientResults.patientId || '<span style="color: #888; font-style: italic;">Not recorded</span>'}</div>
-          <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Age & Gender:</span> ${patientResults.age !== undefined && patientResults.age !== null ? formatDisplayAge(patientResults.age) : 'Unknown'}, ${patientResults.gender || 'Unknown'}</div>
-          <div style="margin-bottom: 4px;"><span style="font-weight: bold; display: inline-block; min-width: 90px;">Physician:</span> ${patientResults.physician || 'Dr. Assigned'}</div>
-          <div style="margin-bottom: 4px; border: 1px solid #cce5ff; background: #e6f2ff; padding: 2px 4px; border-radius: 3px;"><span style="font-weight: bold; display: inline-block; min-width: 90px; color: #004085;">Report Date:</span> <span style="font-weight:bold; color:#004085;">${new Date().toLocaleDateString()}</span></div>
-        </div>
+        ${generateMedicalReportHeaderHTML({
+          reportTitle: 'LABORATORY Report',
+          clinic,
+          patient: {
+            name: patientResults.patientName,
+            mrn: patientResults.patientId,
+            dob: patientResults.dob,
+            age: patientResults.age,
+            gender: patientResults.gender,
+            patientLocation: (patientResults as any).patientLocation || (patientResults.status === 'Inpatient' ? 'Inpatient' : 'Walk-In'),
+            serviceLocation: clinic?.branch || 'Bole'
+          },
+          reportInfo: {
+            modalityLabel: 'LAB',
+            orderDateTime: patientResults.latestDate || patientResults.tests?.[0]?.orderDate || new Date(),
+            fileNo: formatFileNo(patientResults.patientId, (patientResults as any).reportId || patientResults.tests?.[0]?._id),
+            doneDateTime: patientResults.latestDate || new Date(),
+            doneBy: patientResults.verifiedBy || 'Tensae Nebiyou (Lab Tech)',
+            requestedBy: patientResults.physician || 'Referral',
+            reportDateTime: new Date(),
+            reportDoneBy: patientResults.verifiedBy ? (patientResults.verifiedBy.startsWith('Dr.') ? patientResults.verifiedBy : 'Dr. ' + patientResults.verifiedBy) + ' (Pathologist / Lab Director)' : (patientResults.physician ? patientResults.physician + ' (Medical Director)' : 'Dr. DR Natan (Pathologist / Lab Director)')
+          }
+        })}
         
         <div style="font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #ddd; padding-bottom: 3px;">Results</div>
       `;
@@ -1839,26 +1839,35 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
         </div>
       </div>
 
-      {/* Patient Information */}
-      <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/60 shrink-0 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl font-bold text-gray-200/40 pointer-events-none uppercase tracking-widest whitespace-nowrap rotate-[-12deg] z-0">
+      {/* Patient Information - Official Header */}
+      <div className="px-6 py-4 border-b border-gray-100 bg-white shrink-0 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl font-bold text-gray-200/30 pointer-events-none uppercase tracking-widest whitespace-nowrap rotate-[-12deg] z-0">
           Confidential Medical Record
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
-          {[
-            { label: 'Patient Name', value: patientResults.patientName, icon: <User size={14} /> },
-            { label: 'Patient ID', value: patientResults.patientId, mono: true, icon: <Hash size={14} /> },
-            { label: 'Age & Gender', value: `${patientResults.age !== undefined && patientResults.age !== null ? formatDisplayAge(patientResults.age) : 'Unknown'}, ${patientResults.gender || 'Unknown'}`, capitalize: true, icon: <User size={14} /> },
-            { label: 'Physician', value: patientResults.physician || 'Dr. Assigned', icon: <User size={14} /> },
-            { label: 'Report Date', value: formatDate(new Date()), prominent: true, icon: <Calendar size={14} /> },
-          ].map(({ label, value, mono, capitalize, icon, prominent }) => (
-            <div key={label} className={`bg-white rounded-lg px-4 py-3 border ${prominent ? 'border-blue-200 shadow-sm bg-blue-50/30' : 'border-gray-200'}`}>
-              <div className={`flex items-center gap-1.5 mb-1 ${prominent ? 'text-blue-500' : 'text-gray-400'}`}>{icon}<span className="text-xs font-semibold uppercase tracking-wide">{label}</span></div>
-              <p className={`text-sm ${prominent ? 'text-blue-900 font-bold' : 'text-gray-800 font-semibold'} truncate ${mono ? 'font-mono' : ''} ${capitalize ? 'capitalize' : ''}`}>
-                {value || <span className="text-gray-400 italic font-normal text-xs">Not recorded</span>}
-              </p>
-            </div>
-          ))}
+        <div className="relative z-10">
+          <MedicalReportHeaderReact
+            reportTitle="LABORATORY Report"
+            clinic={clinic}
+            patient={{
+              name: patientResults.patientName,
+              mrn: patientResults.patientId,
+              dob: patientResults.dob,
+              age: patientResults.age,
+              gender: patientResults.gender,
+              patientLocation: (patientResults as any).patientLocation || (patientResults.status === 'Inpatient' ? 'Inpatient' : 'Walk-In'),
+              serviceLocation: clinic?.branch || 'Bole'
+            }}
+            reportInfo={{
+              modalityLabel: 'LAB',
+              orderDateTime: patientResults.latestDate || patientResults.tests?.[0]?.orderDate || new Date(),
+              fileNo: formatFileNo(patientResults.patientId, (patientResults as any).reportId || patientResults.tests?.[0]?._id),
+              doneDateTime: patientResults.latestDate || new Date(),
+              doneBy: patientResults.verifiedBy || 'Tensae Nebiyou (Lab Tech)',
+              requestedBy: patientResults.physician || 'Referral',
+              reportDateTime: new Date(),
+              reportDoneBy: patientResults.verifiedBy ? (patientResults.verifiedBy.startsWith('Dr.') ? patientResults.verifiedBy : 'Dr. ' + patientResults.verifiedBy) + ' (Pathologist / Lab Director)' : (patientResults.physician ? patientResults.physician + ' (Medical Director)' : 'Dr. DR Natan (Pathologist / Lab Director)')
+            }}
+          />
         </div>
       </div>
 

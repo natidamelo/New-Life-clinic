@@ -21,6 +21,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import { useClinic } from '../../context/ClinicContext';
 import { formatDisplayAge } from '../../utils/formatters';
+import { generateMedicalReportHeaderHTML, getMedicalReportHeaderStyles, formatFileNo } from '../../utils/medicalReportHeader';
 
 interface Medication {
   name: string;
@@ -769,65 +770,35 @@ const EMRPrescriptionSystem: React.FC = () => {
                           }
                       }
                   }
-              </style>
+              
+                  ${getMedicalReportHeaderStyles()}
+</style>
           </head>
           <body>
               <div class="prescription-container">
-                  <div class="prescription-header">
-                      <img src="${clinic?.logo || '/assets/images/logo.jpg'}" alt="Logo" class="clinic-logo" onerror="this.style.display='none'">
-                      <div class="clinic-info-center">
-                          <div class="clinic-name">${clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
-                          <div class="clinic-subtitle"><strong>Pharmaceutical Services</strong></div>
-                      </div>
-                      <div class="clinic-contact-right">
-                          <strong>📍 ${clinic?.address || 'Lafto beside Kebron Guest House'}</strong><br>
-                          <strong>📞 ${clinic?.contactPhone || '+251925959219'}</strong>
-                      </div>
-                      <div class="prescription-meta">
-                          <div><strong>Date:</strong> ${currentDate}</div>
-                          <div><strong>Status:</strong> Active</div>
-                          <div><strong>ID:</strong> ${prescription._id.slice(-6)}</div>
-                      </div>
-                  </div>
-                  <div class="document-type-badge">
-                      <span>── Medical Prescription ──</span>
-                  </div>
-
-                  <div class="patient-section">
-                      <div class="patient-title">
-                          👤 Patient Information
-                      </div>
-                      <div class="patient-info">
-                          <div class="info-item">
-                              <span class="info-label">Full Name:</span>
-                              <span class="info-value">${prescription.patient.firstName} ${prescription.patient.lastName}</span>
-                          </div>
-                          <div class="info-item">
-                              <span class="info-label">Age:</span>
-                              <span class="info-value">${calculateAge(prescription.patient.dateOfBirth)}</span>
-                          </div>
-                          <div class="info-item">
-                              <span class="info-label">Gender:</span>
-                              <span class="info-value">${prescription.patient.gender || 'Not specified'}</span>
-                          </div>
-                          <div class="info-item">
-                              <span class="info-label">Patient ID:</span>
-                              <span class="info-value">${prescription.patient.patientId || prescription.patient._id}</span>
-                          </div>
-                          ${prescription.patient.phoneNumber ? `
-                              <div class="info-item">
-                                  <span class="info-label">Phone:</span>
-                                  <span class="info-value">${prescription.patient.phoneNumber}</span>
-                              </div>
-                          ` : ''}
-                          ${prescription.patient.address ? `
-                              <div class="info-item">
-                                  <span class="info-label">Address:</span>
-                                  <span class="info-value">${prescription.patient.address}</span>
-                              </div>
-                          ` : ''}
-                      </div>
-                  </div>
+                  ${generateMedicalReportHeaderHTML({
+                      reportTitle: 'PRESCRIPTION & MEDICATION Report',
+                      clinic,
+                      patient: {
+                          name: [prescription.patient.firstName, prescription.patient.lastName].filter(Boolean).join(' ') || 'Unknown Patient',
+                          mrn: prescription.patient.patientId || prescription.patient._id || '05428826',
+                          dob: prescription.patient.dateOfBirth,
+                          age: calculateAge(prescription.patient.dateOfBirth),
+                          gender: prescription.patient.gender,
+                          patientLocation: prescription.patient.roomNumber ? `Inpatient (Room ${prescription.patient.roomNumber})` : (prescription.patient.status === 'Inpatient' ? 'Inpatient' : 'Walk-In'),
+                          serviceLocation: clinic?.branch || 'Bole'
+                      },
+                      reportInfo: {
+                          modalityLabel: 'MEDICATION',
+                          orderDateTime: currentDate,
+                          fileNo: formatFileNo(prescription.patient.patientId || prescription.patient._id, prescription._id),
+                          doneDateTime: new Date(),
+                          doneBy: 'Clinical Pharmacy / Dispensing Staff',
+                          requestedBy: prescription.doctor || 'Attending Physician',
+                          reportDateTime: new Date(),
+                          reportDoneBy: (prescription.doctor ? (prescription.doctor.startsWith('Dr.') ? prescription.doctor : 'Dr. ' + prescription.doctor) : 'Dr. Assigned') + ' (Prescribing Physician)'
+                      }
+                  })}
 
                   <div class="prescription-title">
                       💊 Prescription Details

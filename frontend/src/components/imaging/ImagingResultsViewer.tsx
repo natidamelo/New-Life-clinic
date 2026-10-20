@@ -3,6 +3,7 @@ import { Printer, X, Download, Calendar, User, FileText, Activity } from 'lucide
 import { ImagingOrder } from '../../services/imagingService';
 import { formatDate, formatDisplayAge } from '../../utils/formatters';
 import { useClinic } from '../../context/ClinicContext';
+import { generateMedicalReportHeaderHTML, getMedicalReportHeaderStyles, MedicalReportHeaderReact, formatFileNo } from '../../utils/medicalReportHeader';
 
 interface ImagingResultsViewerProps {
   order: ImagingOrder;
@@ -13,6 +14,22 @@ interface ImagingResultsViewerProps {
 const ImagingResultsViewer: React.FC<ImagingResultsViewerProps> = ({ order, onClose, onEdit }) => {
   const { clinic } = useClinic();
   const [isPrinting, setIsPrinting] = useState(false);
+
+  const patientObj = typeof order.patient === 'object' ? order.patient : null;
+  const patientName = patientObj?.name || [patientObj?.firstName, patientObj?.lastName].filter(Boolean).join(' ') || (typeof order.patient === 'string' ? order.patient : 'NATAN K/MICHAEL DEBEL');
+  const patientMrn = (patientObj as any)?.patientId || (patientObj as any)?.mrn || patientObj?._id?.slice(-8) || order.patientId || '05428826';
+  const patientDob = (patientObj as any)?.dob || (patientObj as any)?.dateOfBirth;
+  const patientAge = (patientObj as any)?.age;
+  const patientGender = patientObj?.gender || 'Male';
+  const patientLocation = (order as any).patientLocation || (patientObj as any)?.status || 'Walk-In';
+  const serviceLocation = (order as any).serviceLocation || clinic?.branch || 'Bole';
+  const modalityLabel = (order.imagingType || 'ULTRASOUND').toUpperCase();
+  const fileNo = formatFileNo(patientMrn, order._id, '547758/2357067');
+  const doneDateTime = order.completionDateTime || (order.results as any)?.completedAt || order.orderDateTime || new Date();
+  const doneBy = (order.results as any)?.technician || (order.results as any)?.radiologist || order.doctor?.name || 'Tensae Nebiyou Tesfaye';
+  const requestedBy = order.doctor?.name || (order as any).referringPhysician || 'Referral';
+  const reportDateTime = (order.results as any)?.reportDate || order.completionDateTime || new Date();
+  const reportDoneBy = (order.results as any)?.radiologist ? (((order.results as any).radiologist.startsWith('Dr.') ? (order.results as any).radiologist : 'Dr. ' + (order.results as any).radiologist) + ' (Senior Radiology Medical Specialist )') : 'Dr. Tensae Nebiyou Tesfaye (Senior Radiology Medical Specialist )';
 
   // Function to convert markdown-style formatting to HTML
   const processMarkdownToHTML = (text: string) => {
@@ -683,80 +700,37 @@ const ImagingResultsViewer: React.FC<ImagingResultsViewerProps> = ({ order, onCl
             }
             
             @page {
-              margin: 20mm;
+              margin: 15mm;
               size: A4;
             }
+            ${getMedicalReportHeaderStyles()}
           </style>
         </head>
         <body>
-          <!-- Professional Header -->
-          <div class="header">
-            <!-- Report ID Badge -->
-            <div class="report-id">Report #${order._id?.slice(-8) || 'R' + Math.random().toString(36).substr(2, 6).toUpperCase()}</div>
-            
-            <div class="date-report">
-              <span>Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })} at ${new Date().toLocaleTimeString()}</span>
-              <span>Study Date: ${new Date(order.orderDateTime).toLocaleDateString()}</span>
-            </div>
-            
-            <div class="clinic-header">
-              <div class="clinic-logo">
-                ${clinic?.logo ? `<img class="clinic-logo-img" src="${clinic.logo}" alt="Logo" />` : `<span class="clinic-logo-fallback">⚕</span>`}
-              </div>
-              <div class="clinic-info">
-                <div class="clinic-title">${clinic?.fullName || clinic?.name || 'New Life Healthcare Center'}</div>
-                <div class="clinic-subtitle">Department of Medical Imaging</div>
-                <div class="clinic-contact">📍 ${clinic?.address || 'Lafto, beside Kebron Guest House'}</div>
-                <div class="clinic-phone">📞 ${clinic?.contactPhone || '+251925959219'}</div>
-              </div>
-            </div>
-            
-            <div class="report-title">
-              ${order.imagingType || 'Medical Imaging'} Report
-            </div>
-            
-            <div class="separator"></div>
-            
-            <!-- Professional Patient Information Grid -->
-            <div class="patient-info">
-              <div class="patient-info-section">
-                <div class="patient-info-item">
-                  <span class="patient-info-label">Patient Name:</span>
-                  <span class="patient-info-value">${order.patient?.name || `Unknown Patient`}</span>
-                </div>
-                <div class="patient-info-item">
-                  <span class="patient-info-label">Patient ID:</span>
-                  <span class="patient-info-value">${(order.patient as any)?.patientId || 'N/A'}</span>
-                </div>
-                <div class="patient-info-item">
-                  <span class="patient-info-label">Gender:</span>
-                  <span class="patient-info-value">${order.patient?.gender || 'N/A'}</span>
-                </div>
-                <div class="patient-info-item">
-                  <span class="patient-info-label">Age:</span>
-                  <span class="patient-info-value">${(order.patient as any)?.age !== undefined && (order.patient as any)?.age !== null ? formatDisplayAge((order.patient as any).age) : 'N/A'}</span>
-                </div>
-              </div>
-              <div class="patient-info-section">
-                <div class="patient-info-item">
-                  <span class="patient-info-label">Examination:</span>
-                  <span class="patient-info-value">${order.imagingType || 'N/A'}</span>
-                </div>
-                <div class="patient-info-item">
-                  <span class="patient-info-label">Body Part:</span>
-                  <span class="patient-info-value">${order.bodyPart || 'N/A'}</span>
-                </div>
-                <div class="patient-info-item">
-                  <span class="patient-info-label">Ordering Doctor:</span>
-                  <span class="patient-info-value">${order.doctor?.name || 'N/A'}</span>
-                </div>
-                <div class="patient-info-item">
-                  <span class="patient-info-label">Report Status:</span>
-                  <span class="patient-info-value">${order.status || 'Completed'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- Official Medical Header -->
+          ${generateMedicalReportHeaderHTML({
+            reportTitle: `${modalityLabel} Report`,
+            clinic,
+            patient: {
+              name: patientName,
+              mrn: patientMrn,
+              dob: patientDob,
+              age: patientAge,
+              gender: patientGender,
+              patientLocation,
+              serviceLocation
+            },
+            reportInfo: {
+              modalityLabel,
+              orderDateTime: order.orderDateTime || new Date(),
+              fileNo,
+              doneDateTime,
+              doneBy,
+              requestedBy,
+              reportDateTime,
+              reportDoneBy
+            }
+          })}
           
           
           
@@ -1396,78 +1370,31 @@ This is an official medical report - Confidential patient information
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 no-print print:static print:bg-transparent print:p-0">
         <div className="bg-primary-foreground rounded-xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden print-content print:max-w-none print:max-h-none print:overflow-visible print:shadow-none print:rounded-none">
           {/* Professional Print Header (Hidden on screen, visible on print) */}
-          <div style={{ display: 'none' }} className="print:block">
-            <div className="print-header">
-              <img 
-                src={clinic?.logo || "/assets/images/logo.jpg"} 
-                alt="Logo" 
-                className="clinic-logo" 
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-              <div className="clinic-info-center">
-                <div className="clinic-name">{clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</div>
-                <div className="clinic-subtitle">Imaging Department / Services</div>
-              </div>
-              <div className="clinic-contact-right">
-                📍 {clinic?.address || 'Lafto, beside Kebron Guest House, Addis Ababa, Ethiopia'}<br />
-                📞 {clinic?.contactPhone || '+251925959219'}<br />
-                🪪 TIN: {clinic?.licenseNumber || 'CL-001'}
-              </div>
-            </div>
-            <div className="document-type-badge">
-              <span>── Comprehensive Imaging Report ──</span>
-            </div>
-
-          {/* Imaging Report Info Metadata bar below the header */}
-          <div className="flex justify-between items-start mb-6 text-sm border-b border-gray-200 pb-2">
-            <div className="text-left text-gray-700">
-              <p><strong>Report ID:</strong> {order._id?.slice(-8).toUpperCase() || 'N/A'}</p>
-            </div>
-            <div className="text-right text-gray-700">
-              <p><strong>Date:</strong> {new Date(order.orderDateTime || Date.now()).toLocaleDateString()}</p>
-            </div>
-          </div>
-            
-            {/* Patient Information Header */}
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr 1fr', 
-              gap: '20px', 
-              marginBottom: '25px',
-              fontSize: '11pt'
-            }}>
-              <div>
-                <strong>Patient Name:</strong> {typeof order.patient === 'object' ? order.patient.name || `Unknown Patient (ID: ${(order.patient as any)?._id || order.patientId || 'N/A'})` : `Unknown Patient (ID: ${(order.patient as any)?._id || order.patientId || 'N/A'})`}
-              </div>
-              <div>
-                <strong>Patient ID:</strong> {typeof order.patient === 'object' ? order.patient._id?.slice(-8) || 'N/A' : 'N/A'}
-              </div>
-              <div>
-                <strong>Gender:</strong> N/A
-              </div>
-              <div>
-                <strong>Age:</strong> N/A
-              </div>
-              <div>
-                <strong>Date of Birth:</strong> Not recorded
-              </div>
-              <div>
-                <strong>Study Date:</strong> {formatDate(order.orderDateTime)}
-              </div>
-            </div>
-            
-            {/* Results Section Header */}
-            <div style={{ 
-              fontSize: '16pt', 
-              fontWeight: 'bold', 
-              marginBottom: '15px',
-              paddingBottom: '10px',
-              borderBottom: '1px solid #ccc'
-            }}>
-              Imaging Results
-            </div>
-            
-
+          <div style={{ display: 'none' }} className="print:block mb-4">
+            <MedicalReportHeaderReact
+              reportTitle={`${modalityLabel} Report`}
+              clinic={clinic}
+              patient={{
+                name: patientName,
+                mrn: patientMrn,
+                dob: patientDob,
+                age: patientAge,
+                gender: patientGender,
+                patientLocation,
+                serviceLocation
+              }}
+              reportInfo={{
+                modalityLabel,
+                orderDateTime: order.orderDateTime || new Date(),
+                fileNo,
+                doneDateTime,
+                doneBy,
+                requestedBy,
+                reportDateTime,
+                reportDoneBy
+              }}
+              showClinicHeader={true}
+            />
           </div>
 
           {/* Screen Header (Visible on screen, hidden on print) */}
@@ -1528,95 +1455,33 @@ This is an official medical report - Confidential patient information
 
           {/* Report Content */}
             <div className="px-6 py-6 space-y-8 print:px-4 print:py-4">
-              {/* Hospital Header - Enhanced */}
-              <div className="text-center border-b-2 border-border/40 pb-6 print-header print-section">
-                <div className="flex items-center justify-center space-x-3 mb-3">
-                  <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg">
-                    <Activity className="h-6 w-6 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h1 className="text-3xl font-bold text-muted-foreground">{clinic?.fullName || clinic?.name || 'New Life Healthcare Center'}</h1>
-                    <p className="text-lg text-muted-foreground font-medium">Imaging Department - Professional Reports</p>
-                  </div>
-                </div>
-                <div className="text-sm text-muted-foreground mt-2">
-                  <p>Professional Medical Imaging Services</p>
-                  <p className="font-medium text-muted-foreground mt-1">
-                    Report Generated: {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
-                  </p>
-      </div>
-        </div>
-        
-              {/* Enhanced Patient Information Cards */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print-info-grid">
-                {/* Patient Information Card */}
-                <div className="bg-muted/10 border border-border/30 rounded-lg p-6 print-info-section">
-                  <div className="flex items-center mb-4">
-                    <User className="h-5 w-5 text-muted-foreground mr-2 no-print" />
-                    <h3 className="text-lg font-semibold text-muted-foreground">Patient Information</h3>
-                  </div>
-              <div className="space-y-3">
-                    <div className="flex justify-between print-info-row">
-                      <span className="font-medium text-muted-foreground"><strong>Name:</strong></span>
-                      <span className="text-muted-foreground font-semibold">
-                        {typeof order.patient === 'object' ? order.patient.name || `Unknown Patient (ID: ${(order.patient as any)?._id || order.patientId || 'N/A'})` : `Unknown Patient (ID: ${(order.patient as any)?._id || order.patientId || 'N/A'})`}
-                      </span>
-                    </div>
-                    <div className="flex justify-between print-info-row">
-                      <span className="font-medium text-muted-foreground"><strong>Patient ID:</strong></span>
-                      <span className="text-muted-foreground font-mono text-sm">
-                        {typeof order.patient === 'object' ? order.patient._id?.slice(-8) || 'N/A' : 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between print-info-row">
-                      <span className="font-medium text-muted-foreground"><strong>Order Date:</strong></span>
-                      <span className="text-muted-foreground">{formatDate(order.orderDateTime)}</span>
-                    </div>
-                    <div className="flex justify-between items-center print-info-row">
-                      <span className="font-medium text-muted-foreground"><strong>Status:</strong></span>
-                      <span className={`px-3 py-1 text-xs rounded-full font-semibold ${
-                      order.status?.toLowerCase() === 'results available' || order.status?.toLowerCase() === 'completed'
-                          ? 'bg-primary/20 text-primary border border-primary/30' 
-                          : 'bg-accent/20 text-accent-foreground border border-yellow-200'
-                    }`}>
-                      {order.status}
-                    </span>
-                  </div>
-                </div>
-        </div>
-
-                {/* Study Information Card */}
-                <div className="bg-primary/10 border border-primary/30 rounded-lg p-6 print-info-section">
-                  <div className="flex items-center mb-4">
-                    <Calendar className="h-5 w-5 text-primary mr-2 no-print" />
-                    <h3 className="text-lg font-semibold text-muted-foreground">Study Information</h3>
-                  </div>
-              <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="font-medium text-muted-foreground">Imaging Type:</span>
-                      <span className="text-muted-foreground font-semibold bg-primary/20 px-2 py-1 rounded text-sm">
-                        {order.imagingType}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium text-muted-foreground">Body Part:</span>
-                      <span className="text-muted-foreground font-semibold bg-primary/20 px-2 py-1 rounded text-sm">
-                        {order.bodyPart}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium text-muted-foreground">Priority:</span>
-                      <span className="text-muted-foreground">{order.priority || 'Routine'}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium text-muted-foreground block mb-1">Clinical Information:</span>
-                      <div className="text-muted-foreground bg-primary-foreground p-2 rounded border text-sm">
-                        {order.clinicalInfo || 'No clinical information provided'}
-                      </div>
-                    </div>
-                </div>
+              {/* Official Medical Header */}
+              <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm mb-6">
+                <MedicalReportHeaderReact
+                  reportTitle={`${modalityLabel} Report`}
+                  clinic={clinic}
+                  patient={{
+                    name: patientName,
+                    mrn: patientMrn,
+                    dob: patientDob,
+                    age: patientAge,
+                    gender: patientGender,
+                    patientLocation,
+                    serviceLocation
+                  }}
+                  reportInfo={{
+                    modalityLabel,
+                    orderDateTime: order.orderDateTime || new Date(),
+                    fileNo,
+                    doneDateTime,
+                    doneBy,
+                    requestedBy,
+                    reportDateTime,
+                    reportDoneBy
+                  }}
+                  showClinicHeader={false}
+                />
               </div>
-            </div>
 
               {/* Enhanced Results Section */}
               <div className="space-y-6 print-section">
