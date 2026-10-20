@@ -25,6 +25,7 @@ interface LabTest {
   patientGender: string;
   orderedBy: string;
   status: string;
+  paymentStatus?: string;
   priority: string;
   requestDate: string;
   collectionDate?: string;
@@ -219,6 +220,7 @@ const LabDashboard: React.FC = () => {
           patientGender: patient ? (patient.gender || 'Unknown') : 'Unknown',
           orderedBy: orderedByText,
           status: order.status || 'Ordered',
+          paymentStatus: order.paymentStatus || (order.status === 'Pending Payment' ? 'pending' : 'paid'),
           priority: order.priority || 'Routine',
           requestDate: order.orderDateTime || new Date().toISOString(),
           collectionDate: order.collectionDateTime,
@@ -383,13 +385,14 @@ const LabDashboard: React.FC = () => {
         'Collected': 1, 
         'Scheduled': 2, 
         'Ordered': 3, 
-        'Results Available': 4, 
-        'Cancelled': 5, 
-        'Completed': 6,
-        'Sent to Doctor': 7
+        'Pending Payment': 4,
+        'Results Available': 5, 
+        'Cancelled': 6, 
+        'Completed': 7,
+        'Sent to Doctor': 8
       };
-      const currentStatusVal = statusOrder[acc[groupKey].overallStatus as keyof typeof statusOrder] ?? 8;
-      const newStatusVal = statusOrder[test.status as keyof typeof statusOrder] ?? 8;
+      const currentStatusVal = statusOrder[acc[groupKey].overallStatus as keyof typeof statusOrder] ?? 9;
+      const newStatusVal = statusOrder[test.status as keyof typeof statusOrder] ?? 9;
        if (newStatusVal < currentStatusVal) {
          acc[groupKey].overallStatus = test.status;
        } else if (test.status === 'Results Available' && acc[groupKey].tests.every(t => t.status === 'Results Available' || t.status === 'Completed' || t.status === 'Cancelled')) {
@@ -435,9 +438,18 @@ const LabDashboard: React.FC = () => {
     return groups.size;
   })();
   
+  // Helper to determine if a test is awaiting payment
+  const isTestPendingPayment = (t: LabTest) =>
+    t.status === 'Pending Payment' || t.paymentStatus === 'pending' || t.paymentStatus === 'unpaid';
+
   // Update test status
   const updateTestStatus = async (testId: string, newStatus: string) => {
     try {
+      const targetTest = labTests.find(t => t.id === testId);
+      if (targetTest && isTestPendingPayment(targetTest) && ['Collected', 'Processing', 'Results Available', 'Completed'].includes(newStatus)) {
+        toast.warning('Cannot collect sample or update status: Payment is pending. Patient must complete payment at reception first.');
+        return false;
+      }
       const result = await labService.updateLabOrderStatus(testId, newStatus);
       toast.success(`Test status updated to ${newStatus}`);
       await fetchLabTests(); // Refresh the data
@@ -1391,20 +1403,29 @@ const LabDashboard: React.FC = () => {
                 <tbody className="bg-background divide-y divide-border">
                     {paginatedGroups.map(group => {
                       // Determine actions available for the group
-                      const canCollect = group.tests.some(t => t.status === 'Ordered' || t.status === 'Pending Payment' || t.status === 'Scheduled');
+                      const canCollect = group.tests.some(t => 
+                        (t.status === 'Ordered' || t.status === 'Scheduled') && !isTestPendingPayment(t)
+                      );
                       const canProcess = group.tests.some(t => t.status === 'Collected');
                       const canComplete = group.tests.some(t => t.status === 'Processing');
+                      const hasPendingPayment = group.tests.some(t => isTestPendingPayment(t));
 
                       const handleGroupAction = async (targetStatus: string) => {
                         const sourceStatuses: string[] = [];
-                        if (targetStatus === 'Collected') sourceStatuses.push('Ordered', 'Pending Payment', 'Scheduled');
+                        if (targetStatus === 'Collected') sourceStatuses.push('Ordered', 'Scheduled');
                         if (targetStatus === 'Processing') sourceStatuses.push('Collected');
                         if (targetStatus === 'Results Available') sourceStatuses.push('Processing');
 
-                        const testsToUpdate = group.tests.filter(t => sourceStatuses.includes(t.status));
+                        const testsToUpdate = group.tests.filter(t => 
+                          sourceStatuses.includes(t.status) && (targetStatus !== 'Collected' || !isTestPendingPayment(t))
+                        );
                         
                         if (testsToUpdate.length === 0) {
-                          toast(`No tests in this group are ready for status '${targetStatus}'.`);
+                          if (targetStatus === 'Collected' && group.tests.some(t => isTestPendingPayment(t))) {
+                            toast.warning('Cannot collect sample: Payment is pending. Patient must complete payment at reception first.');
+                          } else {
+                            toast(`No tests in this group are ready for status '${targetStatus}'.`);
+                          }
                           return;
                         }
 
@@ -1417,13 +1438,20 @@ const LabDashboard: React.FC = () => {
                             try {
                               const result = await labService.updateLabOrderStatus(test.id, targetStatus);
                               successCount++;
-                            } catch (testError) {
+                            } catch (testError: any) {
                               console.error(`Error updating individual test ${test.id}:`, testError);
+                              const errMsg = testError.response?.data?.message || testError.message;
+                              toast.error(`Error for ${test.testName}: ${errMsg}`);
                             }
                           }
                           
                           if (successCount > 0) {
-                            toast.success(`Updated ${successCount} of ${testsToUpdate.length} tests to ${targetStatus}.`);
+                            const pendingCount = group.tests.filter(t => isTestPendingPayment(t)).length;
+                            if (pendingCount > 0 && targetStatus === 'Collected') {
+                              toast.success(`Collected sample for ${successCount} paid test(s). (${pendingCount} test(s) are pending payment and cannot be collected yet)`);
+                            } else {
+                              toast.success(`Updated ${successCount} of ${testsToUpdate.length} tests to ${targetStatus}.`);
+                            }
                           } else {
                             toast.error(`Failed to update any tests to ${targetStatus}.`);
                           }
@@ -1529,14 +1557,22 @@ const LabDashboard: React.FC = () => {
                           </td>
                           <td className="px-5 py-4 whitespace-nowrap text-sm text-muted-foreground align-top">
                             <div className="flex flex-col gap-1.5">
-                              {canCollect && (
+                              {canCollect ? (
                                 <button
                                   onClick={() => handleGroupAction('Collected')}
                                   className="px-3 py-1.5 bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 rounded-lg text-xs font-semibold hover:bg-teal-200 dark:hover:bg-teal-900/50 transition-colors"
                                 >
                                   Collect Sample
                                 </button>
-                              )}
+                              ) : hasPendingPayment ? (
+                                <button
+                                  disabled
+                                  title="Cannot collect sample: Payment is pending. Patient must complete payment at reception first."
+                                  className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800/60 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700/60 rounded-lg text-xs font-semibold cursor-not-allowed opacity-60 flex items-center justify-center select-none"
+                                >
+                                  Collect Sample
+                                </button>
+                              ) : null}
                               {canProcess && (
                                 <button
                                   onClick={() => handleGroupAction('Processing')}

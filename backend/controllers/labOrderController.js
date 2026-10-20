@@ -989,6 +989,20 @@ const updateLabOrder = async (req, res) => {
         message: 'Lab order not found'
       });
     }
+
+    // Block sample collection and downstream processing if payment is pending
+    if (updateData.status && ['Collected', 'Processing', 'Results Available', 'Completed'].includes(updateData.status)) {
+      const isPendingPayment = existingOrder.status === 'Pending Payment' ||
+        existingOrder.paymentStatus === 'pending' ||
+        existingOrder.paymentStatus === 'unpaid';
+
+      if (isPendingPayment) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot collect sample or process lab test: Payment is pending. Patient must complete payment at reception first.'
+        });
+      }
+    }
     
     // Add updatedAt timestamp
     updateData.updatedAt = new Date();
