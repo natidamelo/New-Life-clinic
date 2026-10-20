@@ -1460,7 +1460,11 @@ const LabDashboard: React.FC = () => {
                           toast.error(`Error updating tests: ${groupError instanceof Error ? groupError.message : 'Unknown error'}`);
                         } finally {
                           // Always refresh data and reset loading state
-                          await fetchLabTests();
+                          try {
+                            await fetchLabTests();
+                          } catch (fetchErr) {
+                            console.error('Error refreshing lab tests:', fetchErr);
+                          }
                           setIsLoading(false);
                         }
                       };
@@ -1566,11 +1570,15 @@ const LabDashboard: React.FC = () => {
                                 </button>
                               ) : hasPendingPayment ? (
                                 <button
-                                  disabled
-                                  title="Cannot collect sample: Payment is pending. Patient must complete payment at reception first."
-                                  className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800/60 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700/60 rounded-lg text-xs font-semibold cursor-not-allowed opacity-60 flex items-center justify-center select-none"
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    toast.warning('⚠️ Payment required! Patient must complete payment at reception before sample can be collected.', { autoClose: 5000 });
+                                  }}
+                                  className="px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-400 dark:text-red-400 border border-red-200 dark:border-red-800/40 rounded-lg text-xs font-semibold cursor-not-allowed opacity-75"
                                 >
-                                  Collect Sample
+                                  🔒 Collect Sample
                                 </button>
                               ) : null}
                               {canProcess && (
