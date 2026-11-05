@@ -54,6 +54,8 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
   const [stockInfo, setStockInfo] = useState<{ inStock: boolean; quantity: number; found: boolean; message?: string } | null>(null);
   const [loadingStock, setLoadingStock] = useState(false);
 
+
+  const [fixingDoses, setFixingDoses] = useState(false);
   const medicationName = task?.medicationDetails?.medicationName || 'Unknown Medication';
   const patientName = task?.patientName || 'Unknown Patient';
   const dosage = task?.medicationDetails?.dosage || 'As directed';
@@ -67,15 +69,7 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
   const blockReason = prescriptionDependencies?.blockReason || '';
   const dependencies = prescriptionDependencies?.dependsOn || [];
 
-  if (!task || !task.medicationDetails) {
-    return (
-      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
-        <AlertCircle size={40} className="mx-auto mb-3 text-destructive/60" />
-        <h3 className="text-base font-semibold text-destructive mb-1">Invalid Task Data</h3>
-        <p className="text-sm text-destructive/70">Medication task data is missing or corrupted.</p>
-      </div>
-    );
-  }
+
 
   const fetchPatientData = async () => {
     const patientId = task?.patientId || task?.patient?._id;
@@ -375,7 +369,6 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
     toast.success('Refreshed');
   };
 
-  const [fixingDoses, setFixingDoses] = useState(false);
   const handleFixDoses = async () => {
     const taskId = task._id || task.id;
     if (!taskId) return;
@@ -613,6 +606,16 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
       </div>
     );
   };
+
+  if (!task || !task.medicationDetails) {
+    return (
+      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+        <AlertCircle size={40} className="mx-auto mb-3 text-destructive/60" />
+        <h3 className="text-base font-semibold text-destructive mb-1">Invalid Task Data</h3>
+        <p className="text-sm text-destructive/70">Medication task data is missing or corrupted.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
