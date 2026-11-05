@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from '../../components/ui/alert';
 import {
   PlusIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon,
   DocumentIcon, CurrencyDollarIcon, ArrowPathIcon, CheckCircleIcon,
-  FunnelIcon, TrashIcon, XCircleIcon
+  FunnelIcon, TrashIcon, XCircleIcon, ArrowUturnLeftIcon
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import billingService, { Invoice } from '../../services/billingService';
@@ -59,6 +59,10 @@ const InvoiceList: React.FC = () => {
 
   const [confirmDelete, setConfirmDelete] = useState<Invoice | null>(null);
   const [deletingInvoice, setDeletingInvoice] = useState<boolean>(false);
+
+  const [confirmRefund, setConfirmRefund] = useState<Invoice | null>(null);
+  const [refundReason, setRefundReason] = useState<string>('');
+  const [refundingInvoice, setRefundingInvoice] = useState<boolean>(false);
 
   const formatCurrency = (amount: number | undefined | null) => {
     if (amount === undefined || amount === null || isNaN(amount)) return 'ETB 0.00';
@@ -217,6 +221,27 @@ const InvoiceList: React.FC = () => {
       toast.error(`Failed to cancel: ${msg}`);
     } finally {
       setCancellingInvoice(false);
+    }
+  };
+
+  const handleRefundInvoice = async (invoice: Invoice) => {
+    if (!invoice._id) return;
+    if (!refundReason.trim()) {
+      toast.error('Please enter a reason for the refund');
+      return;
+    }
+    setRefundingInvoice(true);
+    try {
+      await billingService.refundInvoice(invoice._id, refundReason);
+      toast.success(`Invoice ${invoice.invoiceNumber} refunded successfully`);
+      setConfirmRefund(null);
+      setRefundReason('');
+      fetchData();
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error.message || 'Unknown error';
+      toast.error(`Failed to refund: ${msg}`);
+    } finally {
+      setRefundingInvoice(false);
     }
   };
 
@@ -598,9 +623,19 @@ const InvoiceList: React.FC = () => {
                               <CheckCircleIcon className="h-3.5 w-3.5" />
                             </Button>
                           )}
-                          {canCancel && invoice.status !== 'cancelled' && (
+                          {canCancel && invoice.amountPaid > 0 && !['cancelled', 'refunded'].includes((invoice.status || '').toLowerCase()) && (
                             <Button variant="ghost" size="sm"
-                              className="h-7 w-7 p-0 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                              className="h-7 w-7 p-0 text-amber-600 hover:bg-amber-100 hover:text-amber-800"
+                              onClick={() => {
+                                setConfirmRefund(invoice);
+                                setRefundReason('');
+                              }} title="Refund Invoice">
+                              <ArrowUturnLeftIcon className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {canCancel && invoice.status !== 'cancelled' && invoice.status !== 'refunded' && (
+                            <Button variant="ghost" size="sm"
+                              className="h-7 w-7 p-0 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                               onClick={() => {
                                 setConfirmCancel(invoice);
                                 setCancelReason('');
@@ -788,18 +823,86 @@ const InvoiceList: React.FC = () => {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setConfirmCancel(null); setCancelReason(''); }} disabled={cancellingInvoice}>
-              {confirmCancel && confirmCancel.amountPaid > 0 ? 'Close' : 'Go Back'}
-            </Button>
-            {confirmCancel && !(confirmCancel.amountPaid > 0) && (
-              <Button
-                onClick={() => confirmCancel && handleCancelInvoice(confirmCancel)}
-                disabled={cancellingInvoice}
-                className="bg-amber-600 hover:bg-amber-700 text-white"
-              >
-                {cancellingInvoice ? 'Cancelling...' : 'Cancel Invoice'}
-              </Button>
+            {confirmCancel && confirmCancel.amountPaid > 0 ? (
+              <div className="flex gap-2 justify-end w-full">
+                <Button variant="outline" onClick={() => { setConfirmCancel(null); setCancelReason(''); }} disabled={cancellingInvoice}>
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    const inv = confirmCancel;
+                    setConfirmCancel(null);
+                    setConfirmRefund(inv);
+                    setRefundReason('');
+                  }}
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  <ArrowUturnLeftIcon className="w-4 h-4 mr-1.5" /> Refund Invoice Instead
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => { setConfirmCancel(null); setCancelReason(''); }} disabled={cancellingInvoice}>
+                  Go Back
+                </Button>
+                <Button
+                  onClick={() => confirmCancel && handleCancelInvoice(confirmCancel)}
+                  disabled={cancellingInvoice}
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  {cancellingInvoice ? 'Cancelling...' : 'Cancel Invoice'}
+                </Button>
+              </>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Refund Confirmation Dialog */}
+      <Dialog open={!!confirmRefund} onOpenChange={() => setConfirmRefund(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <ArrowUturnLeftIcon className="w-5 h-5 text-amber-600" /> Refund Invoice
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground mt-2">
+                <p>
+                  Are you sure you want to refund invoice <strong>{confirmRefund?.invoiceNumber}</strong> for <strong>{confirmRefund && getPatientName(confirmRefund)}</strong>?
+                </p>
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-800 dark:text-amber-300 text-xs leading-relaxed">
+                  <strong>Warning:</strong> This will refund all recorded payments (<strong>{confirmRefund && formatCurrency(confirmRefund.amountPaid)}</strong>) and safely cancel any associated prescriptions, nurse tasks, lab orders, or imaging orders.
+                </div>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5 py-2">
+            <Label htmlFor="listRefundReason" className="text-xs font-semibold">
+              Reason for Refund <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="listRefundReason"
+              placeholder="e.g., Patient requested cancellation, service not provided..."
+              value={refundReason}
+              onChange={e => setRefundReason(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => { setConfirmRefund(null); setRefundReason(''); }}
+              disabled={refundingInvoice}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => confirmRefund && handleRefundInvoice(confirmRefund)}
+              disabled={refundingInvoice || !refundReason.trim()}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {refundingInvoice ? 'Processing Refund...' : 'Confirm Refund'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

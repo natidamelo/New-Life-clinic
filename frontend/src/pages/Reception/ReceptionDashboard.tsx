@@ -21,7 +21,7 @@ import {
   ArrowPathIcon,
   ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, CreditCard, Receipt, Clock } from 'lucide-react';
 import attendanceService from '../../services/attendanceService';
 import * as Yup from 'yup';
 import { useFormik } from 'formik';
@@ -1146,6 +1146,149 @@ const ReceptionDashboard: React.FC = () => {
 
       return null;
     }
+  };
+
+  // Dedicated handlers for UnifiedNotificationPanel actions
+  const handleProcessCardPaymentFromNotification = (patient: any) => {
+    if (!patient) return;
+    const patientName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || patient.name || 'Patient';
+    const patientId = patient._id || patient.id;
+    const unpaidInvoices = patient.unpaidInvoices || [];
+    const totalAmount = unpaidInvoices.reduce((sum: number, inv: any) => sum + (inv.balance ?? inv.total ?? 0), 0);
+
+    setPaymentNotificationData({
+      message: `Card registration fee settlement required for ${patientName} before department assignment.`,
+      totalAmount: totalAmount > 0 ? totalAmount : 500,
+      invoices: unpaidInvoices.length > 0 ? unpaidInvoices : [
+        {
+          id: `card_${patientId}`,
+          invoiceNumber: `CRD-${patient.patientId || 'REG'}`,
+          status: 'pending',
+          balance: 500,
+          total: 500,
+          patient: patientId
+        }
+      ],
+      patientName,
+      patientId,
+      paymentRequirementId: `card_req_${patientId}_${Date.now()}`,
+      cardExpired: false,
+      cardInfo: null
+    });
+    setPatientToSendToNurse(patient);
+    setIsPaymentModalOpen(true);
+  };
+
+  const handleProcessInvoicePaymentFromNotification = async (patient: any, notification?: any) => {
+    const patientId = patient?.id || patient?._id || notification?.data?.patientId;
+    const patientName =
+      patient?.name ||
+      `${patient?.firstName || ''} ${patient?.lastName || ''}`.trim() ||
+      notification?.data?.patientName ||
+      'Patient';
+
+    if (patientId) {
+      try {
+        const response = await billingService.getUnpaidInvoicesByPatient(patientId);
+        if (response && Array.isArray(response.invoices)) {
+          if (response.invoices.length > 0) {
+            const totalAmount = response.invoices.reduce(
+              (total: number, inv: any) =>
+                total + (inv.outstandingAmount || inv.balance || inv.totalAmount || inv.total || 0),
+              0
+            );
+            setPaymentNotificationData({
+              message: `Invoice payment required for ${patientName}`,
+              totalAmount: totalAmount > 0 ? totalAmount : (notification?.data?.totalAmount || notification?.data?.amount || 0),
+              invoices: response.invoices,
+              patientName: response.patientName || patientName,
+              patientId,
+              canBypass: response.invoices.some((inv: any) => inv.canBypass),
+              paymentRequirementId: response.paymentRequirementId || notification?._id
+            });
+            setIsPaymentModalOpen(true);
+            return;
+          } else {
+            // Patient has NO unpaid invoices - everything is already settled!
+            toast.success(`${patientName} has already settled all invoices. No payment due!`);
+            fetchPaymentNotifications();
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch invoices via billing service, checking invoice status:', err);
+      }
+    }
+
+    // Fallback: Check if the notification's invoice is actually unpaid
+    const invoiceNum = notification?.data?.invoiceNumber || patient?.invoiceNumber;
+    const invId = notification?.data?.invoiceId || patient?.invoiceId;
+
+    if (invId || invoiceNum) {
+      try {
+        const checkRes = await api.post('/api/billing/check-invoice-statuses', {
+          invoiceIds: [invId, invoiceNum].filter(Boolean)
+        });
+        const statusMap = checkRes.data?.statuses || {};
+        const balanceMap = checkRes.data?.balances || {};
+        const st = (invId && statusMap[invId]) || (invoiceNum && statusMap[invoiceNum]);
+        const bal = (invId && balanceMap[invId] !== undefined) ? balanceMap[invId] : (invoiceNum ? balanceMap[invoiceNum] : undefined);
+
+        if (st === 'paid' || (bal !== undefined && bal <= 0)) {
+          toast.success(`${patientName} has already paid invoice ${invoiceNum || ''}!`);
+          fetchPaymentNotifications();
+          return;
+        }
+
+        const amount = bal !== undefined ? bal : (notification?.data?.totalAmount || notification?.data?.amount || patient?.amount || 0);
+
+        setPaymentNotificationData({
+          message: notification?.message || `Invoice payment required for ${patientName}`,
+          totalAmount: amount,
+          invoices: [
+            {
+              id: invId || invoiceNum,
+              _id: invId,
+              invoiceId: invId,
+              invoiceNumber: invoiceNum || 'INV-PENDING',
+              status: 'pending',
+              balance: amount,
+              total: amount,
+              patient: patientId
+            }
+          ],
+          patientName,
+          patientId,
+          paymentRequirementId: notification?._id || `notif_${Date.now()}`
+        });
+        setIsPaymentModalOpen(true);
+        return;
+      } catch (e) {
+        console.warn('Fallback status check failed:', e);
+      }
+    }
+
+    const amount = notification?.data?.totalAmount || notification?.data?.amount || patient?.amount || 0;
+    setPaymentNotificationData({
+      message: notification?.message || `Invoice payment required for ${patientName}`,
+      totalAmount: amount,
+      invoices: [
+        {
+          id: invId || `inv_${patientId || Date.now()}`,
+          _id: invId,
+          invoiceId: invId,
+          invoiceNumber: invoiceNum || 'INV-PENDING',
+          status: 'pending',
+          balance: amount,
+          total: amount,
+          patient: patientId
+        }
+      ],
+      patientName,
+      patientId,
+      paymentRequirementId: notification?._id || `notif_${Date.now()}`
+    });
+    setIsPaymentModalOpen(true);
   };
 
   const confirmSendToNurse = async () => {
@@ -2729,6 +2872,8 @@ const ReceptionDashboard: React.FC = () => {
         queuePatients={queuePatients}
         paymentNotifications={paymentNotifications}
         cardPaymentPendingPatients={patients.filter(p => (p as any).hasUnpaidCardInvoice === true)}
+        onProcessCardPayment={handleProcessCardPaymentFromNotification}
+        onProcessInvoicePayment={handleProcessInvoicePaymentFromNotification}
       />
 
       {/* Main Content Area */}
@@ -4216,97 +4361,97 @@ const ReceptionDashboard: React.FC = () => {
 
       {/* Beautiful Payment Required Modal */}
       {isPaymentModalOpen && paymentNotificationData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-primary-foreground rounded-xl shadow-xl max-w-sm w-full mx-auto transform transition-all duration-300">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[60] p-4">
+          <div className="bg-card text-card-foreground rounded-2xl border border-border shadow-2xl max-w-md w-full mx-auto transform transition-all duration-300 overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-red-500 to-red-600 text-primary-foreground p-4 rounded-t-xl">
-              <div className="flex items-center space-x-2">
-                <div className="bg-primary-foreground bg-opacity-20 rounded-full p-1.5">
+            <div className="bg-gradient-to-r from-rose-600 to-red-600 text-white p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-white/20 backdrop-blur-sm rounded-xl p-2.5">
+                    <CreditCard className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold tracking-tight">Payment Settlement Required</h3>
+                    <p className="text-white/80 text-xs mt-0.5 font-medium">Patient: {paymentNotificationData.patientName}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsPaymentModalOpen(false)}
+                  className="p-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold">Payment Required</h3>
-                  <p className="text-destructive/20 text-xs">Patient: {paymentNotificationData.patientName}</p>
-                </div>
+                </button>
               </div>
             </div>
 
             {/* Content */}
-            <div className="p-4 space-y-3">
-              <div className="bg-destructive/10 border-l-4 border-destructive/50 p-3 rounded">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-4 w-4 text-destructive/50" viewBox="0 0 20 20" fill="currentColor">
+            <div className="p-5 space-y-4">
+              <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/60 p-3.5 rounded-xl">
+                <div className="flex items-start gap-2.5">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <svg className="h-4 w-4 text-rose-600 dark:text-rose-400" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <div className="ml-2">
-                    <p className="text-xs text-destructive font-medium">
-                      Cannot assign patient to medical staff
+                  <div className="text-xs">
+                    <p className="font-semibold text-rose-800 dark:text-rose-300">
+                      Queue Assignment Restrained
                     </p>
-                    <p className="text-xs text-destructive mt-1">
-                      Payment required before assignment
+                    <p className="text-rose-700/80 dark:text-rose-400/80 mt-0.5">
+                      Clinic policy requires card fee or pending invoice clearance before patient can be assigned to medical staff.
                     </p>
                   </div>
                 </div>
               </div>
 
-              {paymentNotificationData.invoices.length > 0 && (
+              {paymentNotificationData.invoices && paymentNotificationData.invoices.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-semibold text-muted-foreground flex items-center">
-                    <svg className="w-4 h-4 mr-1 text-accent-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Outstanding Invoices
-                  </h4>
+                  <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5">
+                      <Receipt className="w-3.5 h-3.5 text-primary" />
+                      Pending Invoices ({paymentNotificationData.invoices.length})
+                    </span>
+                    <span>Amount</span>
+                  </div>
 
-                  <div className="bg-muted/10 rounded-lg p-3 space-y-2">
+                  <div className="bg-muted/30 rounded-xl p-3 space-y-2 border border-border/60 max-h-48 overflow-y-auto">
                     {paymentNotificationData.invoices.map((invoice: any, index: number) => (
-                      <div key={invoice.id || `invoice-${index}`} className="flex justify-between items-center py-1.5 px-2 bg-primary-foreground rounded border border-border/30">
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground">{invoice.invoiceNumber}</p>
-                          <p className="text-xs text-muted-foreground capitalize">{invoice.status}</p>
+                      <div key={invoice.id || `invoice-${index}`} className="flex justify-between items-center py-2 px-3 bg-card rounded-lg border border-border/60 shadow-2xs">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-foreground truncate">{invoice.invoiceNumber || `Invoice #${index + 1}`}</p>
+                          <p className="text-[11px] text-muted-foreground capitalize">{invoice.status || 'Pending Payment'}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold text-destructive">${(invoice.balance || invoice.total || 0).toFixed(2)}</p>
+                        <div className="text-right pl-3 shrink-0">
+                          <p className="text-xs font-bold text-rose-600 dark:text-rose-400">
+                            ETB {(invoice.balance || invoice.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
                         </div>
                       </div>
                     ))}
 
-                    <div className="border-t pt-2 mt-2">
-                      <div className="flex justify-between items-center font-bold text-sm">
-                        <span className="text-muted-foreground">Total Amount Due:</span>
-                        <span className="text-destructive">${paymentNotificationData.totalAmount.toFixed(2)}</span>
-                      </div>
+                    <div className="border-t border-border pt-2.5 mt-2 flex justify-between items-center text-sm font-bold">
+                      <span className="text-muted-foreground">Total Balance Due:</span>
+                      <span className="text-rose-600 dark:text-rose-400 text-base">
+                        ETB {paymentNotificationData.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="bg-primary/10 border-l-4 border-primary/50 p-2 rounded">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-4 w-4 text-primary/50" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-2">
-                    <p className="text-xs text-primary font-medium">What to do next:</p>
-                    <p className="text-xs text-primary mt-1">
-                      Process payment at Reception before assignment.
-                    </p>
-                  </div>
-                </div>
+              <div className="bg-muted/40 border border-border/60 p-3 rounded-xl flex items-center gap-2.5 text-xs text-muted-foreground">
+                <Clock className="w-4 h-4 text-primary shrink-0" />
+                <span>Collecting payment updates patient status immediately across all doctor & nurse dashboards.</span>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="bg-muted/10 px-4 py-3 rounded-b-xl flex justify-between">
+            <div className="bg-muted/30 px-5 py-3.5 border-t border-border flex items-center justify-between">
               <button
                 onClick={() => setIsPaymentModalOpen(false)}
-                className="px-3 py-1.5 text-sm text-muted-foreground hover:text-muted-foreground font-medium transition-colors"
+                className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
               >
                 Close
               </button>
@@ -4316,8 +4461,6 @@ const ReceptionDashboard: React.FC = () => {
                   if (paymentNotificationData && paymentNotificationData.invoices && paymentNotificationData.invoices.length > 0) {
                     const selectedInvoiceForPayment = paymentNotificationData.invoices[0];
 
-                    // Extract patient ID correctly from multiple possible sources
-                    // Use MongoDB ObjectId (from .patient field) instead of display ID (from .patientId field)
                     const patientId = selectedInvoiceForPayment.patient ||
                       (patientToSendToNurse?._id || patientToSendToNurse?.id) ||
                       (paymentNotificationData.patientId) ||
@@ -4328,7 +4471,6 @@ const ReceptionDashboard: React.FC = () => {
                       return;
                     }
 
-                    // Create a new object with all the invoice properties plus the patientId
                     setSelectedInvoiceForPayment({
                       ...selectedInvoiceForPayment,
                       patientId: patientId
@@ -4339,9 +4481,10 @@ const ReceptionDashboard: React.FC = () => {
                     toast.error('No invoice found for payment');
                   }
                 }}
-                className="px-4 py-1.5 text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-primary-foreground rounded-lg hover:from-blue-600 hover:to-blue-700 font-medium transition-all shadow-md"
+                className="px-4 py-2 text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                Process Payment
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Process Payment Now</span>
               </button>
             </div>
           </div>
@@ -4352,7 +4495,7 @@ const ReceptionDashboard: React.FC = () => {
       {/* Payment Form Modal */}
       {showPaymentForm && selectedInvoiceForPayment && (
         <RecordPaymentForm
-          invoiceId={selectedInvoiceForPayment.invoiceNumber || selectedInvoiceForPayment.id || selectedInvoiceForPayment.invoiceId}
+          invoiceId={selectedInvoiceForPayment._id || selectedInvoiceForPayment.id || selectedInvoiceForPayment.invoiceId || selectedInvoiceForPayment.invoiceNumber}
           patientId={selectedInvoiceForPayment.patient || selectedInvoiceForPayment.patientId}
           currentBalance={selectedInvoiceForPayment.balance || selectedInvoiceForPayment.total || 0}
           totalAmount={selectedInvoiceForPayment.total || 0}

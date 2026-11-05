@@ -6,6 +6,8 @@ import { toast } from 'react-hot-toast';
 import authService from '../services/authService';
 import api from '../services/apiService';
 import { useSafeTheme } from '../hooks/useSafeTheme';
+import { useClinic } from '../context/ClinicContext';
+import { getClinicTenantId } from '../utils/authToken';
 import { motion } from 'framer-motion';
 import { 
   User, Lock, Mail, Phone, Calendar, Heart, ArrowRight, Activity, 
@@ -46,6 +48,7 @@ const PatientSignupSchema = Yup.object().shape({
 const PatientSignup: React.FC = () => {
   const navigate = useNavigate();
   const { isDarkMode } = useSafeTheme();
+  const { clinic } = useClinic();
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifyingCard, setIsVerifyingCard] = useState(false);
 
@@ -54,7 +57,8 @@ const PatientSignup: React.FC = () => {
     
     try {
       setIsVerifyingCard(true);
-      const response = await api.get(`/api/auth/patient/check-card/${cardId.trim()}`, { skipAuth: true } as any);
+      const activeClinicId = clinic?.slug || getClinicTenantId() || 'default';
+      const response = await api.get(`/api/auth/patient/check-card/${cardId.trim()}?clinicId=${encodeURIComponent(activeClinicId)}`, { skipAuth: true } as any);
       if (response.data.success && response.data.data) {
         const patientInfo = response.data.data;
         
@@ -97,8 +101,13 @@ const PatientSignup: React.FC = () => {
     onSubmit: async (values) => {
       try {
         setIsLoading(true);
-        // Exclude confirmPassword
-        const { confirmPassword, ...signupData } = values;
+        // Exclude confirmPassword and inject current clinic tenant ID
+        const { confirmPassword, ...rawSignupData } = values;
+        const activeClinicId = clinic?.slug || getClinicTenantId() || 'default';
+        const signupData = {
+          ...rawSignupData,
+          clinicId: activeClinicId
+        };
         
         console.log('🔄 [PatientSignup] Sending signup payload:', signupData);
         await authService.registerPatient(signupData);
@@ -167,7 +176,7 @@ const PatientSignup: React.FC = () => {
               <Activity className="h-5 w-5 animate-pulse" />
             </div>
             <span className={`font-extrabold text-2xl tracking-tight uppercase ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-              New Life Clinic
+              {clinic?.name || 'Clinic'}
             </span>
           </div>
           <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>

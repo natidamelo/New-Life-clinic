@@ -263,12 +263,26 @@ userSchema.statics.findByEmailOrUsername = async function(identifier, clinicId =
   // 3) Try to look up patient by Card ID (patientId) or Phone Number (contactNumber)
   try {
     const Patient = require('./Patient');
-    const patientRecord = await Patient.findOne({
-      $or: [
-        { patientId: new RegExp('^' + escaped + '$', 'i') },
-        { contactNumber: trimmed }
-      ]
-    }).setOptions({ skipTenantScope: true });
+    const patientConditions = [
+      { patientId: new RegExp('^' + escaped + '$', 'i') },
+      { contactNumber: trimmed }
+    ];
+    
+    // First try within the requested clinic
+    let patientRecord = null;
+    if (clinicId && clinicId !== '*') {
+      patientRecord = await Patient.findOne({
+        clinicId,
+        $or: patientConditions
+      }).setOptions({ skipTenantScope: true });
+    }
+    
+    // Fall back cross-clinic only if not found in requested clinic
+    if (!patientRecord) {
+      patientRecord = await Patient.findOne({
+        $or: patientConditions
+      }).setOptions({ skipTenantScope: true });
+    }
 
     if (patientRecord) {
       const patientUser = await this.findOne({

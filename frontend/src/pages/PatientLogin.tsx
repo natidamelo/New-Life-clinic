@@ -5,6 +5,8 @@ import * as Yup from 'yup';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useSafeTheme } from '../hooks/useSafeTheme';
+import { useClinic } from '../context/ClinicContext';
+import { getClinicTenantId } from '../utils/authToken';
 import { motion } from 'framer-motion';
 import { 
   User, Lock, ArrowRight, Activity, ChevronLeft, ShieldCheck
@@ -20,6 +22,7 @@ const PatientLoginSchema = Yup.object().shape({
 const PatientLogin: React.FC = () => {
   const navigate = useNavigate();
   const { isDarkMode } = useSafeTheme();
+  const { clinic } = useClinic();
   const { login, isAuthenticated, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -41,8 +44,9 @@ const PatientLogin: React.FC = () => {
         setIsLoading(true);
         console.log('🔄 [PatientLogin] Attempting patient login...');
         
-        // Call login from AuthContext
-        const loggedInUser = await login(values.identifier, values.password, 'default');
+        // Call login from AuthContext — use the current clinic tenant, not hardcoded 'default'
+        const clinicId = clinic?.slug || getClinicTenantId() || 'default';
+        const loggedInUser = await login(values.identifier, values.password, clinicId);
         
         if (loggedInUser.role === 'patient') {
           toast.success('Successfully signed in to patient portal!', {
@@ -113,7 +117,7 @@ const PatientLogin: React.FC = () => {
               <Activity className="h-5 w-5 animate-pulse" />
             </div>
             <span className={`font-extrabold text-2xl tracking-tight uppercase ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-              New Life Clinic
+              {clinic?.name || 'Clinic'}
             </span>
           </div>
           <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>

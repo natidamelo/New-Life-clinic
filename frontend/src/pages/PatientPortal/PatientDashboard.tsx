@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSafeTheme } from '../../hooks/useSafeTheme';
+import { useClinic } from '../../context/ClinicContext';
 import api from '../../services/apiService';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -136,6 +137,8 @@ export interface AppointmentData {
 
 const PatientDashboard: React.FC = () => {
   const { logout, user } = useAuth();
+  const { clinic, updateClinicState } = useClinic();
+  const clinicName = clinic?.name || 'Clinic';
   const { isDarkMode, toggleTheme } = useSafeTheme();
   const navigate = useNavigate();
 
@@ -193,8 +196,8 @@ const PatientDashboard: React.FC = () => {
     {
       id: 'msg-1',
       from: 'Clinic Admin',
-      subject: 'Welcome to New Life Clinic Patient Portal',
-      body: 'Welcome to your new patient portal! Here you can view your medical records, lab results, vitals, prescriptions, and communicate with your care team. If you have any questions about using the portal, please don\'t hesitate to reach out.\n\nBest regards,\nNew Life Clinic Administration',
+      subject: `Welcome to ${clinicName} Patient Portal`,
+      body: `Welcome to your new patient portal! Here you can view your medical records, lab results, vitals, prescriptions, and communicate with your care team. If you have any questions about using the portal, please don't hesitate to reach out.\n\nBest regards,\n${clinicName} Administration`,
       date: new Date(Date.now() - 86400000),
       read: false,
       category: 'general'
@@ -330,18 +333,19 @@ const PatientDashboard: React.FC = () => {
   // ─────────────────────────────────────────────────────────────
   // WELCOME MESSAGE
   // ─────────────────────────────────────────────────────────────
+  // Welcome message with dynamic clinic branding
   useEffect(() => {
     if (patient) {
       setChatMessages([
         {
           id: 'welcome',
           role: 'model',
-          content: `Hello, **${patient.firstName}**! I'm **M-Bot**, your clinical AI assistant at New Life Clinic. 🧠✨\n\nI have secure access to your clinical summary, active medications, recent vitals, and lab test status. How can I help you today?\n\n*Note: I'm here to provide clinical information. For any diagnostic decisions or emergencies, please consult our medical team.*`,
+          content: `Hello, **${patient.firstName}**! I'm **M-Bot**, your clinical AI assistant at ${clinicName}. 🧠✨\n\nI have secure access to your clinical summary, active medications, recent vitals, and lab test status. How can I help you today?\n\n*Note: I'm here to provide clinical information. For any diagnostic decisions or emergencies, please consult our medical team.*`,
           timestamp: new Date()
         }
       ]);
     }
-  }, [patient]);
+  }, [patient, clinicName]);
 
   // ─────────────────────────────────────────────────────────────
   // DATA FETCHING
@@ -359,6 +363,9 @@ const PatientDashboard: React.FC = () => {
       if (profileRes.data.success) {
         const pData = profileRes.data.data.patient;
         setPatient(pData);
+        if (profileRes.data.data.clinic) {
+          updateClinicState(profileRes.data.data.clinic);
+        }
         setEditPhone(pData.contactNumber || '');
         setEditEmail(pData.email || '');
         setEditAddress({
@@ -1185,7 +1192,7 @@ const PatientDashboard: React.FC = () => {
           </div>
 
           <div className="text-center space-y-1">
-            <h1 className="text-lg font-extrabold tracking-wider uppercase">New Life Clinic</h1>
+            <h1 className="text-lg font-extrabold tracking-wider uppercase">{clinicName}</h1>
             <p className="text-xs font-bold tracking-widest uppercase" style={{ color: accentColor }}>Patient Portal</p>
           </div>
 
@@ -1248,7 +1255,7 @@ const PatientDashboard: React.FC = () => {
             <div>
               <span className="font-extrabold text-sm uppercase tracking-wider block"
                 style={{ color: isDarkMode ? '#f1f5f9' : '#0f172a' }}>
-                New Life Clinic
+                {clinicName}
               </span>
               <span className="text-[10px] uppercase font-bold tracking-widest block -mt-0.5"
                 style={{ color: accentColor }}>
@@ -3600,7 +3607,7 @@ const PatientDashboard: React.FC = () => {
                       </button>
                     </form>
                     <p className="text-[10px] text-center mt-2" style={{ color: '#64748b' }}>
-                      M-Bot is an AI assistant. Clinical data is from your electronic medical file at New Life Clinic. Always consult your physician.
+                      M-Bot is an AI assistant. Clinical data is from your electronic medical file at {clinicName}. Always consult your physician.
                     </p>
                   </div>
                 </div>
@@ -4013,7 +4020,7 @@ const PatientDashboard: React.FC = () => {
           color: '#64748b',
         }}
       >
-        <p>© {new Date().getFullYear()} New Life Clinic. All clinical data is securely encrypted.</p>
+        <p>© {new Date().getFullYear()} {clinicName}. All clinical data is securely encrypted.</p>
       </footer>
 
       {/* Bounce animation keyframes */}

@@ -226,8 +226,8 @@ const patientSchema = new mongoose.Schema({
   },
   cardStatus: {
     type: String,
-    enum: ['active', 'expired', 'suspended'],
-    default: 'active'
+    enum: ['active', 'expired', 'suspended', 'grace', 'unpaid', 'none'],
+    default: 'none'
   },
   faydaId: {
     type: String,

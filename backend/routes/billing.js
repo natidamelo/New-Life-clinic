@@ -177,10 +177,18 @@ router.post('/process-registration-payment', auth, [
 
     const { patientId, invoiceId, paymentMethod, amountPaid, notes } = req.body;
 
-    // Get the invoice
-    const invoice = await MedicalInvoice.findById(invoiceId);
+    // Get the invoice - support both MongoDB _id and invoiceNumber strings
+    let invoice;
+    if (mongoose.Types.ObjectId.isValid(invoiceId)) {
+      invoice = await MedicalInvoice.findById(invoiceId);
+    }
+    // If not found by _id, try by invoiceNumber (e.g., "INV-26-10-0002-387")
     if (!invoice) {
-      return res.status(404).json({ message: 'Invoice not found' });
+      invoice = await MedicalInvoice.findOne({ invoiceNumber: invoiceId });
+    }
+    if (!invoice) {
+      console.log('❌ [PARTIAL PAYMENT] Invoice not found for:', invoiceId);
+      return res.status(404).json({ message: `Invoice not found: ${invoiceId}` });
     }
 
     // Validate that the new payment does not push total paid above the invoice total
@@ -1947,10 +1955,18 @@ router.post('/process-partial-payment', auth, [
       notes
     });
 
-    // Get the invoice
-    const invoice = await MedicalInvoice.findById(invoiceId);
+    // Get the invoice - support both MongoDB _id and invoiceNumber strings
+    let invoice;
+    if (mongoose.Types.ObjectId.isValid(invoiceId)) {
+      invoice = await MedicalInvoice.findById(invoiceId);
+    }
+    // If not found by _id, try by invoiceNumber (e.g., "INV-26-10-0002-387")
     if (!invoice) {
-      return res.status(404).json({ message: 'Invoice not found' });
+      invoice = await MedicalInvoice.findOne({ invoiceNumber: invoiceId });
+    }
+    if (!invoice) {
+      console.log('❌ [PARTIAL PAYMENT] Invoice not found for:', invoiceId);
+      return res.status(404).json({ message: `Invoice not found: ${invoiceId}` });
     }
 
     console.log('🔍 [PARTIAL PAYMENT] Invoice found:', {
@@ -2036,12 +2052,14 @@ router.post('/process-partial-payment', auth, [
       console.error(`❌ [AUTO SYNC] Failed to sync prescription status:`, syncError);
     }
 
+    const actualInvoiceId = invoice._id;
+
     // Try to sync nurse task payments (optional)
     let syncResult = null;
     try {
       const { syncNurseTaskPayments } = require('../services/paymentSyncService');
       const patientId = invoice.patient || invoice.patientId;
-      syncResult = await syncNurseTaskPayments(invoiceId, patientId);
+      syncResult = await syncNurseTaskPayments(actualInvoiceId, patientId);
       console.log(`✅ [PARTIAL PAYMENT] Payment sync completed: ${syncResult.message}`);
     } catch (syncError) {
       console.error('⚠️ [PARTIAL PAYMENT] Warning: Failed to sync nurse task payments:', syncError);
@@ -2052,13 +2070,38 @@ router.post('/process-partial-payment', auth, [
     let imagingOrderResult = null;
     try {
       const { createImagingOrdersFromPayment } = require('../utils/createImagingOrderFromPayment');
-      imagingOrderResult = await createImagingOrdersFromPayment(invoiceId, amountPaid);
+      imagingOrderResult = await createImagingOrdersFromPayment(actualInvoiceId, amountPaid);
       if (imagingOrderResult.created > 0) {
         console.log(`✅ [PARTIAL PAYMENT] Created ${imagingOrderResult.created} imaging orders`);
       }
     } catch (imagingError) {
       console.error('⚠️ [PARTIAL PAYMENT] Warning: Failed to create imaging orders:', imagingError);
       // Don't fail the payment processing if imaging order creation fails
+    }
+
+    // Update or clear matching notifications for this invoice
+    try {
+      const Notification = require('../models/Notification');
+      await Notification.updateMany(
+        {
+          $or: [
+            { 'data.invoiceId': { $in: [actualInvoiceId, actualInvoiceId.toString()] } },
+            { 'data.invoiceNumber': invoice.invoiceNumber }
+          ]
+        },
+        {
+          $set: {
+            read: newBalance === 0,
+            'data.paymentStatus': newBalance === 0 ? 'paid' : 'partial',
+            'data.paidAt': new Date(),
+            'data.amountPaid': newAmountPaid,
+            'data.outstandingAmount': newBalance
+          }
+        }
+      );
+      console.log(`✅ [PARTIAL PAYMENT] Updated notifications for invoice ${invoice.invoiceNumber}`);
+    } catch (notifUpdateErr) {
+      console.error('⚠️ [PARTIAL PAYMENT] Error updating notifications:', notifUpdateErr);
     }
 
     // Send Telegram notification for payment processed
@@ -2110,7 +2153,7 @@ router.post('/process-partial-payment', auth, [
     }
 
     // Verify the final state
-    const finalInvoice = await MedicalInvoice.findById(invoiceId);
+    const finalInvoice = await MedicalInvoice.findById(actualInvoiceId) || invoice;
     console.log('🔍 [PARTIAL PAYMENT] Final invoice state:', {
       status: finalInvoice.status,
       amountPaid: finalInvoice.amountPaid,
@@ -2162,10 +2205,18 @@ router.post('/process-consolidated-payment', auth, [
 
     const { patientId, invoiceId, paymentMethod, amountPaid, notes, serviceTypes } = req.body;
 
-    // Get the invoice
-    const invoice = await MedicalInvoice.findById(invoiceId);
+    // Get the invoice - support both MongoDB _id and invoiceNumber strings
+    let invoice;
+    if (mongoose.Types.ObjectId.isValid(invoiceId)) {
+      invoice = await MedicalInvoice.findById(invoiceId);
+    }
+    // If not found by _id, try by invoiceNumber (e.g., "INV-26-10-0002-387")
     if (!invoice) {
-      return res.status(404).json({ message: 'Invoice not found' });
+      invoice = await MedicalInvoice.findOne({ invoiceNumber: invoiceId });
+    }
+    if (!invoice) {
+      console.log('❌ [PARTIAL PAYMENT] Invoice not found for:', invoiceId);
+      return res.status(404).json({ message: `Invoice not found: ${invoiceId}` });
     }
 
     // Validate payment amount
@@ -2740,11 +2791,42 @@ router.get('/unpaid-invoices/detailed', auth, async (req, res) => {
     // Calculate total amounts
     const totalUnpaid = unpaidInvoices.reduce((sum, invoice) => sum + (invoice.balance || invoice.total || 0), 0);
 
+    // Get patient name from first invoice or DB
+    let patientName = 'Unknown Patient';
+    if (unpaidInvoices.length > 0 && unpaidInvoices[0].patient) {
+      const p = unpaidInvoices[0].patient;
+      patientName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || patientName;
+    }
+
+    // Map invoices to frontend-expected format
+    const mappedInvoices = unpaidInvoices.map(inv => ({
+      id: inv._id,
+      _id: inv._id,
+      invoiceId: inv._id,
+      invoiceNumber: inv.invoiceNumber,
+      status: inv.status,
+      balance: inv.balance || inv.total || 0,
+      total: inv.total || 0,
+      totalAmount: inv.total || 0,
+      outstandingAmount: inv.balance || inv.total || 0,
+      amountPaid: inv.amountPaid || 0,
+      patient: inv.patient?._id || patientId,
+      patientId: inv.patient?._id || patientId,
+      patientName: patientName,
+      items: inv.items || [],
+      dateIssued: inv.dateIssued,
+      dueDate: inv.dueDate,
+      canBypass: false
+    }));
+
     res.status(200).json({
       success: true,
       count: unpaidInvoices.length,
       totalUnpaid: totalUnpaid,
-      data: unpaidInvoices
+      patientName: patientName,
+      // Return both 'data' and 'invoices' for compatibility
+      data: unpaidInvoices,
+      invoices: mappedInvoices
     });
   } catch (error) {
     console.error('Error fetching detailed unpaid invoices:', error);
@@ -2753,6 +2835,85 @@ router.get('/unpaid-invoices/detailed', auth, async (req, res) => {
       message: 'Failed to fetch detailed unpaid invoices',
       error: error.message
     });
+  }
+});
+
+// Check invoice statuses in batch (used by Reception dashboard to weed out stale notifications)
+router.post('/check-invoice-statuses', auth, async (req, res) => {
+  try {
+    const { invoiceIds = [] } = req.body;
+    if (!Array.isArray(invoiceIds) || invoiceIds.length === 0) {
+      return res.status(200).json({ success: true, statuses: {}, balances: {} });
+    }
+
+    const objectIds = invoiceIds
+      .filter(id => id && mongoose.Types.ObjectId.isValid(String(id)))
+      .map(id => new mongoose.Types.ObjectId(String(id)));
+    const stringIds = invoiceIds.filter(Boolean).map(id => String(id));
+
+    const queryConditions = [{ invoiceNumber: { $in: stringIds } }];
+    if (objectIds.length > 0) {
+      queryConditions.push({ _id: { $in: objectIds } });
+    }
+
+    const invoices = await MedicalInvoice.find({ $or: queryConditions })
+      .select('_id invoiceNumber status balance total amountPaid')
+      .lean();
+
+    const statuses = {};
+    const balances = {};
+    const paidIds = [];
+    const paidInvoiceNumbers = [];
+
+    invoices.forEach(inv => {
+      const isPaid = inv.status === 'paid' || (typeof inv.balance === 'number' && inv.balance <= 0);
+      const effectiveStatus = isPaid ? 'paid' : (inv.status || 'pending');
+      const effBalance = isPaid ? 0 : (typeof inv.balance === 'number' ? inv.balance : (inv.total - (inv.amountPaid || 0)));
+
+      const idStr = inv._id.toString();
+      statuses[idStr] = effectiveStatus;
+      balances[idStr] = effBalance;
+
+      if (inv.invoiceNumber) {
+        statuses[inv.invoiceNumber] = effectiveStatus;
+        balances[inv.invoiceNumber] = effBalance;
+      }
+
+      if (isPaid) {
+        paidIds.push(inv._id);
+        if (inv.invoiceNumber) paidInvoiceNumbers.push(inv.invoiceNumber);
+      }
+    });
+
+    // Auto-mark notifications as read for paid invoices in the background
+    if (paidIds.length > 0 || paidInvoiceNumbers.length > 0) {
+      const Notification = require('../models/Notification');
+      Notification.updateMany(
+        {
+          $or: [
+            { 'data.invoiceId': { $in: [...paidIds, ...paidIds.map(id => id.toString())] } },
+            { 'data.invoiceNumber': { $in: paidInvoiceNumbers } }
+          ],
+          read: false
+        },
+        {
+          $set: {
+            read: true,
+            'data.paymentStatus': 'paid',
+            'data.paidAt': new Date()
+          }
+        }
+      ).catch(err => console.error('Error auto-clearing paid notifications:', err));
+    }
+
+    res.status(200).json({
+      success: true,
+      statuses,
+      balances
+    });
+  } catch (error) {
+    console.error('Error checking invoice statuses:', error);
+    res.status(500).json({ success: false, message: 'Failed to check invoice statuses', error: error.message });
   }
 });
 
@@ -4705,10 +4866,18 @@ router.post('/process-service-payment', auth, [
     console.log('- User:', req.user);
     console.log('- Body:', JSON.stringify(req.body, null, 2));
 
-    // Get the invoice
-    const invoice = await MedicalInvoice.findById(invoiceId);
+    // Get the invoice - support both MongoDB _id and invoiceNumber strings
+    let invoice;
+    if (mongoose.Types.ObjectId.isValid(invoiceId)) {
+      invoice = await MedicalInvoice.findById(invoiceId);
+    }
+    // If not found by _id, try by invoiceNumber (e.g., "INV-26-10-0002-387")
     if (!invoice) {
-      return res.status(404).json({ message: 'Invoice not found' });
+      invoice = await MedicalInvoice.findOne({ invoiceNumber: invoiceId });
+    }
+    if (!invoice) {
+      console.log('❌ [PARTIAL PAYMENT] Invoice not found for:', invoiceId);
+      return res.status(404).json({ message: `Invoice not found: ${invoiceId}` });
     }
 
     // Check if this is an insurance patient with eligible services
@@ -5100,10 +5269,18 @@ router.post('/process-consolidated-payment', auth, [
 
     const { patientId, invoiceId, paymentMethod, amountPaid, notes, serviceTypes } = req.body;
 
-    // Get the invoice
-    const invoice = await MedicalInvoice.findById(invoiceId);
+    // Get the invoice - support both MongoDB _id and invoiceNumber strings
+    let invoice;
+    if (mongoose.Types.ObjectId.isValid(invoiceId)) {
+      invoice = await MedicalInvoice.findById(invoiceId);
+    }
+    // If not found by _id, try by invoiceNumber (e.g., "INV-26-10-0002-387")
     if (!invoice) {
-      return res.status(404).json({ message: 'Invoice not found' });
+      invoice = await MedicalInvoice.findOne({ invoiceNumber: invoiceId });
+    }
+    if (!invoice) {
+      console.log('❌ [PARTIAL PAYMENT] Invoice not found for:', invoiceId);
+      return res.status(404).json({ message: `Invoice not found: ${invoiceId}` });
     }
 
     // Validate payment amount

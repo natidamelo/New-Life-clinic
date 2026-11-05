@@ -37,6 +37,20 @@ router.get('/profile', async (req, res, next) => {
       });
     }
 
+    const Clinic = require('../models/Clinic');
+    const clinicSlug = req.user.clinicId || patient.clinicId || 'default';
+    const clinicDoc = await Clinic.findOne({ slug: clinicSlug }).lean();
+    const clinicInfo = clinicDoc ? {
+      name: clinicDoc.name,
+      slug: clinicDoc.slug,
+      logo: clinicDoc.logo || null,
+      fullName: clinicDoc.fullName || clinicDoc.name,
+      tagline: clinicDoc.tagline || '',
+      address: clinicDoc.address || '',
+      contactEmail: clinicDoc.contactEmail || '',
+      contactPhone: clinicDoc.contactPhone || ''
+    } : null;
+
     res.status(200).json({
       success: true,
       data: {
@@ -45,9 +59,11 @@ router.get('/profile', async (req, res, next) => {
           username: req.user.username,
           email: req.user.email,
           firstName: req.user.firstName,
-          lastName: req.user.lastName
+          lastName: req.user.lastName,
+          clinicId: clinicSlug
         },
-        patient
+        patient,
+        clinic: clinicInfo
       }
     });
   } catch (error) {
@@ -369,7 +385,12 @@ router.post('/chat', async (req, res, next) => {
       : 'None recorded';
 
     // 4. Construct System Instruction / Prompt
-    const systemPrompt = `You are "M-Bot", a friendly, supportive, and knowledgeable AI Health Assistant at New Life Clinic. 
+    const Clinic = require('../models/Clinic');
+    const clinicSlug = req.user.clinicId || patient.clinicId || 'default';
+    const clinicDoc = await Clinic.findOne({ slug: clinicSlug }).lean();
+    const clinicName = clinicDoc?.name || clinicDoc?.fullName || 'the Clinic';
+
+    const systemPrompt = `You are "M-Bot", a friendly, supportive, and knowledgeable AI Health Assistant at ${clinicName}. 
 You are chatting with a patient and answering their basic questions about their health, vitals, prescriptions, or clinical files.
 
 Patient Profile & Clinical Context:
@@ -478,6 +499,7 @@ Guidelines:
 
     // Fallback block - runs if Gemini API failed OR if Gemini API key was not configured
     replyText = getLocalChatFallback(userMessage, {
+      clinicName,
       patientName,
       age,
       gender,
@@ -616,7 +638,8 @@ function getLocalChatFallback(query, context) {
     q.includes('stroke') || q.includes('weakness') || q.includes('numbness') ||
     q.includes('suicid') || q.includes('kill myself') || q.includes('bleeding')
   ) {
-    return `⚠️ **EMERGENCY WARNING** ⚠️\n\nBased on your symptoms, **please seek immediate medical attention or call emergency services right away!**\n\nIf you have crushing chest pain, difficulty breathing, sudden face drooping, or weakness on one side of your body, do not wait. Go to the nearest emergency room or contact New Life Clinic's emergency desk.`;
+    const clinicEmergency = context.clinicName ? `${context.clinicName}'s emergency desk` : 'the emergency desk';
+    return `⚠️ **EMERGENCY WARNING** ⚠️\n\nBased on your symptoms, **please seek immediate medical attention or call emergency services right away!**\n\nIf you have crushing chest pain, difficulty breathing, sudden face drooping, or weakness on one side of your body, do not wait. Go to the nearest emergency room or contact ${clinicEmergency}.`;
   }
   
   // 1. Medications
@@ -673,7 +696,11 @@ async function getAssociatedPatientIds(currentPatientId) {
     }
 
     if (orConditions.length > 0) {
-      const matches = await Patient.find({ $or: orConditions })
+      const patientFilter = { $or: orConditions };
+      if (currentPatient.clinicId) {
+        patientFilter.clinicId = currentPatient.clinicId;
+      }
+      const matches = await Patient.find(patientFilter)
         .setOptions({ skipTenantScope: true })
         .select('_id')
         .lean();
@@ -699,7 +726,13 @@ router.get('/appointments', async (req, res, next) => {
     const Appointment = require('../models/Appointment');
     const candidatePatientIds = await getAssociatedPatientIds(req.user.patient);
 
-    const appointments = await Appointment.find({ patientId: { $in: candidatePatientIds } })
+    const appointmentFilter = { patientId: { $in: candidatePatientIds } };
+    const effectiveClinic = req.user.clinicId || req.tenantId;
+    if (effectiveClinic && effectiveClinic !== '*') {
+      appointmentFilter.clinicId = effectiveClinic;
+    }
+
+    const appointments = await Appointment.find(appointmentFilter)
       .setOptions({ skipTenantScope: true })
       .populate('doctorId', 'firstName lastName specialization role')
       .sort({ appointmentDateTime: -1 })
@@ -744,7 +777,7 @@ router.post('/appointments', async (req, res, next) => {
     }
 
     const appointment = new Appointment({
-      clinicId: req.user.clinicId || 'new-life',
+      clinicId: req.user.clinicId || req.tenantId || 'default',
       patientId: req.user.patient,
       doctorId: doctorId || undefined,
       appointmentDateTime: new Date(appointmentDateTime),

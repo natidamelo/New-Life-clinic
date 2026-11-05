@@ -484,6 +484,14 @@ const authController = {
           });
         }
 
+        // Verify clinic isolation
+        if (clinicId && clinicId !== '*' && patient.clinicId && patient.clinicId !== clinicId) {
+          return res.status(400).json({
+            success: false,
+            message: `Patient Card with ID "${normalizedCardId}" belongs to a different clinic.`
+          });
+        }
+
         // Verify if a user is already linked to this patient record
         const alreadyLinkedUser = await User.findOne({ patient: patient._id }).setOptions({ skipTenantScope: true });
         if (alreadyLinkedUser) {
@@ -605,8 +613,9 @@ const authController = {
   checkPatientCard: async (req, res, next) => {
     try {
       const { cardId } = req.params;
+      const clinicId = req.query.clinicId || req.headers['x-clinic-id'];
       
-      logger.info('Patient card verification request', { cardId });
+      logger.info('Patient card verification request', { cardId, clinicId });
 
       if (!cardId || !cardId.trim()) {
         return res.status(400).json({
@@ -624,6 +633,14 @@ const authController = {
         return res.status(404).json({
           success: false,
           message: `Clinical Patient record with Card ID "${cardId}" was not found`
+        });
+      }
+
+      // Check clinic isolation if clinicId is specified
+      if (clinicId && clinicId !== '*' && patient.clinicId && patient.clinicId !== clinicId) {
+        return res.status(404).json({
+          success: false,
+          message: `Patient Card ID "${cardId}" does not belong to this clinic`
         });
       }
 

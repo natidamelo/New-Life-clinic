@@ -681,7 +681,9 @@ router.get('/quick-load', auth, async (req, res) => {
       });
     }
     
-    const patientIds = patients.map(patient => patient._id);
+    const patientObjIds = patients.map(patient => patient._id);
+    const patientStrIds = patients.map(patient => patient._id.toString());
+    const allPatientQueryIds = [...patientObjIds, ...patientStrIds];
 
     const registrationInvoiceIds = patients
       .filter(p => p.registrationInvoiceId)
@@ -702,18 +704,18 @@ router.get('/quick-load', auth, async (req, res) => {
       unpaidCardInvoices
     ] = await Promise.all([
       MedicalInvoice.find({
-        patient: { $in: patientIds },
+        patient: { $in: allPatientQueryIds },
         status: { $in: ['pending', 'overdue'] }
       }).select('patient status balance total').lean(),
 
       MedicalInvoice.find({
-        patient: { $in: patientIds },
+        patient: { $in: allPatientQueryIds },
         status: { $in: ['partial', 'partially_paid'] }
       }).select('patient status balance total').lean(),
 
       ServiceRequest
         ? ServiceRequest.find({
-            patient: { $in: patientIds },
+            patient: { $in: allPatientQueryIds },
             status: { $in: ['pending', 'in-progress'] }
           })
           .populate('service', 'name category price')
@@ -724,41 +726,52 @@ router.get('/quick-load', auth, async (req, res) => {
 
       PatientCard
         ? PatientCard.find({
-            patient: { $in: patientIds },
-            $or: [
-              { status: 'Active', amountPaid: { $gt: 0 } },
-              { status: 'Grace', amountPaid: { $gt: 0 } }
-            ]
-          }).select('patient').lean()
+            patient: { $in: allPatientQueryIds }
+          }).select('patient status expiryDate issuedDate cardNumber type amountPaid benefits').lean()
         : Promise.resolve([]),
 
       MedicalInvoice.find({
-        patient: { $in: patientIds },
+        patient: { $in: allPatientQueryIds },
         status: 'paid',
-        'items.category': 'card'
-      }).select('patient items').lean(),
+        $or: [
+          { 'items.category': 'card' },
+          { 'items.description': { $regex: /card|membership/i } }
+        ]
+      }).select('patient items paidAt createdAt invoiceDate').lean(),
 
       MedicalInvoice.find({
-        patient: { $in: patientIds },
+        patient: { $in: allPatientQueryIds },
         status: { $in: ['partial', 'partially_paid'] },
         balance: 0,
-        'items.category': 'card'
-      }).select('patient items').lean(),
+        $or: [
+          { 'items.category': 'card' },
+          { 'items.description': { $regex: /card|membership/i } }
+        ]
+      }).select('patient items paidAt createdAt invoiceDate').lean(),
 
       registrationInvoiceIds.length > 0
         ? MedicalInvoice.find({
             _id: { $in: registrationInvoiceIds },
             status: 'paid'
-          }).select('_id').lean()
+          }).select('_id paidAt createdAt invoiceDate').lean()
         : Promise.resolve([]),
 
       MedicalInvoice.find({
-        patient: { $in: patientIds },
-        $or: [
-          { status: { $in: ['pending', 'overdue'] } },
-          { status: { $in: ['partial', 'partially_paid'] }, balance: { $gt: 0 } }
-        ],
-        'items.category': 'card'
+        patient: { $in: allPatientQueryIds },
+        $and: [
+          {
+            $or: [
+              { status: { $in: ['pending', 'overdue'] } },
+              { status: { $in: ['partial', 'partially_paid'] }, balance: { $gt: 0 } }
+            ]
+          },
+          {
+            $or: [
+              { 'items.category': 'card' },
+              { 'items.description': { $regex: /card|membership/i } }
+            ]
+          }
+        ]
       }).select('patient items').lean()
     ]);
 
@@ -767,6 +780,7 @@ router.get('/quick-load', auth, async (req, res) => {
 
     const patientUnpaidInvoicesMap = {};
     allUnpaidInvoices.forEach(invoice => {
+      if (!invoice.patient) return;
       const pid = invoice.patient.toString();
       if (!patientUnpaidInvoicesMap[pid]) patientUnpaidInvoicesMap[pid] = [];
       patientUnpaidInvoicesMap[pid].push(invoice);
@@ -774,21 +788,48 @@ router.get('/quick-load', auth, async (req, res) => {
 
     const patientServiceRequestsMap = {};
     activeServiceRequests.forEach(sr => {
+      if (!sr.patient) return;
       const pid = sr.patient.toString();
       if (!patientServiceRequestsMap[pid]) patientServiceRequestsMap[pid] = [];
       patientServiceRequestsMap[pid].push(sr);
     });
 
+    // Map each patient to their most recent or active PatientCard
+    const patientCardMap = {};
+    if (Array.isArray(paidCards)) {
+      paidCards.forEach(card => {
+        if (!card || !card.patient) return;
+        const pid = card.patient.toString();
+        if (!patientCardMap[pid] || card.status === 'Active') {
+          patientCardMap[pid] = card;
+        }
+      });
+    }
+
     const patientCardPaidSet = new Set();
-    paidCards.forEach(card => patientCardPaidSet.add(card.patient.toString()));
-    paidCardInvoices.forEach(inv => {
-      if (inv.items && inv.items.some(item => item.category === 'card'))
-        patientCardPaidSet.add(inv.patient.toString());
+    const patientCardInvoiceMap = {};
+
+    Object.keys(patientCardMap).forEach(pid => {
+      const card = patientCardMap[pid];
+      if (card && (card.amountPaid > 0 || card.status === 'Active' || card.status === 'Grace')) {
+        patientCardPaidSet.add(pid);
+      }
     });
-    partialCardInvoices.forEach(inv => {
-      if (inv.items && inv.items.some(item => item.category === 'card'))
-        patientCardPaidSet.add(inv.patient.toString());
-    });
+
+    const recordPaidCardInvoice = (inv) => {
+      if (!inv || !inv.patient) return;
+      const pid = inv.patient.toString();
+      patientCardPaidSet.add(pid);
+      const d = new Date(inv.paidAt || inv.createdAt || inv.invoiceDate);
+      if (!isNaN(d.getTime())) {
+        if (!patientCardInvoiceMap[pid] || d > patientCardInvoiceMap[pid].date) {
+          patientCardInvoiceMap[pid] = { invoice: inv, date: d };
+        }
+      }
+    };
+
+    paidCardInvoices.forEach(recordPaidCardInvoice);
+    partialCardInvoices.forEach(recordPaidCardInvoice);
 
     if (paidRegInvoices.length > 0) {
       const invoiceToPatientMap = {};
@@ -798,21 +839,79 @@ router.get('/quick-load', auth, async (req, res) => {
       });
       paidRegInvoices.forEach(inv => {
         const patId = invoiceToPatientMap[inv._id.toString()];
-        if (patId) patientCardPaidSet.add(patId);
+        if (patId) {
+          patientCardPaidSet.add(patId);
+          const d = new Date(inv.paidAt || inv.createdAt || inv.invoiceDate);
+          if (!isNaN(d.getTime())) {
+            if (!patientCardInvoiceMap[patId] || d > patientCardInvoiceMap[patId].date) {
+              patientCardInvoiceMap[patId] = { invoice: inv, date: d };
+            }
+          }
+        }
       });
     }
 
     const patientIdsWithUnpaidCardInvoice = new Set();
     unpaidCardInvoices.forEach(inv => {
-      if (inv.items && inv.items.some(item => item.category === 'card'))
-        patientIdsWithUnpaidCardInvoice.add(inv.patient.toString());
+      if (inv.patient) patientIdsWithUnpaidCardInvoice.add(inv.patient.toString());
     });
+
+    const now = Date.now();
 
     const patientsWithPaymentStatus = patients.map(patient => {
       const patientId = patient._id.toString();
       const unpaid = patientUnpaidInvoicesMap[patientId] || [];
       const svcReqs = patientServiceRequestsMap[patientId] || [];
       const hasPaidCardFee = patientCardPaidSet.has(patientId);
+      const hasUnpaidCard = patientIdsWithUnpaidCardInvoice.has(patientId);
+      const card = patientCardMap[patientId] || null;
+      const cardInv = patientCardInvoiceMap[patientId] || null;
+
+      // Accurately evaluate card status based on 12-month membership rules
+      let evaluatedCardStatus = 'none';
+      let cardDaysRemaining = null;
+
+      if (hasUnpaidCard) {
+        evaluatedCardStatus = 'unpaid';
+      } else {
+        let expiryDate = null;
+
+        if (card && card.expiryDate) {
+          expiryDate = new Date(card.expiryDate);
+        } else if (patient.cardExpiryDate) {
+          expiryDate = new Date(patient.cardExpiryDate);
+        } else if (cardInv && !isNaN(cardInv.date.getTime())) {
+          // Standard 12-month card validity from paid membership invoice
+          expiryDate = new Date(cardInv.date);
+          expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+        } else if (patient.cardIssueDate) {
+          expiryDate = new Date(patient.cardIssueDate);
+          expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+        } else if (hasPaidCardFee && patient.createdAt) {
+          const cDate = new Date(patient.createdAt);
+          if (!isNaN(cDate.getTime())) {
+            expiryDate = new Date(cDate);
+            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+          }
+        }
+
+        if (expiryDate && !isNaN(expiryDate.getTime())) {
+          const graceEnd = new Date(expiryDate.getTime() + 15 * 24 * 60 * 60 * 1000);
+          if (now <= expiryDate.getTime()) {
+            evaluatedCardStatus = 'active';
+            cardDaysRemaining = Math.max(0, Math.ceil((expiryDate.getTime() - now) / (1000 * 60 * 60 * 24)));
+          } else if (now <= graceEnd.getTime()) {
+            evaluatedCardStatus = 'grace';
+            cardDaysRemaining = Math.max(0, Math.ceil((graceEnd.getTime() - now) / (1000 * 60 * 60 * 24)));
+          } else {
+            evaluatedCardStatus = 'expired';
+          }
+        } else if (card && card.status) {
+          evaluatedCardStatus = card.status.toLowerCase();
+        } else {
+          evaluatedCardStatus = 'none';
+        }
+      }
 
       return {
         ...patient,
@@ -822,7 +921,11 @@ router.get('/quick-load', auth, async (req, res) => {
         hasActiveServiceRequests: svcReqs.length > 0,
         hasCardPayment: hasPaidCardFee || Boolean(patient.cardIssueDate),
         hasPaidCardFee,
-        hasUnpaidCardInvoice: patientIdsWithUnpaidCardInvoice.has(patientId)
+        hasUnpaidCardInvoice: hasUnpaidCard,
+        cardStatus: evaluatedCardStatus,
+        evaluatedCardStatus,
+        cardDaysRemaining,
+        activeCard: card
       };
     });
     

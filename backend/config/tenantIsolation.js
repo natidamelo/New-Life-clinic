@@ -27,13 +27,9 @@ function clinicIdOrLegacyMatch(tenantId) {
     return { $or: or };
   }
   
-  // For other tenants, only match their own clinicId + 'default' (for shared defaults),
-  // but strictly exclude the primary clinic's data and legacy unstamped data.
-  const slugSet = new Set(
-    [tenantId, 'default'].filter((s) => s != null && String(s).trim() !== '')
-  );
-  const or = [...slugSet].map((id) => ({ clinicId: id }));
-  return { $or: or };
+  // For other tenants (isolated clinics like 'nat-clinic'),
+  // strictly match ONLY their own clinicId. They must never see 'default' or legacy data.
+  return { clinicId: tenantId };
 }
 
 function tenantScopePlugin(schema) {
