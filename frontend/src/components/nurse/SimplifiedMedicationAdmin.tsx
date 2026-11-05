@@ -51,6 +51,8 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
   const [failedAttempts, setFailedAttempts] = useState<Record<string, number>>({});
   const [patientData, setPatientData] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [stockInfo, setStockInfo] = useState<{ inStock: boolean; quantity: number; found: boolean; message?: string } | null>(null);
+  const [loadingStock, setLoadingStock] = useState(false);
 
   const medicationName = task?.medicationDetails?.medicationName || 'Unknown Medication';
   const patientName = task?.patientName || 'Unknown Patient';
@@ -82,6 +84,22 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
       const response = await patientService.getPatientById(patientId);
       if (response) setPatientData(response);
     } catch (_) {}
+  };
+
+  const fetchStockData = async () => {
+    if (!medicationName) return;
+    setLoadingStock(true);
+    try {
+      const encoded = encodeURIComponent(medicationName);
+      const res = await api.get(`/api/medication-administration/check-stock/${encoded}?_t=${Date.now()}`);
+      if (res.data?.success) {
+        setStockInfo(res.data);
+      }
+    } catch (_) {
+      // ignore
+    } finally {
+      setLoadingStock(false);
+    }
   };
 
   const fetchPaymentData = async () => {
@@ -133,7 +151,8 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
   useEffect(() => {
     fetchPaymentData();
     fetchPatientData();
-  }, [taskId]);
+    fetchStockData();
+  }, [taskId, medicationName]);
 
   const getDosesPerDay = (freq: string) => {
     if (!freq) return 1;
@@ -324,17 +343,22 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
       ));
       const msg = error.message || 'Failed to administer dose.';
       if (msg.includes('already been administered') || msg.includes('DOSE_ALREADY_ADMINISTERED')) {
-        setFailedAttempts(prev => ({ ...prev, [doseKey]: (prev[doseKey] || 0) + 1 }));
+        setDoseStatuses(prev => prev.map(dose =>
+          dose.day === day && dose.timeSlot === timeSlot
+            ? { ...dose, administered: true, administeredAt: new Date().toISOString() }
+            : dose
+        ));
+        toast.info('This dose was already administered.');
         if (onRefresh) onRefresh(task._id || task.id);
-        toast.warning('This dose has already been administered. Refreshing...');
+      } else if (msg.includes('Inventory') || msg.includes('Insufficient stock') || msg.includes('stock')) {
+        fetchStockData();
+        toast.error(msg || `Inventory Error: ${medicationName} not available in stock.`);
       } else if (msg.includes('not logged in')) {
         toast.error('Authentication Error: Please log in again.');
       } else if (msg.includes('Access denied')) {
         toast.error('Permission Error: You do not have permission to administer medications.');
       } else if (msg.includes('Payment required')) {
         toast.error('Payment Required: Please collect payment before administering.');
-      } else if (msg.includes('Inventory') || msg.includes('Insufficient stock')) {
-        toast.error(`Inventory Error: ${medicationName} not available in stock.`);
       } else {
         toast.error(`Error: ${msg}`);
       }
@@ -346,7 +370,7 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
   const handleManualRefresh = async () => {
     setRefreshing(true);
     if (onRefresh) onRefresh(task._id || task.id);
-    await fetchPaymentData();
+    await Promise.all([fetchPaymentData(), fetchStockData()]);
     setRefreshing(false);
     toast.success('Refreshed');
   };
@@ -436,8 +460,9 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
     const isPaymentBlocked = paymentData !== null &&
       paymentData.totalCost > 0 &&
       doseSequence > paidDoses;
+    const isStockBlocked = stockInfo !== null && !stockInfo.inStock;
     const isDisabled = dose.administered || isAdministering || prescriptionSequentialBlock.isBlocked ||
-      isFuture || isPaymentBlocked || (isAnyAdministering && !isAdministering);
+      isFuture || isPaymentBlocked || isStockBlocked || (isAnyAdministering && !isAdministering);
 
     const dateStr = format(dose.date, 'MMM d');
 
@@ -479,6 +504,16 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
           className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-slate-50 border border-dashed border-slate-300 cursor-not-allowed select-none">
           <Calendar size={14} className="text-slate-300" />
           <span className="text-[10px] text-slate-400 font-medium mt-0.5">{dose.timeSlot}</span>
+        </div>
+      );
+    }
+
+    if (isStockBlocked) {
+      return (
+        <div key={doseKey} title={`Out of Stock: ${medicationName} is not available in inventory (${stockInfo?.quantity || 0} in stock). Refill inventory before administering.`}
+          className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-red-50 border border-red-200 cursor-not-allowed select-none">
+          <AlertCircle size={15} className="text-red-500" />
+          <span className="text-[10px] text-red-600 font-semibold mt-0.5">No Stock</span>
         </div>
       );
     }
@@ -681,6 +716,18 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
           <Pill size={12} className="text-amber-600" /> {route}
         </span>
 
+        {/* Stock Badge */}
+        {stockInfo && (
+          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold border px-3 py-1.5 rounded-full shadow-sm ${
+            stockInfo.inStock
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              : 'bg-red-50 text-red-800 border-red-200'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${stockInfo.inStock ? 'bg-emerald-500' : 'bg-red-500'}`} />
+            {stockInfo.inStock ? `In Stock: ${stockInfo.quantity}` : `Out of Stock (${stockInfo.quantity})`}
+          </span>
+        )}
+
         {/* Payment badge — hidden when summary is shown at the top */}
         {!hidePaymentBadge && !loadingPayment && paymentData && (
           <span className={`inline-flex items-center gap-1.5 text-xs font-semibold border px-3 py-1.5 rounded-full ${paymentBadge.bg}`}>
@@ -708,6 +755,16 @@ const SimplifiedMedicationAdmin: React.FC<SimplifiedMedicationAdminProps> = ({
       </div>
 
       {/* ── Alerts ──────────────────────────────────────────────────────────── */}
+      {/* Stock Alert Banner */}
+      {stockInfo && !stockInfo.inStock && (
+        <div className="mx-6 mb-4 flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700">
+          <AlertCircle size={18} className="flex-shrink-0 text-red-600" />
+          <div className="text-xs">
+            <span className="font-bold">Inventory Out of Stock: </span>
+            <span>{medicationName} is out of stock in inventory ({stockInfo.quantity} available). Administration is locked until stock is refilled.</span>
+          </div>
+        </div>
+      )}
       {/* Per-dose payment alerts */}
       {!hidePaymentBadge && paymentData && paymentData.paymentStatus === 'partially_paid' && paymentData.paidDoses >= 0 && (
         <div className="mx-6 mb-4 flex items-start gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700">

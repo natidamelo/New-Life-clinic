@@ -86,44 +86,18 @@ router.get(
 );
 
 // POST /api/medication-administration/administer-dose
-// Clean, single-purpose endpoint for administering medication doses
+// Clean, single-purpose endpoint for administering medication doses with STRICT STOCK CHECK
 router.post(
   '/administer-dose',
   auth,
-  authorize('nurse', 'admin', 'doctor', 'mch'), // Allow nurses, admins, and doctors to administer medications
+  authorize('nurse', 'admin', 'doctor', 'mch'),
   asyncHandler(async (req, res) => {
     console.log(`🚀 [DOSE ADMIN] Route hit with body:`, req.body);
-    console.log(`🔐 [DOSE ADMIN] User info:`, req.user);
-    console.log(`🔐 [DOSE ADMIN] User role:`, req.user?.role);
-    console.log(`🔐 [DOSE ADMIN] User ID:`, req.user?.id || req.user?._id);
-    console.log(`📋 [DOSE ADMIN] Headers:`, req.headers);
-    console.log(`🔐 [DOSE ADMIN] Authorization header:`, req.headers.authorization);
-    console.log(`🔐 [DOSE ADMIN] User role check:`, req.user?.role);
-    console.log(`🔐 [DOSE ADMIN] Allowed roles: ['nurse', 'admin', 'doctor']`);
-    console.log(`🔐 [DOSE ADMIN] Role match:`, ['nurse', 'admin', 'doctor'].includes(req.user?.role));
     const { taskId, day, timeSlot, notes = '' } = req.body;
-    
-    // Debug: Log the received values
-    console.log('🔍 [DOSE ADMIN] Received values:', {
-      taskId: taskId,
-      day: day,
-      timeSlot: timeSlot,
-      notes: notes,
-      taskIdType: typeof taskId,
-      dayType: typeof day,
-      timeSlotType: typeof timeSlot
-    });
     
     // Input validation
     if (!taskId || !day || !timeSlot) {
-      console.error('❌ [DOSE ADMIN] Missing required fields:', {
-        taskId: taskId,
-        day: day,
-        timeSlot: timeSlot,
-        taskIdPresent: !!taskId,
-        dayPresent: !!day,
-        timeSlotPresent: !!timeSlot
-      });
+      console.error('❌ [DOSE ADMIN] Missing required fields:', { taskId, day, timeSlot });
       return res.status(400).json({
         success: false,
         error: 'MISSING_REQUIRED_FIELDS',
@@ -155,7 +129,7 @@ router.post(
       });
     }
 
-    // Acquire lock
+    // Acquire in-memory lock
     administrationLocks.set(lockKey, {
       userId: req.user._id || req.user.id,
       timestamp: new Date(),
@@ -167,7 +141,7 @@ router.post(
     try {
       console.log(`🔒 [DOSE ADMIN] Lock acquired for ${lockKey}`);
 
-      // Find the nurse task
+      // 1. Find the nurse task
       const task = await NurseTask.findById(taskId);
       if (!task) {
         return res.status(404).json({
@@ -177,10 +151,6 @@ router.post(
         });
       }
 
-      console.log(`📋 [DOSE ADMIN] Task found: ${task.description || 'No description'}`);
-      console.log(`📋 [DOSE ADMIN] Task type: ${task.taskType}, Status: ${task.status}`);
-
-      // Check if this is a medication or injection procedure task
       const isMedicationTask = task.taskType === 'MEDICATION';
       const isInjectionTask = task.taskType === 'PROCEDURE' && 
                              (task.description?.toLowerCase().includes('injection') || 
@@ -194,50 +164,318 @@ router.post(
           message: 'This endpoint only handles medication and injection tasks'
         });
       }
-      
-      console.log(`📋 [DOSE ADMIN] Task validation: isMedication=${isMedicationTask}, isInjection=${isInjectionTask}`);
 
-      // ATOMIC LOCK: Try to mark the dose as administered atomically to prevent race conditions
-      // This prevents multiple simultaneous calls from deducting inventory multiple times
-      console.log(`🔒 [DOSE ADMIN] Attempting atomic dose marking...`);
-      console.log(`🔍 [ATOMIC] Query parameters: taskId=${taskId}, day=${day}, timeSlot=${standardizedTimeSlot}`);
+      // 2. Pre-check: Resolve target dose record & check if ALREADY ADMINISTERED
+      let dbTimeSlot = standardizedTimeSlot;
+      const preCheckDoseRecords = task.medicationDetails?.doseRecords || [];
+      const numDay = parseInt(day, 10);
       
-      // CRITICAL: First, let's check what's actually in the database RIGHT NOW
-      const preCheckTask = await NurseTask.findById(taskId).lean();
-      console.log(`📊 [PRE-CHECK] Task found: ${!!preCheckTask}`);
-      if (preCheckTask && preCheckTask.medicationDetails) {
-        console.log(`📊 [PRE-CHECK] Total dose records: ${preCheckTask.medicationDetails.doseRecords?.length || 0}`);
-        
-        // Log ALL dose records to see what's actually in the database
-        console.log(`📊 [PRE-CHECK] ALL DOSE RECORDS:`);
-        preCheckTask.medicationDetails.doseRecords?.forEach((record, index) => {
-          console.log(`  [${index}] Day: ${record.day} (type: ${typeof record.day}), TimeSlot: "${record.timeSlot}" (type: ${typeof record.timeSlot}), Administered: ${record.administered}`);
-        });
-        
-        console.log(`🔍 [PRE-CHECK] Searching for: Day ${day} (type: ${typeof day}), TimeSlot "${standardizedTimeSlot}"`);
-        
-        const targetDose = preCheckTask.medicationDetails.doseRecords?.find(
-          r => r.day === day && r.timeSlot === standardizedTimeSlot
+      let targetDose = preCheckDoseRecords.find(
+        r => parseInt(r.day, 10) === numDay && r.timeSlot === standardizedTimeSlot
+      );
+      
+      if (!targetDose) {
+        targetDose = preCheckDoseRecords.find(
+          r => parseInt(r.day, 10) === numDay && r.timeSlot?.toLowerCase() === standardizedTimeSlot?.toLowerCase()
         );
-        console.log(`📊 [PRE-CHECK] Target dose found: ${!!targetDose}`);
-        if (targetDose) {
-          console.log(`📊 [PRE-CHECK] Target dose administered status: ${targetDose.administered}`);
-          console.log(`📊 [PRE-CHECK] Target dose full object:`, JSON.stringify(targetDose, null, 2));
-        } else {
-          console.log(`❌ [PRE-CHECK] NO MATCH FOUND! The dose record exists but day/timeSlot don't match.`);
+      }
+      
+      if (!targetDose) {
+        const numericToText = {
+          '06:00': ['morning'], '08:00': ['morning'], '09:00': ['morning', 'anytime'],
+          '12:00': ['afternoon', 'noon', 'midday'], '14:00': ['afternoon'],
+          '18:00': ['evening'], '20:00': ['evening'], '21:00': ['evening', 'night'],
+          '22:00': ['night'], '24:00': ['night']
+        };
+        const textToNumeric = {
+          'morning': ['06:00', '08:00', '09:00'], 'afternoon': ['12:00', '14:00'],
+          'evening': ['18:00', '20:00', '21:00'], 'night': ['22:00', '24:00', '21:00'],
+          'noon': ['12:00'], 'midday': ['12:00'], 'anytime': ['09:00', 'Anytime']
+        };
+        const lowerStandardized = standardizedTimeSlot?.toLowerCase();
+        const textAlternatives = numericToText[standardizedTimeSlot] || [];
+        const numericAlternatives = textToNumeric[lowerStandardized] || [];
+        const allAlternatives = [...textAlternatives, ...numericAlternatives];
+        
+        targetDose = preCheckDoseRecords.find(
+          r => parseInt(r.day, 10) === numDay && allAlternatives.some(alt => r.timeSlot?.toLowerCase() === alt.toLowerCase())
+        );
+      }
+      
+      if (!targetDose) {
+        const dayRecords = preCheckDoseRecords.filter(r => parseInt(r.day, 10) === numDay);
+        if (dayRecords.length === 1) {
+          targetDose = dayRecords[0];
         }
       }
       
-      let atomicUpdate;
+      if (targetDose) {
+        dbTimeSlot = targetDose.timeSlot;
+      }
+
+      // If dose is already administered in database, return idempotent success!
+      if (targetDose && targetDose.administered === true) {
+        console.log(`✅ [DOSE ADMIN] Dose already administered — returning idempotent success`);
+        return res.json({
+          success: true,
+          alreadyAdministered: true,
+          message: 'This dose was already administered successfully.',
+          data: {
+            taskId: task._id,
+            patientName: task.patientName,
+            medicationName: task.medicationDetails?.medicationName || task.description,
+            day: numDay,
+            timeSlot: dbTimeSlot,
+            administeredAt: targetDose.administeredAt,
+            administeredBy: targetDose.administeredBy,
+            inventoryDeducted: targetDose.inventoryDeducted || false,
+            inventoryDetails: targetDose.inventoryDetails || null,
+            doseRecord: targetDose
+          }
+        });
+      }
+
+      // If injection task is already completed
+      if (isInjectionTask && task.status === 'COMPLETED') {
+        console.log(`✅ [DOSE ADMIN] Injection task already completed — returning idempotent success`);
+        return res.json({
+          success: true,
+          alreadyAdministered: true,
+          message: 'This injection was already administered successfully.',
+          data: {
+            taskId: task._id,
+            patientName: task.patientName,
+            medicationName: task.serviceName || task.description,
+            day: numDay,
+            timeSlot: dbTimeSlot,
+            administeredAt: task.completedDate || new Date()
+          }
+        });
+      }
+
+      // 3. Check prescription dependencies
+      if (task.prescriptionDependencies?.dependsOn && task.prescriptionDependencies.dependsOn.length > 0) {
+        for (const dependency of task.prescriptionDependencies.dependsOn) {
+          try {
+            const dependentTask = await NurseTask.findOne({
+              prescriptionId: dependency.prescriptionId,
+              taskType: 'MEDICATION'
+            });
+            if (!dependentTask) continue;
+            
+            const dependentDoses = dependentTask.medicationDetails?.doseRecords || [];
+            const totalDependentDoses = dependentDoses.length;
+            const completedDependentDoses = dependentDoses.filter(d => d.administered).length;
+            
+            let isDependencyMet = false;
+            if (dependency.requiredCompletion === 'fully_completed') {
+              isDependencyMet = totalDependentDoses > 0 && completedDependentDoses === totalDependentDoses;
+            } else if (dependency.requiredCompletion === 'partially_completed') {
+              isDependencyMet = completedDependentDoses > 0;
+            }
+            
+            if (!isDependencyMet) {
+              const msg = dependency.requiredCompletion === 'fully_completed' 
+                ? `Cannot administer ${task.medicationDetails?.medicationName || 'medication'} until ${dependency.medicationName} is fully completed (${completedDependentDoses}/${totalDependentDoses} doses)`
+                : `Cannot administer ${task.medicationDetails?.medicationName || 'medication'} until ${dependency.medicationName} has at least one completed dose`;
+              
+              task.prescriptionDependencies.isBlocked = true;
+              task.prescriptionDependencies.blockReason = msg;
+              await task.save();
+              
+              return res.status(403).json({
+                success: false,
+                error: 'PRESCRIPTION_DEPENDENCY_NOT_MET',
+                message: msg
+              });
+            }
+          } catch (e) {
+            console.error('Error checking dependency:', e);
+          }
+        }
+      }
+
+      // 4. Check Ethiopian time-based availability
+      const medicationStartDate = task.medicationDetails?.startDate || task.createdAt;
+      const availability = checkDoseAvailability(standardizedTimeSlot, medicationStartDate, numDay);
+      if (!availability.canAdminister && !availability.isOverdue) {
+        const msg = !availability.isRightDay 
+          ? `This dose is scheduled for ${availability.targetDate}. Current Ethiopian time: ${availability.currentEthiopianTime}`
+          : `This ${standardizedTimeSlot} dose is not available yet. Current Ethiopian time: ${availability.currentEthiopianTime}. Next available: ${formatEthiopianTime(availability.nextAvailable)}`;
+        
+        return res.status(400).json({
+          success: false,
+          error: 'DOSE_NOT_AVAILABLE_YET',
+          message: msg,
+          availability: availability
+        });
+      }
+
+      // 5. Check payment authorization
+      if (task.paymentAuthorization && task.paymentAuthorization.paymentStatus !== 'fully_paid') {
+        const paymentAuth = task.paymentAuthorization;
+        if (typeof paymentAuth.authorizedDoses === 'number' && paymentAuth.authorizedDoses < 1) {
+          return res.status(403).json({
+            success: false,
+            error: 'PAYMENT_REQUIRED',
+            message: 'Payment required - no doses authorized yet. Please collect payment before administering medication.'
+          });
+        }
+      }
+
+      // 6. STRICT INVENTORY STOCK CHECK & DEDUCTION (BEFORE MARKING DOSE ADMINISTERED)
+      let medicationName = task.medicationDetails?.medicationName || task.description || 'Unknown Medication';
+      medicationName = medicationName.replace(/^administer\s+/i, '').trim();
+
+      if (medicationName.toLowerCase().includes('depo injection')) {
+        medicationName = 'Depo';
+      } else if (medicationName.toLowerCase().includes('injection')) {
+        const m = medicationName.match(/^(.+?)\s+injection/i);
+        if (m) medicationName = m[1].trim();
+      }
+
+      const itemNameVariations = {
+        'normal saline': ['normal saline', 'normal saline (0.9% nacl)', '0.9% normal saline', 'nacl 0.9%', 'saline solution', 'ns', 'normal salin', '0.9% nacl'],
+        'saline': ['normal saline', 'saline solution', '0.9% saline', 'nacl'],
+        'ns': ['normal saline', 'saline solution', '0.9% nacl'],
+        'ringer lactate': ['ringer lactate', 'ringer\'s lactate', 'hartmann solution', 'hartmann\'s solution', 'rl', 'lactated ringer'],
+        'rl': ['ringer lactate', 'ringer\'s lactate', 'hartmann solution'],
+        'dextrose': ['dextrose 5%', 'dextrose 10%', 'd5w', 'd10w', '5% dextrose', '10% dextrose', 'dextrose solution'],
+        'dextrose 5%': ['dextrose 5%', 'd5w', '5% dextrose', 'dextrose 5% (d5w)'],
+        'd5w': ['dextrose 5%', 'd5w', '5% dextrose'],
+        'dextrose 10%': ['dextrose 10%', 'd10w', '10% dextrose', 'dextrose 10% (d10w)'],
+        'd10w': ['dextrose 10%', 'd10w', '10% dextrose'],
+        'dextrose 40%': ['dextrose 40%', 'd40w', '40% dextrose'],
+        'dextrose 50%': ['dextrose 50%', 'd50w', '50% dextrose', 'dextrose 50% (d50w)'],
+        'd50w': ['dextrose 50%', 'd50w', '50% dextrose'],
+        'half normal saline': ['half normal saline', '0.45% nacl', '0.45% saline', 'half saline'],
+        '3% saline': ['3% saline', 'hypertonic saline', '3% nacl'],
+        'paracetamol': ['paracetamol', 'acetaminophen', 'tylenol', 'panadol'],
+        'ibuprofen': ['ibuprofen', 'brufen', 'advil'],
+        'amoxicillin': ['amoxicillin', 'amoxil'],
+        'ceftriaxone': ['ceftriaxone', 'rocephin'],
+        'metronidazole': ['metronidazole', 'flagyl'],
+        'ciprofloxacin': ['ciprofloxacin', 'cipro'],
+        'azithromycin': ['azithromycin', 'zithromax'],
+        'diclofenac': ['diclofenac', 'voltaren', 'diclofenac sodium'],
+        'dexamethasone': ['dexamethasone', 'dexa'],
+        'tramadol': ['tramadol', 'ultram'],
+        'depo': ['depo', 'depo-provera', 'medroxyprogesterone']
+      };
+
+      const variations = itemNameVariations[medicationName.toLowerCase()] || [medicationName];
+      const caseVariations = [
+        medicationName,
+        medicationName.toLowerCase(),
+        medicationName.charAt(0).toUpperCase() + medicationName.slice(1).toLowerCase(),
+        medicationName.toUpperCase()
+      ];
+      const allVariations = [...new Set([...variations, ...caseVariations])];
+
+      let medicationItem = null;
+      for (const variation of allVariations) {
+        const searchTerms = [
+          new RegExp(`^${variation}$`, 'i'),
+          new RegExp(variation, 'i'),
+          new RegExp(variation.replace(/\s+/g, '\\s*'), 'i')
+        ];
+
+        for (const searchTerm of searchTerms) {
+          medicationItem = await InventoryItem.findOne({
+            name: searchTerm,
+            isActive: { $ne: false }
+          });
+          if (medicationItem) break;
+        }
+        if (medicationItem) break;
+      }
+
+      // STRICT STOCK ENFORCEMENT:
+      // If the medication is NOT registered in inventory at all, block administration
+      if (!medicationItem) {
+        console.log(`❌ [DOSE ADMIN] Strict stock check failed: "${medicationName}" not found in inventory`);
+        return res.status(400).json({
+          success: false,
+          error: 'INSUFFICIENT_STOCK',
+          message: `Medication "${medicationName}" is not registered in inventory. Please add it to inventory before administering.`
+        });
+      }
+
+      const requiresStock = medicationItem.category !== 'service';
+
+      // Check if stock is 0 or less
+      if (requiresStock && medicationItem.quantity < 1) {
+        console.log(`❌ [DOSE ADMIN] Strict stock check failed: "${medicationItem.name}" has ${medicationItem.quantity} units (0 stock)`);
+        return res.status(400).json({
+          success: false,
+          error: 'INSUFFICIENT_STOCK',
+          message: `Insufficient stock for ${medicationItem.name}. Available: ${medicationItem.quantity}, Required: 1. Please refill inventory before administering.`
+        });
+      }
+
+      // Atomically deduct 1 unit from inventory
+      let inventoryDeducted = false;
+      let inventoryDetails = null;
+      let previousQuantity = medicationItem.quantity;
+      let updatedItem = null;
+
+      if (requiresStock) {
+        updatedItem = await InventoryItem.findOneAndUpdate(
+          { _id: medicationItem._id, quantity: { $gte: 1 } },
+          {
+            $inc: { quantity: -1 },
+            $set: { updatedBy: req.user._id || req.user.id }
+          },
+          { new: true }
+        );
+
+        if (!updatedItem) {
+          console.log(`❌ [DOSE ADMIN] Atomic deduction failed: stock depleted concurrently for ${medicationItem.name}`);
+          return res.status(400).json({
+            success: false,
+            error: 'INSUFFICIENT_STOCK',
+            message: `Insufficient stock for ${medicationItem.name}. Stock was depleted by another session.`
+          });
+        }
+
+        previousQuantity = updatedItem.quantity + 1;
+        inventoryDeducted = true;
+        inventoryDetails = {
+          medicationName: medicationItem.name,
+          itemsDeducted: [{
+            name: medicationItem.name,
+            previousQuantity: previousQuantity,
+            newQuantity: updatedItem.quantity,
+            quantityDeducted: 1
+          }],
+          totalItems: 1
+        };
+      } else {
+        inventoryDeducted = true;
+        inventoryDetails = {
+          medicationName: medicationItem.name,
+          itemsDeducted: [],
+          totalItems: 0,
+          info: 'Service item - physical stock deduction skipped'
+        };
+      }
+
+      // 7. ATOMICALLY MARK THE DOSE AS ADMINISTERED IN NURSETASK
+      const adminName = `${req.user.firstName || 'Unknown'} ${req.user.lastName || 'User'}`.trim();
+      let atomicUpdate = null;
+
       if (isMedicationTask) {
-        // For medication tasks, atomically set the specific dose record to administered
+        // Query condition: match exact dose record if found, or day & dbTimeSlot
+        const elemCondition = targetDose?._id
+          ? { _id: targetDose._id }
+          : { day: numDay, timeSlot: dbTimeSlot };
+
         atomicUpdate = await NurseTask.findOneAndUpdate(
           {
             _id: taskId,
             'medicationDetails.doseRecords': {
               $elemMatch: {
-                day: day,
-                timeSlot: standardizedTimeSlot,
+                ...elemCondition,
                 $or: [
                   { administered: { $ne: true } },
                   { administered: { $exists: false } }
@@ -249,23 +487,64 @@ router.post(
             $set: {
               'medicationDetails.doseRecords.$.administered': true,
               'medicationDetails.doseRecords.$.administeredAt': new Date(),
-              'medicationDetails.doseRecords.$.administeredBy': `${req.user.firstName || 'Unknown'} ${req.user.lastName || 'User'}`,
+              'medicationDetails.doseRecords.$.administeredBy': adminName,
               'medicationDetails.doseRecords.$.processed': true,
               'medicationDetails.doseRecords.$.processedAt': new Date(),
-              'medicationDetails.doseRecords.$.processedBy': req.user._id || req.user.id
+              'medicationDetails.doseRecords.$.processedBy': req.user._id || req.user.id,
+              'medicationDetails.doseRecords.$.notes': notes,
+              'medicationDetails.doseRecords.$.inventoryDeducted': inventoryDeducted,
+              'medicationDetails.doseRecords.$.inventoryDetails': inventoryDetails
             }
           },
           { new: true }
         );
-        
-        console.log(`🔍 [ATOMIC] Update result: ${atomicUpdate ? 'SUCCESS' : 'FAILED (null returned)'}`);
+
+        // If doseRecord was not found in array (e.g. dynamic dose sequence), push it
+        if (!atomicUpdate && !targetDose) {
+          const newDoseRecord = {
+            day: numDay,
+            timeSlot: dbTimeSlot,
+            doseSequence: numDay,
+            doseLabel: `${numDay}th`,
+            administered: true,
+            administeredAt: new Date(),
+            administeredBy: adminName,
+            processed: true,
+            processedAt: new Date(),
+            processedBy: req.user._id || req.user.id,
+            notes: notes,
+            inventoryDeducted: inventoryDeducted,
+            inventoryDetails: inventoryDetails
+          };
+
+          atomicUpdate = await NurseTask.findOneAndUpdate(
+            { _id: taskId },
+            { $push: { 'medicationDetails.doseRecords': newDoseRecord } },
+            { new: true }
+          );
+        }
+
+        // If atomicUpdate is STILL null, another process administered this exact dose concurrently
+        if (!atomicUpdate) {
+          console.log(`⚠️ [DOSE ADMIN] Concurrent administration collision detected for Day ${numDay}, ${dbTimeSlot}. Rolling back inventory.`);
+          // Rollback the inventory deduction
+          if (requiresStock && medicationItem) {
+            await InventoryItem.findByIdAndUpdate(medicationItem._id, { $inc: { quantity: 1 } });
+          }
+          return res.json({
+            success: true,
+            alreadyAdministered: true,
+            message: 'This dose was already administered by another session.',
+            data: {
+              taskId: task._id,
+              day: numDay,
+              timeSlot: dbTimeSlot
+            }
+          });
+        }
       } else if (isInjectionTask) {
-        // For injection tasks, atomically set the task as completed
         atomicUpdate = await NurseTask.findOneAndUpdate(
-          {
-            _id: taskId,
-            status: { $ne: 'COMPLETED' }
-          },
+          { _id: taskId, status: { $ne: 'COMPLETED' } },
           {
             $set: {
               status: 'COMPLETED',
@@ -276,584 +555,61 @@ router.post(
           },
           { new: true }
         );
-      }
 
-      // If atomicUpdate is null, another process already administered this dose
-      if (!atomicUpdate) {
-        console.log(`⚠️  [DOSE ADMIN] ⏭️  SKIPPED - Dose already administered for Day ${day}, ${standardizedTimeSlot} (prevented race condition)`);
-        return res.status(400).json({
-          success: false,
-          error: 'DOSE_ALREADY_ADMINISTERED',
-          message: 'This dose has already been administered (race condition prevented)'
-        });
-      }
-
-      console.log(`✅ [DOSE ADMIN] Atomic lock acquired - dose marked as administered`);
-      
-      // Update the task variable with the atomic update result
-      // (atomicUpdate already contains the updated task)
-      Object.assign(task, atomicUpdate.toObject());
-
-      // NEW: Check prescription dependencies before allowing administration
-      if (task.prescriptionDependencies?.dependsOn && task.prescriptionDependencies.dependsOn.length > 0) {
-        console.log(`🔗 [DOSE ADMIN] Checking prescription dependencies for task ${task._id}`);
-        
-        for (const dependency of task.prescriptionDependencies.dependsOn) {
-          try {
-            // Find the dependent prescription's nurse task
-            const dependentTask = await NurseTask.findOne({
-              prescriptionId: dependency.prescriptionId,
-              taskType: 'MEDICATION'
-            });
-            
-            if (!dependentTask) {
-              console.log(`⚠️ [DOSE ADMIN] Dependent prescription task not found for ${dependency.medicationName}`);
-              continue;
-            }
-            
-            // Check completion status based on requirement
-            const dependentDoses = dependentTask.medicationDetails?.doseRecords || [];
-            const totalDependentDoses = dependentDoses.length;
-            const completedDependentDoses = dependentDoses.filter(d => d.administered).length;
-            
-            let isDependencyMet = false;
-            
-            if (dependency.requiredCompletion === 'fully_completed') {
-              isDependencyMet = totalDependentDoses > 0 && completedDependentDoses === totalDependentDoses;
-            } else if (dependency.requiredCompletion === 'partially_completed') {
-              isDependencyMet = completedDependentDoses > 0;
-            }
-            
-            if (!isDependencyMet) {
-              const message = dependency.requiredCompletion === 'fully_completed' 
-                ? `Cannot administer ${task.medicationDetails?.medicationName || 'medication'} until ${dependency.medicationName} is fully completed (${completedDependentDoses}/${totalDependentDoses} doses)`
-                : `Cannot administer ${task.medicationDetails?.medicationName || 'medication'} until ${dependency.medicationName} has at least one completed dose`;
-              
-              console.log(`🚫 [DOSE ADMIN] Prescription dependency not met: ${message}`);
-              
-              // Update the task's blocked status
-              task.prescriptionDependencies.isBlocked = true;
-              task.prescriptionDependencies.blockReason = message;
-              await task.save();
-              
-              return res.status(403).json({
-                success: false,
-                error: 'PRESCRIPTION_DEPENDENCY_NOT_MET',
-                message: message,
-                dependency: {
-                  medicationName: dependency.medicationName,
-                  requiredCompletion: dependency.requiredCompletion,
-                  currentProgress: `${completedDependentDoses}/${totalDependentDoses}`,
-                  isFullyCompleted: completedDependentDoses === totalDependentDoses
-                }
-              });
-            }
-          } catch (error) {
-            console.error(`❌ [DOSE ADMIN] Error checking dependency ${dependency.medicationName}:`, error);
-            // Continue checking other dependencies
+        if (!atomicUpdate) {
+          // Rollback inventory
+          if (requiresStock && medicationItem) {
+            await InventoryItem.findByIdAndUpdate(medicationItem._id, { $inc: { quantity: 1 } });
           }
-        }
-        
-        // If we get here, all dependencies are met
-        console.log(`✅ [DOSE ADMIN] All prescription dependencies met for task ${task._id}`);
-        
-        // Clear blocked status if it was previously set
-        if (task.prescriptionDependencies.isBlocked) {
-          task.prescriptionDependencies.isBlocked = false;
-          task.prescriptionDependencies.blockReason = '';
-          await task.save();
-        }
-      }
-
-      // Check Ethiopian time-based availability for the dose
-      const medicationStartDate = task.medicationDetails?.startDate || task.createdAt;
-      const availability = checkDoseAvailability(standardizedTimeSlot, medicationStartDate, day);
-      
-      console.log(`🕐 [DOSE ADMIN] Ethiopian time availability check:`, {
-        timeSlot: standardizedTimeSlot,
-        day: day,
-        canAdminister: availability.canAdminister,
-        isRightDay: availability.isRightDay,
-        isRightTime: availability.isRightTime,
-        isOverdue: availability.isOverdue,
-        currentTime: availability.currentEthiopianTime,
-        nextAvailable: availability.nextAvailable ? formatEthiopianTime(availability.nextAvailable) : null
-      });
-
-      // Prevent administration if it's not the right time (unless overdue)
-      if (!availability.canAdminister && !availability.isOverdue) {
-        const message = !availability.isRightDay 
-          ? `This dose is scheduled for ${availability.targetDate}. Current Ethiopian time: ${availability.currentEthiopianTime}`
-          : `This ${standardizedTimeSlot} dose is not available yet. Current Ethiopian time: ${availability.currentEthiopianTime}. Next available: ${formatEthiopianTime(availability.nextAvailable)}`;
-        
-        return res.status(400).json({
-          success: false,
-          error: 'DOSE_NOT_AVAILABLE_YET',
-          message: message,
-          availability: availability
-        });
-      }
-
-      // Handle medication tasks vs injection tasks differently
-      let doseRecord = null;
-      
-      if (isMedicationTask) {
-        // Initialize dose records if they don't exist for medication tasks
-        if (!task.medicationDetails) {
-          task.medicationDetails = {};
-        }
-        if (!task.medicationDetails.doseRecords) {
-          task.medicationDetails.doseRecords = [];
-        }
-
-        // Ensure required medicationDetails fields are present for validation
-        if (!task.medicationDetails.medicationName) {
-          // Fallback to task description if medicationName is not set
-          task.medicationDetails.medicationName = task.description || 'Unknown Medication';
-          console.warn(`⚠️ [DOSE ADMIN] medicationDetails.medicationName was missing, using task.description: ${task.medicationDetails.medicationName}`);
-        }
-        if (!task.medicationDetails.dosage) {
-          // Provide a default or derive from task if possible
-          task.medicationDetails.dosage = 'As prescribed'; // Default placeholder
-          console.warn(`⚠️ [DOSE ADMIN] medicationDetails.dosage was missing, setting to default: ${task.medicationDetails.dosage}`);
-        }
-        if (!task.medicationDetails.frequency) {
-          // Provide a default or derive from task if possible
-          task.medicationDetails.frequency = 'Once daily'; // Default placeholder
-          console.warn(`⚠️ [DOSE ADMIN] medicationDetails.frequency was missing, setting to default: ${task.medicationDetails.frequency}`);
-        }
-
-        // Find or create the dose record for medication tasks
-        // Use case-insensitive matching for time slots to handle 'Anytime' vs 'anytime'
-        doseRecord = task.medicationDetails.doseRecords.find(
-          record => record.day === day && record.timeSlot?.toLowerCase() === standardizedTimeSlot?.toLowerCase()
-        );
-
-        if (!doseRecord) {
-          doseRecord = {
-            day: day,
-            timeSlot: standardizedTimeSlot,
-            administered: false,
-            missed: false,
-            overdue: false
-          };
-          task.medicationDetails.doseRecords.push(doseRecord);
-        }
-      } else if (isInjectionTask) {
-        // For injection tasks, create a simple dose record structure
-        doseRecord = {
-          day: day,
-          timeSlot: standardizedTimeSlot,
-          administered: false,
-          missed: false,
-          overdue: false
-        };
-        
-        // Initialize medicationDetails for injection tasks if not present
-        if (!task.medicationDetails) {
-          task.medicationDetails = {
-            medicationName: task.serviceName || task.description || 'Unknown Injection',
-            dosage: '1 injection',
-            frequency: 'Single dose',
-            route: 'Intramuscular',
-            instructions: 'Administer injection as prescribed',
-            doseRecords: [doseRecord]
-          };
-        } else {
-          if (!task.medicationDetails.doseRecords) {
-            task.medicationDetails.doseRecords = [];
-          }
-          task.medicationDetails.doseRecords.push(doseRecord);
-        }
-      }
-
-      // ---------------- Payment Authorization Enforcement ----------------
-      if (task.paymentAuthorization && task.paymentAuthorization.paymentStatus !== 'fully_paid') {
-        const paymentAuth = task.paymentAuthorization;
-
-        // Calculate cumulative doses that would be administered including this one
-        const administeredCount = (task.medicationDetails?.doseRecords || []).filter(r => r.administered).length;
-        const cumulativeDoseNumber = administeredCount + 1; // this dose
-
-        // NEW LOGIC: Enable administration when at least one dose is paid for
-        if (typeof paymentAuth.authorizedDoses === 'number') {
-          const authorized = paymentAuth.authorizedDoses || 0;
-          if (authorized < 1) {
-            console.log(`🚫 [DOSE ADMIN] Payment required - no doses authorized yet. authorizedDoses: ${authorized}`);
-            administrationLocks.delete(lockKey);
-            return res.status(403).json({
-              success: false,
-              error: 'PAYMENT_REQUIRED',
-              message: `Payment required - no doses authorized yet. Please collect payment before administering medication.`
-            });
-          }
-          // If at least one dose is authorized, allow administration of any dose
-          console.log(`✅ [DOSE ADMIN] Payment authorized - at least ${authorized} dose(s) paid for`);
-        } else if (typeof paymentAuth.paidDays === 'number' && paymentAuth.paidDays < 1) {
-          console.log(`🚫 [DOSE ADMIN] Payment required for Day ${day}. paidDays: ${paymentAuth.paidDays}`);
-          administrationLocks.delete(lockKey);
-          return res.status(403).json({
-            success: false,
-            error: 'PAYMENT_REQUIRED',
-            message: `Payment required - no days paid for yet. Please collect payment before administering medication.`
+          return res.json({
+            success: true,
+            alreadyAdministered: true,
+            message: 'This injection was already administered.'
           });
         }
       }
 
-      // SIMPLIFIED: Use direct inventory lookup by medication name instead of service-linked inventory
-      // This eliminates complexity and potential double deduction issues
-      let inventoryDeducted = false;
-      let inventoryDetails = null;
-
-      // Get medication name from task and clean it up
-      let medicationName = task.medicationDetails?.medicationName || task.description || 'Unknown Medication';
-
-      // Clean up medication name for better matching and handle common variations
-      const originalMedicationName = medicationName;
-
-      // Remove "Administer" prefix if present
-      medicationName = medicationName.replace(/^administer\s+/i, '').trim();
-
-      if (medicationName.toLowerCase().includes('depo injection')) {
-        medicationName = 'Depo';  // Use exact case "Depo" to match inventory
-      } else if (medicationName.toLowerCase().includes('injection')) {
-        // Extract the medication name before "injection"
-        const match = medicationName.match(/^(.+?)\s+injection/i);
-        if (match) {
-          medicationName = match[1].trim();  // Keep original case for first word
-        }
-      }
-
-      // Handle specific item name variations and typos for ALL inventory categories
-      const itemNameVariations = {
-        // IV Fluids - Comprehensive list
-        'normal saline': ['normal saline', 'normal saline (0.9% nacl)', 'normal saline (0.9% nacl)', '0.9% normal saline', 'nacl 0.9%', 'saline solution', 'ns', 'normal salin', '0.9% nacl'],
-        'saline': ['normal saline', 'saline solution', '0.9% saline', 'nacl'],
-        'ns': ['normal saline', 'saline solution', '0.9% nacl'],
-        'normal salin': ['normal saline', 'saline solution'],
-        'ringer lactate': ['ringer lactate', 'ringer\'s lactate', 'hartmann solution', 'hartmann\'s solution', 'rl', 'lactated ringer', 'lactated ringers'],
-        'rl': ['ringer lactate', 'ringer\'s lactate', 'hartmann solution'],
-        'hartmann': ['ringer lactate', 'hartmann solution', 'hartmann\'s solution'],
-        'dextrose': ['dextrose 5%', 'dextrose 10%', 'd5w', 'd10w', '5% dextrose', '10% dextrose', 'dextrose solution'],
-        'dextrose 5%': ['dextrose 5%', 'd5w', '5% dextrose', 'dextrose 5% (d5w)'],
-        'd5w': ['dextrose 5%', 'd5w', '5% dextrose'],
-        'dextrose 10%': ['dextrose 10%', 'd10w', '10% dextrose', 'dextrose 10% (d10w)'],
-        'd10w': ['dextrose 10%', 'd10w', '10% dextrose'],
-        'dextrose 40%': ['dextrose 40%', 'd40w', '40% dextrose'],
-        'dextrose 50%': ['dextrose 50%', 'd50w', '50% dextrose', 'dextrose 50% (d50w)'],
-        'd50w': ['dextrose 50%', 'd50w', '50% dextrose'],
-        'half normal saline': ['half normal saline', '0.45% nacl', '0.45% saline', 'half saline'],
-        '3% saline': ['3% saline', 'hypertonic saline', '3% nacl'],
-        'ringer lactate': ['ringer lactate', 'ringer\'s lactate', 'hartmann\'s solution', 'lactated ringer', 'rl', 'ringer lactate (hartmann\'s solution)'],
-        'ringer\'s lactate': ['ringer lactate', 'ringer\'s lactate', 'hartmann\'s solution', 'lactated ringer', 'rl'],
-        'hartmann\'s solution': ['ringer lactate', 'ringer\'s lactate', 'hartmann\'s solution', 'lactated ringer', 'rl'],
-        'lactated ringer': ['ringer lactate', 'ringer\'s lactate', 'hartmann\'s solution', 'lactated ringer', 'rl'],
-        'rl': ['ringer lactate', 'ringer\'s lactate', 'hartmann\'s solution', 'lactated ringer', 'rl'],
-        'ns': ['normal saline', '0.9% nacl', '0.9% saline', 'ns', 'normal saline (0.9% nacl)'],
-        '5% dextrose in normal saline': ['5% dextrose in normal saline', 'd5ns', 'dextrose 5% in normal saline'],
-        'd5ns': ['5% dextrose in normal saline', 'd5ns'],
-        'sodium bicarbonate': ['sodium bicarbonate', 'sodium bicarbonate 8.4%', 'nahco3', 'bicarbonate'],
-        'potassium chloride': ['potassium chloride', 'kcl', 'potassium'],
-        'calcium gluconate': ['calcium gluconate', 'calcium', 'ca gluconate'],
-        'magnesium sulfate': ['magnesium sulfate', 'mgso4', 'magnesium'],
-        'mannitol': ['mannitol', 'mannitol 20%', '20% mannitol'],
-        'albumin': ['albumin', 'albumin 5%', 'albumin 25%', '5% albumin', '25% albumin'],
-
-        // Common Medications
-        'paracetamol': ['paracetamol', 'acetaminophen', 'tylenol', 'panadol'],
-        'ibuprofen': ['ibuprofen', 'brufen', 'advil'],
-        'amoxicillin': ['amoxicillin', 'amoxil'],
-        'ceftriaxone': ['ceftriaxone', 'rocephin'],
-        'metronidazole': ['metronidazole', 'flagyl'],
-        'ciprofloxacin': ['ciprofloxacin', 'cipro'],
-        'azithromycin': ['azithromycin', 'zithromax'],
-
-        // Lab tests
-        'glucose': ['glucose', 'glucose (fasting)', 'fasting glucose', 'fbs', 'fasting blood sugar', 'fasting blood glucose'],
-        'hemoglobin': ['hemoglobin', 'hgb', 'hb', 'cbc', 'complete blood count'],
-        'cbc': ['cbc', 'complete blood count', 'hemoglobin', 'hgb'],
-        'urinalysis': ['urinalysis', 'urine analysis', 'complete urinalysis', 'urine test'],
-        'urine': ['urinalysis', 'urine analysis', 'urine test'],
-
-        // Services
-        'consultation': ['consultation', 'doctor consultation', 'medical consultation'],
-        'injection': ['injection', 'injection service', 'injection administration'],
-        'blood pressure': ['blood pressure', 'bp check', 'vital signs'],
-        'vital signs': ['vital signs', 'blood pressure', 'bp check'],
-      };
-
-      // Check if we have variations for this item name
-      const variations = itemNameVariations[medicationName.toLowerCase()] || [medicationName];
-      
-      // Always add case variations to handle both "Depo" and "depo"
-      const caseVariations = [
-        medicationName, // as is
-        medicationName.toLowerCase(), // all lowercase
-        medicationName.charAt(0).toUpperCase() + medicationName.slice(1).toLowerCase(), // Title Case
-        medicationName.toUpperCase() // ALL UPPERCASE
-      ];
-      
-      // Combine and remove duplicates
-      const allVariations = [...new Set([...variations, ...caseVariations])];
-
-      console.log(`💊 [DOSE ADMIN] Medication name processing:`, {
-        original: originalMedicationName,
-        cleaned: medicationName,
-        variations: allVariations
-      });
-      
-      console.log(`💊 [DOSE ADMIN] Looking for medication in inventory: "${medicationName}"`);
-      console.log(`📋 [DOSE ADMIN] Task details:`, {
-        originalMedicationName: task.medicationDetails?.medicationName,
-        originalDescription: task.description,
-        cleanedMedicationName: medicationName,
-        taskType: task.taskType,
-        patientName: task.patientName
-      });
-
-      // Find item in inventory across ALL categories (case-insensitive and more flexible)
-      console.log(`💊 [DOSE ADMIN] Looking for item in inventory: "${medicationName}"`);
-      console.log(`📋 [DOSE ADMIN] Task type: ${task.taskType}, isInjection: ${isInjectionTask}`);
-
-      // Get all inventory items for debugging - show all categories
-      const allInventoryItems = await InventoryItem.find({}).select('name quantity category').sort({ category: 1, name: 1 });
-      console.log(`📦 [DOSE ADMIN] All inventory items by category:`);
-      const itemsByCategory = {};
-      allInventoryItems.forEach(item => {
-        if (!itemsByCategory[item.category]) itemsByCategory[item.category] = [];
-        itemsByCategory[item.category].push(`${item.name} (${item.quantity})`);
-      });
-      Object.keys(itemsByCategory).forEach(category => {
-        console.log(`  ${category}: [${itemsByCategory[category].join(', ')}]`);
-      });
-
-      // Try all variations of the item name across ALL categories
-      // IMPROVED: Search without category restriction to support any category name (medication, IV Fluids, etc.)
-      let medicationItem = null;
-
-      for (const variation of allVariations) {
-        console.log(`🔍 [DOSE ADMIN] Trying variation: "${variation}"`);
-
-        // Create search terms for this variation
-        const searchTerms = [
-          new RegExp(`^${variation}$`, 'i'),  // Exact match
-          new RegExp(variation, 'i'),         // Contains match
-          new RegExp(variation.replace(/\s+/g, '\\s*'), 'i'), // Flexible spacing
-        ];
-
-        // For injection tasks, prioritize medication category first for dual inventory
-        if (isInjectionTask) {
-          // First try medication category to enable dual deduction
-          for (const searchTerm of searchTerms) {
-            medicationItem = await InventoryItem.findOne({
-              name: searchTerm,
-              category: 'medication',
-              isActive: true
-            });
-            if (medicationItem) {
-              console.log(`✅ [DOSE ADMIN] Found injection in medication category: ${medicationItem.name}`);
-              break;
-            }
-          }
-        }
-
-        // If not found yet, search across ALL categories without restriction
-        // This handles any category name: medication, IV Fluids, supplies, etc.
-        if (!medicationItem) {
-          for (const searchTerm of searchTerms) {
-            medicationItem = await InventoryItem.findOne({
-              name: searchTerm,
-              quantity: { $gt: 0 },
-              isActive: { $ne: false } // Exclude inactive items
-            });
-            if (medicationItem) {
-              console.log(`✅ [DOSE ADMIN] Found in ${medicationItem.category} category: ${medicationItem.name}`);
-              break;
-            }
-          }
-        }
-
-        if (medicationItem) break; // Found a match, exit the loop
-      }
-
-      // Log the search results
-      if (medicationItem) {
-        console.log(`✅ [DOSE ADMIN] Found medication in inventory: ${medicationItem.name} (Qty: ${medicationItem.quantity}, Category: ${medicationItem.category})`);
-      } else {
-        console.log(`❌ [DOSE ADMIN] Medication "${medicationName}" not found in inventory`);
-        console.log(`🔍 [DOSE ADMIN] Tried variations:`, variations);
-        console.log(`⚠️ [DOSE ADMIN] IMPORTANT: Add "${medicationName}" to inventory via Stock Management to enable automatic deduction`);
-        console.log(`💡 [DOSE ADMIN] Tip: Use full medication name with concentration (e.g., "Dextrose 5% (D5W)" or "Normal Saline (0.9% NaCl)")`);
-      }
-
-      // NEW: Check if an inventory transaction already exists for this specific dose
-      let existingTransaction = null;
-      if (medicationItem) {
-        // Check for existing transactions with more flexible matching
-        existingTransaction = await InventoryTransaction.findOne({
-          $or: [
-            // Exact match
-            {
-              item: medicationItem._id,
-              documentReference: taskId,
-              reason: `${medicationName} dose administered - Day ${day}, ${standardizedTimeSlot}`
-            },
-            // More flexible reason matching
-            {
-              item: medicationItem._id,
-              documentReference: taskId,
-              reason: { $regex: new RegExp(`${medicationName}.*Day ${day}.*${standardizedTimeSlot}`, 'i') }
-            }
-          ],
-          status: { $in: ['pending', 'completed'] }
-        });
-      }
-
-      if (existingTransaction) {
-        console.log(`⚠️  [DOSE ADMIN] Existing inventory transaction found, skipping deduction`);
-        inventoryDeducted = true;
-        inventoryDetails = {
-          medicationName: medicationItem.name,
-          itemsDeducted: [],
-          totalItems: 0,
-          warning: 'Inventory already deducted for this dose'
-        };
-      } else if (medicationItem) {
-        console.log(`✅ [DOSE ADMIN] Found medication in inventory: ${medicationItem.name} (Qty: ${medicationItem.quantity})`);
-        
-        // Check if sufficient stock (all categories except services need stock)
-        const requiresStock = medicationItem.category !== 'service';
-        if (requiresStock && medicationItem.quantity < 1) {
-          return res.status(400).json({
-            success: false,
-            error: 'INSUFFICIENT_STOCK',
-            message: `Insufficient stock for ${medicationItem.name}. Available: ${medicationItem.quantity}, Required: 1`
-          });
-        }
-
-        // Deduct 1 unit from inventory using atomic operations
-        // Use atomic findOneAndUpdate to prevent race conditions
-        // For services, don't require stock check; for others, require stock
-        const updateCondition = requiresStock
-          ? { _id: medicationItem._id, quantity: { $gte: 1 } }
-          : { _id: medicationItem._id };
-
-        // RE-ENABLED: Main medication inventory deduction with duplicate prevention
-        console.log(`📦 [DEDUCTION] Attempting controlled inventory deduction for ${medicationName}`);
-        console.log(`📦 [DEDUCTION] Update condition:`, updateCondition);
-        console.log(`📦 [DEDUCTION] Requires stock: ${requiresStock}`);
-        
-        const updatedItem = await InventoryItem.findOneAndUpdate(
-          updateCondition,
-          {
-            $inc: { quantity: -1 },
-            $set: { updatedBy: req.user._id || req.user.id }
-          },
-          { new: true }
-        );
-
-        // Calculate previousQuantity from the update result (updatedItem.quantity + 1)
-        // This ensures we have the correct value even if quantity changed between find and update
-        const previousQuantity = updatedItem ? updatedItem.quantity + 1 : medicationItem.quantity;
-        
-        console.log(`📦 [DEDUCTION] Deduction result:`, {
-          updatedItem: !!updatedItem,
-          previousQuantity,
-          newQuantity: updatedItem?.quantity,
-          medicationName
-        });
-        
-        // DISABLED: Skip inventory deduction but allow administration to proceed
-        if (!updatedItem) {
-          console.log(`⚠️ [DOSE ADMIN] Inventory deduction disabled - allowing administration without deduction`);
-          console.log(`   Medication: ${medicationName}`);
-          console.log(`   Current quantity: ${medicationItem.quantity}`);
-        }
-
-        // Check if deduction was successful
-        if (!updatedItem && requiresStock) {
-          return res.status(400).json({
-            success: false,
-            error: 'INSUFFICIENT_STOCK',
-            message: `Insufficient stock for ${medicationItem.name}. Available: ${medicationItem.quantity}, Required: 1`
-          });
-        }
-
-        // For services, if quantity goes negative, reset to 0 (services can be unlimited)
-        if (medicationItem.category === 'service' && updatedItem && updatedItem.quantity < 0) {
-          updatedItem.quantity = 0;
-          await updatedItem.save();
-          console.log(`⚠️ [DOSE ADMIN] Service quantity went negative, reset to 0: ${medicationItem.name}`);
-        }
-
-        // RE-ENABLED: Create inventory transaction record
-        console.log(`📝 [TRANSACTION] Creating inventory transaction for ${medicationName}`);
-        
-        const transactionReason = `${medicationName} ${isInjectionTask ? 'injection' : 'dose'} administered - Day ${day}, ${standardizedTimeSlot}`;
-
-        // Create transaction record
-        const inventoryTransaction = new InventoryTransaction({
-          item: medicationItem._id,
-          transactionType: 'medical-use',
-          quantity: -1,
-          unitCost: medicationItem.costPrice || 0,
-          totalCost: (medicationItem.costPrice || 0),
-          previousQuantity: previousQuantity,
-          newQuantity: updatedItem ? updatedItem.quantity : medicationItem.quantity,
-          reason: transactionReason,
-          documentReference: taskId,
-          performedBy: new mongoose.Types.ObjectId(req.user._id || req.user.id),
-          patient: new mongoose.Types.ObjectId(task.patientId),
-          status: 'completed',
-          _skipInventoryUpdate: true // ✅ FIX: Skip hook - inventory already updated manually above
-        });
-
-        await inventoryTransaction.save();
-
-        // Mark as deducted with actual deduction
-        inventoryDeducted = true;
-        inventoryDetails = {
-          medicationName: medicationItem.name,
-          itemsDeducted: [{
-            name: medicationItem.name,
+      // 8. Create inventory transaction record
+      if (requiresStock && updatedItem) {
+        try {
+          const transactionReason = `${medicationName} ${isInjectionTask ? 'injection' : 'dose'} administered - Day ${numDay}, ${dbTimeSlot}`;
+          const inventoryTransaction = new InventoryTransaction({
+            item: medicationItem._id,
+            transactionType: 'medical-use',
+            quantity: -1,
+            unitCost: medicationItem.costPrice || 0,
+            totalCost: medicationItem.costPrice || 0,
             previousQuantity: previousQuantity,
-            newQuantity: updatedItem ? updatedItem.quantity : medicationItem.quantity,
-            quantityDeducted: 1 // Actual deduction performed
-          }],
-          totalItems: 1
-        };
-
-        console.log(`✅ [DOSE ADMIN] Deducted 1 unit of ${medicationItem.name} (${previousQuantity} → ${updatedItem ? updatedItem.quantity : medicationItem.quantity})`);
-        
-        // DUAL DEDUCTION DISABLED: Preventing duplicate deductions
-        // This entire section is disabled to prevent duplicate inventory deductions
-        // Only the main service deduction system will handle inventory
-        console.log(`ℹ️ [DOSE ADMIN] Service inventory sync disabled to prevent duplicates`);
-      } else {
-        console.log(`⚠️  [DOSE ADMIN] Medication "${medicationName}" not found in inventory or out of stock - allowing administration without deduction`);
-        
-        // Allow administration but record that no inventory was deducted
-        inventoryDetails = {
-          medicationName: medicationName,
-          itemsDeducted: [],
-          totalItems: 0,
-          warning: `Medication "${medicationName}" not found in inventory system`
-        };
+            newQuantity: updatedItem.quantity,
+            reason: transactionReason,
+            documentReference: taskId,
+            performedBy: new mongoose.Types.ObjectId(req.user._id || req.user.id),
+            patient: new mongoose.Types.ObjectId(task.patientId),
+            status: 'completed',
+            _skipInventoryUpdate: true
+          });
+          await inventoryTransaction.save();
+        } catch (txErr) {
+          console.error('Error saving inventory transaction:', txErr);
+        }
       }
 
-      // Update additional dose record fields (notes and inventory details)
-      // The basic administered fields were already set atomically above
-      doseRecord.notes = notes;
-      doseRecord.inventoryDeducted = inventoryDeducted;
-      doseRecord.inventoryDetails = inventoryDetails;
+      // 9. If all dose records in medicationDetails are administered, mark task as COMPLETED
+      try {
+        const refreshedDoses = atomicUpdate?.medicationDetails?.doseRecords || [];
+        if (refreshedDoses.length > 0 && refreshedDoses.every(d => d.administered)) {
+          await NurseTask.findByIdAndUpdate(taskId, {
+            $set: { status: 'COMPLETED', completedDate: new Date(), completedBy: req.user._id || req.user.id }
+          });
+          console.log(`🎉 [DOSE ADMIN] All doses completed! Task ${taskId} marked as COMPLETED.`);
+        }
+      } catch (_) {}
 
-      // Ensure Mongoose detects nested changes
-      task.markModified('medicationDetails.doseRecords');
+      console.log(`✅ [DOSE ADMIN] Successfully administered Day ${numDay}, ${dbTimeSlot}. Inventory deducted: ${inventoryDeducted}`);
 
-      // Save the task with inventory details
-      await task.save();
-
-      console.log(`✅ [DOSE ADMIN] Dose administration completed for Day ${day}, ${standardizedTimeSlot}`);
+      const savedDose = (atomicUpdate?.medicationDetails?.doseRecords || []).find(
+        r => parseInt(r.day, 10) === numDay && (r.timeSlot === dbTimeSlot || r.timeSlot === standardizedTimeSlot)
+      ) || targetDose;
 
       res.json({
         success: true,
@@ -862,34 +618,130 @@ router.post(
           taskId: task._id,
           patientName: task.patientName,
           medicationName: task.medicationDetails?.medicationName || task.description,
-          day: day,
-          timeSlot: standardizedTimeSlot,
-          administeredAt: doseRecord.administeredAt,
-          administeredBy: doseRecord.administeredBy,
+          day: numDay,
+          timeSlot: dbTimeSlot,
+          administeredAt: savedDose?.administeredAt || new Date(),
+          administeredBy: adminName,
           inventoryDeducted: inventoryDeducted,
           inventoryDetails: inventoryDetails,
-          doseRecord: doseRecord
+          doseRecord: savedDose
         }
       });
 
     } catch (error) {
       console.error(`❌ [DOSE ADMIN] Error administering dose:`, error);
-      console.error(`❌ [DOSE ADMIN] Error stack:`, error.stack);
-      console.error(`❌ [DOSE ADMIN] Error name:`, error.name);
-      console.error(`❌ [DOSE ADMIN] Error message:`, error.message);
-      
       res.status(500).json({
         success: false,
         error: 'ADMINISTRATION_FAILED',
         message: 'Failed to administer dose',
-        details: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: error.message
       });
     } finally {
-      // Always release the lock
       administrationLocks.delete(lockKey);
       console.log(`🔓 [DOSE ADMIN] Lock released for ${lockKey}`);
     }
+  })
+);
+
+// GET /api/medication-administration/check-stock/:medicationName
+// Endpoint for nurses to check live stock before administering
+router.get(
+  '/check-stock/:medicationName',
+  auth,
+  authorize('nurse', 'admin', 'doctor', 'mch'),
+  asyncHandler(async (req, res) => {
+    let { medicationName } = req.params;
+    if (!medicationName) {
+      return res.status(400).json({ success: false, message: 'Medication name required' });
+    }
+
+    medicationName = decodeURIComponent(medicationName).replace(/^administer\s+/i, '').trim();
+    if (medicationName.toLowerCase().includes('depo injection')) {
+      medicationName = 'Depo';
+    } else if (medicationName.toLowerCase().includes('injection')) {
+      const m = medicationName.match(/^(.+?)\s+injection/i);
+      if (m) medicationName = m[1].trim();
+    }
+
+    const itemNameVariations = {
+      'normal saline': ['normal saline', 'normal saline (0.9% nacl)', '0.9% normal saline', 'nacl 0.9%', 'saline solution', 'ns', 'normal salin', '0.9% nacl'],
+      'saline': ['normal saline', 'saline solution', '0.9% saline', 'nacl'],
+      'ns': ['normal saline', 'saline solution', '0.9% nacl'],
+      'ringer lactate': ['ringer lactate', 'ringer\'s lactate', 'hartmann solution', 'hartmann\'s solution', 'rl', 'lactated ringer'],
+      'rl': ['ringer lactate', 'ringer\'s lactate', 'hartmann solution'],
+      'dextrose': ['dextrose 5%', 'dextrose 10%', 'd5w', 'd10w', '5% dextrose', '10% dextrose', 'dextrose solution'],
+      'dextrose 5%': ['dextrose 5%', 'd5w', '5% dextrose', 'dextrose 5% (d5w)'],
+      'd5w': ['dextrose 5%', 'd5w', '5% dextrose'],
+      'dextrose 10%': ['dextrose 10%', 'd10w', '10% dextrose', 'dextrose 10% (d10w)'],
+      'd10w': ['dextrose 10%', 'd10w', '10% dextrose'],
+      'dextrose 40%': ['dextrose 40%', 'd40w', '40% dextrose'],
+      'dextrose 50%': ['dextrose 50%', 'd50w', '50% dextrose', 'dextrose 50% (d50w)'],
+      'd50w': ['dextrose 50%', 'd50w', '50% dextrose'],
+      'half normal saline': ['half normal saline', '0.45% nacl', '0.45% saline', 'half saline'],
+      '3% saline': ['3% saline', 'hypertonic saline', '3% nacl'],
+      'paracetamol': ['paracetamol', 'acetaminophen', 'tylenol', 'panadol'],
+      'ibuprofen': ['ibuprofen', 'brufen', 'advil'],
+      'amoxicillin': ['amoxicillin', 'amoxil'],
+      'ceftriaxone': ['ceftriaxone', 'rocephin'],
+      'metronidazole': ['metronidazole', 'flagyl'],
+      'ciprofloxacin': ['ciprofloxacin', 'cipro'],
+      'azithromycin': ['azithromycin', 'zithromax'],
+      'diclofenac': ['diclofenac', 'voltaren', 'diclofenac sodium'],
+      'dexamethasone': ['dexamethasone', 'dexa'],
+      'tramadol': ['tramadol', 'ultram'],
+      'depo': ['depo', 'depo-provera', 'medroxyprogesterone']
+    };
+
+    const variations = itemNameVariations[medicationName.toLowerCase()] || [medicationName];
+    const caseVariations = [
+      medicationName,
+      medicationName.toLowerCase(),
+      medicationName.charAt(0).toUpperCase() + medicationName.slice(1).toLowerCase(),
+      medicationName.toUpperCase()
+    ];
+    const allVariations = [...new Set([...variations, ...caseVariations])];
+
+    let item = null;
+    for (const variation of allVariations) {
+      const searchTerms = [
+        new RegExp(`^${variation}$`, 'i'),
+        new RegExp(variation, 'i'),
+        new RegExp(variation.replace(/\s+/g, '\\s*'), 'i')
+      ];
+
+      for (const searchTerm of searchTerms) {
+        item = await InventoryItem.findOne({
+          name: searchTerm,
+          isActive: { $ne: false }
+        });
+        if (item) break;
+      }
+      if (item) break;
+    }
+
+    if (!item) {
+      return res.json({
+        success: true,
+        medicationName,
+        found: false,
+        inStock: false,
+        quantity: 0,
+        message: `Medication "${medicationName}" is not registered in inventory`
+      });
+    }
+
+    const isService = item.category === 'service';
+    const inStock = isService || item.quantity > 0;
+
+    res.json({
+      success: true,
+      medicationName,
+      found: true,
+      inStock,
+      quantity: item.quantity,
+      category: item.category,
+      itemName: item.name
+    });
   })
 );
 
