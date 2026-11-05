@@ -327,16 +327,15 @@ router.get('/loss-report', auth, async (req, res) => {
   }
 });
 
-// Get medications for prescription use
+// Get medications for prescription use (includes stock quantities, dosage, and route)
 router.get('/medications-for-prescription', auth, async (req, res) => {
   try {
     const medications = await InventoryItem.find({
       category: 'medication',
-      isActive: { $ne: false },
-      quantity: { $gt: 0 }
-    }).select('_id name description sellingPrice costPrice quantity unit category');
+      isActive: { $ne: false }
+    }).select('_id name description sellingPrice costPrice quantity unit category dosage administrationRoute');
     
-    console.log(`🔍 [PUBLIC] Returning ${medications.length} medications for prescription use`);
+    console.log(`🔍 [INVENTORY] Returning ${medications.length} medications for prescription use`);
     res.json(medications);
   } catch (error) {
     console.error('Error fetching medications for prescription:', error);

@@ -738,12 +738,44 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
+    // Resolve inventory items by ID or medication name for robust inventory linkage
+    const resolvedMedications = await Promise.all(medications.map(async (med) => {
+      let inventoryItemId = med.inventoryItemId || med.inventoryItem || null;
+      const medName = (med.medication || med.name || '').trim();
+      if (!inventoryItemId && medName) {
+        try {
+          const matched = await InventoryItem.findOne({
+            name: { $regex: new RegExp(`^${medName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+            isActive: { $ne: false }
+          }).select('_id');
+          if (matched) {
+            inventoryItemId = matched._id;
+            console.log(`📦 [PRESCRIPTION] Auto-resolved inventory item by name: ${medName} -> ${inventoryItemId}`);
+          }
+        } catch (resolveErr) {
+          console.warn(`[PRESCRIPTION] Error resolving inventory item for ${medName}:`, resolveErr.message);
+        }
+      }
+      return {
+        inventoryItem: inventoryItemId, // Save as inventoryItem (ObjectId reference)
+        inventoryItemId: inventoryItemId, // Also save as inventoryItemId for compatibility
+        name: med.medication || med.name,
+        dosage: med.dosage,
+        frequency: med.frequency,
+        duration: med.duration, // CRITICAL: Always use doctor's prescribed duration, no defaults
+        route: med.route || 'Oral',
+        notes: med.nurseInstructions || med.notes || '',
+        sendToNurse: med.sendToNurse !== undefined ? med.sendToNurse : true,
+        assignedNurseId: med.assignedNurseId || null
+      };
+    }));
+
     // Create a single prescription with all medications in the medications array
     const prescriptionData = {
       patient: effectivePatientId,
       doctor: effectiveDoctorId,
       doctorId: effectiveDoctorId, // Ensure both doctor and doctorId fields are set
-      medicationName: medications[0].medication, // Primary medication name
+      medicationName: medications[0].medication || medications[0].name, // Primary medication name
       dosage: medications[0].dosage,
       frequency: medications[0].frequency,
       route: medications[0].route || 'Oral',
@@ -752,27 +784,10 @@ router.post('/', auth, async (req, res) => {
       duration: medications[0].duration || duration, // Use first medication's duration, no default fallback
       status: status || 'Pending',
       sendToNurse: medications[0].sendToNurse !== undefined ? medications[0].sendToNurse : true,
-      medicationItem: medications[0].inventoryItemId,
+      medicationItem: resolvedMedications[0]?.inventoryItemId || null,
       datePrescribed: new Date(),
       instructions: instructions || '',
-      // Add all medications to the medications array
-      // CRITICAL: Ensure inventoryItemId is properly saved for all medications selected from inventory
-      medications: medications.map(med => {
-        const inventoryItemId = med.inventoryItemId || med.inventoryItem || null;
-        console.log(`📦 [PRESCRIPTION] Saving medication: ${med.medication}, inventoryItemId: ${inventoryItemId}`);
-        return {
-          inventoryItem: inventoryItemId, // Save as inventoryItem (ObjectId reference)
-          inventoryItemId: inventoryItemId, // Also save as inventoryItemId for compatibility
-          name: med.medication,
-          dosage: med.dosage,
-          frequency: med.frequency,
-          duration: med.duration, // CRITICAL: Always use doctor's prescribed duration, no defaults
-          route: med.route || 'Oral',
-          notes: med.nurseInstructions || '',
-          sendToNurse: med.sendToNurse !== undefined ? med.sendToNurse : true,
-          assignedNurseId: med.assignedNurseId || null
-        };
-      })
+      medications: resolvedMedications
     };
 
     console.log("Creating prescription with medications array:", JSON.stringify(prescriptionData, null, 2));

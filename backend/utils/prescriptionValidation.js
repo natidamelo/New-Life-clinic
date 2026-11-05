@@ -485,21 +485,30 @@ async function createPrescriptionWithValidation(prescriptionData, assignedNurseI
       prescriptionData.doctor = prescriptionData.doctorId;
     }
 
-    // Step 3.6: Block prescription if any medication is out of stock
+    // Step 3.6: Block prescription if any medication is out of stock (quantity <= 0)
     const stockErrors = [];
     const medsToCheck = prescriptionData.medications && prescriptionData.medications.length > 0
       ? prescriptionData.medications
       : [{ name: prescriptionData.medicationName, inventoryItem: prescriptionData.medicationItem, inventoryItemId: prescriptionData.medicationItem }];
     for (const med of medsToCheck) {
-      const inventoryId = med.inventoryItem || med.inventoryItemId;
-      if (!inventoryId) continue;
+      let inventoryId = med.inventoryItem || med.inventoryItemId;
+      let item = null;
       try {
-        const item = await InventoryItem.findById(inventoryId).select('name quantity').lean();
+        if (inventoryId) {
+          item = await InventoryItem.findById(inventoryId).select('name quantity isActive').lean();
+        } else if (med.name) {
+          // Check by name if inventory item ID was omitted
+          const cleanName = String(med.name).trim();
+          item = await InventoryItem.findOne({
+            name: { $regex: new RegExp(`^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+            isActive: { $ne: false }
+          }).select('name quantity isActive').lean();
+        }
         if (item && (item.quantity == null || Number(item.quantity) <= 0)) {
-          stockErrors.push(`${item.name || med.name || 'This medication'} is out of stock. Cannot prescribe.`);
+          stockErrors.push(`${item.name || med.name || 'This medication'} is out of stock (0 available in clinic inventory). Cannot prescribe.`);
         }
       } catch (e) {
-        console.warn(`[PrescriptionValidation] Could not check stock for inventory ${inventoryId}:`, e.message);
+        console.warn(`[PrescriptionValidation] Could not check stock for medication ${med.name}:`, e.message);
       }
     }
     if (stockErrors.length > 0) {

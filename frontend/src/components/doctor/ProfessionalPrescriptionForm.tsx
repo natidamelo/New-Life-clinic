@@ -2026,8 +2026,9 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                 }
                 // Only search inventory if medication type is 'inventory'
                 else if (updatedMedications[index].medicationType === 'inventory') {
+                    const cleanVal = value.trim().toLowerCase();
                     const matchedInventoryItem = availableInventoryMedications.find(
-                        item => item.name.toLowerCase() === value.toLowerCase()
+                        item => (item.name || '').trim().toLowerCase() === cleanVal
                     );
                     if (matchedInventoryItem) {
                         updatedMedications[index].inventoryItemId = matchedInventoryItem._id;
@@ -2636,6 +2637,21 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
             if (!med.route || med.route.trim() === '') {
                 newErrors[`medications[${index}].route`] = 'Route is required';
             }
+
+            // Inventory medication stock validation (Option 1: Strict stock enforcement)
+            if (med.medicationType === 'inventory' && med.medication && med.medication.trim()) {
+                const medName = med.medication.trim();
+                const matchedItem = med.inventoryItem || availableInventoryMedications.find(
+                    item => (item.name || '').trim().toLowerCase() === medName.toLowerCase()
+                );
+                if (matchedItem) {
+                    if (matchedItem.quantity !== undefined && Number(matchedItem.quantity) <= 0) {
+                        newErrors[`medications[${index}].medication`] = `"${medName}" is out of stock (0 available). Cannot prescribe from clinic inventory.`;
+                    }
+                } else if (availableInventoryMedications.length > 0) {
+                    newErrors[`medications[${index}].medication`] = `"${medName}" was not found in clinic inventory. Switch to "External" to prescribe for outside pharmacy.`;
+                }
+            }
         });
 
         // Global nurse validation - REQUIRED when sendAllToNurse is true (and there are medication items)
@@ -2831,7 +2847,18 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
             }
             
             // Regular prescription creation (existing logic)
-            // Separate inventory medications (need payment) from external prescriptions (print only)
+            // Ensure inventory item references are linked before partitioning
+            medications.forEach(med => {
+                if (med.medicationType === 'inventory' && !med.inventoryItemId && med.medication) {
+                    const matched = availableInventoryMedications.find(
+                        inv => (inv.name || '').trim().toLowerCase() === med.medication.trim().toLowerCase()
+                    );
+                    if (matched) {
+                        med.inventoryItemId = matched._id;
+                        med.inventoryItem = matched;
+                    }
+                }
+            });
             const serviceItems = medications.filter(med => med.medicationType === 'service' && med.serviceId);
             const medicationItems = medications.filter(med => med.medicationType !== 'service');
             const inventoryMedications = medicationItems.filter(med => med.medicationType === 'inventory' && med.inventoryItemId && med.inventoryItem);
@@ -3969,13 +3996,72 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                                                             placeholder="Search inventory medications..."
                                                             className={`mt-0.5 flex-1 h-7 text-xs ${
                                                                 errors[`medications[${index}].medication`] 
-                                                                    ? 'border-destructive' 
+                                                                    ? 'border-destructive bg-rose-50/40' 
                                                                     : medication.inventoryItem 
-                                                                        ? 'border-emerald-300 bg-emerald-50 focus:border-emerald-500 focus:ring-emerald-200' 
+                                                                        ? (Number(medication.inventoryItem.quantity) > 0
+                                                                            ? 'border-emerald-300 bg-emerald-50 focus:border-emerald-500 focus:ring-emerald-200' 
+                                                                            : 'border-rose-300 bg-rose-50 focus:border-rose-500 focus:ring-rose-200')
                                                                         : ''
                                                             }`}
                                                             list={`inventory-suggestions-${index}`}
                                                         />
+
+                                                        {/* Live Inventory Stock Badge / Alert */}
+                                                        {medication.medication && medication.medicationType === 'inventory' && (() => {
+                                                            const item = medication.inventoryItem || availableInventoryMedications.find(
+                                                                inv => (inv.name || '').trim().toLowerCase() === medication.medication.trim().toLowerCase()
+                                                            );
+                                                            if (item) {
+                                                                const inStock = (item.quantity || 0) > 0;
+                                                                return inStock ? (
+                                                                    <div className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md">
+                                                                        <Package className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
+                                                                        <span className="font-semibold">In Stock:</span>
+                                                                        <span>{item.quantity} {item.unit || 'units'} available in clinic inventory</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex items-center justify-between gap-2 text-xs text-rose-800 bg-rose-50 border border-rose-200 px-2.5 py-1.5 rounded-md">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <AlertTriangle className="h-3.5 w-3.5 text-rose-600 flex-shrink-0" />
+                                                                            <span className="font-semibold">Out of Stock (0 available):</span>
+                                                                            <span>Cannot prescribe from clinic inventory.</span>
+                                                                        </div>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const updatedMeds = [...medications];
+                                                                                updatedMeds[index].medicationType = 'external';
+                                                                                setMedications(updatedMeds);
+                                                                            }}
+                                                                            className="text-[11px] font-semibold text-rose-700 underline hover:text-rose-900 ml-auto whitespace-nowrap"
+                                                                        >
+                                                                            Switch to External
+                                                                        </button>
+                                                                    </div>
+                                                                );
+                                                            } else {
+                                                                return (
+                                                                    <div className="flex items-center justify-between gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-md">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
+                                                                            <span>Not registered in clinic inventory.</span>
+                                                                        </div>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const updatedMeds = [...medications];
+                                                                                updatedMeds[index].medicationType = 'external';
+                                                                                setMedications(updatedMeds);
+                                                                            }}
+                                                                            className="text-[11px] font-semibold text-amber-700 underline hover:text-amber-900 ml-auto whitespace-nowrap"
+                                                                        >
+                                                                            Switch to External
+                                                                        </button>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                        })()}
+
                                                         <datalist id={`inventory-suggestions-${index}`}>
                                                             {/* Most subscribed from inventory first */}
                                                             {getMostSubscribedFromInventory().map(item => (
@@ -4014,10 +4100,14 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                                                                             }
                                                                             autoSuggestMedicationDefaults(item.name, index);
                                                                         }}
-                                                                        className="px-2 py-1 text-xs bg-primary/10 text-primary border border-primary/30 rounded hover:bg-primary/20 transition-colors"
-                                                                        title={`Stock: ${item.quantity} ${item.unit}`}
+                                                                        className={`px-2 py-1 text-xs border rounded transition-colors ${
+                                                                            item.quantity > 0 
+                                                                                ? 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20' 
+                                                                                : 'bg-rose-50 text-rose-700 border-rose-200 opacity-60'
+                                                                        }`}
+                                                                        title={item.quantity > 0 ? `Stock: ${item.quantity} ${item.unit}` : 'Out of Stock'}
                                                                     >
-                                                                        {item.name} ({item.quantity})
+                                                                        {item.name} ({item.quantity > 0 ? item.quantity : 'Out of stock'})
                                                                     </button>
                                                                 ))}
                                                             </div>
