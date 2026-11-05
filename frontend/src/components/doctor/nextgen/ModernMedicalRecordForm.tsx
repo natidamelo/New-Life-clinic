@@ -5013,6 +5013,46 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
     toast.success('HPI narrative regenerated from OLDCARTS Builder');
   };
 
+  const smartLocationChips = useMemo(() => {
+    const c = (formData.chiefComplaint.description || '').toLowerCase();
+    if (c.includes('fever') || c.includes('chill')) return ['Head', 'Systemic', 'Generalized', 'Chest', 'Abdomen'];
+    if (c.includes('headache') || c.includes('migraine')) return ['Frontal', 'Temporal', 'Occipital', 'Bilateral', 'Generalized'];
+    if (c.includes('chest')) return ['Substernal', 'Left precordial', 'Epigastric', 'Anterior chest'];
+    if (c.includes('abdom') || c.includes('stomach') || c.includes('epigastric')) return ['Epigastric', 'Periumbilical', 'RUQ', 'RLQ', 'Lower abdomen'];
+    if (c.includes('back') || c.includes('lumbar')) return ['Lumbar spine', 'Lumbosacral', 'Thoracic', 'Cervical/Neck'];
+    if (c.includes('throat') || c.includes('cough')) return ['Pharynx/Throat', 'Upper airway', 'Chest/Trachea'];
+    return ['Chest', 'Abdomen', 'Head', 'Back', 'Extremities', 'Systemic'];
+  }, [formData.chiefComplaint.description]);
+
+  const smartAssocChips = useMemo(() => {
+    const c = (formData.chiefComplaint.description || '').toLowerCase();
+    if (c.includes('fever') || c.includes('chill')) return ['Chills/rigors', 'Headache', 'Body aches', 'Nausea', 'Fatigue', 'Cough', 'None'];
+    if (c.includes('headache') || c.includes('migraine')) return ['Photophobia', 'Nausea/vomiting', 'Phonophobia', 'Neck stiffness', 'Dizziness', 'None'];
+    if (c.includes('chest')) return ['Shortness of breath', 'Diaphoresis', 'Palpitations', 'Nausea', 'Lightheadedness', 'None'];
+    if (c.includes('abdom') || c.includes('stomach') || c.includes('epigastric')) return ['Nausea', 'Vomiting', 'Diarrhea', 'Anorexia', 'Bloating', 'None'];
+    return ['Nausea', 'Fever', 'Cough', 'Fatigue', 'Dizziness', 'None'];
+  }, [formData.chiefComplaint.description]);
+
+  const smartPertinentNegatives = useMemo(() => {
+    const c = (formData.chiefComplaint.description || '').toLowerCase();
+    if (c.includes('fever') || c.includes('chill') || c.includes('infect')) {
+      return ['Denies neck stiffness or photophobia', 'Denies focal skin rash or lesions', 'Denies shortness of breath or cough', 'Denies dysuria or flank pain', 'Denies nausea, vomiting, or diarrhea'];
+    }
+    if (c.includes('headache') || c.includes('migraine')) {
+      return ['Denies visual aura or vision changes', 'Denies focal weakness or sensory deficits', 'Denies fever or neck rigidity', 'Denies recent head trauma', 'Denies nausea or vomiting'];
+    }
+    if (c.includes('chest')) {
+      return ['Denies radiation to left arm or jaw', 'Denies diaphoresis or cold clammy skin', 'Denies dyspnea on exertion', 'Denies palpitations or presyncope', 'Denies orthopnea or PND'];
+    }
+    if (c.includes('abdom') || c.includes('stomach') || c.includes('epigastric')) {
+      return ['Denies hematemesis or melena', 'Denies bright red blood per rectum (BRBPR)', 'Denies fever or chills', 'Denies radiating back pain', 'No history of NSAID overuse'];
+    }
+    if (c.includes('cough') || c.includes('shortness') || c.includes('breath')) {
+      return ['Denies hemoptysis', 'Denies orthopnea or paroxysmal nocturnal dyspnea', 'Denies pleuritic chest pain', 'Denies audible wheezing or stridor', 'Denies lower extremity edema'];
+    }
+    return ['Denies fever, chills, or weight loss', 'Denies shortness of breath or chest pain', 'Denies nausea or vomiting', 'No prior similar episodes'];
+  }, [formData.chiefComplaint.description]);
+
   const renderStepContent = () => {
     // Debug: Log current formData values
     console.log('🔍 [RENDER] Current formData:', {
@@ -5048,46 +5088,6 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           { key: 'severity', label: 'Severity (S)', present: !!(formData.chiefComplaint.severity !== undefined && formData.chiefComplaint.severity !== null && String(formData.chiefComplaint.severity).trim() !== '') }
         ];
         const oldcartsScore = oldcartsChecklist.filter(item => item.present).length / oldcartsChecklist.length;
-
-        const smartLocationChips = useMemo(() => {
-          const c = (formData.chiefComplaint.description || '').toLowerCase();
-          if (c.includes('fever') || c.includes('chill')) return ['Head', 'Systemic', 'Generalized', 'Chest', 'Abdomen'];
-          if (c.includes('headache') || c.includes('migraine')) return ['Frontal', 'Temporal', 'Occipital', 'Bilateral', 'Generalized'];
-          if (c.includes('chest')) return ['Substernal', 'Left precordial', 'Epigastric', 'Anterior chest'];
-          if (c.includes('abdom') || c.includes('stomach') || c.includes('epigastric')) return ['Epigastric', 'Periumbilical', 'RUQ', 'RLQ', 'Lower abdomen'];
-          if (c.includes('back') || c.includes('lumbar')) return ['Lumbar spine', 'Lumbosacral', 'Thoracic', 'Cervical/Neck'];
-          if (c.includes('throat') || c.includes('cough')) return ['Pharynx/Throat', 'Upper airway', 'Chest/Trachea'];
-          return ['Chest', 'Abdomen', 'Head', 'Back', 'Extremities', 'Systemic'];
-        }, [formData.chiefComplaint.description]);
-
-        const smartAssocChips = useMemo(() => {
-          const c = (formData.chiefComplaint.description || '').toLowerCase();
-          if (c.includes('fever') || c.includes('chill')) return ['Chills/rigors', 'Headache', 'Body aches', 'Nausea', 'Fatigue', 'Cough', 'None'];
-          if (c.includes('headache') || c.includes('migraine')) return ['Photophobia', 'Nausea/vomiting', 'Phonophobia', 'Neck stiffness', 'Dizziness', 'None'];
-          if (c.includes('chest')) return ['Shortness of breath', 'Diaphoresis', 'Palpitations', 'Nausea', 'Lightheadedness', 'None'];
-          if (c.includes('abdom') || c.includes('stomach') || c.includes('epigastric')) return ['Nausea', 'Vomiting', 'Diarrhea', 'Anorexia', 'Bloating', 'None'];
-          return ['Nausea', 'Fever', 'Cough', 'Fatigue', 'Dizziness', 'None'];
-        }, [formData.chiefComplaint.description]);
-
-        const smartPertinentNegatives = useMemo(() => {
-          const c = (formData.chiefComplaint.description || '').toLowerCase();
-          if (c.includes('fever') || c.includes('chill') || c.includes('infect')) {
-            return ['Denies neck stiffness or photophobia', 'Denies focal skin rash or lesions', 'Denies shortness of breath or cough', 'Denies dysuria or flank pain', 'Denies nausea, vomiting, or diarrhea'];
-          }
-          if (c.includes('headache') || c.includes('migraine')) {
-            return ['Denies visual aura or vision changes', 'Denies focal weakness or sensory deficits', 'Denies fever or neck rigidity', 'Denies recent head trauma', 'Denies nausea or vomiting'];
-          }
-          if (c.includes('chest')) {
-            return ['Denies radiation to left arm or jaw', 'Denies diaphoresis or cold clammy skin', 'Denies dyspnea on exertion', 'Denies palpitations or presyncope', 'Denies orthopnea or PND'];
-          }
-          if (c.includes('abdom') || c.includes('stomach') || c.includes('epigastric')) {
-            return ['Denies hematemesis or melena', 'Denies bright red blood per rectum (BRBPR)', 'Denies fever or chills', 'Denies radiating back pain', 'No history of NSAID overuse'];
-          }
-          if (c.includes('cough') || c.includes('shortness') || c.includes('breath')) {
-            return ['Denies hemoptysis', 'Denies orthopnea or paroxysmal nocturnal dyspnea', 'Denies pleuritic chest pain', 'Denies audible wheezing or stridor', 'Denies lower extremity edema'];
-          }
-          return ['Denies fever, chills, or weight loss', 'Denies shortness of breath or chest pain', 'Denies nausea or vomiting', 'No prior similar episodes'];
-        }, [formData.chiefComplaint.description]);
 
         const appendToHpi = (phrase: string) => {
           const current = (formData as any).historyOfPresentIllness || '';
@@ -5317,8 +5317,6 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
             </Box>
           );
         };
-
-        const theme = useTheme();
 
         return (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
