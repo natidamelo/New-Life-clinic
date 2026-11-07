@@ -198,6 +198,7 @@ async function createNurseTaskFromPrescription(prescription, patient = null) {
     };
 
     const taskData = {
+      clinicId: prescription.clinicId || (patient && patient.clinicId) || 'default',
       patientId: patientId,
       patientName: patientName,
       taskType: 'MEDICATION',

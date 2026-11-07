@@ -145,11 +145,13 @@ class PrescriptionInvoiceService {
       
       // Add all medication items to the daily consolidated invoice in one operation
       // This ensures all items are in the same invoice
+      const effectiveClinicId = prescription.clinicId || patient.clinicId || (doctor && doctor.clinicId) || 'default';
       const invoice = await billingService.addMultipleServicesToDailyInvoice(
         patient._id,
         'medication',
         servicesData,
-        doctor._id
+        doctor._id,
+        effectiveClinicId
       );
       
       // If prescription is already paid, sync payment status

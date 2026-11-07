@@ -242,6 +242,7 @@ async function ensureNurseTaskCreation(prescription, assignedNurseId = null) {
     }
 
     const newNurseTask = new NurseTask({
+      clinicId: prescription.clinicId || 'default',
       patientId: prescription.patient,
       patientName: prescription.patientName || 'Unknown Patient',
       taskType: 'MEDICATION',
@@ -535,36 +536,42 @@ async function createPrescriptionWithValidation(prescriptionData, assignedNurseI
         duration: med.duration 
     })));
 
-    // Step 5: Create nurse tasks for all medications
+    // Step 5: Create nurse tasks ONLY if prescription is already paid
     const taskResults = [];
+    const isPaid = ['paid', 'fully_paid'].includes((prescription.paymentStatus || '').toLowerCase());
     
-    if (prescription.medications && Array.isArray(prescription.medications) && prescription.medications.length > 0) {
-      console.log(`💊 [PrescriptionValidation] Creating nurse tasks for ${prescription.medications.length} medications`);
-      
-      for (const med of prescription.medications) {
-        // Create a temporary prescription object for each medication to use with existing function
-        const tempPrescription = {
-          ...prescription.toObject(),
-          medicationName: med.name || med.medication,
-          dosage: med.dosage,
-          frequency: med.frequency,
-          duration: med.duration || prescription.duration,
-          route: med.route || 'Oral',
-          medicationItem: med.inventoryItem || med.inventoryItemId
-        };
+    if (isPaid && prescription.sendToNurse !== false) {
+      if (prescription.medications && Array.isArray(prescription.medications) && prescription.medications.length > 0) {
+        console.log(`💊 [PrescriptionValidation] Creating nurse tasks for ${prescription.medications.length} paid medications`);
         
-        const taskResult = await ensureNurseTaskCreation(tempPrescription, assignedNurseId);
-        taskResults.push({
-          medication: med.name || med.medication,
-          ...taskResult
-        });
-        
-        console.log(`✅ [PrescriptionValidation] Nurse task for ${med.name || med.medication}: ${taskResult.created ? 'Created' : 'Updated'}`);
+        for (const med of prescription.medications) {
+          // Create a temporary prescription object for each medication to use with existing function
+          const tempPrescription = {
+            ...prescription.toObject(),
+            medicationName: med.name || med.medication,
+            dosage: med.dosage,
+            frequency: med.frequency,
+            duration: med.duration || prescription.duration,
+            route: med.route || 'Oral',
+            medicationItem: med.inventoryItem || med.inventoryItemId,
+            clinicId: prescription.clinicId || prescriptionData.clinicId || 'default'
+          };
+          
+          const taskResult = await ensureNurseTaskCreation(tempPrescription, assignedNurseId);
+          taskResults.push({
+            medication: med.name || med.medication,
+            ...taskResult
+          });
+          
+          console.log(`✅ [PrescriptionValidation] Nurse task for ${med.name || med.medication}: ${taskResult.created ? 'Created' : 'Updated'}`);
+        }
+      } else {
+        // Handle single medication (backward compatibility)
+        const taskResult = await ensureNurseTaskCreation(prescription, assignedNurseId);
+        taskResults.push(taskResult);
       }
     } else {
-      // Handle single medication (backward compatibility)
-      const taskResult = await ensureNurseTaskCreation(prescription, assignedNurseId);
-      taskResults.push(taskResult);
+      console.log(`ℹ️ [PrescriptionValidation] Prescription is unpaid (${prescription.paymentStatus || 'unpaid'}). Nurse task creation deferred until payment.`);
     }
 
     // Step 6: Ensure invoice is created for ALL medications
@@ -572,12 +579,30 @@ async function createPrescriptionWithValidation(prescriptionData, assignedNurseI
     try {
       const PrescriptionInvoiceService = require('../services/prescriptionInvoiceService');
       
-      // Get patient and doctor info for invoice creation
+      // Get patient and doctor info for invoice creation (handles ObjectId or string patientId)
       const Patient = require('../models/Patient');
       const User = require('../models/User');
       
-      const patient = await Patient.findById(prescriptionData.patient);
-      const doctor = await User.findById(prescriptionData.doctor);
+      let patient = null;
+      if (prescriptionData.patient && mongoose.Types.ObjectId.isValid(prescriptionData.patient)) {
+        patient = await Patient.findById(prescriptionData.patient);
+      }
+      if (!patient && prescriptionData.patient) {
+        patient = await Patient.findOne({
+          $or: [
+            { patientId: String(prescriptionData.patient).trim() },
+            { patientCode: String(prescriptionData.patient).trim() }
+          ]
+        });
+      }
+
+      let doctor = null;
+      if (prescriptionData.doctor && mongoose.Types.ObjectId.isValid(prescriptionData.doctor)) {
+        doctor = await User.findById(prescriptionData.doctor);
+      }
+      if (!doctor) {
+        doctor = await User.findOne({ role: 'doctor' }) || await User.findOne({ role: 'admin' });
+      }
       
       if (patient && doctor) {
         // Create medication data for ALL medications in the invoice

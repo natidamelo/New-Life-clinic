@@ -38,6 +38,22 @@ router.get('/', auth, async (req, res) => {
     if (req.query.description) {
       query.description = { $regex: req.query.description, $options: 'i' };
     }
+
+    // Unpaid medication tasks must NOT reach nurses until paid
+    if (req.user?.role === 'nurse' && req.query.includeUnpaid !== 'true') {
+      const paymentGate = {
+        $or: [
+          { taskType: { $ne: 'MEDICATION' } },
+          { 'paymentAuthorization.canAdminister': true },
+          { paymentStatus: { $in: ['paid', 'fully_paid', 'partially_paid'] } }
+        ]
+      };
+      if (query.$and) {
+        query.$and.push(paymentGate);
+      } else {
+        query.$and = [paymentGate];
+      }
+    }
     
     console.log('Nurse tasks query:', query);
     

@@ -1048,26 +1048,38 @@ const billingService = {
   async createOrUpdateConsolidatedInvoice(invoiceData, userId) {
     // Skip transactions for now to avoid replica set requirement
     try {
-      const { patient, items, serviceType = 'service', notes, medicalRecord, visit, provider } = invoiceData;
+      const { patient, items, serviceType = 'service', notes, medicalRecord, visit, provider, clinicId } = invoiceData;
+      
+      // Resolve patient document (handles ObjectId or string patientId/patientCode)
+      const Patient = require('../models/Patient');
+      let patientDoc = null;
+      if (patient && mongoose.Types.ObjectId.isValid(patient)) {
+        patientDoc = await Patient.findById(patient);
+      }
+      if (!patientDoc && patient) {
+        patientDoc = await Patient.findOne({
+          $or: [
+            { patientId: String(patient).trim() },
+            { patientCode: String(patient).trim() }
+          ]
+        });
+      }
+      const resolvedPatientId = patientDoc ? patientDoc._id : patient;
+      const effectiveClinicId = clinicId || (patientDoc && patientDoc.clinicId) || 'default';
       
       // Handle case where no user is provided (system-generated invoices)
       let systemUserId = userId;
       if (!systemUserId) {
-        // Try to find a system user or create a placeholder
         try {
           const User = require('../models/User');
-          const systemUser = await User.findOne({ role: 'admin' });
+          const systemUser = await User.findOne({ role: { $in: ['admin', 'super_admin', 'doctor', 'reception'] } });
           if (systemUser) {
             systemUserId = systemUser._id;
           } else {
-            // If no admin user exists, we'll need to handle this differently
-            console.warn('No admin user found for system-generated invoice');
-            // For now, we'll skip invoice creation if no user is available
-            throw new Error('No system user available for invoice creation');
+            systemUserId = new mongoose.Types.ObjectId();
           }
         } catch (userError) {
-          console.error('Error finding system user:', userError.message);
-          throw new Error('Unable to create invoice: No valid user context');
+          systemUserId = new mongoose.Types.ObjectId();
         }
       }
       
@@ -1077,11 +1089,11 @@ const billingService = {
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
       
-      console.log(`🔍 Looking for existing consolidated invoice for patient ${patient} on ${startOfDay.toDateString()}`);
+      console.log(`🔍 Looking for existing consolidated invoice for patient ${resolvedPatientId} on ${startOfDay.toDateString()}`);
       
       // Find existing consolidated invoice for today (not finalized)
-      let existingInvoice = await MedicalInvoice.findOne({
-        patient: patient,
+      const invoiceFilter = {
+        patient: resolvedPatientId,
         isConsolidated: true,
         isDailyConsolidated: true,
         finalized: false, // Only find non-finalized invoices
@@ -1089,7 +1101,14 @@ const billingService = {
           $gte: startOfDay,
           $lt: endOfDay
         }
-      });
+      };
+      if (effectiveClinicId && effectiveClinicId !== 'default') {
+        invoiceFilter.$or = [
+          { clinicId: effectiveClinicId },
+          { clinicId: 'default' }
+        ];
+      }
+      let existingInvoice = await MedicalInvoice.findOne(invoiceFilter);
       
       // If no existing non-finalized invoice found, check if patient has finalized invoices
       // If they do and this is a lab order, we'll create a new invoice (not add to finalized)
@@ -1098,7 +1117,7 @@ const billingService = {
       
       if (!existingInvoice && isLabService) {
         const finalizedInvoice = await MedicalInvoice.findOne({
-          patient: patient,
+          patient: resolvedPatientId,
           finalized: true
         });
         
@@ -1112,6 +1131,10 @@ const billingService = {
         // Double-check that invoice is not finalized (safety check)
         if (existingInvoice.finalized) {
           throw new Error('Cannot add items to a finalized invoice. Please create a new invoice or contact reception.');
+        }
+        // Upgrade clinicId if previously defaulted
+        if (effectiveClinicId && effectiveClinicId !== 'default' && (!existingInvoice.clinicId || existingInvoice.clinicId === 'default')) {
+          existingInvoice.clinicId = effectiveClinicId;
         }
         // Update existing consolidated invoice
         console.log(`📝 Updating existing consolidated invoice: ${existingInvoice.invoiceNumber}`);
@@ -1159,13 +1182,25 @@ const billingService = {
         return existingInvoice;
       } else {
         // Create new consolidated invoice
-        console.log(`Creating new consolidated invoice for patient ${patient}`);
+        console.log(`Creating new consolidated invoice for patient ${resolvedPatientId}`);
         
         // Generate invoice number
         const invoiceNumber = await MedicalInvoice.generateInvoiceNumber();
         
-        // Get patient details for required fields
-        const patientDoc = await Patient.findById(patient);
+        // Ensure patient details for required fields
+        if (!patientDoc) {
+          if (patient && mongoose.Types.ObjectId.isValid(patient)) {
+            patientDoc = await Patient.findById(patient);
+          }
+          if (!patientDoc && patient) {
+            patientDoc = await Patient.findOne({
+              $or: [
+                { patientId: String(patient).trim() },
+                { patientCode: String(patient).trim() }
+              ]
+            });
+          }
+        }
         if (!patientDoc) {
           throw new Error(`Patient not found with ID: ${patient}`);
         }
@@ -1175,7 +1210,7 @@ const billingService = {
         const patientName = `${patientDoc.firstName} ${patientDoc.lastName}`;
         
         // Process items and apply card-based discounts/benefits
-        const { processedItems, activeCardId } = await this.applyCardBenefitsToInvoice(patient, items);
+        const { processedItems, activeCardId } = await this.applyCardBenefitsToInvoice(resolvedPatientId, items);
         
         // Calculate initial subtotal, total, and balance
         const subtotal = processedItems.reduce((sum, item) => sum + (item.total || (item.quantity * item.unitPrice)), 0);
@@ -1185,8 +1220,9 @@ const billingService = {
         // Create invoice object
         const shouldUseLabFinalizedNote = isLabService && hasFinalizedInvoice;
         const invoice = new MedicalInvoice({
+          clinicId: effectiveClinicId,
           invoiceNumber,
-          patient,
+          patient: resolvedPatientId,
           patientId,
           patientName,
           medicalRecord,
@@ -1237,7 +1273,7 @@ const billingService = {
    * @param {String} userId - User adding the services
    * @returns {Promise<Object>} - Updated invoice
    */
-  async addMultipleServicesToDailyInvoice(patientId, serviceType, servicesData, userId) {
+  async addMultipleServicesToDailyInvoice(patientId, serviceType, servicesData, userId, clinicId = null) {
     try {
       console.log(`🔧 Adding ${servicesData.length} ${serviceType} services to daily invoice for patient ${patientId}`);
       
@@ -1361,7 +1397,8 @@ const billingService = {
         patient: patientId,
         items: items,
         serviceType: serviceType,
-        notes: `Added ${items.length} ${serviceType} service(s) to daily consolidated invoice`
+        notes: `Added ${items.length} ${serviceType} service(s) to daily consolidated invoice`,
+        clinicId: clinicId
       };
       
       const invoice = await this.createOrUpdateConsolidatedInvoice(invoiceData, userId);
@@ -1393,7 +1430,7 @@ const billingService = {
    * @param {String} userId - User adding the service
    * @returns {Promise<Object>} - Updated invoice
    */
-  async addServiceToDailyInvoice(patientId, serviceType, serviceData, userId) {
+  async addServiceToDailyInvoice(patientId, serviceType, serviceData, userId, clinicId = null) {
     try {
       console.log(`🔧 Adding ${serviceType} service to daily invoice for patient ${patientId}`);
       
@@ -1514,7 +1551,8 @@ const billingService = {
         patient: patientId,
         items: [itemData],
         serviceType: serviceType,
-        notes: `Added ${serviceType} service to daily consolidated invoice`
+        notes: `Added ${serviceType} service to daily consolidated invoice`,
+        clinicId: clinicId
       };
       
       const invoice = await this.createOrUpdateConsolidatedInvoice(invoiceData, userId);

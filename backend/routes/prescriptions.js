@@ -517,10 +517,14 @@ router.post('/quick-order', auth, async (req, res) => {
       paymentStatus: 'pending',
       totalCost
     });
+    // Determine tenant clinicId
+    const effectiveClinicId = req.tenantId || req.user?.clinicId || 'default';
+    newPrescription.clinicId = effectiveClinicId;
     await newPrescription.save();
 
-    // ALWAYS create nurse tasks for new prescriptions (even if unpaid)
-    if (sendToNurse !== false) {
+    // Only create nurse tasks if prescription is ALREADY paid
+    const isSinglePaid = ['paid', 'fully_paid'].includes((newPrescription.paymentStatus || '').toLowerCase());
+    if (isSinglePaid && sendToNurse !== false) {
       try {
         const { processPaymentAndCreateNurseTasks } = require('../utils/nurseTaskCreation');
         const Patient = require('../models/Patient');
@@ -533,6 +537,8 @@ router.post('/quick-order', auth, async (req, res) => {
       } catch (taskError) {
         console.error(`❌ [PRESCRIPTION] Failed to create nurse task for ${medicationName}:`, taskError);
       }
+    } else {
+      console.log(`ℹ️ [PRESCRIPTION] Single prescription is unpaid (${newPrescription.paymentStatus || 'unpaid'}). Nurse task will be created ONLY after payment in billing.`);
     }
 
     // Add prescription to daily consolidated invoice
@@ -770,9 +776,26 @@ router.post('/', auth, async (req, res) => {
       };
     }));
 
+    // Robust patient lookup for clinicId and patient document
+    let patientDoc = null;
+    if (mongoose.Types.ObjectId.isValid(effectivePatientId)) {
+      patientDoc = await Patient.findById(effectivePatientId);
+    }
+    if (!patientDoc && effectivePatientId) {
+      patientDoc = await Patient.findOne({
+        $or: [
+          { patientId: String(effectivePatientId).trim() },
+          { patientCode: String(effectivePatientId).trim() }
+        ]
+      });
+    }
+
+    const effectiveClinicId = req.tenantId || req.user?.clinicId || (patientDoc && patientDoc.clinicId) || 'default';
+
     // Create a single prescription with all medications in the medications array
     const prescriptionData = {
-      patient: effectivePatientId,
+      clinicId: effectiveClinicId,
+      patient: patientDoc ? patientDoc._id : effectivePatientId,
       doctor: effectiveDoctorId,
       doctorId: effectiveDoctorId, // Ensure both doctor and doctorId fields are set
       medicationName: medications[0].medication || medications[0].name, // Primary medication name
@@ -864,21 +887,21 @@ router.post('/', auth, async (req, res) => {
       console.error('❌ Error sending Telegram notification for prescription:', notifyErr);
     }
     
-    // ENSURE nurse task is created if validation didn't create one
-    if (!validationResult.taskCreated && prescription.sendToNurse !== false) {
+    // Only create nurse task if prescription is ALREADY paid at time of creation
+    const isAlreadyPaid = ['paid', 'fully_paid'].includes((prescription.paymentStatus || '').toLowerCase());
+    if (isAlreadyPaid && !validationResult.taskCreated && prescription.sendToNurse !== false) {
       try {
         const { processPaymentAndCreateNurseTasks } = require('../utils/nurseTaskCreation');
-        const Patient = require('../models/Patient');
-        const patient = await Patient.findById(effectivePatientId);
-        const taskResults = await processPaymentAndCreateNurseTasks(prescription, patient);
-        
+        const taskResults = await processPaymentAndCreateNurseTasks(prescription, patientDoc);
         if (taskResults.success) {
-          console.log(`✅ [PRESCRIPTION] Nurse tasks created/synced: ${taskResults.tasksCreated} created, ${taskResults.tasksSkipped} skipped`);
+          console.log(`✅ [PRESCRIPTION] Nurse tasks created for paid prescription: ${taskResults.tasksCreated} created`);
           validationResult.taskCreated = taskResults.tasksCreated > 0;
         }
       } catch (taskError) {
         console.error(`❌ [PRESCRIPTION] Failed to create nurse task after validation:`, taskError);
       }
+    } else {
+      console.log(`ℹ️ [PRESCRIPTION] Prescription is unpaid (${prescription.paymentStatus || 'unpaid'}). Nurse task will be created ONLY after payment in billing.`);
     }
     
     console.log("Prescription saved with validation:", {
@@ -909,180 +932,136 @@ router.post('/', auth, async (req, res) => {
       console.warn('⚠️ [PAYMENT SYNC] Post-creation sync failed:', syncErr?.message || syncErr);
     }
     
-    // After all individual prescriptions are created, create a single comprehensive notification
+    // Automatically create invoice in billing area & payment notification for reception
     if (createdPrescriptions.length > 0) {
-        console.log(`🔍 [PRESCRIPTION DEBUG] About to create notification. Created prescriptions: ${createdPrescriptions.length}`);
+        console.log(`🔍 [PRESCRIPTION DEBUG] About to create billing invoice & notification. Prescriptions: ${createdPrescriptions.length}`);
         try {
-            console.log(`🔍 [PRESCRIPTION DEBUG] Starting notification creation process...`);
-            
-            // Fetch patient data for notification
-            const patientData = await Patient.findById(effectivePatientId);
+            // Robust patient lookup (handles both ObjectId and string IDs like P17348-7348)
+            let patientData = null;
+            if (mongoose.Types.ObjectId.isValid(effectivePatientId)) {
+                patientData = await Patient.findById(effectivePatientId);
+            }
+            if (!patientData && effectivePatientId) {
+                patientData = await Patient.findOne({
+                    $or: [
+                        { patientId: String(effectivePatientId).trim() },
+                        { patientCode: String(effectivePatientId).trim() }
+                    ]
+                });
+            }
             if (!patientData) {
-                console.error('❌ [NOTIFICATION ERROR] Patient not found for notification creation');
-                return;
+                console.error('❌ [BILLING ERROR] Patient not found for billing/notification creation');
+                return res.status(201).json({
+                    success: true,
+                    data: createdPrescriptions[0],
+                    message: 'Prescription created'
+                });
             }
             
-            // Prepare medication details for the notification
+            // Prepare medication details and calculate prices
             const notificationMedications = await Promise.all(createdPrescriptions[0].medications.map(async (med) => {
                 let estimatedCost = 0;
                 let sellingPrice = 0;
                 let totalDoses = 1;
 
-                // Log the medication being processed
-                console.log(`🔍 [NOTIFICATION DEBUG] Processing medication: ${med.name}`);
-                console.log(`🔍 [NOTIFICATION DEBUG] Inventory item ID: ${med.inventoryItem}`);
-                if (med.inventoryItem) {
-                    try {
-                        const inventoryDoc = await InventoryItem.findById(med.inventoryItem);
-                        console.log(`🔍 [NOTIFICATION DEBUG] Inventory doc found: ${!!inventoryDoc}`);
-                                                if (inventoryDoc && inventoryDoc.sellingPrice) {
-                            sellingPrice = inventoryDoc.sellingPrice;
-                            // Calculate total doses based on frequency and duration
-                            let dosesPerDay = 1;
-                            const frequency = med.frequency || 'once daily';
-                            const freq = frequency.toLowerCase();
-                            
-                            // Handle all frequency types correctly
-                            if (freq.includes('once') || freq.includes('daily')) {
-                              dosesPerDay = 1;
-                            } else if (freq.includes('twice') || freq.includes('bid')) {
-                              dosesPerDay = 2;
-                            } else if (freq.includes('three') || freq.includes('tid') || freq.includes('thrice')) {
-                              dosesPerDay = 3;
-                            } else if (freq.includes('four') || freq.includes('qid')) {
-                              dosesPerDay = 4;
-                            }
-
-                            // Use centralized medication calculator
-                            const MedicationCalculator = require('../utils/medicationCalculator');
-                            
-                            const calculation = await MedicationCalculator.calculateMedicationCost({
-                                name: med.name,
-                                frequency: frequency,
-                                duration: med.duration, // CRITICAL: Always use doctor's prescribed duration, no defaults
-                                inventoryItemId: med.inventoryItem
-                            });
-                            
-                            totalDoses = calculation.totalDoses;
-                            estimatedCost = calculation.totalCost;
-                            
-                            console.log(`📋 [NOTIFICATION DEBUG] Dose calculation for ${med.name}: ${calculation.days} days × ${calculation.dosesPerDay} doses/day = ${calculation.totalDoses} total doses`);
-                            console.log(`💰 [NOTIFICATION DEBUG] Cost calculation: ${calculation.totalDoses} doses × ETB ${calculation.costPerDose} = ETB ${calculation.totalCost}`);
-                        } else {
-                            console.log(`⚠️ [NOTIFICATION DEBUG] Inventory item not found or no selling price for ${med.name}`);
-                        }
-                    } catch (inventoryError) {
-                        console.error(`❌ [NOTIFICATION ERROR] Error finding inventory item for ${med.name}:`, inventoryError);
-                    }
-                } else {
-                    console.log(`⚠️ [NOTIFICATION DEBUG] No inventory item ID for ${med.name}`);
+                console.log(`🔍 [BILLING DEBUG] Processing medication: ${med.name}`);
+                
+                // Find inventory item by ID or name
+                let inventoryDoc = null;
+                if (med.inventoryItem && mongoose.Types.ObjectId.isValid(med.inventoryItem)) {
+                    inventoryDoc = await InventoryItem.findById(med.inventoryItem);
+                }
+                if (!inventoryDoc && med.name) {
+                    inventoryDoc = await InventoryItem.findOne({
+                        name: { $regex: new RegExp(`^${String(med.name).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+                        isActive: { $ne: false }
+                    });
+                }
+                
+                if (inventoryDoc) {
+                    sellingPrice = inventoryDoc.sellingPrice || inventoryDoc.unitPrice || 0;
+                    const frequency = med.frequency || 'once daily';
+                    
+                    const MedicationCalculator = require('../utils/medicationCalculator');
+                    const calculation = await MedicationCalculator.calculateMedicationCost({
+                        name: med.name,
+                        frequency: frequency,
+                        duration: med.duration,
+                        inventoryItemId: inventoryDoc._id,
+                        pricePerDose: sellingPrice
+                    });
+                    
+                    totalDoses = calculation.totalDoses || 1;
+                    estimatedCost = calculation.totalCost || (totalDoses * sellingPrice);
+                    console.log(`💰 [BILLING DEBUG] Cost calculation for ${med.name}: ${totalDoses} doses × ETB ${sellingPrice} = ETB ${estimatedCost}`);
                 }
 
-                // Return the medication details for the notification
-                const notificationMed = {
+                return {
                     name: med.name,
                     dosage: med.dosage,
                     frequency: med.frequency,
-                    duration: med.duration, // CRITICAL: Use individual medication duration
+                    duration: med.duration || '5 days',
                     totalPrice: estimatedCost,
-                    inventoryItemId: med.inventoryItem,
-                    prescriptionId: createdPrescriptions[0]._id // Link to the prescription
+                    inventoryItemId: inventoryDoc?._id || med.inventoryItem,
+                    prescriptionId: createdPrescriptions[0]._id
                 };
-                
-                // CRITICAL FIX: Ensure duration is preserved
-                if (!notificationMed.duration) {
-                    console.error(`❌ [CRITICAL] Medication ${med.name} has no duration! Using fallback.`);
-                    notificationMed.duration = '5 days'; // Fallback
-                }
-                
-                console.log(`🔍 [NOTIFICATION DEBUG] Created notification medication for ${med.name}:`, {
-                    duration: notificationMed.duration,
-                    frequency: notificationMed.frequency,
-                    totalDoses: totalDoses,
-                    originalMedDuration: med.duration
-                });
-                
-                return notificationMed;
             }));
 
-            // After preparing notificationMedications
-            console.log(`🔍 [NOTIFICATION DEBUG] Medications for notification:`, notificationMedications);
+            const overallTotalAmount = notificationMedications.reduce((acc, med) => acc + (med.totalPrice || 0), 0);
+            console.log(`🔍 [BILLING DEBUG] Overall total amount for billing: ${overallTotalAmount}`);
 
-            // Calculate overall total amount
-            const overallTotalAmount = notificationMedications.reduce((acc, med) => acc + med.totalPrice, 0);
-            console.log(`🔍 [NOTIFICATION DEBUG] Overall total amount: ${overallTotalAmount}`);
-
-            // Only create payment notification if there's actually an amount to pay
-            if (overallTotalAmount > 0) {
-                // Use a default sender ID if req.user._id is not available
-                const senderId = req.user?._id || new mongoose.Types.ObjectId();
+            // 1. ALWAYS CREATE MEDICAL INVOICE IN BILLING AREA
+            let createdInvoice = null;
+            try {
+                const PrescriptionInvoiceService = require('../services/prescriptionInvoiceService');
                 
-                const receptionNotification = new Notification({
-                    senderId: senderId,
-                    senderRole: 'doctor',
-                    recipientRole: 'reception',
-                    type: 'medication_payment_required',
-                    title: 'Medication Payment Required',
-                    message: `Medication payment required for ${patientData.firstName} ${patientData.lastName}. Total amount: ${overallTotalAmount}`,
-                    data: {
-                        prescriptionId: createdPrescriptions[0]._id,
-                        patientId: patientData._id,
-                        patientName: `${patientData.firstName} ${patientData.lastName}`,
-                        totalAmount: overallTotalAmount,
-                        medications: notificationMedications // This array holds all medication details
-                    },
-                });
-                
-                try {
-                    await receptionNotification.save();
-                    console.log(`✅ Notification created successfully with ${notificationMedications.length} medications.`);
-                    console.log(`✅ Notification ID: ${receptionNotification._id}`);
-                    console.log(`✅ Patient: ${patientData.firstName} ${patientData.lastName}`);
-                    console.log(`✅ Total Amount: ${overallTotalAmount}`);
-                    
-                    // 🔧 AUTOMATICALLY CREATE INVOICE FOR PRESCRIPTION
-                    try {
-                        const PrescriptionInvoiceService = require('../services/prescriptionInvoiceService');
-                        
-                        // Get doctor info
-                        const doctor = await User.findById(doctorId);
-                        if (!doctor) {
-                            console.warn('⚠️ [INVOICE CREATION] Doctor not found, skipping invoice creation');
-                        } else {
-                            // Create invoice for the prescription
-                            const invoice = await PrescriptionInvoiceService.createInvoiceForPrescription(
-                                createdPrescriptions[0],
-                                notificationMedications,
-                                patientData,
-                                doctor
-                            );
-                            
-                            // Update notification with invoice reference
-                            await PrescriptionInvoiceService.updateNotificationWithInvoice(
-                                receptionNotification._id,
-                                invoice._id
-                            );
-                            
-                            console.log(`✅ [INVOICE CREATION] Invoice created automatically: ${invoice._id}`);
-                            console.log(`✅ [INVOICE CREATION] Invoice Number: ${invoice.invoiceNumber}`);
-                            console.log(`✅ [INVOICE CREATION] Total Amount: ${invoice.total}`);
-                        }
-                    } catch (invoiceError) {
-                        console.error('❌ [INVOICE CREATION] Error creating invoice automatically:', invoiceError);
-                        // Don't fail the prescription creation if invoice creation fails
-                        // The invoice can be created manually later
-                    }
-                    
-                } catch (saveError) {
-                    console.error('❌ [NOTIFICATION SAVE ERROR] Error saving notification:', saveError);
-                    console.error('❌ [NOTIFICATION SAVE ERROR] Error stack:', saveError.stack);
+                // Robust doctor lookup
+                let doctor = null;
+                const docId = effectiveDoctorId || req.user?._id || req.user?.id;
+                if (docId && mongoose.Types.ObjectId.isValid(docId)) {
+                    doctor = await User.findById(docId);
                 }
-            } else {
-                console.log('No payment notification created - medications are free (totalAmount = 0)');
+                if (!doctor) {
+                    doctor = await User.findOne({ role: 'doctor' }) || await User.findOne({ role: 'admin' });
+                }
+
+                if (doctor && patientData) {
+                    createdInvoice = await PrescriptionInvoiceService.createInvoiceForPrescription(
+                        createdPrescriptions[0],
+                        notificationMedications,
+                        patientData,
+                        doctor
+                    );
+                    console.log(`✅ [BILLING] Invoice created and placed in Billing Area: ${createdInvoice._id} (${createdInvoice.invoiceNumber})`);
+                }
+            } catch (invoiceError) {
+                console.error('❌ [BILLING] Error creating invoice in billing area:', invoiceError);
             }
+
+            // 2. CREATE PAYMENT NOTIFICATION FOR RECEPTION
+            const senderId = req.user?._id || new mongoose.Types.ObjectId();
+            const receptionNotification = new Notification({
+                clinicId: effectiveClinicId,
+                senderId: senderId,
+                senderRole: 'doctor',
+                recipientRole: 'reception',
+                type: 'medication_payment_required',
+                title: 'Medication Payment Required',
+                message: `Medication payment required for ${patientData.firstName} ${patientData.lastName}. Total amount: ${overallTotalAmount}`,
+                data: {
+                    prescriptionId: createdPrescriptions[0]._id,
+                    invoiceId: createdInvoice?._id || null,
+                    patientId: patientData._id,
+                    patientName: `${patientData.firstName} ${patientData.lastName}`,
+                    totalAmount: overallTotalAmount,
+                    medications: notificationMedications
+                },
+            });
+            await receptionNotification.save();
+            console.log(`✅ [RECEPTION] Notification sent to reception dashboard: ${receptionNotification._id}`);
+
         } catch (notificationError) {
-            console.error('❌ [NOTIFICATION ERROR] Error creating comprehensive notification:', notificationError);
-            console.error('❌ [NOTIFICATION ERROR] Error stack:', notificationError.stack);
+            console.error('❌ [NOTIFICATION ERROR] Error in billing notification processing:', notificationError);
         }
     }
     

@@ -35,10 +35,14 @@ async function ensurePatientNameInTask(taskData) {
             console.log(`✅ [PATIENT NAME] Retrieved patient name: ${patientName} for ID: ${taskData.patientId}`);
             return {
               ...taskData,
-              patientName: patientName
+              patientName: patientName,
+              clinicId: taskData.clinicId || patient.clinicId || 'default'
             };
           } else {
             console.warn(`⚠️ [PATIENT NAME] Patient ${taskData.patientId} has no valid name fields`);
+            if (!taskData.clinicId && patient.clinicId) {
+              taskData.clinicId = patient.clinicId;
+            }
           }
         } else {
           console.warn(`⚠️ [PATIENT NAME] Patient ${taskData.patientId} not found in database`);
