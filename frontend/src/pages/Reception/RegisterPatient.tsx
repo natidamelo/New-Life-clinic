@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import patientService, { CreatePatientDto } from '../../services/patientService';
 import { useCardTypes } from '../../context/CardTypeContextNew';
 import { Button } from '../../components/ui/button';
+import NameSpellCheckInput from '../../components/common/NameSpellCheckInput';
+import { saveNameToStorage } from '../../utils/nameDictionary';
 // import { IdentificationIcon, HeartIcon } from '@heroicons/react/24/outline';
 
 const departments = [
@@ -77,7 +79,29 @@ const RegisterPatient: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<{message: string, patient?: any} | null>(null);
   const [currentFormTab, setCurrentFormTab] = useState<'personal' | 'medical'>('personal');
+  const [existingPatientMatch, setExistingPatientMatch] = useState<any | null>(null);
   const { cardTypes } = useCardTypes();
+
+  useEffect(() => {
+    const fn = (formik.values.firstName || '').trim();
+    const ln = (formik.values.lastName || '').trim();
+    if (fn.length >= 2 && ln.length >= 2) {
+      const timer = setTimeout(async () => {
+        try {
+          const results = await patientService.searchPatients(`${fn} ${ln}`);
+          const match = results.find(
+            p => p.firstName?.toLowerCase() === fn.toLowerCase() && p.lastName?.toLowerCase() === ln.toLowerCase()
+          );
+          setExistingPatientMatch(match || null);
+        } catch {
+          // search error fallback handled silently
+        }
+      }, 400);
+      return () => clearTimeout(timer);
+    } else {
+      setExistingPatientMatch(null);
+    }
+  }, [formik.values.firstName, formik.values.lastName]);
 
   useEffect(() => {
     // Card types are now managed by CardTypeContext, no need to fetch here
@@ -158,6 +182,10 @@ const RegisterPatient: React.FC = () => {
             console.error('Invoice creation failed:', registrationResponse.invoiceErrorDetail);
           }
           
+          // Save patient names to quick-select storage so reception can instantly select them next time
+          if (values.firstName) saveNameToStorage(values.firstName, 'first');
+          if (values.lastName) saveNameToStorage(values.lastName, 'last');
+
           // Reset form
           resetForm();
           
@@ -308,16 +336,52 @@ const RegisterPatient: React.FC = () => {
         {/* Form Content */}
         {currentFormTab === 'personal' && (
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-muted-foreground mb-2">First Name *</label>
-              <input type="text" id="firstName" name="firstName" value={formik.values.firstName} onChange={formik.handleChange} onBlur={formik.handleBlur} className={`block w-full rounded-lg border ${formik.touched.firstName && formik.errors.firstName ? 'border-destructive/40 focus:ring-red-500' : 'border-border/40 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`} placeholder="Enter first name" />
-              {formik.touched.firstName && formik.errors.firstName && (<p className="mt-1 text-xs text-destructive">{String(formik.errors.firstName)}</p>)}
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-muted-foreground mb-2">Last Name *</label>
-              <input type="text" id="lastName" name="lastName" value={formik.values.lastName} onChange={formik.handleChange} onBlur={formik.handleBlur} className={`block w-full rounded-lg border ${formik.touched.lastName && formik.errors.lastName ? 'border-destructive/40 focus:ring-red-500' : 'border-border/40 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-4 py-2`} placeholder="Enter last name" />
-              {formik.touched.lastName && formik.errors.lastName && (<p className="mt-1 text-xs text-destructive">{String(formik.errors.lastName)}</p>)}
-            </div>
+            <NameSpellCheckInput
+              id="firstName"
+              name="firstName"
+              label="First Name"
+              type="first"
+              required
+              value={formik.values.firstName}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              setFieldValue={formik.setFieldValue}
+              placeholder="Enter first name"
+              error={formik.errors.firstName as string}
+              touched={formik.touched.firstName}
+            />
+            <NameSpellCheckInput
+              id="lastName"
+              name="lastName"
+              label="Last Name"
+              type="last"
+              required
+              value={formik.values.lastName}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              setFieldValue={formik.setFieldValue}
+              placeholder="Enter last name"
+              error={formik.errors.lastName as string}
+              touched={formik.touched.lastName}
+            />
+
+            {existingPatientMatch && (
+              <div className="col-span-2 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center justify-between text-xs text-blue-900 dark:text-blue-200">
+                <div className="flex items-center space-x-2">
+                  <span className="font-semibold text-blue-700 dark:text-blue-400">ℹ️ Note:</span>
+                  <span>
+                    A patient named <strong>{existingPatientMatch.firstName} {existingPatientMatch.lastName}</strong> ({existingPatientMatch.patientId || existingPatientMatch.contactNumber || 'Registered'}) already exists.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/app/patients?search=${existingPatientMatch.patientId || existingPatientMatch.firstName}`)}
+                  className="font-medium underline text-blue-600 dark:text-blue-400 hover:text-blue-800 ml-2"
+                >
+                  View Existing
+                </button>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-bold text-muted-foreground mb-2">Age *</label>
               <div className="grid grid-cols-2 gap-2">

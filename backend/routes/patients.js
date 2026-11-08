@@ -67,6 +67,53 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/patients/name-suggestions
+// @desc    Get distinct first and last names of registered patients for autocomplete and spell check
+// @access  Private
+router.get('/name-suggestions', auth, async (req, res) => {
+  try {
+    const Patient = require('../models/Patient');
+    const [firstNames, lastNames] = await Promise.all([
+      Patient.distinct('firstName', { firstName: { $exists: true, $ne: '' } }),
+      Patient.distinct('lastName', { lastName: { $exists: true, $ne: '' } })
+    ]);
+    
+    // Normalize casing (Title Case) and deduplicate
+    const cleanFirstNames = Array.from(new Set(
+      firstNames
+        .filter(n => typeof n === 'string' && n.trim().length > 1)
+        .map(n => {
+          const t = n.trim();
+          return t.charAt(0).toUpperCase() + t.slice(1);
+        })
+    )).sort();
+
+    const cleanLastNames = Array.from(new Set(
+      lastNames
+        .filter(n => typeof n === 'string' && n.trim().length > 1)
+        .map(n => {
+          const t = n.trim();
+          return t.charAt(0).toUpperCase() + t.slice(1);
+        })
+    )).sort();
+
+    res.json({
+      success: true,
+      data: {
+        firstNames: cleanFirstNames,
+        lastNames: cleanLastNames
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching name suggestions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching name suggestions',
+      error: error.message
+    });
+  }
+});
+
 // @route   GET /api/patients/demographics
 // @desc    Get patient demographics for analytics (population stats, gender, age, monthly trends)
 // @access  Private

@@ -775,6 +775,18 @@ const patientService = {
       throw error;
     }
   },
+  getNameSuggestions: async (): Promise<{ firstNames: string[]; lastNames: string[] }> => {
+    try {
+      const response = await api.get('/api/patients/name-suggestions');
+      if (response.data && response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      return { firstNames: [], lastNames: [] };
+    } catch (error) {
+      console.warn('Could not fetch name suggestions from API:', error);
+      return { firstNames: [], lastNames: [] };
+    }
+  },
   searchPatients: async (query: string): Promise<Patient[]> => {
     try {
       const response = await api.get(`/api/patients/search?q=${encodeURIComponent(query)}`);
