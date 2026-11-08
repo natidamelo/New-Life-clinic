@@ -83,27 +83,6 @@ const RegisterPatient: React.FC = () => {
   const { cardTypes } = useCardTypes();
 
   useEffect(() => {
-    const fn = (formik.values.firstName || '').trim();
-    const ln = (formik.values.lastName || '').trim();
-    if (fn.length >= 2 && ln.length >= 2) {
-      const timer = setTimeout(async () => {
-        try {
-          const results = await patientService.searchPatients(`${fn} ${ln}`);
-          const match = results.find(
-            p => p.firstName?.toLowerCase() === fn.toLowerCase() && p.lastName?.toLowerCase() === ln.toLowerCase()
-          );
-          setExistingPatientMatch(match || null);
-        } catch {
-          // search error fallback handled silently
-        }
-      }, 400);
-      return () => clearTimeout(timer);
-    } else {
-      setExistingPatientMatch(null);
-    }
-  }, [formik.values.firstName, formik.values.lastName]);
-
-  useEffect(() => {
     // Card types are now managed by CardTypeContext, no need to fetch here
   }, []);
 
@@ -274,6 +253,27 @@ const RegisterPatient: React.FC = () => {
       }
     }
   });
+
+  useEffect(() => {
+    const fn = (formik.values.firstName || '').trim();
+    const ln = (formik.values.lastName || '').trim();
+    if (fn.length >= 2 && ln.length >= 2) {
+      const timer = setTimeout(async () => {
+        try {
+          const results = await patientService.searchPatients(`${fn} ${ln}`);
+          const match = results.find(
+            p => p.firstName?.toLowerCase() === fn.toLowerCase() && p.lastName?.toLowerCase() === ln.toLowerCase()
+          );
+          setExistingPatientMatch(match || null);
+        } catch {
+          // search error fallback handled silently
+        }
+      }, 400);
+      return () => clearTimeout(timer);
+    } else {
+      setExistingPatientMatch(null);
+    }
+  }, [formik.values.firstName, formik.values.lastName]);
 
   return (
     <div className="max-w-3xl mx-auto p-8">
