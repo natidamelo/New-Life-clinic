@@ -149,7 +149,7 @@ class AutoPaymentSync {
     try {
       const totalAmount = invoice.total || 0;
       const amountPaid = invoice.amountPaid || 0;
-      const balance = invoice.balance || 0;
+      const balance = invoice.balance != null ? invoice.balance : (totalAmount - amountPaid);
       
       // Get medication details from task
       const medicationName = task.medicationDetails?.medicationName;
@@ -161,36 +161,64 @@ class AutoPaymentSync {
       const totalDoses = dosesPerDay * duration;
       const totalDays = duration;
       
+      // Determine if fully paid:
+      // 1. Invoice status explicitly says 'paid'
+      // 2. Invoice paymentStatus.current is 'fully_paid'
+      // 3. Balance is 0 or negative
+      // 4. amountPaid covers total
+      const invoiceStatus = (invoice.status || '').toLowerCase();
+      const invoicePaymentCurrent = (invoice.paymentStatus?.current || '').toLowerCase();
+      const isFullyPaid = invoiceStatus === 'paid' ||
+                          invoicePaymentCurrent === 'fully_paid' ||
+                          balance <= 0 ||
+                          amountPaid >= totalAmount ||
+                          Math.abs(balance) < 1;
+      
+      // Try to find the medication-specific cost from invoice items
+      let medicationItemCost = 0;
+      let medicationItemPaid = false;
+      if (invoice.items && medicationName) {
+        const medItem = invoice.items.find(item => {
+          const desc = (item.description || '').toLowerCase();
+          const metaMed = (item.metadata?.medicationName || '').toLowerCase();
+          const medLower = medicationName.toLowerCase();
+          return desc.includes(medLower) || metaMed.includes(medLower);
+        });
+        if (medItem) {
+          medicationItemCost = medItem.total || (medItem.unitPrice * (medItem.quantity || 1));
+          // If invoice is fully paid, the medication item is fully paid too
+          medicationItemPaid = isFullyPaid;
+        }
+      }
+      
       // Calculate payment coverage
       let paidDoses = 0;
       let paidDays = 0;
       
-      // Check if fully paid (including small rounding differences)
-      const isFullyPaid = balance <= 0 || amountPaid >= totalAmount || Math.abs(balance) < 1;
-      
       if (isFullyPaid) {
-        // Fully paid
+        // Fully paid - all doses authorized
         paidDoses = totalDoses;
         paidDays = totalDays;
       } else if (amountPaid > 0) {
-        // FIXED: Partially paid - calculate proportion more accurately
-        const paymentRatio = amountPaid / totalAmount;
+        // Partially paid - calculate based on medication cost if available
+        const relevantTotal = medicationItemCost > 0 ? medicationItemCost : totalAmount;
+        const relevantPaid = medicationItemCost > 0
+          ? Math.min(amountPaid, medicationItemCost)  // cap at medication cost
+          : amountPaid;
+        const paymentRatio = relevantPaid / relevantTotal;
         paidDoses = Math.floor(paymentRatio * totalDoses);
         paidDays = Math.ceil(paidDoses / dosesPerDay);
         
-        // FIXED: Ensure at least 1 dose if any payment was made, but respect actual payment ratio
         if (paidDoses === 0 && amountPaid > 0) {
-          // Calculate minimum authorized doses based on cost per dose
-          const costPerDose = totalAmount / totalDoses;
-          const minDoses = Math.floor(amountPaid / costPerDose);
+          const costPerDose = relevantTotal / totalDoses;
+          const minDoses = Math.floor(relevantPaid / costPerDose);
           paidDoses = Math.max(1, minDoses);
           paidDays = Math.ceil(paidDoses / dosesPerDay);
         }
         
-        // Additional check: if payment ratio is very small but amount is significant, authorize at least 1 dose
         if (paidDoses === 0 && amountPaid > 0) {
-          const costPerDose = totalAmount / totalDoses;
-          if (amountPaid >= costPerDose) {
+          const costPerDose = relevantTotal / totalDoses;
+          if (relevantPaid >= costPerDose) {
             paidDoses = 1;
             paidDays = 1;
           }
@@ -204,7 +232,7 @@ class AutoPaymentSync {
         paidDays,
         totalDays,
         paymentStatus: isFullyPaid ? 'fully_paid' : 'partial',
-        canAdminister: paidDoses > 0,
+        canAdminister: paidDoses > 0 || isFullyPaid,
         restrictionMessage: this.getRestrictionMessage({
           paidDays,
           totalDays,
@@ -212,8 +240,8 @@ class AutoPaymentSync {
           totalDoses,
           outstandingAmount
         }),
-        authorizedDoses: paidDoses,
-        unauthorizedDoses: unpaidDoses,
+        authorizedDoses: isFullyPaid ? totalDoses : paidDoses,
+        unauthorizedDoses: isFullyPaid ? 0 : unpaidDoses,
         outstandingAmount,
         lastUpdated: new Date()
       };
