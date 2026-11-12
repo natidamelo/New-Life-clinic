@@ -322,6 +322,32 @@ router.post('/create-missing-invoices', auth, checkRole(['admin', 'nurse', 'doct
 
 module.exports = router;
 
+// @route   POST /api/medication-nurse-sync/sync-payment-authorization
+// @desc    Re-sync payment authorization data for all medication nurse tasks (fixes stale payment data)
+// @access  Private (Admin/Nurse/Doctor)
+router.post('/sync-payment-authorization', auth, checkRole(['admin', 'nurse', 'doctor']), async (req, res) => {
+  try {
+    console.log(`🔄 [PAYMENT AUTH SYNC] Starting payment authorization sync for all medication tasks...`);
+    
+    const AutoPaymentSync = require('../utils/autoPaymentSync');
+    const results = await AutoPaymentSync.syncAllNurseTasks();
+    
+    res.json({
+      success: true,
+      message: `Payment authorization sync completed: ${results.updatedCount} tasks updated, ${results.errorCount} errors`,
+      data: results
+    });
+    
+  } catch (error) {
+    console.error('❌ [PAYMENT AUTH SYNC] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to sync payment authorization data',
+      error: error.message
+    });
+  }
+});
+
 // ----------------------------------------------
 // Legacy backfill: fix existing tasks missing critical fields
 // ----------------------------------------------

@@ -319,11 +319,29 @@ router.post(
         if (paymentAuth.canAdminister === true) {
           // canAdminister flag overrides payment check — allow administration
         } else if (typeof paymentAuth.authorizedDoses === 'number' && paymentAuth.authorizedDoses < 1) {
-          return res.status(403).json({
-            success: false,
-            error: 'PAYMENT_REQUIRED',
-            message: 'Payment required - no doses authorized yet. Please collect payment before administering medication.'
-          });
+          // Before blocking, do a LIVE payment check against the actual invoice/prescription
+          // This handles stale paymentAuthorization data from previous enum bugs
+          let livePaymentOk = false;
+          try {
+            const AutoPaymentSync = require('../utils/autoPaymentSync');
+            const livePaymentData = await AutoPaymentSync.getActualPaymentData(task);
+            if (livePaymentData && (livePaymentData.authorizedDoses > 0 || livePaymentData.paymentStatus === 'fully_paid' || livePaymentData.paymentStatus === 'partial')) {
+              livePaymentOk = true;
+              // Also fix the stale data in the background
+              console.log(`🔄 [DOSE ADMIN] Live payment check found payment — syncing stale task data`);
+              await AutoPaymentSync.updateTaskWithActualPayment(task, livePaymentData);
+            }
+          } catch (syncErr) {
+            console.error('⚠️ [DOSE ADMIN] Live payment check failed, falling back to stored data:', syncErr.message);
+          }
+
+          if (!livePaymentOk) {
+            return res.status(403).json({
+              success: false,
+              error: 'PAYMENT_REQUIRED',
+              message: 'Payment required - no doses authorized yet. Please collect payment before administering medication.'
+            });
+          }
         }
       }
 
