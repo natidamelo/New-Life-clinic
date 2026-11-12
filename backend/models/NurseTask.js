@@ -134,7 +134,7 @@ const PaymentAuthorizationSchema = new Schema({
   },
   paymentStatus: {
     type: String,
-    enum: ['unpaid', 'partial', 'paid'],
+    enum: ['unpaid', 'partial', 'paid', 'fully_paid', 'partially_paid'],
     default: 'unpaid'
   },
   canAdminister: {

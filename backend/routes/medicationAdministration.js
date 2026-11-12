@@ -312,9 +312,13 @@ router.post(
       }
 
       // 5. Check payment authorization
-      if (task.paymentAuthorization && task.paymentAuthorization.paymentStatus !== 'fully_paid') {
+      const paidStatuses = ['fully_paid', 'paid', 'partially_paid', 'partial'];
+      if (task.paymentAuthorization && !paidStatuses.includes(task.paymentAuthorization.paymentStatus)) {
         const paymentAuth = task.paymentAuthorization;
-        if (typeof paymentAuth.authorizedDoses === 'number' && paymentAuth.authorizedDoses < 1) {
+        // Allow if canAdminister flag is explicitly set
+        if (paymentAuth.canAdminister === true) {
+          // canAdminister flag overrides payment check — allow administration
+        } else if (typeof paymentAuth.authorizedDoses === 'number' && paymentAuth.authorizedDoses < 1) {
           return res.status(403).json({
             success: false,
             error: 'PAYMENT_REQUIRED',
