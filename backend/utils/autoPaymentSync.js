@@ -67,37 +67,69 @@ class AutoPaymentSync {
       const MedicalInvoice = require('../models/MedicalInvoice');
       
       // PRIORITY 1: Try to get from invoice first (most accurate for current payments)
-      if (task.medicationDetails?.invoiceId) {
-        const invoice = await MedicalInvoice.findById(task.medicationDetails.invoiceId);
+      const invoiceId = task.medicationDetails?.invoiceId || task.invoiceId;
+      if (invoiceId) {
+        const invoice = await MedicalInvoice.findById(invoiceId);
         if (invoice) {
           console.log(`📋 [AUTO PAYMENT SYNC] Found invoice data for task ${task._id}: ETB ${invoice.amountPaid}/${invoice.total}`);
-          return this.calculatePaymentFromInvoice(invoice, task);
+          const pData = this.calculatePaymentFromInvoice(invoice, task);
+          if (pData) return pData;
         }
       }
       
       // PRIORITY 2: Try to find invoice by patient and medication (for tasks without direct invoice link)
       const Patient = require('../models/Patient');
       const patient = await Patient.findById(task.patientId);
+      const prescriptionId = task.prescriptionId || task.medicationDetails?.prescriptionId;
       
       if (patient) {
+        const medName = task.medicationDetails?.medicationName || task.description || '';
+        const searchConditions = [
+          { 'items.medicationName': { $regex: new RegExp(medName, 'i') } },
+          { 'items.metadata.medicationName': { $regex: new RegExp(medName, 'i') } },
+          { 'items.description': { $regex: new RegExp(medName, 'i') } }
+        ];
+        if (prescriptionId) {
+          searchConditions.push({ 'items.metadata.prescriptionId': prescriptionId });
+        }
+
         const invoices = await MedicalInvoice.find({
           patient: patient._id,
-          'items.medicationName': { $regex: new RegExp(task.medicationDetails?.medicationName || '', 'i') }
+          $or: searchConditions
         }).sort({ createdAt: -1 });
         
         if (invoices.length > 0) {
           const latestInvoice = invoices[0];
           console.log(`📋 [AUTO PAYMENT SYNC] Found invoice by patient search for task ${task._id}: ETB ${latestInvoice.amountPaid}/${latestInvoice.total}`);
-          return this.calculatePaymentFromInvoice(latestInvoice, task);
+          const pData = this.calculatePaymentFromInvoice(latestInvoice, task);
+          if (pData) return pData;
         }
       }
       
       // PRIORITY 3: Try to get payment data from prescription (fallback)
-      if (task.medicationDetails?.prescriptionId) {
-        const prescription = await Prescription.findById(task.medicationDetails.prescriptionId);
-        if (prescription && prescription.paymentAuthorization) {
-          console.log(`📋 [AUTO PAYMENT SYNC] Found prescription data for task ${task._id}`);
-          return prescription.paymentAuthorization;
+      if (prescriptionId) {
+        const prescription = await Prescription.findById(prescriptionId);
+        if (prescription) {
+          if (prescription.paymentAuthorization && (prescription.paymentAuthorization.canAdminister || prescription.paymentAuthorization.authorizedDoses > 0)) {
+            console.log(`📋 [AUTO PAYMENT SYNC] Found prescription data for task ${task._id}`);
+            return prescription.paymentAuthorization;
+          }
+          const pStatus = (prescription.paymentStatus || '').toLowerCase();
+          if (pStatus === 'paid' || pStatus === 'fully_paid') {
+            const totalDoses = (task.medicationDetails?.doseRecords || []).length || 1;
+            const duration = task.medicationDetails?.duration || 1;
+            return {
+              paidDays: duration,
+              totalDays: duration,
+              paymentStatus: 'fully_paid',
+              canAdminister: true,
+              restrictionMessage: '',
+              authorizedDoses: totalDoses,
+              unauthorizedDoses: 0,
+              outstandingAmount: 0,
+              lastUpdated: new Date()
+            };
+          }
         }
       }
       
@@ -197,11 +229,15 @@ class AutoPaymentSync {
    */
   static async updateTaskWithActualPayment(task, paymentData) {
     try {
+      const isPaid = paymentData.paymentStatus === 'fully_paid' || paymentData.paymentStatus === 'paid';
+      const isPartial = paymentData.paymentStatus === 'partial' || paymentData.paymentStatus === 'partially_paid';
+      const canAdminister = paymentData.canAdminister === true || paymentData.authorizedDoses > 0 || isPaid || isPartial;
+
       const newPaymentAuth = {
         paidDays: paymentData.paidDays,
         totalDays: paymentData.totalDays,
         paymentStatus: paymentData.paymentStatus,
-        canAdminister: paymentData.authorizedDoses > 0,
+        canAdminister: canAdminister,
         restrictionMessage: this.getRestrictionMessage(paymentData),
         authorizedDoses: paymentData.authorizedDoses,
         unauthorizedDoses: paymentData.unauthorizedDoses,
@@ -209,13 +245,20 @@ class AutoPaymentSync {
         lastUpdated: new Date()
       };
       
-      // Update the task
+      // Update the task payment authorization
       task.paymentAuthorization = newPaymentAuth;
+      // Also update top-level paymentStatus to ensure paymentGate doesn't block
+      task.paymentStatus = isPaid ? 'paid' : (isPartial ? 'partial' : 'unpaid');
+      
+      if (task.medicationDetails) {
+        task.medicationDetails.paymentAuthorization = newPaymentAuth;
+        task.medicationDetails.paymentStatus = task.paymentStatus;
+      }
+
       task.updatedAt = new Date();
       await task.save();
       
       return true;
-      
     } catch (error) {
       console.error('❌ Error updating task with actual payment:', error);
       return false;

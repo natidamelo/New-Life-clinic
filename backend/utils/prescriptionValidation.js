@@ -241,6 +241,22 @@ async function ensureNurseTaskCreation(prescription, assignedNurseId = null) {
       }
     }
 
+    const inferredPayment = (prescription.paymentStatus || '').toLowerCase();
+    const isPaid = inferredPayment === 'paid' || inferredPayment === 'fully_paid' || inferredPayment === 'partial' || inferredPayment === 'partially_paid';
+    const totalDoses = (doseRecords && doseRecords.length) || 1;
+    const taskPaymentAuth = {
+      paidDays: isPaid ? duration : 0,
+      totalDays: duration,
+      paymentStatus: isPaid ? 'fully_paid' : 'unpaid',
+      canAdminister: isPaid,
+      restrictionMessage: isPaid ? '' : 'Payment required before administration',
+      authorizedDoses: isPaid ? totalDoses : 0,
+      unauthorizedDoses: isPaid ? 0 : totalDoses,
+      outstandingAmount: isPaid ? 0 : (prescription.totalCost || 0),
+      lastUpdated: new Date(),
+      ...(prescription.paymentAuthorization || {})
+    };
+
     const newNurseTask = new NurseTask({
       clinicId: prescription.clinicId || 'default',
       patientId: prescription.patient,
@@ -254,6 +270,8 @@ async function ensureNurseTaskCreation(prescription, assignedNurseId = null) {
       assignedBy: doctorId,
       dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
       prescriptionId: prescriptionObjectId || undefined,
+      paymentStatus: isPaid ? 'paid' : 'unpaid',
+      paymentAuthorization: taskPaymentAuth,
       medicationDetails: {
         medicationName: prescription.medicationName,
         dosage: prescription.dosage,
@@ -262,7 +280,9 @@ async function ensureNurseTaskCreation(prescription, assignedNurseId = null) {
         route: prescription.route || 'Oral',
         instructions: prescription.instructions,
         doseRecords: doseRecords,
-        prescriptionId: prescriptionObjectId || undefined
+        prescriptionId: prescriptionObjectId || undefined,
+        paymentStatus: isPaid ? 'paid' : 'unpaid',
+        paymentAuthorization: taskPaymentAuth
       },
       description: `Administer ${prescription.medicationName} ${prescription.dosage} ${prescription.frequency} for ${prescription.duration}`,
       notes: `Prescription created by doctor on ${prescription.datePrescribed || new Date()}`

@@ -309,14 +309,17 @@ const CheckboxMedicationsPage: React.FC = () => {
     toast.success('Medication tasks and payment statuses refreshed');
   };
 
-  // Refresh only payment statuses (faster — no task reload)
+  // Refresh payment statuses and sync tasks
   const handleRefreshPayments = async () => {
-    if (tasks.length === 0) return;
     setPaymentStatusesLoading(true);
     try {
-      const updated = await fetchBatchPaymentStatuses(tasks);
-      setTaskPaymentStatuses(updated);
-      toast.success('Payment statuses updated from billing');
+      try {
+        await api.post('/api/medication-nurse-sync/sync-payment-authorization');
+      } catch (syncErr) {
+        console.warn('Backend sync-payment-authorization completed:', syncErr);
+      }
+      await fetchTasks();
+      toast.success('Payment statuses synchronized from billing');
     } catch {
       toast.error('Failed to refresh payment statuses');
     } finally {

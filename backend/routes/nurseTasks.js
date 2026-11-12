@@ -45,7 +45,9 @@ router.get('/', auth, async (req, res) => {
         $or: [
           { taskType: { $ne: 'MEDICATION' } },
           { 'paymentAuthorization.canAdminister': true },
-          { paymentStatus: { $in: ['paid', 'fully_paid', 'partially_paid'] } }
+          { 'medicationDetails.paymentAuthorization.canAdminister': true },
+          { paymentStatus: { $in: ['paid', 'fully_paid', 'partially_paid'] } },
+          { 'medicationDetails.paymentStatus': { $in: ['paid', 'fully_paid', 'partially_paid'] } }
         ]
       };
       if (query.$and) {
