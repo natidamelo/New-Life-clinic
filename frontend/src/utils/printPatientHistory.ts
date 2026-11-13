@@ -1333,12 +1333,13 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
   <!-- Floating Screen Toolbar (hidden in print) -->
   <div class="no-print-toolbar">
     <div class="toolbar-title">
-      <span class="toolbar-tag">STANDARD MEDICAL RECORD</span>
-      <span>${escapeHtml(patientName)} — ${escapeHtml(documentTitle)} (${records.length} visit${records.length !== 1 ? 's' : ''})</span>
+      <span class="toolbar-tag">MEDICAL RECORD</span>
+      <span>${escapeHtml(patientName)} — ${escapeHtml(documentTitle)}</span>
+      <span style="font-size: 11px; color: #93c5fd; background: rgba(59, 130, 246, 0.2); padding: 2px 8px; border-radius: 4px; font-weight: normal;">💡 To download: Choose <strong>"Save as PDF"</strong> in Destination</span>
     </div>
     <div class="toolbar-actions">
       <button class="btn btn-primary" onclick="window.print()">
-        🖨️ Print / Save as PDF
+        📥 Download as PDF / Print
       </button>
       <button class="btn btn-close" onclick="window.close()">
         ✕ Close
