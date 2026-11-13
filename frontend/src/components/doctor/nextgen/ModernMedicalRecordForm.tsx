@@ -6,6 +6,8 @@ import { getAuthToken } from '../../../utils/authToken';
 import { formatDisplayAge } from '../../../utils/formatters';
 import AIAssistantService, { GrammarError } from '../../../services/aiAssistantService';
 import { specialtyConfigs, specialtyColors } from '../../../config/specialtyConfigs';
+import { useClinic } from '../../../context/ClinicContext';
+import { printPatientHistory } from '../../../utils/printPatientHistory';
 import { MedicalRecordContext } from '../../../contexts/MedicalRecordContext';
 import { DynamicSpecialtyFields } from '../../medical/DynamicSpecialtyFields';
 import { toast } from 'react-toastify';
@@ -1184,6 +1186,7 @@ export const ModernMedicalRecordForm: React.FC<ModernMedicalRecordFormProps> = (
   const theme = useTheme();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { clinic } = useClinic();
 
   // Memory System Integration - Disabled to prevent infinite loop
   // const memorySystem = useMemorySystem({
@@ -4378,7 +4381,18 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
         <Button variant="outlined" startIcon={<AIIcon />} size="small" onClick={() => { setAiAssistantOpen(true); generateAISuggestions(); }} sx={{ fontSize: '0.82rem', textTransform: 'none' }}>
           AI Assist
         </Button>
-        <Button variant="outlined" startIcon={<PrintIcon />} size="small" onClick={() => window.print()} sx={{ fontSize: '0.82rem', textTransform: 'none' }}>
+        <Button variant="outlined" startIcon={<PrintIcon />} size="small" onClick={() => {
+          // Print the current record professionally
+          printPatientHistory({
+            patient: patientData,
+            records: patientHistory.length > 0 ? patientHistory : [],
+            clinic,
+            currentUser: user,
+            specialtyFilter: 'All',
+            allPrescriptions,
+            allLabResults,
+          });
+        }} sx={{ fontSize: '0.82rem', textTransform: 'none' }}>
           Print
         </Button>
         <Tooltip title="Close">
@@ -8152,6 +8166,7 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
       {/* Enhanced Patient History — rendered via portal directly into document.body */}
       {historyDialogOpen && createPortal(
         <div
+          className="patient-history-dialog-portal"
           onClick={(e) => { if (e.target === e.currentTarget) setHistoryDialogOpen(false); }}
           style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -8162,6 +8177,13 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
             boxSizing: 'border-box'
           }}
         >
+          <style>{`
+            @media print {
+              .patient-history-dialog-portal {
+                display: none !important;
+              }
+            }
+          `}</style>
           <div style={{
             width: '100%', maxWidth: '1100px',
             height: '90vh',
@@ -8196,7 +8218,21 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
             size="small"
             variant="outlined"
             startIcon={<PrintIcon />}
-            onClick={() => window.print()}
+            onClick={() => {
+              // Use the professional print utility instead of window.print()
+              const filteredRecords = filterSpecialty === 'All'
+                ? patientHistory
+                : patientHistory.filter((r: any) => (r.specialty || 'general').toLowerCase() === filterSpecialty.toLowerCase());
+              printPatientHistory({
+                patient: patientData,
+                records: filteredRecords,
+                clinic,
+                currentUser: user,
+                specialtyFilter: filterSpecialty,
+                allPrescriptions,
+                allLabResults,
+              });
+            }}
             sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)', '&:hover': { bgcolor: 'rgba(255,255,255,0.15)', borderColor: 'white' }, textTransform: 'none', fontSize: '0.78rem' }}
           >
             Print History
@@ -8324,32 +8360,54 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
                             {(record.doctor?.firstName || record.doctor?.lastName) && ` · Dr. ${record.doctor?.firstName || ''} ${record.doctor?.lastName || ''}`.trim()}
                           </Typography>
                         </Box>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={<EditIcon sx={{ fontSize: '0.85rem' }} />}
-                          onClick={() => {
-                            // Load this record's chief complaint and HPI into the current form
-                            const cc = record.chiefComplaint?.description || record.chiefComplaint || '';
-                            const hpi = record.historyOfPresentIllness || '';
-                            const spec = record.specialty || 'general';
-                            const details = record.details || {};
-                            if (cc || hpi) {
-                              setFormData(prev => ({
-                                ...prev,
-                                specialty: spec,
-                                details: details,
-                                chiefComplaint: { ...prev.chiefComplaint, description: cc || prev.chiefComplaint.description },
-                                historyOfPresentIllness: hpi || (prev as any).historyOfPresentIllness
-                              } as any));
-                              toast.success('Loaded into current record', { position: 'top-right', autoClose: 2000 });
-                              setHistoryDialogOpen(false);
-                            }
-                          }}
-                          sx={{ textTransform: 'none', fontSize: '0.72rem', flexShrink: 0 }}
-                        >
-                          Load into Form
-                        </Button>
+                        <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<PrintIcon sx={{ fontSize: '0.85rem' }} />}
+                            onClick={() => {
+                              printPatientHistory({
+                                patient: patientData,
+                                records: [record],
+                                clinic,
+                                currentUser: user,
+                                specialtyFilter: record.specialty || 'General',
+                                allPrescriptions,
+                                allLabResults,
+                                singleRecordTitle: 'CLINICAL ENCOUNTER & CONSULTATION REPORT'
+                              });
+                            }}
+                            sx={{ textTransform: 'none', fontSize: '0.72rem' }}
+                          >
+                            Print Visit
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<EditIcon sx={{ fontSize: '0.85rem' }} />}
+                            onClick={() => {
+                              // Load this record's chief complaint and HPI into the current form
+                              const cc = record.chiefComplaint?.description || record.chiefComplaint || '';
+                              const hpi = record.historyOfPresentIllness || '';
+                              const spec = record.specialty || 'general';
+                              const details = record.details || {};
+                              if (cc || hpi) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  specialty: spec,
+                                  details: details,
+                                  chiefComplaint: { ...prev.chiefComplaint, description: cc || prev.chiefComplaint.description },
+                                  historyOfPresentIllness: hpi || (prev as any).historyOfPresentIllness
+                                } as any));
+                                toast.success('Loaded into current record', { position: 'top-right', autoClose: 2000 });
+                                setHistoryDialogOpen(false);
+                              }
+                            }}
+                            sx={{ textTransform: 'none', fontSize: '0.72rem' }}
+                          >
+                            Load into Form
+                          </Button>
+                        </Box>
                       </Box>
 
                   {/* Content — single column so everything is always visible */}

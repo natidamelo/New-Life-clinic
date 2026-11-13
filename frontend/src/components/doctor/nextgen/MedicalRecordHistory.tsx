@@ -29,6 +29,8 @@ import {
 } from '@mui/icons-material';
 import { formatDate, formatDateTime } from '../../../utils/formatters';
 import { useAuth } from '../../../context/AuthContext';
+import { useClinic } from '../../../context/ClinicContext';
+import { printPatientHistory } from '../../../utils/printPatientHistory';
 import medicalRecordsApi from '../../../services/medicalRecords';
 import prescriptionService from '../../../services/prescriptionService';
 import labService from '../../../services/labService';
@@ -94,6 +96,7 @@ const MedicalRecordHistory: React.FC<MedicalRecordHistoryProps> = ({
   onEditRecord
 }) => {
   const { user } = useAuth();
+  const { clinic } = useClinic();
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<MedicalRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -630,7 +633,22 @@ const MedicalRecordHistory: React.FC<MedicalRecordHistoryProps> = ({
                           )}
                           
                           <Tooltip title="Print Record">
-                            <IconButton size="small">
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                printPatientHistory({
+                                  patient: {
+                                    name: record.metadata?.patientName,
+                                    patientId: record.metadata?.patientId || record.patient,
+                                    id: record.metadata?.patientId || record.patient,
+                                  },
+                                  records: [record],
+                                  clinic,
+                                  currentUser: user,
+                                  singleRecordTitle: 'CLINICAL ENCOUNTER & CONSULTATION REPORT'
+                                });
+                              }}
+                            >
                               <PrintIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
