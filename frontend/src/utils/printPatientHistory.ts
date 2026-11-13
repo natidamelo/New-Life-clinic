@@ -1,6 +1,6 @@
 /**
  * Medical-grade Patient Medical History Print Utility
- * Formats patient medical history records into an executive, hospital-standard clinical document.
+ * Formats patient medical history into a compact, executive 1-Page A4 clinical document.
  */
 
 import { generateQRCodeSVG } from './medicalReportHeader';
@@ -63,27 +63,25 @@ const escapeHtml = (val: unknown): string => {
     .replace(/'/g, '&#39;');
 };
 
-const formatFullDate = (dateVal: any): string => {
+const formatShortDate = (dateVal: any): string => {
   if (!dateVal) return 'Not recorded';
   const d = new Date(dateVal);
   if (isNaN(d.getTime())) return String(dateVal);
   return d.toLocaleDateString('en-US', {
-    weekday: 'short',
     year: 'numeric',
     month: 'short',
     day: 'numeric'
   });
 };
 
-const formatFullDateTime = (dateVal: any): string => {
+const formatShortDateTime = (dateVal: any): string => {
   if (!dateVal) return 'Not recorded';
   const d = new Date(dateVal);
   if (isNaN(d.getTime())) return String(dateVal);
   return d.toLocaleString('en-US', {
-    weekday: 'short',
-    year: 'numeric',
     month: 'short',
     day: 'numeric',
+    year: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
   });
@@ -156,14 +154,14 @@ function extractPhysicalExam(pe: any) {
   const heentVal = heentParts || (typeof pe.heent === 'string' ? pe.heent : '');
 
   const items: { label: string; value: string }[] = [];
-  if (pe.general) items.push({ label: 'General Appearance', value: String(pe.general) });
+  if (pe.general) items.push({ label: 'General', value: String(pe.general) });
   if (heentVal) items.push({ label: 'HEENT', value: String(heentVal) });
-  if (pe.cardiovascular) items.push({ label: 'Cardiovascular (CVS)', value: String(pe.cardiovascular) });
-  if (pe.respiratory) items.push({ label: 'Respiratory (Chest / Lungs)', value: String(pe.respiratory) });
-  if (pe.gastrointestinal) items.push({ label: 'Gastrointestinal (Abdomen)', value: String(pe.gastrointestinal) });
-  if (pe.neurological) items.push({ label: 'Neurological (CNS)', value: String(pe.neurological) });
-  if (pe.musculoskeletal) items.push({ label: 'Musculoskeletal / Extremities', value: String(pe.musculoskeletal) });
-  if (pe.skin) items.push({ label: 'Skin & Integumentary', value: String(pe.skin) });
+  if (pe.cardiovascular) items.push({ label: 'CVS', value: String(pe.cardiovascular) });
+  if (pe.respiratory) items.push({ label: 'Chest/Lungs', value: String(pe.respiratory) });
+  if (pe.gastrointestinal) items.push({ label: 'Abdomen', value: String(pe.gastrointestinal) });
+  if (pe.neurological) items.push({ label: 'CNS', value: String(pe.neurological) });
+  if (pe.musculoskeletal) items.push({ label: 'Musculoskeletal', value: String(pe.musculoskeletal) });
+  if (pe.skin) items.push({ label: 'Skin', value: String(pe.skin) });
 
   return items;
 }
@@ -181,7 +179,6 @@ function extractSpecialtyDetails(details: any): { label: string; value: string }
       if (typeof v === 'object' && !Array.isArray(v)) {
         walk(v, prefix ? `${prefix} - ` : '');
       } else {
-        // Convert camelCase or snake_case key to Capitalized Label
         const cleanKey = k.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim();
         const formattedLabel = cleanKey.charAt(0).toUpperCase() + cleanKey.slice(1);
         const valStr = Array.isArray(v) ? v.join(', ') : String(v);
@@ -234,8 +231,7 @@ function extractPrescriptions(record: any, allPrescriptions: any[] = [], visitMs
         frequency,
         duration: m.duration || m.days ? `${m.duration || m.days}` : '',
         route: m.route || '',
-        status: m.status || m._parentStatus || 'Active',
-        instructions: m.instructions || m.notes || ''
+        status: m.status || m._parentStatus || 'Active'
       });
     }
   }
@@ -284,7 +280,7 @@ function extractLabResults(record: any, allLabResults: any[] = [], visitMs: numb
 }
 
 /**
- * Builds the complete standalone HTML string for the medical history document
+ * Builds the compact, executive 1-Page A4 HTML string
  */
 export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): string {
   const {
@@ -299,7 +295,7 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
   } = options;
 
   const now = new Date();
-  const printTimestamp = formatFullDateTime(now);
+  const printTimestamp = formatShortDateTime(now);
 
   // Patient normalization
   const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ').trim()
@@ -337,32 +333,30 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
   // Document Title
   const documentTitle = singleRecordTitle || 'PATIENT MEDICAL HISTORY RECORD';
   const documentSubtitle = records.length === 1
-    ? 'Official Clinical Consultation & Encounter Documentation'
-    : `Cumulative Patient Health Record · ${records.length} Clinical Visit${records.length !== 1 ? 's' : ''}`;
+    ? 'Clinical Consultation & Encounter Documentation'
+    : `Cumulative Patient Health Record · ${records.length} Visits`;
 
-  // QR Code generation
+  // QR Code generation (compact 48px size)
   const qrData = [
     `CLINIC: ${clinicName}`,
     `PATIENT: ${patientName}`,
     `MRN: ${patientId}`,
-    `RECORDS: ${records.length}`,
     `DATE: ${printTimestamp}`,
-    `VALIDATED: OFFICIAL MEDICAL RECORD`
+    `RECORD: OFFICIAL EMR`
   ].join('\n');
-  const qrSvg = generateQRCodeSVG(qrData, 80);
+  const qrSvg = generateQRCodeSVG(qrData, 50);
 
   // Encounters HTML
   const encountersHtml = records.length === 0
     ? `
       <div class="empty-state">
         <p><strong>No medical consultation records found for this patient.</strong></p>
-        <p style="color: #64748b; font-size: 11px; margin-top: 4px;">No visits match the current filter selection (${escapeHtml(specialtyFilter)}).</p>
       </div>
     `
     : records.map((record, idx) => {
         const visitDate = record.visitDate || record.createdAt || now;
         const visitMs = new Date(visitDate).getTime();
-        const formattedVisitDate = formatFullDateTime(visitDate);
+        const formattedVisitDate = formatShortDateTime(visitDate);
         const specialty = (record.specialty || 'General Practice').toUpperCase();
         const status = (record.status || 'Finalized').toUpperCase();
         const isFinalized = status === 'FINALIZED' || status === 'COMPLETED';
@@ -371,7 +365,7 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
           ? `Dr. ${record.doctor?.firstName || ''} ${record.doctor?.lastName || ''}`.trim()
           : printedByDoctor;
 
-        // Chief Complaint
+        // Chief Complaint & HPI
         const ccDesc = record.chiefComplaint?.description || (typeof record.chiefComplaint === 'string' ? record.chiefComplaint : 'Routine Consultation / Evaluation');
         const ccSeverity = record.chiefComplaint?.severity;
         const ccDuration = record.chiefComplaint?.duration;
@@ -414,150 +408,132 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
         const followUpDate = record.followUpPlan?.date || record.followUpPlan?.returnDate;
 
         return `
-          <div class="encounter-card ${idx > 0 ? 'encounter-page-break' : ''}">
-            <!-- Encounter Header -->
-            <div class="encounter-header">
-              <div class="encounter-header-left">
-                <span class="encounter-badge">VISIT #${records.length - idx}</span>
-                <span class="encounter-specialty">${escapeHtml(specialty)}</span>
-                <span class="encounter-status ${isFinalized ? 'status-finalized' : 'status-active'}">${escapeHtml(status)}</span>
+          <div class="encounter-block ${idx > 0 ? 'encounter-page-break' : ''}">
+            <!-- Encounter Banner Bar -->
+            <div class="encounter-bar">
+              <div class="bar-left">
+                <span class="badge-num">#${records.length - idx}</span>
+                <span class="badge-spec">${escapeHtml(specialty)}</span>
+                <span class="badge-stat ${isFinalized ? 'stat-done' : 'stat-pend'}">${escapeHtml(status)}</span>
+                <span class="enc-time">📅 ${escapeHtml(formattedVisitDate)}</span>
               </div>
-              <div class="encounter-header-right">
-                <span class="encounter-date">📅 ${escapeHtml(formattedVisitDate)}</span>
-                <span class="encounter-doctor">👨‍⚕️ ${escapeHtml(doctorName)}</span>
+              <div class="bar-right">
+                <span class="enc-doc">👨‍⚕️ ${escapeHtml(doctorName)}</span>
               </div>
             </div>
 
-            <div class="encounter-body">
+            <div class="encounter-content">
               <!-- Chief Complaint & HPI -->
-              <div class="clinical-section">
-                <div class="section-heading">
-                  <span class="heading-icon">📋</span> CHIEF COMPLAINT &amp; HISTORY OF PRESENT ILLNESS (HPI)
-                </div>
-                <div class="cc-box">
-                  <div class="cc-main-row">
-                    <span class="cc-label">Chief Complaint:</span>
-                    <strong class="cc-value">${escapeHtml(ccDesc)}</strong>
-                    <div class="cc-tags">
-                      ${ccSeverity ? `<span class="tag tag-severity-${ccSeverity.toLowerCase()}">Severity: ${escapeHtml(ccSeverity)}</span>` : ''}
-                      ${ccDuration ? `<span class="tag tag-info">Duration: ${escapeHtml(ccDuration)}</span>` : ''}
-                      ${ccLocation ? `<span class="tag tag-info">Location: ${escapeHtml(ccLocation)}</span>` : ''}
-                    </div>
+              <div class="c-section">
+                <div class="c-title">CHIEF COMPLAINT &amp; HPI</div>
+                <div class="cc-hpi-box">
+                  <div class="cc-row">
+                    <span class="lbl-inline">Complaint:</span>
+                    <strong class="val-inline">${escapeHtml(ccDesc)}</strong>
+                    ${ccSeverity ? `<span class="badge-tag tag-${ccSeverity.toLowerCase()}">Severity: ${escapeHtml(ccSeverity)}</span>` : ''}
+                    ${ccDuration ? `<span class="badge-tag">Duration: ${escapeHtml(ccDuration)}</span>` : ''}
+                    ${ccLocation ? `<span class="badge-tag">Location: ${escapeHtml(ccLocation)}</span>` : ''}
                   </div>
                   ${hpi ? `
-                    <div class="hpi-block">
-                      <div class="hpi-title">History of Present Illness:</div>
-                      <div class="hpi-text">${escapeHtml(hpi)}</div>
+                    <div class="hpi-row">
+                      <span class="lbl-inline">HPI:</span>
+                      <span class="hpi-text">${escapeHtml(hpi)}</span>
                     </div>
                   ` : ''}
                 </div>
               </div>
 
-              <!-- Vitals Matrix (if present) -->
+              <!-- Vitals Matrix (compact 1-row table) -->
               ${hasVitals ? `
-                <div class="clinical-section">
-                  <div class="section-heading">
-                    <span class="heading-icon">🩺</span> VITAL SIGNS
-                  </div>
-                  <table class="vitals-table">
+                <div class="c-section">
+                  <div class="c-title">VITAL SIGNS</div>
+                  <table class="v-table">
                     <thead>
                       <tr>
-                        <th>Blood Pressure</th>
-                        <th>Heart Rate</th>
-                        <th>Temperature</th>
-                        <th>Resp. Rate</th>
-                        <th>SpO₂</th>
-                        <th>Blood Sugar</th>
+                        <th>BP (mmHg)</th>
+                        <th>Pulse (bpm)</th>
+                        <th>Temp (°F)</th>
+                        <th>RR (/min)</th>
+                        <th>SpO₂ (%)</th>
+                        <th>Sugar</th>
                         <th>Weight</th>
                         <th>Height</th>
                         <th>BMI</th>
-                        ${vitals.pain ? `<th>Pain Score</th>` : ''}
+                        ${vitals.pain ? `<th>Pain</th>` : ''}
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td><strong>${escapeHtml(vitals.bp || '—')}</strong> ${vitals.bp ? '<span class="unit">mmHg</span>' : ''}</td>
-                        <td><strong>${escapeHtml(vitals.hr || '—')}</strong> ${vitals.hr ? '<span class="unit">bpm</span>' : ''}</td>
-                        <td><strong>${escapeHtml(vitals.temp || '—')}</strong> ${vitals.temp ? '<span class="unit">°F</span>' : ''}</td>
-                        <td><strong>${escapeHtml(vitals.rr || '—')}</strong> ${vitals.rr ? '<span class="unit">/min</span>' : ''}</td>
-                        <td><strong>${escapeHtml(vitals.spo2 || '—')}</strong> ${vitals.spo2 ? '<span class="unit">%</span>' : ''}</td>
-                        <td><strong>${escapeHtml(vitals.sugar || '—')}</strong> ${vitals.sugar ? '<span class="unit">mg/dL</span>' : ''}</td>
-                        <td><strong>${escapeHtml(vitals.weight || '—')}</strong> ${vitals.weight ? '<span class="unit">kg</span>' : ''}</td>
-                        <td><strong>${escapeHtml(vitals.height || '—')}</strong> ${vitals.height ? '<span class="unit">cm</span>' : ''}</td>
+                        <td><strong>${escapeHtml(vitals.bp || '—')}</strong></td>
+                        <td><strong>${escapeHtml(vitals.hr || '—')}</strong></td>
+                        <td><strong>${escapeHtml(vitals.temp || '—')}</strong></td>
+                        <td><strong>${escapeHtml(vitals.rr || '—')}</strong></td>
+                        <td><strong>${escapeHtml(vitals.spo2 || '—')}</strong></td>
+                        <td><strong>${escapeHtml(vitals.sugar || '—')}</strong></td>
+                        <td><strong>${escapeHtml(vitals.weight || '—')}</strong></td>
+                        <td><strong>${escapeHtml(vitals.height || '—')}</strong></td>
                         <td><strong>${escapeHtml(vitals.bmi || '—')}</strong></td>
-                        ${vitals.pain ? `<td><strong>${escapeHtml(vitals.pain)}</strong>/10</td>` : ''}
+                        ${vitals.pain ? `<td><strong>${escapeHtml(vitals.pain)}/10</strong></td>` : ''}
                       </tr>
                     </tbody>
                   </table>
                 </div>
               ` : ''}
 
-              <!-- Physical Examination (if present) -->
+              <!-- Physical Examination Findings -->
               ${peItems.length > 0 ? `
-                <div class="clinical-section">
-                  <div class="section-heading">
-                    <span class="heading-icon">🔍</span> PHYSICAL EXAMINATION FINDINGS
-                  </div>
-                  <div class="pe-grid">
+                <div class="c-section">
+                  <div class="c-title">PHYSICAL EXAMINATION</div>
+                  <div class="pe-row-grid">
                     ${peItems.map(pe => `
-                      <div class="pe-item">
-                        <span class="pe-label">${escapeHtml(pe.label)}:</span>
-                        <span class="pe-val">${escapeHtml(pe.value)}</span>
+                      <div class="pe-chip">
+                        <strong>${escapeHtml(pe.label)}:</strong> <span>${escapeHtml(pe.value)}</span>
                       </div>
                     `).join('')}
                   </div>
                 </div>
               ` : ''}
 
-              <!-- Specialty Specific Clinical Details (if present) -->
+              <!-- Specialty Specific Clinical Details -->
               ${detailsItems.length > 0 ? `
-                <div class="clinical-section">
-                  <div class="section-heading">
-                    <span class="heading-icon">🔬</span> ${escapeHtml(specialty)} CLINICAL DETAILS
-                  </div>
-                  <div class="details-grid">
+                <div class="c-section">
+                  <div class="c-title">${escapeHtml(specialty)} CLINICAL FINDINGS</div>
+                  <div class="details-row-grid">
                     ${detailsItems.map(d => `
-                      <div class="detail-cell">
-                        <span class="detail-label">${escapeHtml(d.label)}:</span>
-                        <strong class="detail-value">${escapeHtml(d.value)}</strong>
+                      <div class="detail-chip">
+                        <span>${escapeHtml(d.label)}:</span> <strong>${escapeHtml(d.value)}</strong>
                       </div>
                     `).join('')}
                   </div>
                 </div>
               ` : ''}
 
-              <!-- Assessment & Diagnosis -->
-              <div class="clinical-section">
-                <div class="section-heading">
-                  <span class="heading-icon">🎯</span> CLINICAL ASSESSMENT &amp; DIAGNOSIS
-                </div>
-                <div class="diagnosis-box">
-                  <div class="primary-diagnosis">
-                    <span class="dx-label">Primary Diagnosis:</span>
-                    <span class="dx-name">${escapeHtml(primaryDiagnosis)}</span>
+              <!-- Clinical Assessment & Diagnoses -->
+              <div class="c-section">
+                <div class="c-title">ASSESSMENT &amp; DIAGNOSIS</div>
+                <div class="dx-compact-bar">
+                  <div class="dx-prime">
+                    <span class="dx-badge">PRIMARY</span>
+                    <strong class="dx-text">${escapeHtml(primaryDiagnosis)}</strong>
                   </div>
                   ${otherDiagnoses.length > 0 ? `
-                    <div class="secondary-diagnoses">
-                      <span class="dx-label">Secondary / Differential:</span>
-                      <div class="dx-chips">
-                        ${otherDiagnoses.map(d => `<span class="dx-chip">${escapeHtml(d)}</span>`).join('')}
-                      </div>
+                    <div class="dx-secondary">
+                      <span class="dx-sub-badge">SECONDARY</span>
+                      ${otherDiagnoses.map(d => `<span class="dx-pill">${escapeHtml(d)}</span>`).join('')}
                     </div>
                   ` : ''}
                 </div>
               </div>
 
-              <!-- Prescribed Medications (if present) -->
+              <!-- Prescribed Medications -->
               ${meds.length > 0 ? `
-                <div class="clinical-section">
-                  <div class="section-heading">
-                    <span class="heading-icon">💊</span> PRESCRIBED MEDICATIONS &amp; REGIMEN
-                  </div>
-                  <table class="clinical-table">
+                <div class="c-section">
+                  <div class="c-title">PRESCRIBED MEDICATIONS (${meds.length})</div>
+                  <table class="t-table">
                     <thead>
                       <tr>
-                        <th style="width: 25px;">#</th>
-                        <th>Medication Name</th>
+                        <th style="width:20px;">#</th>
+                        <th>Medication</th>
                         <th>Dosage</th>
                         <th>Route</th>
                         <th>Frequency</th>
@@ -568,13 +544,13 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
                     <tbody>
                       ${meds.map((m, mIdx) => `
                         <tr>
-                          <td style="text-align: center; color: #64748b;">${mIdx + 1}</td>
+                          <td style="text-align:center;">${mIdx + 1}</td>
                           <td><strong>${escapeHtml(m.name)}</strong></td>
-                          <td>${escapeHtml(m.dosage || 'Standard')}</td>
+                          <td>${escapeHtml(m.dosage || '—')}</td>
                           <td>${escapeHtml(m.route || 'Oral')}</td>
-                          <td>${escapeHtml(m.frequency || 'As directed')}</td>
+                          <td>${escapeHtml(m.frequency || '—')}</td>
                           <td>${escapeHtml(m.duration || '—')}</td>
-                          <td><span class="status-pill status-${(m.status || 'active').toLowerCase()}">${escapeHtml(m.status || 'Active')}</span></td>
+                          <td><span class="pill-stat">${escapeHtml(m.status || 'Active')}</span></td>
                         </tr>
                       `).join('')}
                     </tbody>
@@ -582,18 +558,16 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
                 </div>
               ` : ''}
 
-              <!-- Diagnostic Lab Investigations (if present) -->
+              <!-- Laboratory & Diagnostic Investigations -->
               ${labs.length > 0 ? `
-                <div class="clinical-section">
-                  <div class="section-heading">
-                    <span class="heading-icon">🧪</span> LABORATORY &amp; DIAGNOSTIC INVESTIGATIONS
-                  </div>
-                  <table class="clinical-table">
+                <div class="c-section">
+                  <div class="c-title">LABORATORY INVESTIGATIONS (${labs.length})</div>
+                  <table class="t-table">
                     <thead>
                       <tr>
-                        <th style="width: 25px;">#</th>
-                        <th>Investigation / Test</th>
-                        <th>Findings / Result</th>
+                        <th style="width:20px;">#</th>
+                        <th>Test / Investigation</th>
+                        <th>Result / Findings</th>
                         <th>Date</th>
                         <th>Status</th>
                       </tr>
@@ -601,11 +575,11 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
                     <tbody>
                       ${labs.map((l, lIdx) => `
                         <tr>
-                          <td style="text-align: center; color: #64748b;">${lIdx + 1}</td>
+                          <td style="text-align:center;">${lIdx + 1}</td>
                           <td><strong>${escapeHtml(l.name)}</strong></td>
-                          <td>${l.result ? `<span class="lab-result-text">${escapeHtml(l.result)}</span>` : '<span style="color: #94a3b8; font-style: italic;">Results recorded in laboratory chart</span>'}</td>
-                          <td>${l.date ? escapeHtml(formatFullDate(l.date)) : '—'}</td>
-                          <td><span class="status-pill status-${(l.status || 'completed').toLowerCase()}">${escapeHtml(l.status || 'Completed')}</span></td>
+                          <td>${l.result ? `<strong style="color:#1e3a8a;">${escapeHtml(l.result)}</strong>` : '<span style="color:#94a3b8;">Recorded in lab</span>'}</td>
+                          <td>${l.date ? escapeHtml(formatShortDate(l.date)) : '—'}</td>
+                          <td><span class="pill-stat">${escapeHtml(l.status || 'Completed')}</span></td>
                         </tr>
                       `).join('')}
                     </tbody>
@@ -613,27 +587,26 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
                 </div>
               ` : ''}
 
-              <!-- Treatment & Management Plan (if present) -->
-              ${treatmentPlan ? `
-                <div class="clinical-section">
-                  <div class="section-heading">
-                    <span class="heading-icon">📝</span> TREATMENT &amp; MANAGEMENT PLAN
-                  </div>
-                  <div class="treatment-box">
-                    <div class="plan-text">${escapeHtml(treatmentPlan)}</div>
-                  </div>
-                </div>
-              ` : ''}
-
-              <!-- Follow-up Plan (if present) -->
-              ${(followUpInstructions || followUpDate) ? `
-                <div class="clinical-section">
-                  <div class="section-heading">
-                    <span class="heading-icon">🗓️</span> FOLLOW-UP &amp; RETURN INSTRUCTIONS
-                  </div>
-                  <div class="followup-box">
-                    ${followUpDate ? `<div><strong>Scheduled Return:</strong> ${escapeHtml(formatFullDate(followUpDate))}</div>` : ''}
-                    ${followUpInstructions ? `<div style="margin-top: 3px;">${escapeHtml(followUpInstructions)}</div>` : ''}
+              <!-- Treatment & Management Plan -->
+              ${(treatmentPlan || followUpInstructions || followUpDate) ? `
+                <div class="c-section">
+                  <div class="c-title">MANAGEMENT PLAN &amp; FOLLOW-UP</div>
+                  <div class="plan-followup-box">
+                    ${treatmentPlan ? `
+                      <div class="plan-row">
+                        <span class="lbl-inline">Plan:</span>
+                        <span class="plan-text">${escapeHtml(treatmentPlan)}</span>
+                      </div>
+                    ` : ''}
+                    ${(followUpDate || followUpInstructions) ? `
+                      <div class="followup-row">
+                        <span class="lbl-inline">Follow-up:</span>
+                        <span>
+                          ${followUpDate ? `<strong>Scheduled:</strong> ${escapeHtml(formatShortDate(followUpDate))} · ` : ''}
+                          ${followUpInstructions ? escapeHtml(followUpInstructions) : ''}
+                        </span>
+                      </div>
+                    ` : ''}
                   </div>
                 </div>
               ` : ''}
@@ -649,7 +622,7 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(documentTitle)} - ${escapeHtml(patientName)}</title>
   <style>
-    /* ── BASE RESET & HIGH CONTRAST TYPOGRAPHY ── */
+    /* ── BASE RESET & HIGH-DENSITY 1-PAGE A4 LAYOUT ── */
     *, *::before, *::after {
       box-sizing: border-box;
       margin: 0;
@@ -658,46 +631,46 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      font-size: 11.5px;
-      line-height: 1.45;
+      font-size: 10px;
+      line-height: 1.3;
       color: #0f172a;
       background-color: #f1f5f9;
-      padding: 24px;
+      padding: 16px;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── SCREEN FLOATING CONTROLS ── */
+    /* ── SCREEN FLOATING TOOLBAR ── */
     .no-print-toolbar {
       position: sticky;
       top: 0;
       z-index: 9999;
       background: #0f172a;
       color: #ffffff;
-      padding: 12px 24px;
-      border-radius: 12px;
-      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.4);
+      padding: 10px 20px;
+      border-radius: 8px;
+      box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.4);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 24px;
-      max-width: 1040px;
+      gap: 12px;
+      margin-bottom: 16px;
+      max-width: 900px;
       margin-left: auto;
       margin-right: auto;
     }
     .toolbar-title {
-      font-size: 13.5px;
+      font-size: 12.5px;
       font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
     .toolbar-tag {
       background: #2563eb;
       color: #ffffff;
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 800;
-      padding: 2px 8px;
+      padding: 2px 6px;
       border-radius: 4px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -708,610 +681,548 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
       gap: 8px;
     }
     .btn {
-      padding: 8px 18px;
-      font-size: 12px;
+      padding: 6px 14px;
+      font-size: 11px;
       font-weight: 700;
-      border-radius: 6px;
+      border-radius: 5px;
       cursor: pointer;
       border: 1px solid transparent;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       transition: all 0.15s ease;
     }
-    .btn-primary {
-      background: #2563eb;
-      color: #ffffff;
-    }
-    .btn-primary:hover {
-      background: #1d4ed8;
-    }
-    .btn-close {
-      background: #334155;
-      color: #f8fafc;
-    }
-    .btn-close:hover {
-      background: #475569;
-    }
+    .btn-primary { background: #2563eb; color: #ffffff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-close { background: #334155; color: #f8fafc; }
+    .btn-close:hover { background: #475569; }
 
-    /* ── REPORT CONTAINER ── */
+    /* ── REPORT CONTAINER (CALIBRATED FOR EXACT A4 1-PAGE FIT) ── */
     .report-container {
-      max-width: 1040px;
+      max-width: 860px;
       margin: 0 auto;
       background: #ffffff;
-      padding: 32px 36px;
-      border-radius: 12px;
+      padding: 16px 20px 12px 20px;
+      border-radius: 8px;
       border: 1px solid #cbd5e1;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
     }
 
-    /* ── CLINIC LETTERHEAD ── */
-    .clinic-header {
+    /* ── UNIFIED COMPACT LETTERHEAD ── */
+    .doc-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 2.5px solid #1e3a8a;
-      padding-bottom: 14px;
-      margin-bottom: 16px;
-      gap: 16px;
+      border-bottom: 2px solid #1e3a8a;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+      gap: 12px;
     }
-    .clinic-brand {
+    .clinic-col {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 10px;
+      flex: 1.3;
     }
     .clinic-logo {
-      width: 56px;
-      height: 56px;
+      width: 44px;
+      height: 44px;
       object-fit: contain;
-      border-radius: 6px;
+      border-radius: 4px;
       border: 1px solid #cbd5e1;
+      flex-shrink: 0;
     }
     .clinic-logo-placeholder {
-      width: 56px;
-      height: 56px;
+      width: 44px;
+      height: 44px;
       background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
       color: #ffffff;
       font-weight: 900;
-      font-size: 26px;
+      font-size: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 6px;
-      letter-spacing: -1px;
+      border-radius: 4px;
+      flex-shrink: 0;
     }
     .clinic-name {
-      font-size: 19px;
+      font-size: 15px;
       font-weight: 900;
       color: #0f172a;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      line-height: 1.2;
+      line-height: 1.15;
     }
-    .clinic-sub {
-      font-size: 11px;
-      color: #475569;
+    .clinic-tagline {
+      font-size: 9px;
+      color: #64748b;
       font-weight: 600;
-      margin-top: 2px;
     }
-    .clinic-contact {
-      text-align: right;
-      font-size: 10.5px;
+    .clinic-meta {
+      font-size: 8.5px;
       color: #334155;
-      line-height: 1.45;
+      line-height: 1.25;
+      margin-top: 1px;
+    }
+    .clinic-license {
+      font-size: 8.5px;
+      font-weight: 700;
+      color: #1e3a8a;
     }
 
-    /* ── DOCUMENT TITLE & QR BANNER ── */
-    .title-banner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-left: 4px solid #1e3a8a;
-      border-radius: 6px;
-      padding: 10px 16px;
-      margin-bottom: 16px;
-    }
-    .title-left {
+    .title-col {
+      text-align: center;
       flex: 1;
+      padding: 0 6px;
     }
     .doc-title {
-      font-size: 16px;
+      font-size: 13.5px;
       font-weight: 900;
       color: #0f172a;
-      letter-spacing: 0.5px;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
+      line-height: 1.15;
     }
-    .doc-subtitle {
-      font-size: 11px;
+    .doc-sub {
+      font-size: 9px;
+      color: #475569;
+      font-weight: 600;
+      margin-top: 1px;
+    }
+    .doc-timestamp {
+      font-size: 8px;
       color: #64748b;
       margin-top: 2px;
-      font-weight: 500;
     }
-    .title-right {
+
+    .qr-col {
+      flex-shrink: 0;
       display: flex;
       align-items: center;
-      gap: 14px;
+      justify-content: flex-end;
     }
-    .doc-meta {
-      text-align: right;
-      font-size: 10.5px;
-      color: #475569;
-      line-height: 1.4;
-    }
-    .qr-box svg {
+    .qr-col svg {
       display: block;
-      width: 60px;
-      height: 60px;
+      width: 48px;
+      height: 48px;
       border: 1px solid #94a3b8;
-      background: #fff;
+      background: #ffffff;
       padding: 1px;
       border-radius: 2px;
     }
 
-    /* ── PATIENT DEMOGRAPHICS MATRIX ── */
-    .patient-matrix {
-      border: 1.5px solid #cbd5e1;
-      border-radius: 6px;
-      margin-bottom: 20px;
-      background: #ffffff;
-      overflow: hidden;
-    }
-    .patient-matrix-header {
-      background: #f1f5f9;
-      padding: 6px 12px;
-      font-size: 11px;
-      font-weight: 800;
-      color: #1e3a8a;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border-bottom: 1px solid #cbd5e1;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .patient-matrix-grid {
+    /* ── STREAMLINED PATIENT DEMOGRAPHICS STRIP ── */
+    .patient-strip {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 0;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-left: 3.5px solid #1e3a8a;
+      border-radius: 4px;
+      padding: 4px 8px;
+      margin-bottom: 8px;
+      gap: 2px 8px;
     }
-    .matrix-cell {
-      padding: 7px 12px;
-      border-right: 1px solid #e2e8f0;
-      border-bottom: 1px solid #e2e8f0;
-    }
-    .matrix-cell:nth-child(4n) {
-      border-right: none;
-    }
-    .matrix-cell:nth-last-child(-n+4) {
-      border-bottom: none;
-    }
-    .matrix-label {
-      display: block;
+    .p-item {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
       font-size: 9.5px;
-      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .p-item-wide {
+      grid-column: span 2;
+    }
+    .p-item .lbl {
       color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-      margin-bottom: 2px;
-    }
-    .matrix-val {
-      font-size: 12px;
       font-weight: 700;
-      color: #0f172a;
+      font-size: 8.5px;
+      text-transform: uppercase;
+      flex-shrink: 0;
     }
-    .mrn-text {
+    .p-item .val {
+      color: #0f172a;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .p-item .val-mrn {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       color: #1e3a8a;
     }
+    .p-item .val-alert {
+      color: #b91c1c;
+    }
 
-    /* ── ENCOUNTER CARDS ── */
-    .encounter-card {
+    /* ── ENCOUNTER BLOCK ── */
+    .encounter-block {
       border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      margin-bottom: 20px;
+      border-radius: 5px;
+      margin-bottom: 8px;
       overflow: hidden;
       background: #ffffff;
       page-break-inside: avoid;
       break-inside: avoid;
     }
-    .encounter-header {
-      background: #f8fafc;
-      border-bottom: 1.5px solid #cbd5e1;
-      padding: 8px 14px;
+    .encounter-bar {
+      background: #f1f5f9;
+      border-bottom: 1px solid #cbd5e1;
+      padding: 3px 8px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 8px;
+      font-size: 9px;
     }
-    .encounter-header-left {
+    .bar-left {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
-    .encounter-badge {
+    .badge-num {
       background: #1e3a8a;
       color: #ffffff;
-      font-size: 10px;
       font-weight: 800;
-      padding: 3px 8px;
-      border-radius: 4px;
-      letter-spacing: 0.5px;
+      font-size: 8.5px;
+      padding: 1px 5px;
+      border-radius: 3px;
     }
-    .encounter-specialty {
+    .badge-spec {
       background: #eff6ff;
       color: #1d4ed8;
       border: 1px solid #bfdbfe;
-      font-size: 10.5px;
       font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 4px;
+      font-size: 8.5px;
+      padding: 1px 5px;
+      border-radius: 3px;
     }
-    .encounter-status {
-      font-size: 10px;
+    .badge-stat {
+      font-size: 8px;
       font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 4px;
-      text-transform: uppercase;
-    }
-    .status-finalized {
-      background: #dcfce7;
-      color: #15803d;
-      border: 1px solid #bbf7d0;
-    }
-    .status-active {
-      background: #fef3c7;
-      color: #b45309;
-      border: 1px solid #fde68a;
-    }
-    .encounter-header-right {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      font-size: 11px;
-      color: #334155;
-      font-weight: 600;
-    }
-
-    .encounter-body {
-      padding: 12px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    /* ── CLINICAL SECTIONS ── */
-    .clinical-section {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .section-heading {
-      font-size: 11px;
-      font-weight: 800;
-      color: #1e3a8a;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      padding-bottom: 3px;
-      border-bottom: 1px solid #e2e8f0;
-    }
-    .heading-icon {
-      font-size: 12px;
-    }
-
-    /* Chief complaint box */
-    .cc-box {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 9px 12px;
-    }
-    .cc-main-row {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .cc-label {
-      font-weight: 700;
-      color: #475569;
-      font-size: 11px;
-    }
-    .cc-value {
-      font-size: 12px;
-      color: #0f172a;
-    }
-    .cc-tags {
-      display: flex;
-      gap: 6px;
-      margin-left: auto;
-    }
-    .tag {
-      font-size: 10px;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 4px;
-      white-space: nowrap;
-    }
-    .tag-severity-severe { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
-    .tag-severity-moderate { background: #ffedd5; color: #c2410c; border: 1px solid #fdba74; }
-    .tag-severity-mild { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
-    .tag-info { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
-
-    .hpi-block {
-      margin-top: 8px;
-      padding-top: 8px;
-      border-top: 1px dashed #cbd5e1;
-    }
-    .hpi-title {
-      font-size: 10px;
-      font-weight: 800;
-      color: #475569;
-      text-transform: uppercase;
-      margin-bottom: 2px;
-    }
-    .hpi-text {
-      font-size: 11.5px;
-      color: #1e293b;
-      line-height: 1.5;
-    }
-
-    /* Vitals Table */
-    .vitals-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 11px;
-      background: #ffffff;
-      border: 1px solid #cbd5e1;
-    }
-    .vitals-table th {
-      background: #f1f5f9;
-      color: #475569;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      padding: 5px 8px;
-      border: 1px solid #cbd5e1;
-      text-align: center;
-    }
-    .vitals-table td {
-      padding: 6px 8px;
-      border: 1px solid #cbd5e1;
-      text-align: center;
-      color: #0f172a;
-    }
-    .vitals-table .unit {
-      font-size: 9.5px;
-      color: #64748b;
-      font-weight: normal;
-    }
-
-    /* Physical Exam Grid */
-    .pe-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 6px;
-    }
-    .pe-item {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 4px;
-      padding: 6px 10px;
-      font-size: 11px;
-    }
-    .pe-label {
-      font-weight: 800;
-      color: #334155;
-      font-size: 10.5px;
-      margin-right: 4px;
-    }
-    .pe-val {
-      color: #0f172a;
-    }
-
-    /* Specialty Details Grid */
-    .details-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 8px 10px;
-    }
-    .detail-cell {
-      font-size: 10.5px;
-    }
-    .detail-label {
-      color: #64748b;
-      display: block;
-      font-size: 9.5px;
-      text-transform: uppercase;
-    }
-    .detail-value {
-      color: #0f172a;
-    }
-
-    /* Diagnosis Box */
-    .diagnosis-box {
-      background: #fdf2f8;
-      border: 1px solid #fbcfe8;
-      border-left: 4px solid #db2777;
-      border-radius: 6px;
-      padding: 8px 12px;
-    }
-    .primary-diagnosis {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-    }
-    .dx-label {
-      font-size: 10.5px;
-      font-weight: 800;
-      color: #831843;
-      text-transform: uppercase;
-    }
-    .dx-name {
-      font-size: 13px;
-      font-weight: 800;
-      color: #9d174d;
-    }
-    .secondary-diagnoses {
-      margin-top: 6px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .dx-chips {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .dx-chip {
-      background: #fce7f3;
-      color: #831843;
-      border: 1px solid #fbcfe8;
-      font-size: 10.5px;
-      font-weight: 600;
-      padding: 1px 7px;
-      border-radius: 4px;
-    }
-
-    /* Tables (Medications & Labs) */
-    .clinical-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 11px;
-      border: 1px solid #cbd5e1;
-    }
-    .clinical-table th {
-      background: #f1f5f9;
-      color: #334155;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      padding: 6px 8px;
-      border: 1px solid #cbd5e1;
-      text-align: left;
-    }
-    .clinical-table td {
-      padding: 6px 8px;
-      border: 1px solid #cbd5e1;
-      color: #0f172a;
-    }
-    .status-pill {
-      font-size: 9.5px;
-      font-weight: 700;
-      padding: 1px 6px;
+      padding: 1px 5px;
       border-radius: 3px;
       text-transform: uppercase;
     }
-    .status-active { background: #dcfce7; color: #166534; }
-    .status-completed { background: #e0f2fe; color: #075985; }
-    .status-pending { background: #fef3c7; color: #92400e; }
-    .status-discontinued { background: #fee2e2; color: #991b1b; }
+    .stat-done { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .stat-pend { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+    .enc-time { color: #334155; font-weight: 600; margin-left: 4px; }
+    .bar-right .enc-doc { color: #0f172a; font-weight: 700; }
 
-    .lab-result-text {
-      font-weight: 700;
+    .encounter-content {
+      padding: 6px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    /* ── COMPACT CLINICAL SECTIONS ── */
+    .c-section {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .c-title {
+      font-size: 8.5px;
+      font-weight: 800;
       color: #1e3a8a;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 1px;
     }
 
-    /* Treatment Box */
-    .treatment-box {
-      background: #f0fdf4;
-      border: 1px solid #bbf7d0;
-      border-left: 4px solid #16a34a;
-      border-radius: 6px;
-      padding: 8px 12px;
-      font-size: 11.5px;
-      color: #14532d;
-      line-height: 1.5;
+    /* Chief complaint & HPI */
+    .cc-hpi-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 3px;
+      padding: 3px 6px;
+      font-size: 9.5px;
+    }
+    .cc-row {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .lbl-inline {
+      color: #64748b;
+      font-weight: 700;
+      font-size: 8.5px;
+      text-transform: uppercase;
+    }
+    .val-inline {
+      color: #0f172a;
+    }
+    .badge-tag {
+      font-size: 8px;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+    .tag-severe { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+    .tag-moderate { background: #ffedd5; color: #c2410c; border-color: #fdba74; }
+    .tag-mild { background: #dcfce7; color: #15803d; border-color: #86efac; }
+
+    .hpi-row {
+      margin-top: 2px;
+      padding-top: 2px;
+      border-top: 1px dashed #e2e8f0;
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+    }
+    .hpi-text {
+      color: #1e293b;
+      line-height: 1.25;
+      font-size: 9px;
     }
 
-    /* Followup Box */
-    .followup-box {
+    /* Vitals mini table */
+    .v-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.5px;
+      border: 1px solid #cbd5e1;
+    }
+    .v-table th {
+      background: #f1f5f9;
+      color: #475569;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 4px;
+      border: 1px solid #cbd5e1;
+      text-align: center;
+      font-size: 8px;
+    }
+    .v-table td {
+      padding: 2px 4px;
+      border: 1px solid #cbd5e1;
+      text-align: center;
+      color: #0f172a;
+    }
+
+    /* Physical Exam row grid */
+    .pe-row-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+    }
+    .pe-chip {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 3px;
+      padding: 2px 5px;
+      font-size: 8.5px;
+      line-height: 1.2;
+    }
+    .pe-chip strong {
+      color: #334155;
+      font-size: 8px;
+      text-transform: uppercase;
+    }
+
+    /* Specialty Details */
+    .details-row-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+    }
+    .detail-chip {
       background: #eff6ff;
       border: 1px solid #bfdbfe;
-      border-left: 4px solid #2563eb;
-      border-radius: 6px;
-      padding: 8px 12px;
-      font-size: 11px;
-      color: #1e40af;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 8.5px;
+    }
+    .detail-chip span { color: #1e40af; font-size: 8px; text-transform: uppercase; }
+
+    /* Diagnosis compact bar */
+    .dx-compact-bar {
+      background: #fdf2f8;
+      border: 1px solid #fbcfe8;
+      border-left: 3px solid #db2777;
+      border-radius: 3px;
+      padding: 3px 6px;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .dx-prime {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .dx-badge {
+      font-size: 8px;
+      font-weight: 800;
+      color: #831843;
+      background: #fce7f3;
+      padding: 1px 4px;
+      border-radius: 2px;
+    }
+    .dx-text {
+      color: #9d174d;
+      font-size: 10px;
+    }
+    .dx-secondary {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      margin-left: auto;
+    }
+    .dx-sub-badge {
+      font-size: 7.5px;
+      font-weight: 700;
+      color: #64748b;
+    }
+    .dx-pill {
+      background: #ffffff;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+      font-size: 8.5px;
+      font-weight: 600;
+      padding: 0 4px;
+      border-radius: 2px;
     }
 
-    /* ── SIGNATURE & LEGAL FOOTER ── */
-    .report-footer {
-      margin-top: 24px;
-      padding-top: 16px;
-      border-top: 2px solid #cbd5e1;
+    /* Tables for Meds & Labs */
+    .t-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.5px;
+      border: 1px solid #cbd5e1;
+    }
+    .t-table th {
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 4px;
+      border: 1px solid #cbd5e1;
+      text-align: left;
+    }
+    .t-table td {
+      padding: 2px 4px;
+      border: 1px solid #cbd5e1;
+      color: #0f172a;
+    }
+    .pill-stat {
+      font-size: 7.5px;
+      font-weight: 700;
+      padding: 0 4px;
+      border-radius: 2px;
+      background: #dcfce7;
+      color: #166534;
+      text-transform: uppercase;
+    }
+
+    /* Plan & Follow-up */
+    .plan-followup-box {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-left: 3px solid #16a34a;
+      border-radius: 3px;
+      padding: 3px 6px;
+      font-size: 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .plan-row, .followup-row {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .plan-text {
+      color: #14532d;
+      line-height: 1.25;
+    }
+
+    /* ── STREAMLINED SIGNATURE FOOTER ── */
+    .doc-footer {
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1.5px solid #cbd5e1;
       page-break-inside: avoid;
       break-inside: avoid;
     }
-    .signature-row {
+    .sig-row {
       display: grid;
-      grid-template-columns: 2fr 1fr 1fr;
-      gap: 20px;
-      margin-bottom: 16px;
+      grid-template-columns: 2fr 1.2fr 1fr;
+      gap: 12px;
+      margin-bottom: 4px;
     }
-    .sig-field {
+    .sig-col {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      font-size: 10.5px;
-      color: #334155;
+      gap: 2px;
+      font-size: 8.5px;
+      color: #475569;
+    }
+    .sig-col span:first-child {
+      font-weight: 700;
+      font-size: 8px;
+      text-transform: uppercase;
+    }
+    .physician-name {
+      font-weight: 800;
+      color: #0f172a;
+      font-size: 9.5px;
     }
     .sig-line {
       border-bottom: 1px solid #475569;
-      height: 24px;
+      height: 14px;
     }
-    .stamp-box {
+    .stamp-box-compact {
       border: 1px dashed #94a3b8;
-      height: 52px;
-      border-radius: 4px;
+      height: 38px;
+      border-radius: 3px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: #94a3b8;
-      font-size: 9.5px;
+      font-size: 8px;
       text-transform: uppercase;
       font-weight: 700;
     }
-    .legal-notice {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 4px;
-      padding: 8px 12px;
-      font-size: 9.5px;
+    .footer-legal-line {
+      font-size: 7.5px;
       color: #64748b;
-      line-height: 1.45;
-      text-align: justify;
+      text-align: center;
+      border-top: 1px dashed #e2e8f0;
+      padding-top: 3px;
+      margin-top: 2px;
     }
 
-    /* Empty state */
     .empty-state {
-      padding: 36px 20px;
+      padding: 20px;
       text-align: center;
       background: #f8fafc;
       border: 1px dashed #cbd5e1;
-      border-radius: 8px;
+      border-radius: 4px;
+      font-size: 10px;
     }
 
-    /* ── PRINT MEDIA RULES ── */
+    /* ── PRINT MEDIA RULES (ENFORCING STRICT 1-PAGE A4) ── */
+    @page {
+      size: A4 portrait;
+      margin: 4mm 6mm 4mm 6mm;
+    }
+
     @media print {
-      @page {
-        size: A4 portrait;
-        margin: 8mm 10mm 10mm 10mm;
-      }
-      body {
+      html, body {
         background: #ffffff !important;
         padding: 0 !important;
-        font-size: 10.5px !important;
+        margin: 0 !important;
+        font-size: 8.5pt !important;
+        line-height: 1.2 !important;
         color: #000000 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
@@ -1323,25 +1234,25 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
         border: none !important;
         box-shadow: none !important;
         padding: 0 !important;
+        margin: 0 !important;
         max-width: 100% !important;
+        width: 100% !important;
       }
-      .encounter-card {
+      .encounter-block {
         border: 1px solid #94a3b8 !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
-        margin-bottom: 16px !important;
+        margin-bottom: 6px !important;
       }
       .encounter-page-break {
-        page-break-before: auto !important;
+        page-break-before: always !important;
+        break-before: page !important;
       }
-      .patient-matrix {
+      .v-table, .t-table {
         border: 1px solid #94a3b8 !important;
       }
-      .vitals-table, .clinical-table {
-        border: 1px solid #94a3b8 !important;
-      }
-      .vitals-table th, .clinical-table th,
-      .vitals-table td, .clinical-table td {
+      .v-table th, .t-table th,
+      .v-table td, .t-table td {
         border: 1px solid #cbd5e1 !important;
       }
     }
@@ -1352,12 +1263,12 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
   <!-- Floating Screen Toolbar (hidden in print) -->
   <div class="no-print-toolbar">
     <div class="toolbar-title">
-      <span class="toolbar-tag">MEDICAL RECORD</span>
+      <span class="toolbar-tag">1-PAGE A4 FORMAT</span>
       <span>${escapeHtml(patientName)} — ${escapeHtml(documentTitle)} (${records.length} visit${records.length !== 1 ? 's' : ''})</span>
     </div>
     <div class="toolbar-actions">
       <button class="btn btn-primary" onclick="window.print()">
-        🖨️ Print / Save as PDF
+        🖨️ Print / Save as PDF (1 Page)
       </button>
       <button class="btn btn-close" onclick="window.close()">
         ✕ Close
@@ -1368,9 +1279,9 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
   <!-- Main Report Document -->
   <div class="report-container">
 
-    <!-- Clinic Letterhead Header -->
-    <header class="clinic-header">
-      <div class="clinic-brand">
+    <!-- Unified Header Letterhead -->
+    <header class="doc-header">
+      <div class="clinic-col">
         ${clinicLogo ? `
           <img src="${clinicLogo}" alt="Logo" class="clinic-logo" onerror="this.style.display='none'" />
         ` : `
@@ -1378,71 +1289,30 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
         `}
         <div>
           <h1 class="clinic-name">${escapeHtml(clinicName)}</h1>
-          <p class="clinic-sub">${escapeHtml(clinicTagline)}</p>
+          <p class="clinic-tagline">${escapeHtml(clinicTagline)}</p>
+          <div class="clinic-meta">📍 ${escapeHtml(clinicAddress)} · 📞 ${escapeHtml(clinicPhone)} · ✉️ ${escapeHtml(clinicEmail)}</div>
+          <div class="clinic-license">${escapeHtml(clinicLicense)}</div>
         </div>
       </div>
-      <div class="clinic-contact">
-        <div>📍 ${escapeHtml(clinicAddress)}</div>
-        <div>📞 ${escapeHtml(clinicPhone)}</div>
-        <div>✉️ ${escapeHtml(clinicEmail)}</div>
-        <div style="font-weight: 700; color: #1e3a8a; margin-top: 1px;">${escapeHtml(clinicLicense)}</div>
+      <div class="title-col">
+        <h2 class="doc-title">${escapeHtml(documentTitle)}</h2>
+        <p class="doc-sub">${escapeHtml(documentSubtitle)}</p>
+        <div class="doc-timestamp">Printed: ${escapeHtml(printTimestamp)} · Dr: ${escapeHtml(printedByDoctor)}</div>
+      </div>
+      <div class="qr-col">
+        ${qrSvg}
       </div>
     </header>
 
-    <!-- Document Title & QR Banner -->
-    <div class="title-banner">
-      <div class="title-left">
-        <h2 class="doc-title">${escapeHtml(documentTitle)}</h2>
-        <p class="doc-subtitle">${escapeHtml(documentSubtitle)}</p>
-      </div>
-      <div class="title-right">
-        <div class="doc-meta">
-          <div>Printed: <strong>${escapeHtml(printTimestamp)}</strong></div>
-          <div>Physician: <strong>${escapeHtml(printedByDoctor)}</strong></div>
-          <div>Filter: <strong>${escapeHtml(specialtyFilter)}</strong></div>
-        </div>
-        <div class="qr-box">
-          ${qrSvg}
-        </div>
-      </div>
-    </div>
-
-    <!-- Patient Demographics Matrix -->
-    <section class="patient-matrix">
-      <div class="patient-matrix-header">
-        <span>Patient Demographics &amp; Identification</span>
-        <span>Scope: ${records.length} Encounter${records.length !== 1 ? 's' : ''} Documented</span>
-      </div>
-      <div class="patient-matrix-grid">
-        <div class="matrix-cell">
-          <span class="matrix-label">Patient Full Name</span>
-          <span class="matrix-val">${escapeHtml(patientName)}</span>
-        </div>
-        <div class="matrix-cell">
-          <span class="matrix-label">Patient ID / MRN</span>
-          <span class="matrix-val mrn-text">${escapeHtml(patientId)}</span>
-        </div>
-        <div class="matrix-cell">
-          <span class="matrix-label">Age &amp; Gender</span>
-          <span class="matrix-val">${escapeHtml(ageDisplay)} / ${escapeHtml(genderDisplay)}</span>
-        </div>
-        <div class="matrix-cell">
-          <span class="matrix-label">Contact Phone</span>
-          <span class="matrix-val">${escapeHtml(phoneDisplay)}</span>
-        </div>
-        <div class="matrix-cell">
-          <span class="matrix-label">Address / Residence</span>
-          <span class="matrix-val">${escapeHtml(addressDisplay)}</span>
-        </div>
-        <div class="matrix-cell">
-          <span class="matrix-label">Blood Group</span>
-          <span class="matrix-val">${escapeHtml(bloodGroupDisplay)}</span>
-        </div>
-        <div class="matrix-cell" style="grid-column: span 2;">
-          <span class="matrix-label">Allergies / Adverse Reactions</span>
-          <span class="matrix-val" style="color: ${allergiesDisplay.includes('No known') ? '#0f172a' : '#b91c1c'};">${escapeHtml(allergiesDisplay)}</span>
-        </div>
-      </div>
+    <!-- Streamlined Patient Demographics Strip -->
+    <section class="patient-strip">
+      <div class="p-item"><span class="lbl">PATIENT:</span> <span class="val">${escapeHtml(patientName)}</span></div>
+      <div class="p-item"><span class="lbl">MRN / ID:</span> <span class="val val-mrn">${escapeHtml(patientId)}</span></div>
+      <div class="p-item"><span class="lbl">AGE / SEX:</span> <span class="val">${escapeHtml(ageDisplay)} / ${escapeHtml(genderDisplay)}</span></div>
+      <div class="p-item"><span class="lbl">PHONE:</span> <span class="val">${escapeHtml(phoneDisplay)}</span></div>
+      <div class="p-item"><span class="lbl">RESIDENCE:</span> <span class="val">${escapeHtml(addressDisplay)}</span></div>
+      <div class="p-item"><span class="lbl">BLOOD GRP:</span> <span class="val">${escapeHtml(bloodGroupDisplay)}</span></div>
+      <div class="p-item p-item-wide"><span class="lbl">ALLERGIES:</span> <span class="val ${allergiesDisplay.includes('No known') ? '' : 'val-alert'}">${escapeHtml(allergiesDisplay)}</span></div>
     </section>
 
     <!-- Encounters Section -->
@@ -1450,32 +1320,31 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
       ${encountersHtml}
     </main>
 
-    <!-- Signature & Stamp Verification Footer -->
-    <footer class="report-footer">
-      <div class="signature-row">
-        <div class="sig-field">
-          <span>Attending Physician Signature &amp; Name:</span>
+    <!-- Streamlined Signature & Legal Footer -->
+    <footer class="doc-footer">
+      <div class="sig-row">
+        <div class="sig-col">
+          <span>Attending Physician:</span>
+          <span class="physician-name">Dr. ${escapeHtml(printedByDoctor)}</span>
           <div class="sig-line"></div>
-          <span style="font-weight: 700; color: #0f172a; margin-top: 2px;">${escapeHtml(printedByDoctor)}</span>
         </div>
-        <div class="sig-field">
+        <div class="sig-col">
           <span>Date of Sign-off:</span>
+          <span class="physician-name">${escapeHtml(formatShortDate(now))}</span>
           <div class="sig-line"></div>
-          <span style="color: #64748b; margin-top: 2px;">${escapeHtml(formatFullDate(now))}</span>
         </div>
-        <div class="sig-field">
-          <div class="stamp-box">Official Clinic Stamp</div>
+        <div class="sig-col">
+          <div class="stamp-box-compact">Official Clinic Stamp</div>
         </div>
       </div>
-      <div class="legal-notice">
-        <strong>LEGAL NOTICE &amp; CONFIDENTIALITY DISCLAIMER:</strong> This medical record summary is an official clinical document generated from the clinic electronic health record system. It contains protected health information (PHI) privileged under medical privacy laws. Unauthorized inspection, reproduction, modification, or distribution is strictly prohibited. If this document has been received in error, please immediately return it to ${escapeHtml(clinicName)}.
+      <div class="footer-legal-line">
+        CONFIDENTIAL MEDICAL DOCUMENT • Generated from ${escapeHtml(clinicName)} EMR • Unauthorized Reproduction Prohibited
       </div>
     </footer>
 
   </div>
 
   <script>
-    // Automatically trigger browser print dialog after render
     window.onload = function() {
       setTimeout(function() {
         window.print();
@@ -1491,7 +1360,7 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
  */
 export function executePrint(htmlContent: string): void {
   // Try popup window first
-  const printWindow = window.open('', '_blank', 'width=1100,height=900');
+  const printWindow = window.open('', '_blank', 'width=1000,height=850');
   if (printWindow) {
     printWindow.document.open();
     printWindow.document.write(htmlContent);
