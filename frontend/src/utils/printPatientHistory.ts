@@ -733,10 +733,10 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
 
     /* ── REPORT CONTAINER (STANDARD BALANCED A4 PROPORTIONS) ── */
     .report-container {
-      max-width: 920px;
+      max-width: 900px;
       margin: 0 auto;
       background: #ffffff;
-      padding: 24px 28px;
+      padding: 16px 20px;
       border-radius: 8px;
       border: 1px solid #cbd5e1;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
@@ -747,9 +747,9 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 2.5px solid #1e3a8a;
-      padding-bottom: 12px;
-      margin-bottom: 14px;
+      border-bottom: 2px solid #1e3a8a;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
       gap: 16px;
     }
     .clinic-brand {
@@ -846,7 +846,7 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
     .patient-matrix {
       border: 1.5px solid #cbd5e1;
       border-radius: 6px;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
       background: #ffffff;
       overflow: hidden;
     }
@@ -904,11 +904,11 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
     .encounter-card {
       border: 1px solid #cbd5e1;
       border-radius: 6px;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
       overflow: hidden;
       background: #ffffff;
-      page-break-inside: avoid;
-      break-inside: avoid;
+      page-break-inside: auto;
+      break-inside: auto;
     }
     .encounter-header {
       background: #f8fafc;
@@ -957,10 +957,10 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
     .enc-right .enc-doc { color: #0f172a; }
 
     .encounter-body {
-      padding: 10px 14px;
+      padding: 8px 12px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 7px;
     }
 
     /* ── CLINICAL BOXES ── */
@@ -1205,8 +1205,8 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
 
     /* ── SIGNATURE & FOOTER ── */
     .report-footer {
-      margin-top: 16px;
-      padding-top: 12px;
+      margin-top: 10px;
+      padding-top: 8px;
       border-top: 2px solid #cbd5e1;
       page-break-inside: avoid;
       break-inside: avoid;
@@ -1214,39 +1214,39 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
     .signature-row {
       display: grid;
       grid-template-columns: 2fr 1.2fr 1fr;
-      gap: 16px;
-      margin-bottom: 10px;
+      gap: 14px;
+      margin-bottom: 6px;
     }
     .sig-field {
       display: flex;
       flex-direction: column;
-      gap: 3px;
-      font-size: 9.5px;
+      gap: 2px;
+      font-size: 9px;
       color: #334155;
     }
     .sig-field span:first-child {
       font-weight: 700;
       text-transform: uppercase;
-      font-size: 9px;
+      font-size: 8.5px;
     }
     .physician-sign-name {
       font-weight: 800;
       color: #0f172a;
-      font-size: 11px;
+      font-size: 10.5px;
     }
     .sig-line {
       border-bottom: 1px solid #475569;
-      height: 20px;
+      height: 18px;
     }
     .stamp-box {
       border: 1px dashed #94a3b8;
-      height: 48px;
+      height: 42px;
       border-radius: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: #94a3b8;
-      font-size: 9px;
+      font-size: 8.5px;
       text-transform: uppercase;
       font-weight: 700;
     }
@@ -1273,7 +1273,7 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
     /* ── PRINT MEDIA RULES ── */
     @page {
       size: A4 portrait;
-      margin: 8mm 10mm 8mm 10mm;
+      margin: 6mm 8mm 6mm 8mm;
     }
 
     @media print {
@@ -1281,8 +1281,8 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
         background: #ffffff !important;
         padding: 0 !important;
         margin: 0 !important;
-        font-size: 9.5pt !important;
-        line-height: 1.35 !important;
+        font-size: 9pt !important;
+        line-height: 1.3 !important;
         color: #000000 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
@@ -1300,9 +1300,9 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
       }
       .encounter-card {
         border: 1px solid #94a3b8 !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        margin-bottom: 12px !important;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+        margin-bottom: 8px !important;
       }
       .encounter-page-break {
         page-break-before: always !important;
@@ -1310,6 +1310,8 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
       }
       .clinical-box {
         border: 1px solid #cbd5e1 !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .vitals-table, .clinical-table {
         border: 1px solid #94a3b8 !important;
@@ -1317,6 +1319,11 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
       .vitals-table th, .clinical-table th,
       .vitals-table td, .clinical-table td {
         border: 1px solid #cbd5e1 !important;
+        padding: 3px 6px !important;
+      }
+      .report-footer {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
     }
   </style>
