@@ -1283,7 +1283,7 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
         margin: 0 !important;
         font-size: 9pt !important;
         line-height: 1.3 !important;
-        color: #000000 !important;
+        color: #0f172a;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
