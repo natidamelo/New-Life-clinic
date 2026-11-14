@@ -6,7 +6,7 @@ function runWithTenantContext(initialTenantId, callback) {
   const tenantId = initialTenantId || 'default';
   // `req` is set in tenantContextMiddleware so hooks can read req.tenantId after async auth
   // (setTenantInCurrentContext sometimes never runs if ALS store is missing).
-  tenantStorage.run({ tenantId, req: null }, callback);
+  return tenantStorage.run({ tenantId, req: null }, callback);
 }
 
 function setTenantInCurrentContext(tenantId) {

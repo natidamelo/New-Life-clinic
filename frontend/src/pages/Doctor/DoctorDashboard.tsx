@@ -873,7 +873,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
         : assignedPatientsData.filter(p => {
           // Check if patient is assigned to current doctor
           const patientDoctorId = p.assignedDoctor?.id || p.assignedDoctor?._id || p.assignedDoctorId;
-          const isAssignedToCurrentDoctor = user?.role === 'admin' || user?.role === 'super_admin' || patientDoctorId?.toString() === currentDoctorId?.toString();
+          const isAssignedToCurrentDoctor = user?.role === 'admin' || user?.role === 'super_admin' || patientDoctorId?.toString() === currentDoctorId?.toString() || !patientDoctorId;
 
           // Check if patient is in an active workflow status
           const isActiveStatus = ['scheduled', 'Admitted', 'waiting', 'Admitted Patient', 'Observation'].includes(p.status);

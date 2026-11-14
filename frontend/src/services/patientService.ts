@@ -175,7 +175,7 @@ let lastCacheTime = 0;
 const CACHE_DURATION = 0; // Disable caching completely to always fetch fresh data
 let fetchInProgress = false;
 
-const getAllPatients = async (forceRefresh: boolean = false, includeHidden: boolean = false, limit: number = 1000): Promise<ApiResponse<PaginatedPatients>> => {
+const getAllPatients = async (forceRefresh: boolean = false, includeHidden: boolean = false, limit: number = 1000, includeCompleted: boolean = true): Promise<ApiResponse<PaginatedPatients>> => {
   console.log(`Fetching patients from API${forceRefresh ? ' (forced)' : ''}...`);
   
   // Check if a fetch is already in progress to prevent duplicate requests
@@ -204,7 +204,7 @@ const getAllPatients = async (forceRefresh: boolean = false, includeHidden: bool
   
   try {
     // Use the quick-load endpoint for better performance
-    const response = await api.get<ApiResponse<PaginatedPatients>>(`/api/patients/quick-load?limit=${limit}`); 
+    const response = await api.get<ApiResponse<PaginatedPatients>>(`/api/patients/quick-load?limit=${limit}${includeCompleted ? '&includeCompleted=true' : ''}`); 
     console.log('API response for getAllPatients (quick-load):', response.data);
     
     let processedResponse: ApiResponse<PaginatedPatients>;

@@ -218,11 +218,12 @@ const RecordVitalsPage: React.FC = () => {
         return Number.isFinite(t) ? t : 0;
       };
 
-      // Sort: Active patients (waiting or Admitted) first.
+      // Sort: Active patients (waiting, Admitted, scheduled, in-progress) first.
       // Among active patients, prioritize those who do NOT have vitals recorded yet.
+      const activeStatuses = ['waiting', 'Admitted', 'scheduled', 'in-progress', 'Emergency', 'Observation'];
       const sorted = [...list].sort((a, b) => {
-        const aActive = (a as any).status === 'waiting' || (a as any).status === 'Admitted' ? 0 : 1;
-        const bActive = (b as any).status === 'waiting' || (b as any).status === 'Admitted' ? 0 : 1;
+        const aActive = activeStatuses.includes((a as any).status) ? 0 : 1;
+        const bActive = activeStatuses.includes((b as any).status) ? 0 : 1;
         if (aActive !== bActive) return aActive - bActive;
 
         if (aActive === 0) {

@@ -383,18 +383,15 @@ const NurseDashboard: React.FC<NurseDashboardProps> = ({ initialTab = 'patients'
       
       // Filter patients: 
       // 1. Patients assigned to this nurse with active status (priority)
-      // 2. If no assigned patients, show all active patients that need vitals (fallback for workflow)
+      // 2. Unassigned active patients in this clinic
       const assignedPatients = allPatients.patients.filter(patient => {
         const patientNurseId = normalizeId(patient.assignedNurseId);
         const isAssignedToThisNurse = patientNurseId === normalizedNurseId;
+        const isUnassigned = !patientNurseId;
         const hasActiveStatus = activeStatuses.includes(patient.status);
 
-        if (isAssignedToThisNurse && hasActiveStatus) {
+        if ((isAssignedToThisNurse || isUnassigned) && hasActiveStatus) {
           return true;
-        }
-        
-        if (!isAssignedToThisNurse && hasActiveStatus) {
-          return false;
         }
         return false;
       });
