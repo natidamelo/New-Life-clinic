@@ -375,26 +375,24 @@ exports.getFinancialSummary = asyncHandler(async (req, res) => {
                     }
                 }
             ]),
-            // 4. Recurring operating expenses
-            OperatingExpense.aggregate([
-                { $match: { recurring: true } },
-                {
-                    $group: {
-                        _id: null,
-                        total: { $sum: '$amount' },
-                        count: { $sum: 1 }
-                    }
-                }
-            ])
+            // 4. Recurring operating expenses: fetch items to calculate months active within report range
+            OperatingExpense.find({ recurring: true }).lean()
         ]);
 
         const oneTimeTotal = oneTimeExpenseAgg[0]?.total || 0;
-        const recurringMonthlyTotal = recurringExpenseAgg[0]?.total || 0;
-        // Use days-based months so "1 month" range shows 1 month of recurring expenses, not 2
-        const daysDiff = Math.ceil((end - start) / (24 * 60 * 60 * 1000)) + 1;
-        const monthsInRange = Math.max(1, Math.round(daysDiff / 30.44));
-        const totalExpenses = oneTimeTotal + (recurringMonthlyTotal * monthsInRange);
-        const totalExpensesFinal = totalExpenses;
+        let recurringTotal = 0;
+        const recurringList = Array.isArray(recurringExpenseAgg) ? recurringExpenseAgg : [];
+        for (const exp of recurringList) {
+            const expD = new Date(exp.expenseDate || exp.createdAt);
+            const expMonthStart = new Date(expD.getFullYear(), expD.getMonth(), 1);
+            if (expMonthStart <= end) {
+                const effectiveStart = expMonthStart > start ? expMonthStart : start;
+                const daysDiff = Math.ceil((end - effectiveStart) / (24 * 60 * 60 * 1000)) + 1;
+                const months = Math.max(1, Math.round(daysDiff / 30.44));
+                recurringTotal += (exp.amount || 0) * months;
+            }
+        }
+        const totalExpensesFinal = oneTimeTotal + recurringTotal;
 
         const revenue = revenueData[0] || {};
         const inventoryCosts = inventoryCostAgg[0] || { totalInventoryCost: 0, inventoryTransactionCount: 0 };

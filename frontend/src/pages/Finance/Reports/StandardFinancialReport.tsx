@@ -157,7 +157,10 @@ const SectionHeader: React.FC<{ icon: React.ReactNode; title: string; sub?: stri
 // ─── Main Component ───────────────────────────────────────────────────────────
 const StandardFinancialReport: React.FC = () => {
   const navigate = useNavigate();
-  const [startDate, setStartDate] = useState<Date>(() => { const d = new Date(); d.setMonth(d.getMonth() - 3); return d; });
+  const [startDate, setStartDate] = useState<Date>(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [showEthiopianCalendar, setShowEthiopianCalendar] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -383,10 +386,13 @@ const StandardFinancialReport: React.FC = () => {
             {/* Quick presets */}
             <div className="flex gap-1.5 flex-wrap">
               {[
-                { label: '1M', months: 1 }, { label: '3M', months: 3 },
-                { label: '6M', months: 6 }, { label: '1Y', months: 12 },
-              ].map(({ label, months }) => (
-                <button key={label} onClick={() => { const d = new Date(); d.setMonth(d.getMonth() - months); setStartDate(d); setEndDate(new Date()); }}
+                { label: 'This Month', getRange: () => [new Date(new Date().getFullYear(), new Date().getMonth(), 1), new Date()] },
+                { label: '1M', getRange: () => { const d = new Date(); d.setMonth(d.getMonth() - 1); return [d, new Date()]; } },
+                { label: '3M', getRange: () => { const d = new Date(); d.setMonth(d.getMonth() - 3); return [d, new Date()]; } },
+                { label: '6M', getRange: () => { const d = new Date(); d.setMonth(d.getMonth() - 6); return [d, new Date()]; } },
+                { label: '1Y', getRange: () => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return [d, new Date()]; } },
+              ].map(({ label, getRange }) => (
+                <button key={label} onClick={() => { const [s, e] = getRange(); setStartDate(s); setEndDate(e); }}
                   className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 bg-white text-gray-600 hover:border-emerald-400 hover:text-emerald-700 transition-colors">
                   {label}
                 </button>
@@ -449,7 +455,7 @@ const StandardFinancialReport: React.FC = () => {
                     { label: 'Total Revenue', value: fmtCurrency(fs.totalInvoiced ?? fs.totalRevenue), cls: 'text-blue-700 font-black', border: 'border-blue-100 bg-blue-50/50' },
                     { label: 'Cost of Goods Sold', value: `−${fmtCurrency(fs.totalCostOfGoodsSold)}`, cls: 'text-red-600 font-semibold', border: 'border-red-100 bg-red-50/30' },
                     { label: 'Gross Profit', value: `${fmtCurrency(fs.grossProfit)} (${fmtPct(fs.grossMargin)})`, cls: 'text-emerald-700 font-black', border: 'border-emerald-100 bg-emerald-50/50', divider: true },
-                    { label: 'Operating Expenses', value: `−${fmtCurrency(fs.operatingExpenses)}`, cls: 'text-red-600 font-semibold', border: 'border-red-100 bg-red-50/30' },
+                    { label: Math.round(periodDays / 30.44) > 1 ? `Operating Expenses (${Math.round(periodDays / 30.44)} months)` : 'Operating Expenses', value: `−${fmtCurrency(fs.operatingExpenses)}`, cls: 'text-red-600 font-semibold', border: 'border-red-100 bg-red-50/30' },
                     { label: 'Net Profit', value: `${fmtCurrency(fs.netProfit)} (${fmtPct(fs.netMargin)})`, cls: `${fs.netProfit >= 0 ? 'text-emerald-700' : 'text-red-700'} font-black`, border: `${fs.netProfit >= 0 ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`, divider: true },
                   ].map(({ label, value, cls, border, divider }) => (
                     <div key={label}>

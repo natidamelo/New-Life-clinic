@@ -1973,20 +1973,25 @@ const billingService = {
           },
           { $group: { _id: null, total: { $sum: '$amount' } } }
         ]),
-        // Recurring: sum monthly amounts (will multiply by months in range)
-        OperatingExpenseModel.aggregate([
-          { $match: { recurring: true } },
-          { $group: { _id: null, total: { $sum: '$amount' } } }
-        ])
+        // Recurring: fetch items to calculate months active within report range
+        OperatingExpenseModel.find({ recurring: true }).lean()
       ]);
       const oneTimeTotal = oneTimeAgg[0]?.total || 0;
-      const recurringMonthlyTotal = recurringAgg[0]?.total || 0;
       const startD = new Date(startDate);
       const endD = new Date(endDate);
-      // Use days-based months so "1 month" range (e.g. Feb 8–Mar 8) = 1 month of recurring expenses, not 2
-      const daysDiff = Math.ceil((endD - startD) / (24 * 60 * 60 * 1000)) + 1;
-      const monthsInRange = Math.max(1, Math.round(daysDiff / 30.44));
-      const operatingExpenses = oneTimeTotal + (recurringMonthlyTotal * monthsInRange);
+      let recurringTotal = 0;
+      const recurringList = Array.isArray(recurringAgg) ? recurringAgg : [];
+      for (const exp of recurringList) {
+        const expD = new Date(exp.expenseDate || exp.createdAt);
+        const expMonthStart = new Date(expD.getFullYear(), expD.getMonth(), 1);
+        if (expMonthStart <= endD) {
+          const effectiveStart = expMonthStart > startD ? expMonthStart : startD;
+          const daysDiff = Math.ceil((endD - effectiveStart) / (24 * 60 * 60 * 1000)) + 1;
+          const months = Math.max(1, Math.round(daysDiff / 30.44));
+          recurringTotal += (exp.amount || 0) * months;
+        }
+      }
+      const operatingExpenses = oneTimeTotal + recurringTotal;
       const netProfit = grossProfit - operatingExpenses;
       const netMargin = collectionsCombined > 0 ? (netProfit / collectionsCombined * 100) : 0;
       
