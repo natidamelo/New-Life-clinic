@@ -2,51 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --app-bg: #F8FAFC;
-  --card-bg: #FFFFFF;
-  --card-border: #E2E8F0;
-  --primary-brand: #0D9488;
-  --primary-brand-hover: #0F766E;
-  --primary-text: #0F172A;
-  --muted-text: #64748B;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+  html {
+    @apply scroll-smooth antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  body {
+    @apply font-sans;
+  }
 }
 
-.dark {
-  --app-bg: #0F172A;
-  --card-bg: #1E293B;
-  --card-border: #334155;
-  --primary-brand: #14B8A6;
-  --primary-brand-hover: #2DD4BF;
-  --primary-text: #F8FAFC;
-  --muted-text: #94A3B8;
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #94A3B8 transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #94A3B8;
+    border-radius: 3px;
+  }
 }
 
-body {
-  background-color: var(--app-bg);
-  color: var(--primary-text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Ensure tabular numbers for medical and operational metrics */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Custom crisp scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.4);
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.6);
+/* Transition for dark mode toggle */
+html.transitioning * {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.15s ease !important;
 }

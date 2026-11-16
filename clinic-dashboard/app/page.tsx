@@ -1,234 +1,92 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { Sidebar } from '../components/Sidebar';
-import { Header } from '../components/Header';
-import { KpiCards } from '../components/KpiCards';
-import { PatientQueueTable } from '../components/PatientQueueTable';
-import { CriticalAlertsPanel } from '../components/CriticalAlertsPanel';
-import { AnalyticsCharts } from '../components/AnalyticsCharts';
-import { CheckInModal } from '../components/CheckInModal';
-import {
-  INITIAL_PATIENT_QUEUE,
-  CRITICAL_ALERTS,
-  PHARMACY_LOW_STOCK,
-  HOURLY_PATIENT_FLOW,
-  DEPARTMENT_LOAD_BREAKDOWN
-} from '../components/mockData';
-import {
-  PatientQueueItem,
-  PatientQueueStatus,
-  CriticalAlertItem,
-  PharmacyStockItem
-} from '../components/types';
+import React, { useState } from "react";
+import Sidebar from "@/components/Sidebar";
+import Header from "@/components/Header";
+import KPICards from "@/components/KPICards";
+import PatientQueue from "@/components/PatientQueue";
+import AlertsPanel from "@/components/AlertsPanel";
+import Analytics from "@/components/Analytics";
+import { Activity, ShieldCheck, Clock, Stethoscope } from "lucide-react";
 
-export default function ClinicDashboardPage() {
-  // Theme state: Default Light Mode as requested
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeNav, setActiveNav] = useState('overview');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isCheckInOpen, setIsCheckInOpen] = useState(false);
-
-  // Live data states
-  const [queue, setQueue] = useState<PatientQueueItem[]>(INITIAL_PATIENT_QUEUE);
-  const [alerts, setAlerts] = useState<CriticalAlertItem[]>(CRITICAL_ALERTS);
-  const [lowStock, setLowStock] = useState<PharmacyStockItem[]>(PHARMACY_LOW_STOCK);
-
-  // Sync theme with html document element
-  useEffect(() => {
-    // Check local storage or default to light mode
-    const savedTheme = localStorage.getItem('clinic_theme');
-    if (savedTheme === 'dark') {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    setIsDarkMode((prev) => {
-      const next = !prev;
-      if (next) {
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('clinic_theme', 'dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-        localStorage.setItem('clinic_theme', 'light');
-      }
-      return next;
-    });
-  };
-
-  // Status transition handler for queue
-  const handleStatusChange = (patientId: string, newStatus: PatientQueueStatus) => {
-    setQueue((prev) =>
-      prev.map((pt) =>
-        pt.id === patientId
-          ? {
-              ...pt,
-              status: newStatus,
-              waitTime: newStatus === 'Completed' ? 'Completed' : pt.waitTime,
-            }
-          : pt
-      )
-    );
-  };
-
-  // Add new patient handler
-  const handleAddPatient = (
-    newPtData: Omit<PatientQueueItem, 'id' | 'token' | 'checkInTime' | 'waitTime' | 'status'>
-  ) => {
-    const tokenPrefix = newPtData.priority === 'Urgent' ? 'U' : 'A';
-    const tokenNumber = Math.floor(45 + queue.length);
-    const newPatient: PatientQueueItem = {
-      ...newPtData,
-      id: `pt-${Date.now()}`,
-      token: `${tokenPrefix}-0${tokenNumber}`,
-      checkInTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      waitTime: 'Just arrived',
-      status: 'Waiting',
-    };
-
-    setQueue((prev) => [newPatient, ...prev]);
-  };
-
-  // Acknowledge alert
-  const handleAcknowledgeAlert = (alertId: string) => {
-    setAlerts((prev) => prev.filter((a) => a.id !== alertId));
-  };
-
-  // Reorder pharmacy item
-  const handleReorderItem = (itemId: string) => {
-    setLowStock((prev) =>
-      prev.map((item) =>
-        item.id === itemId
-          ? { ...item, currentStock: item.currentStock + 50, status: 'Low' }
-          : item
-      )
-    );
-  };
-
-  // Computed metrics
-  const waitingPatientsCount = queue.filter((p) => p.status === 'Waiting').length;
-  const avgWaitMinutes = 14;
-  const lowStockCount = lowStock.length;
-  const totalPatientsToday = 142 + (queue.length - INITIAL_PATIENT_QUEUE.length);
-  const dailyRevenueEtb = 84250;
+export default function DashboardPage() {
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] text-[#0F172A] dark:text-[#F8FAFC] flex transition-colors duration-200">
-
-      {/* ── 1. COLLAPSIBLE 240px SIDEBAR ── */}
+    <div className="min-h-screen bg-alabaster dark:bg-deep-slate text-deep-slate dark:text-[#F8FAFC]">
+      {/* Collapsible Left Sidebar */}
       <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        activeNav={activeNav}
-        onSelectNav={(navId) => setActiveNav(navId)}
-        isDarkMode={isDarkMode}
-        onToggleTheme={toggleTheme}
+        collapsed={collapsed}
+        onToggleCollapse={() => setCollapsed((prev) => !prev)}
       />
 
-      {/* ── 2. MAIN APPLICATION CONTENT WRAPPER ── */}
+      {/* Main Content Area */}
       <div
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${
-          sidebarCollapsed ? 'pl-16' : 'pl-60'
+        className={`flex flex-col min-h-screen transition-all duration-300 ease-in-out ${
+          collapsed ? "md:pl-[72px]" : "md:pl-[240px]"
         }`}
       >
-        {/* Sticky Top Header */}
-        <Header
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onOpenCheckIn={() => setIsCheckInOpen(true)}
-          urgentAlertCount={alerts.length}
-          isDarkMode={isDarkMode}
-        />
+        {/* Sticky Header */}
+        <Header onMenuToggle={() => setCollapsed((prev) => !prev)} />
 
-        {/* Main Content Area (Max-width 1440px with generous padding) */}
-        <main className="flex-1 w-full max-w-[1440px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-
-          {/* Subheader / Clinical Station Banner */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Dashboard Canvas Container */}
+        <main className="flex-1 w-full max-w-dashboard mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+          {/* Facility Status & Context Strip */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border-light dark:border-border-dark">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[#0F172A] dark:text-[#F8FAFC]">
+                <span className="w-2 h-2 rounded-full bg-semantic-success animate-pulse" />
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-deep-slate dark:text-[#F8FAFC]">
                   Clinical Operations Command
-                </h2>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-[#0D9488]/10 text-[#0D9488] dark:bg-[#14B8A6]/15 dark:text-[#14B8A6]">
-                  Medium Clinic Level
+                </h1>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-clinical-50 dark:bg-clinical-600/20 text-clinical-700 dark:text-clinical-300 border border-clinical-200/50 dark:border-clinical-600/30">
+                  New Life Medium Clinic
                 </span>
               </div>
-              <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
-                Real-time patient triage, waiting room telemetry, and pharmacy dispensary status
+              <p className="text-xs sm:text-sm text-cool-slate dark:text-[#94A3B8] mt-0.5">
+                Active Duty: Day Shift · Station Addis Ababa · Dr. Natan D. on Duty
               </p>
             </div>
 
-            <div className="flex items-center gap-2 text-xs font-medium text-[#64748B] dark:text-[#94A3B8]">
-              <span>Station: <strong>Addis Ababa Central</strong></span>
-              <span>•</span>
-              <span className="flex items-center gap-1 text-[#10B981] font-bold">
-                <span className="h-2 w-2 rounded-full bg-[#10B981] animate-pulse" />
-                Shift Active
+            <div className="flex items-center gap-2 text-xs text-cool-slate dark:text-[#94A3B8]">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-charcoal-slate border border-border-light dark:border-border-dark font-medium tabular-nums shadow-sm">
+                <Clock className="w-3.5 h-3.5 text-clinical-600 dark:text-clinical-400" />
+                <span>Live Queue Sync: <strong className="text-deep-slate dark:text-[#F8FAFC]">Online</strong></span>
+              </span>
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-charcoal-slate border border-border-light dark:border-border-dark font-medium tabular-nums shadow-sm">
+                <ShieldCheck className="w-3.5 h-3.5 text-semantic-success" />
+                <span>HIPAA / EMR Secure</span>
               </span>
             </div>
           </div>
 
-          {/* ── TOP KPI ROW (4 CARDS) ── */}
-          <KpiCards
-            totalPatientsToday={totalPatientsToday}
-            waitingQueueCount={waitingPatientsCount}
-            avgWaitMinutes={avgWaitMinutes}
-            lowStockCount={lowStockCount}
-            dailyRevenueEtb={dailyRevenueEtb}
-            isDarkMode={isDarkMode}
-          />
+          {/* 1. Top KPI Row (4 Cards) */}
+          <section aria-label="Key Performance Indicators">
+            <KPICards />
+          </section>
 
-          {/* ── PRIMARY SPLIT VIEW (2/3 Left, 1/3 Right) ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
+          {/* 2. Primary Split View (2/3 Left, 1/3 Right) */}
+          <section
+            aria-label="Patient Queue and Clinical Alerts"
+            className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start"
+          >
             {/* Left 2/3: Live Patient Triage & Queue Table */}
             <div className="lg:col-span-2">
-              <PatientQueueTable
-                queue={queue}
-                onStatusChange={handleStatusChange}
-                searchFilter={searchQuery}
-                isDarkMode={isDarkMode}
-              />
+              <PatientQueue />
             </div>
 
             {/* Right 1/3: Critical Alerts & Pharmacy Low-Stock Panel */}
             <div className="lg:col-span-1">
-              <CriticalAlertsPanel
-                alerts={alerts}
-                lowStockItems={lowStock}
-                onAcknowledgeAlert={handleAcknowledgeAlert}
-                onReorderItem={handleReorderItem}
-                isDarkMode={isDarkMode}
-              />
+              <AlertsPanel />
             </div>
+          </section>
 
-          </div>
-
-          {/* ── BOTTOM ANALYTICS ROW (2 CARDS) ── */}
-          <AnalyticsCharts
-            hourlyFlow={HOURLY_PATIENT_FLOW}
-            departmentLoad={DEPARTMENT_LOAD_BREAKDOWN}
-            isDarkMode={isDarkMode}
-          />
-
+          {/* 3. Bottom Analytics Row (2 Cards) */}
+          <section aria-label="Clinical Flow and Capacity Analytics">
+            <Analytics />
+          </section>
         </main>
       </div>
-
-      {/* ── NEW PATIENT CHECK-IN MODAL ── */}
-      <CheckInModal
-        isOpen={isCheckInOpen}
-        onClose={() => setIsCheckInOpen(false)}
-        onAddPatient={handleAddPatient}
-        isDarkMode={isDarkMode}
-      />
-
     </div>
   );
 }
