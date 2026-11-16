@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { auth } = require('../middleware/auth');
+const { auth, optionalAuth } = require('../middleware/auth');
 const { checkRole } = require('../middleware/auth');
 const ctrl = require('../controllers/dataShareController');
 
@@ -16,7 +16,7 @@ router.get('/preview/:dataset', auth, checkRole('admin'), ctrl.getDatasetPreview
 // Admin-only export endpoint
 router.get('/export/:dataset', auth, checkRole('admin'), ctrl.exportDataset);
 
-// Public/role-guarded share consumption via token
-router.get('/shared/:token', auth, ctrl.consumeShare);
+// Public / Role-guarded share consumption via token (uses optionalAuth to inspect logged in user without blocking non-logged-in)
+router.get('/shared/:token', optionalAuth, ctrl.consumeShare);
 
 module.exports = router;

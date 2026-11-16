@@ -94,6 +94,42 @@ const getStats = async (): Promise<DataShareStats> => {
   return data.data as DataShareStats;
 };
 
+export interface SharedPayloadResponse {
+  success: boolean;
+  requiresAuth?: boolean;
+  roleMismatch?: boolean;
+  userRole?: string;
+  isExpired?: boolean;
+  isRevoked?: boolean;
+  message?: string;
+  share?: {
+    id: string;
+    title: string;
+    dataset: DatasetKey;
+    fields: string[];
+    token: string;
+    expiresAt?: string;
+    allowedRoles?: string[];
+    createdBy?: string;
+    createdAt?: string;
+    accessCount?: number;
+  };
+  count?: number;
+  data?: any[];
+}
+
+const consumeShare = async (token: string): Promise<SharedPayloadResponse> => {
+  try {
+    const { data } = await api.get(`/api/data-share/shared/${token}`);
+    return data as SharedPayloadResponse;
+  } catch (err: any) {
+    if (err.response?.data) {
+      return err.response.data as SharedPayloadResponse;
+    }
+    throw err;
+  }
+};
+
 export default {
   createShare,
   listShares,
@@ -102,4 +138,5 @@ export default {
   exportCsv,
   getDatasetPreview,
   getStats,
+  consumeShare,
 };

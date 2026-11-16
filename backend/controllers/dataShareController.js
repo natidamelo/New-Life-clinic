@@ -405,65 +405,123 @@ const getDatasetPreview = async (req, res) => {
 
 // @desc    Consume shared data via secure token
 // @route   GET /api/data-share/shared/:token
-// @access  Private / Role-checked
+// @access  Public / Role-checked
 const consumeShare = async (req, res) => {
   try {
     const { token } = req.params;
-    const share = await DataShare.findOne({ token });
+    const share = await DataShare.findOne({ token })
+      .populate('createdBy', 'firstName lastName email')
+      .lean();
 
     if (!share) {
       return res.status(404).json({
         success: false,
-        message: 'Invalid or non-existent share link',
+        message: 'Invalid or non-existent share link. Please verify the URL with the sender.',
       });
     }
 
     if (!share.isActive) {
       return res.status(403).json({
         success: false,
-        message: 'This share link has been revoked by a clinical administrator',
+        isRevoked: true,
+        title: share.title,
+        dataset: share.dataset,
+        message: 'This secure share link has been revoked by a clinical administrator.',
       });
     }
 
     if (share.expiresAt && new Date() > new Date(share.expiresAt)) {
       return res.status(410).json({
         success: false,
-        message: 'This secure share link has expired',
+        isExpired: true,
+        title: share.title,
+        dataset: share.dataset,
+        expiresAt: share.expiresAt,
+        message: `This secure share link expired on ${new Date(share.expiresAt).toLocaleDateString()}.`,
       });
     }
 
     // Role check
     const userRole = req.user?.role;
-    if (share.allowedRoles && share.allowedRoles.length > 0) {
-      if (!userRole || !share.allowedRoles.includes(userRole)) {
+    const requiresRole =
+      Array.isArray(share.allowedRoles) &&
+      share.allowedRoles.length > 0 &&
+      !share.allowedRoles.includes('all');
+
+    if (requiresRole) {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          requiresAuth: true,
+          title: share.title,
+          dataset: share.dataset,
+          allowedRoles: share.allowedRoles,
+          createdBy: share.createdBy
+            ? `${share.createdBy.firstName || ''} ${share.createdBy.lastName || ''}`.trim()
+            : 'Clinic Administrator',
+          message: `Authentication required: This dataset is restricted to [${share.allowedRoles.join(
+            ', '
+          )}] staff members. Please sign in to decrypt.`,
+        });
+      }
+
+      if (!share.allowedRoles.includes(userRole)) {
         return res.status(403).json({
           success: false,
-          message: 'Access denied: your role does not have authorization to view this share',
+          roleMismatch: true,
+          userRole,
+          allowedRoles: share.allowedRoles,
+          title: share.title,
+          dataset: share.dataset,
+          message: `Access denied: Your account role is "${userRole}", but this share requires: [${share.allowedRoles.join(
+            ', '
+          )}].`,
         });
       }
     }
 
     // Record access
-    share.accessCount = (share.accessCount || 0) + 1;
-    share.lastAccessedAt = new Date();
-    await share.save();
+    await DataShare.updateOne(
+      { _id: share._id },
+      {
+        $inc: { accessCount: 1 },
+        $set: { lastAccessedAt: new Date() },
+      }
+    );
 
     // Query data
     const items = await fetchDatasetItems(share.dataset, {
       fields: share.fields,
       filter: share.filter,
-      limit: 500,
+      limit: 2000,
     });
+
+    // Check if direct CSV export was requested via ?format=csv
+    if (req.query.format === 'csv') {
+      const csvData = convertToCsv(items, share.fields);
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${share.title.replace(/[^a-zA-Z0-9_-]/g, '_')}-${share.dataset}.csv"`
+      );
+      return res.status(200).send(csvData);
+    }
 
     res.json({
       success: true,
       share: {
+        id: share._id,
         title: share.title,
         dataset: share.dataset,
         fields: share.fields,
+        token: share.token,
         expiresAt: share.expiresAt,
-        accessCount: share.accessCount,
-        lastAccessedAt: share.lastAccessedAt,
+        allowedRoles: share.allowedRoles,
+        createdBy: share.createdBy
+          ? `${share.createdBy.firstName || ''} ${share.createdBy.lastName || ''}`.trim()
+          : 'Clinic Administrator',
+        createdAt: share.createdAt,
+        accessCount: (share.accessCount || 0) + 1,
       },
       count: items.length,
       data: items,

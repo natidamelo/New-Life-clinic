@@ -79,6 +79,7 @@ const PatientCardSettings = lazy(() => import('./pages/Settings/PatientCardSetti
 const PatientCardManagement = lazy(() => import('./pages/Billing/PatientCardManagement'));
 const ServiceManagement = lazy(() => import('./pages/Services/ServiceManagement'));
 const DataSharePage = lazy(() => import('./pages/DataShare/DataShare'));
+const SharedDatasetViewer = lazy(() => import('./pages/DataShare/SharedDatasetViewer'));
 const RegisterPatient = lazy(() => import('./pages/Reception/RegisterPatient'));
 const MedicalRecordDemo = lazy(() => import('./pages/MedicalRecordDemo'));
 const UserManagement = lazy(() => import('./pages/Admin/UserManagement'));
@@ -133,6 +134,16 @@ const router = createBrowserRouter([
   {
     path: "/verify-qr",
     element: <LazyWrapper><VerifyQR /></LazyWrapper>,
+    errorElement: <ErrorFallback />
+  },
+  {
+    path: "/shared/:token",
+    element: <LazyWrapper><SharedDatasetViewer /></LazyWrapper>,
+    errorElement: <ErrorFallback />
+  },
+  {
+    path: "/data-share/view/:token",
+    element: <LazyWrapper><SharedDatasetViewer /></LazyWrapper>,
     errorElement: <ErrorFallback />
   },
   {
@@ -440,6 +451,10 @@ const router = createBrowserRouter([
       {
         path: 'data-share',
         element: <ProtectedRoute allowedRoles={['admin']}><LazyWrapper><DataSharePage /></LazyWrapper></ProtectedRoute>
+      },
+      {
+        path: 'shared/:token',
+        element: <LazyWrapper><SharedDatasetViewer /></LazyWrapper>
       },
       {
         path: 'reports',
