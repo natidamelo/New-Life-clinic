@@ -1,8 +1,17 @@
 const crypto = require('crypto');
+const User = require('../models/User');
 const DataShare = require('../models/DataShare');
 const Patient = require('../models/Patient');
 const Appointment = require('../models/Appointment');
-const Invoice = require('../models/Invoice');
+const MedicalInvoice = require('../models/MedicalInvoice');
+let Invoice;
+try {
+  Invoice = require('../models/Invoice');
+} catch (e) {}
+let BillingInvoice;
+try {
+  BillingInvoice = require('../models/BillingInvoice');
+} catch (e) {}
 const LabOrder = require('../models/LabOrder');
 const InventoryItem = require('../models/InventoryItem');
 
@@ -54,9 +63,9 @@ const fetchDatasetItems = async (dataset, { fields, from, to, filter = {}, limit
     if (dataset === 'appointments') {
       query.appointmentDateTime = dateQuery;
     } else if (dataset === 'invoices') {
-      query.dateIssued = dateQuery;
+      query.$or = [{ issueDate: dateQuery }, { createdAt: dateQuery }, { dateIssued: dateQuery }];
     } else if (dataset === 'lab-orders') {
-      query.orderDateTime = dateQuery;
+      query.$or = [{ orderDateTime: dateQuery }, { createdAt: dateQuery }];
     } else {
       query.createdAt = dateQuery;
     }
@@ -108,21 +117,80 @@ const fetchDatasetItems = async (dataset, { fields, from, to, filter = {}, limit
     }
 
     case 'invoices': {
-      const docs = await Invoice.find(query)
-        .populate('patient', 'firstName lastName patientId')
-        .sort({ createdAt: -1 })
-        .limit(queryLimit)
-        .lean();
-      items = docs.map((inv) => ({
-        invoiceNumber: inv.invoiceNumber || inv._id?.toString(),
-        patientId: inv.patient?.patientId || inv.patient?._id?.toString() || '',
-        patientName: inv.patient ? `${inv.patient.firstName || ''} ${inv.patient.lastName || ''}`.trim() : '',
-        dateIssued: inv.dateIssued ? new Date(inv.dateIssued).toISOString() : '',
-        status: inv.status || 'Issued',
-        paymentStatus: inv.paymentStatus || 'Pending',
-        total: inv.total !== undefined ? inv.total : (inv.totalAmount || 0),
-        createdAt: inv.createdAt ? new Date(inv.createdAt).toISOString() : '',
-      }));
+      let docs = [];
+      try {
+        docs = await MedicalInvoice.find(query)
+          .populate('patient', 'firstName lastName patientId')
+          .sort({ createdAt: -1 })
+          .limit(queryLimit)
+          .lean();
+      } catch (e) {
+        console.error('Error querying MedicalInvoice:', e.message);
+      }
+
+      if (!docs || !docs.length) {
+        try {
+          if (BillingInvoice) {
+            docs = await BillingInvoice.find(query)
+              .populate('patient', 'firstName lastName patientId')
+              .sort({ createdAt: -1 })
+              .limit(queryLimit)
+              .lean();
+          }
+        } catch (e) {
+          console.error('Error querying BillingInvoice:', e.message);
+        }
+      }
+
+      if (!docs || !docs.length) {
+        try {
+          if (Invoice) {
+            docs = await Invoice.find(query)
+              .populate('patient', 'firstName lastName patientId')
+              .sort({ createdAt: -1 })
+              .limit(queryLimit)
+              .lean();
+          }
+        } catch (e) {
+          console.error('Error querying Invoice:', e.message);
+        }
+      }
+
+      items = (docs || []).map((inv) => {
+        let paymentStatusStr = 'paid';
+        if (typeof inv.paymentStatus === 'object' && inv.paymentStatus !== null) {
+          paymentStatusStr = inv.paymentStatus.current || inv.status || 'paid';
+        } else if (inv.paymentStatus) {
+          paymentStatusStr = String(inv.paymentStatus);
+        } else if (inv.status) {
+          paymentStatusStr = String(inv.status);
+        }
+
+        const patName =
+          inv.patientName ||
+          (inv.patient
+            ? `${inv.patient.firstName || ''} ${inv.patient.lastName || ''}`.trim()
+            : '');
+        const patId =
+          inv.patientId || inv.patient?.patientId || inv.patient?._id?.toString() || '';
+        const issueDate = inv.issueDate || inv.dateIssued || inv.createdAt;
+
+        return {
+          invoiceNumber: inv.invoiceNumber || inv._id?.toString(),
+          patientId: patId,
+          patientName: patName,
+          dateIssued: issueDate ? new Date(issueDate).toISOString() : '',
+          status: inv.status || 'Issued',
+          paymentStatus: paymentStatusStr,
+          total:
+            inv.total !== undefined
+              ? inv.total
+              : inv.totalAmount !== undefined
+              ? inv.totalAmount
+              : inv.subtotal || 0,
+          createdAt: inv.createdAt ? new Date(inv.createdAt).toISOString() : '',
+        };
+      });
       break;
     }
 
@@ -546,7 +614,7 @@ const getStats = async (req, res) => {
       DataShare.countDocuments({ isActive: true, $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] }),
       Patient.countDocuments(),
       Appointment.countDocuments(),
-      Invoice.countDocuments(),
+      MedicalInvoice.countDocuments().catch(() => (Invoice ? Invoice.countDocuments() : 0)),
     ]);
 
     const aggregateAccesses = await DataShare.aggregate([
