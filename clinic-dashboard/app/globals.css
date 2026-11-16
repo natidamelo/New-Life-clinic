@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --app-bg: #F8FAFC;
+  --card-bg: #FFFFFF;
+  --card-border: #E2E8F0;
+  --primary-brand: #0D9488;
+  --primary-brand-hover: #0F766E;
+  --primary-text: #0F172A;
+  --muted-text: #64748B;
+}
+
+.dark {
+  --app-bg: #0F172A;
+  --card-bg: #1E293B;
+  --card-border: #334155;
+  --primary-brand: #14B8A6;
+  --primary-brand-hover: #2DD4BF;
+  --primary-text: #F8FAFC;
+  --muted-text: #94A3B8;
+}
+
+body {
+  background-color: var(--app-bg);
+  color: var(--primary-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure tabular numbers for medical and operational metrics */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom crisp scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}

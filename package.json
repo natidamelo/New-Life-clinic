@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "start": "node backend/server.js",
+    "dev:next": "cd clinic-dashboard && npm run dev",
+    "build:next": "cd clinic-dashboard && npm run build",
+    "start:next": "cd clinic-dashboard && npm start",
     "dev:backend": "cd backend && nodemon server.js",
     "dev:backend:enhanced": "cd backend && npm run dev:enhanced",
     "dev:backend:cors-debug": "cd backend && npm run debug:cors",
