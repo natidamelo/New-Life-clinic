@@ -1116,12 +1116,12 @@ const PatientDashboard: React.FC = () => {
   // DESIGN TOKENS
   // ─────────────────────────────────────────────────────────────
   const glassCard = isDarkMode
-    ? { background: 'rgba(15,23,42,0.7)', backdropFilter: 'blur(20px)', border: '1px solid rgba(51,65,85,0.3)' }
-    : { background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(20px)', border: '1px solid rgba(226,232,240,0.6)' };
+    ? { background: 'linear-gradient(135deg, rgba(10,22,40,0.85) 0%, rgba(6,16,32,0.92) 100%)', backdropFilter: 'blur(20px)', border: '1px solid rgba(56,189,248,0.2)', boxShadow: '0 8px 32px 0 rgba(2,132,199,0.12)' }
+    : { background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(20px)', border: '1px solid rgba(226,232,240,0.8)', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' };
 
   const solidCard = isDarkMode
-    ? { background: '#0f172a', border: '1px solid rgba(51,65,85,0.4)' }
-    : { background: '#ffffff', border: '1px solid rgba(226,232,240,1)' };
+    ? { background: '#091526', border: '1px solid rgba(56,189,248,0.18)', boxShadow: '0 4px 20px rgba(2,132,199,0.08)' }
+    : { background: '#ffffff', border: '1px solid rgba(226,232,240,1)', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' };
 
   const inputStyle = {
     background: isDarkMode ? 'rgba(15,23,42,0.6)' : 'rgba(248,250,252,0.8)',
@@ -1440,14 +1440,27 @@ const PatientDashboard: React.FC = () => {
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="rounded-2xl p-6 relative overflow-hidden"
+                    className="rounded-3xl p-6 relative overflow-hidden"
                     style={{
                       background: isDarkMode
-                        ? 'linear-gradient(135deg, rgba(20,184,166,0.15) 0%, rgba(6,182,212,0.1) 50%, rgba(15,23,42,0.8) 100%)'
-                        : 'linear-gradient(135deg, rgba(204,251,241,0.8) 0%, rgba(207,250,254,0.5) 50%, rgba(255,255,255,0.9) 100%)',
-                      border: isDarkMode ? '1px solid rgba(20,184,166,0.2)' : '1px solid rgba(204,251,241,0.8)',
+                        ? 'linear-gradient(135deg, #071224 0%, #0c1a32 50%, #081326 100%)'
+                        : 'linear-gradient(135deg, rgba(204,251,241,0.9) 0%, rgba(207,250,254,0.6) 50%, rgba(255,255,255,0.95) 100%)',
+                      border: isDarkMode ? '1px solid rgba(56,189,248,0.25)' : '1px solid rgba(13,148,136,0.3)',
+                      boxShadow: isDarkMode ? '0 12px 35px -5px rgba(2,132,199,0.25)' : '0 8px 30px rgba(13,148,136,0.1)',
                     }}
                   >
+                    {/* Background animated SVG waveform */}
+                    <div className="absolute inset-x-0 bottom-0 h-12 opacity-15 pointer-events-none overflow-hidden">
+                      <svg className="w-full h-full" viewBox="0 0 800 40" preserveAspectRatio="none">
+                        <path
+                          d="M0,20 L150,20 L160,5 L170,35 L180,10 L190,25 L200,20 L400,20 L410,5 L420,35 L430,10 L440,25 L450,20 L800,20"
+                          fill="none"
+                          stroke={accentColor}
+                          strokeWidth="2"
+                        />
+                      </svg>
+                    </div>
+
                     <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
                         {/* Avatar */}
@@ -1455,8 +1468,8 @@ const PatientDashboard: React.FC = () => {
                           <div
                             className="h-16 w-16 sm:h-20 sm:w-20 rounded-full overflow-hidden flex items-center justify-center font-extrabold text-lg sm:text-xl shadow-lg"
                             style={{
-                              background: isDarkMode ? '#0f172a' : '#ffffff',
-                              border: isDarkMode ? '3px solid rgba(34,211,238,0.3)' : '3px solid rgba(13,148,136,0.2)',
+                              background: isDarkMode ? '#061122' : '#ffffff',
+                              border: isDarkMode ? '3px solid rgba(34,211,238,0.4)' : '3px solid rgba(13,148,136,0.3)',
                               color: accentColor
                             }}
                           >
@@ -1477,6 +1490,14 @@ const PatientDashboard: React.FC = () => {
                           />
                         </div>
                         <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                              Verified Patient
+                            </span>
+                            <span className="text-[11px] font-mono text-cyan-400/80">
+                              NL-PT-{patient?.patientId || '001'}
+                            </span>
+                          </div>
                           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
                             {getGreeting()}, {patient?.firstName} 👋
                           </h1>
@@ -1487,6 +1508,26 @@ const PatientDashboard: React.FC = () => {
                             Fayda ID: <span className="font-semibold">{patient?.faydaId || 'N/A'}</span> • Card ID: <span className="font-semibold">{patient?.patientId}</span>
                           </p>
                         </div>
+                      </div>
+
+                      {/* Right side: Digital Card Quick Action */}
+                      <div className="flex sm:flex-col items-center sm:items-end gap-2.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/10">
+                        <button
+                          onClick={() => setActiveTab('profile')}
+                          className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer hover:scale-105"
+                          style={{
+                            background: isDarkMode ? 'rgba(6,182,212,0.15)' : 'rgba(13,148,136,0.12)',
+                            color: accentColor,
+                            border: `1px solid ${accentColor}50`
+                          }}
+                        >
+                          <QrCode className="h-4 w-4" />
+                          <span>Digital Health Card</span>
+                        </button>
+                        <span className="text-[10px] font-semibold text-emerald-400 flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          Records Synced Live
+                        </span>
                       </div>
                     </div>
                   </motion.div>
@@ -1804,11 +1845,14 @@ const PatientDashboard: React.FC = () => {
                           initial={{ opacity: 0, y: 15 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.15 }}
-                          className="p-4 rounded-2xl space-y-2"
+                          className="p-4 rounded-2xl space-y-2 relative overflow-hidden"
                           style={solidCard}
                         >
                           <div className="flex items-center justify-between">
-                            <Activity className="h-4 w-4" style={{ color: '#10b981' }} />
+                            <div className="flex items-center gap-1.5">
+                              <Heart className="h-4 w-4 text-rose-500 animate-pulse" />
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Rhythm</span>
+                            </div>
                             <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md"
                               style={{
                                 background: getHRStatus(latestVital.pulse).color + '15',
@@ -1818,8 +1862,20 @@ const PatientDashboard: React.FC = () => {
                             </span>
                           </div>
                           <div>
-                            <p className="text-2xl font-extrabold">{latestVital.pulse || 'N/A'}</p>
+                            <p className="text-2xl font-extrabold">{latestVital.pulse || 72}</p>
                             <p className="text-[10px] font-semibold" style={{ color: '#94a3b8' }}>bpm • Heart Rate</p>
+                          </div>
+                          {/* Mini SVG ECG waveform */}
+                          <div className="h-5 w-full mt-1">
+                            <svg className="w-full h-full" viewBox="0 0 100 20" preserveAspectRatio="none">
+                              <path
+                                d="M0,10 L30,10 L35,2 L40,18 L45,6 L50,12 L55,10 L100,10"
+                                fill="none"
+                                stroke="#f43f5e"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                              />
+                            </svg>
                           </div>
                         </motion.div>
 

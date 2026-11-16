@@ -130,10 +130,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         .h-anim-d6 { animation-delay: 0.55s; }
 
         .hero-widget {
-          background: rgba(255,255,255,0.07);
-          border: 1px solid rgba(255,255,255,0.12);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
+          background: linear-gradient(135deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.04) 100%);
+          border: 1px solid rgba(255,255,255,0.16);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          box-shadow: 0 10px 35px -5px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.15);
         }
         .hero-stat-pill {
           background: rgba(255,255,255,0.06);
