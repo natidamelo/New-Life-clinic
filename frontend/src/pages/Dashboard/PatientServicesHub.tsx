@@ -158,7 +158,7 @@ const PatientServicesHub: React.FC = () => {
               </svg>
             }
             title="Data Share"
-            subtitle={<><span className="bg-primary/20 px-1 py-0.5 rounded text-primary">Data</span> Share</>}
+            subtitle={<><span className="bg-primary/20 px-1 py-0.5 rounded text-primary">EMR</span> Export & Tokenized Links</>}
             to="/app/data-share"
           />
           
