@@ -828,9 +828,18 @@ const Login: React.FC = () => {
   }, []);
 
   // Landing page public data states
-  const [services, setServices] = useState<any[]>(FALLBACK_SERVICES);
-  const [packages, setPackages] = useState<any[]>(FALLBACK_PACKAGES);
-  const [doctors, setDoctors] = useState<any[]>(FALLBACK_DOCTORS);
+  const [services, setServices] = useState<any[]>(() => {
+    const tid = getClinicTenantId();
+    return tid === 'default' || tid === 'new-life' ? FALLBACK_SERVICES : [];
+  });
+  const [packages, setPackages] = useState<any[]>(() => {
+    const tid = getClinicTenantId();
+    return tid === 'default' || tid === 'new-life' ? FALLBACK_PACKAGES : [];
+  });
+  const [doctors, setDoctors] = useState<any[]>(() => {
+    const tid = getClinicTenantId();
+    return tid === 'default' || tid === 'new-life' ? FALLBACK_DOCTORS : [];
+  });
   const [servicesLoading, setServicesLoading] = useState(false);
   const [packagesLoading, setPackagesLoading] = useState(false);
   const [homeContent, setHomeContent] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
@@ -897,7 +906,7 @@ const Login: React.FC = () => {
   ]);
   const [cardTypesLoading, setCardTypesLoading] = useState(false);
 
-  // Load public data on mount
+  // Load public data on mount & whenever clinic tenant changes
   useEffect(() => {
     fetchServices();
     fetchPackages();
@@ -905,7 +914,7 @@ const Login: React.FC = () => {
     fetchVitalsStats();
     fetchCardTypes();
     fetchHomeContent();
-  }, []);
+  }, [clinic?.slug]);
 
   const fetchHomeContent = async () => {
     try {
@@ -935,15 +944,25 @@ const Login: React.FC = () => {
   const fetchServices = async () => {
     setServicesLoading(true);
     try {
-      const res = await api.get('/api/public/services');
-      if (res.data && res.data.success && res.data.data.length > 0) {
-        setServices(res.data.data);
+      const activeTenant = clinic?.slug || getClinicTenantId();
+      const res = await api.get('/api/public/services', {
+        params: activeTenant && activeTenant !== 'default' ? { clinicId: activeTenant } : undefined
+      });
+      if (res.data && res.data.success) {
+        if (Array.isArray(res.data.data) && res.data.data.length > 0) {
+          setServices(res.data.data);
+        } else if (activeTenant === 'default' || activeTenant === 'new-life') {
+          setServices(FALLBACK_SERVICES);
+        } else {
+          setServices([]);
+        }
       } else {
-        setServices(FALLBACK_SERVICES);
+        setServices(activeTenant === 'default' || activeTenant === 'new-life' ? FALLBACK_SERVICES : []);
       }
     } catch (err) {
       console.error('Error fetching public services:', err);
-      setServices(FALLBACK_SERVICES);
+      const activeTenant = clinic?.slug || getClinicTenantId();
+      setServices(activeTenant === 'default' || activeTenant === 'new-life' ? FALLBACK_SERVICES : []);
     } finally {
       setServicesLoading(false);
     }
@@ -952,15 +971,25 @@ const Login: React.FC = () => {
   const fetchPackages = async () => {
     setPackagesLoading(true);
     try {
-      const res = await api.get('/api/public/packages');
-      if (res.data && res.data.success && res.data.data.length > 0) {
-        setPackages(res.data.data);
+      const activeTenant = clinic?.slug || getClinicTenantId();
+      const res = await api.get('/api/public/packages', {
+        params: activeTenant && activeTenant !== 'default' ? { clinicId: activeTenant } : undefined
+      });
+      if (res.data && res.data.success) {
+        if (Array.isArray(res.data.data) && res.data.data.length > 0) {
+          setPackages(res.data.data);
+        } else if (activeTenant === 'default' || activeTenant === 'new-life') {
+          setPackages(FALLBACK_PACKAGES);
+        } else {
+          setPackages([]);
+        }
       } else {
-        setPackages(FALLBACK_PACKAGES);
+        setPackages(activeTenant === 'default' || activeTenant === 'new-life' ? FALLBACK_PACKAGES : []);
       }
     } catch (err) {
       console.error('Error fetching public health packages:', err);
-      setPackages(FALLBACK_PACKAGES);
+      const activeTenant = clinic?.slug || getClinicTenantId();
+      setPackages(activeTenant === 'default' || activeTenant === 'new-life' ? FALLBACK_PACKAGES : []);
     } finally {
       setPackagesLoading(false);
     }
@@ -968,15 +997,25 @@ const Login: React.FC = () => {
 
   const fetchDoctors = async () => {
     try {
-      const res = await api.get('/api/public/doctors');
-      if (res.data && res.data.success && res.data.data.length > 0) {
-        setDoctors(res.data.data);
+      const activeTenant = clinic?.slug || getClinicTenantId();
+      const res = await api.get('/api/public/doctors', {
+        params: activeTenant && activeTenant !== 'default' ? { clinicId: activeTenant } : undefined
+      });
+      if (res.data && res.data.success) {
+        if (Array.isArray(res.data.data) && res.data.data.length > 0) {
+          setDoctors(res.data.data);
+        } else if (activeTenant === 'default' || activeTenant === 'new-life') {
+          setDoctors(FALLBACK_DOCTORS);
+        } else {
+          setDoctors([]);
+        }
       } else {
-        setDoctors(FALLBACK_DOCTORS);
+        setDoctors(activeTenant === 'default' || activeTenant === 'new-life' ? FALLBACK_DOCTORS : []);
       }
     } catch (err) {
       console.error('Error fetching doctors list:', err);
-      setDoctors(FALLBACK_DOCTORS);
+      const activeTenant = clinic?.slug || getClinicTenantId();
+      setDoctors(activeTenant === 'default' || activeTenant === 'new-life' ? FALLBACK_DOCTORS : []);
     }
   };
 

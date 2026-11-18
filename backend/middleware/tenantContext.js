@@ -11,7 +11,7 @@ const { runWithTenantContext, bindTenantRequest } = require('../config/tenantCon
  * ignores it for non-super-admin roles.
  */
 function tenantContextMiddleware(req, res, next) {
-  const rawClinic = req.headers['x-clinic-id'] || req.query?.clinicId;
+  const rawClinic = req.headers['x-clinic-id'] || req.query?.clinicId || req.query?.clinic;
   const initialTenant = (typeof rawClinic === 'string' && rawClinic.trim())
     ? rawClinic.trim()
     : (process.env.PRIMARY_CLINIC_ID || 'default');

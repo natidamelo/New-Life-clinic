@@ -28,7 +28,12 @@ function toSlug(value = '') {
 
 async function resolveClinic(clinicRef) {
   if (!clinicRef) return null;
-  const filters = [{ slug: String(clinicRef).toLowerCase() }];
+  const ref = String(clinicRef).trim().toLowerCase();
+  const primarySlug = (process.env.PRIMARY_CLINIC_ID || 'new-life').toLowerCase();
+  const filters = [{ slug: ref }];
+  if (ref === 'default') {
+    filters.push({ slug: primarySlug });
+  }
   if (mongoose.Types.ObjectId.isValid(clinicRef)) {
     filters.push({ _id: clinicRef });
   }

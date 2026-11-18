@@ -7,14 +7,24 @@ const Patient = require('../models/Patient');
 const Service = require('../models/Service');
 
 // ─── Helper: inject real DB counts into stats ────────────────────────────────
-async function injectRealCounts(content) {
+async function injectRealCounts(content, clinicId = 'new-life') {
   if (!content.useRealCounts) return content;
 
   try {
+    const userFilter = { role: { $in: ['doctor'] }, isActive: true };
+    const patientFilter = {};
+    const serviceFilter = { isActive: true };
+
+    if (clinicId && clinicId !== '*') {
+      userFilter.clinicId = clinicId;
+      patientFilter.clinicId = clinicId;
+      serviceFilter.clinicId = clinicId;
+    }
+
     const [doctorCount, patientCount, serviceCount] = await Promise.all([
-      User.countDocuments({ role: { $in: ['doctor'] }, isActive: true }),
-      Patient.countDocuments({}),
-      Service.countDocuments({ isActive: true })
+      User.countDocuments(userFilter),
+      Patient.countDocuments(patientFilter),
+      Service.countDocuments(serviceFilter)
     ]);
 
     const countMap = {
@@ -47,9 +57,9 @@ async function injectRealCounts(content) {
 // ─── GET /api/home-content — Public, no auth required ───────────────────────
 router.get('/', async (req, res) => {
   try {
-    const clinicId = req.headers['x-clinic-id'] || 'new-life';
+    const clinicId = req.query.clinicId || req.query.clinic || req.headers['x-clinic-id'] || 'new-life';
     let content = await HomeContent.getForClinic(clinicId);
-    content = await injectRealCounts(content);
+    content = await injectRealCounts(content, clinicId);
     return res.json({ success: true, data: content });
   } catch (error) {
     console.error('[HomeContent] GET error:', error);

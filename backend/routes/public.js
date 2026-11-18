@@ -9,6 +9,14 @@ const User = require('../models/User');
 const CardType = require('../models/CardType');
 const { checkDoctorAvailability } = require('../utils/appointmentValidation');
 
+function getEffectiveClinic(req, fallback = 'new-life') {
+  const c = req.body?.clinicId || req.query?.clinicId || req.query?.clinic || req.headers['x-clinic-id'] || req.tenantId;
+  if (c && typeof c === 'string' && c.trim() && c !== 'default' && c !== '*' && c !== 'all') {
+    return c.trim();
+  }
+  return fallback;
+}
+
 // GET /api/public/doctors - Get active staff for booking (doctors, nurses, lab, imaging)
 router.get('/doctors', async (req, res) => {
   try {
@@ -183,7 +191,7 @@ router.post('/register-patient', async (req, res) => {
       : [];
 
     const patient = new Patient({
-      clinicId: 'new-life',
+      clinicId: getEffectiveClinic(req),
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       gender,
@@ -315,7 +323,7 @@ router.post('/book-appointment', async (req, res) => {
         patientId = existingPatient._id;
       } else {
         patientDoc = new Patient({
-          clinicId: 'new-life',
+          clinicId: getEffectiveClinic(req),
           firstName: patientData.firstName.trim(),
           lastName: patientData.lastName.trim(),
           gender: patientData.gender || 'other',
@@ -355,7 +363,7 @@ router.post('/book-appointment', async (req, res) => {
 
           // Create PatientPackage subscription
           patientPackageDoc = new PatientPackage({
-            clinicId: 'new-life',
+            clinicId: getEffectiveClinic(req, patientDoc.clinicId || 'new-life'),
             patient_id: patientId,
             package_id: healthPackage._id,
             purchased_date: startDate,
@@ -373,7 +381,7 @@ router.post('/book-appointment', async (req, res) => {
           // Create MedicalInvoice for the package subscription
           const invoiceNumber = await MedicalInvoice.generateInvoiceNumber();
           medicalInvoiceDoc = new MedicalInvoice({
-            clinicId: 'new-life',
+            clinicId: getEffectiveClinic(req, patientDoc.clinicId || 'new-life'),
             invoiceNumber,
             patient: patientId,
             patientId: patientDoc.patientId || `PAT${String(Date.now()).slice(-6)}`,
@@ -434,7 +442,7 @@ router.post('/book-appointment', async (req, res) => {
 
     if (!appointment) {
       appointment = new Appointment({
-        clinicId: 'new-life',
+        clinicId: getEffectiveClinic(req, patientDoc.clinicId || 'new-life'),
         patientId,
         doctorId: appointmentData.doctorId || undefined,
         appointmentDateTime: new Date(appointmentData.appointmentDateTime),

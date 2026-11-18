@@ -1,6 +1,7 @@
 import api from './apiService';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import { getClinicTenantId } from '../utils/authToken';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -181,12 +182,17 @@ const homeContentService = {
    * Fetch home content — public endpoint, no auth required.
    * Falls back to DEFAULT_HOME_CONTENT if request fails.
    */
-  async getHomeContent(): Promise<HomeContent> {
+  async getHomeContent(clinicId?: string): Promise<HomeContent> {
     try {
       const baseUrl = API_BASE_URL;
+      const tenant = clinicId || getClinicTenantId() || 'new-life';
       const response = await axios.get<ApiResponse<HomeContent>>(
         `${baseUrl}/api/home-content`,
-        { timeout: 5000 }
+        { 
+          timeout: 5000,
+          headers: { 'x-clinic-id': tenant },
+          params: { clinicId: tenant }
+        }
       );
       if (response.data?.success && response.data?.data) {
         return response.data.data;
@@ -218,12 +224,17 @@ const homeContentService = {
   /**
    * Get live DB counts — public endpoint.
    */
-  async getLiveCounts(): Promise<{ doctors: number; patients: number; services: number }> {
+  async getLiveCounts(clinicId?: string): Promise<{ doctors: number; patients: number; services: number }> {
     try {
       const baseUrl = API_BASE_URL;
+      const tenant = clinicId || getClinicTenantId() || 'new-life';
       const response = await axios.get<ApiResponse<{ doctors: number; patients: number; services: number }>>(
         `${baseUrl}/api/home-content/stats`,
-        { timeout: 5000 }
+        { 
+          timeout: 5000,
+          headers: { 'x-clinic-id': tenant },
+          params: { clinicId: tenant }
+        }
       );
       return response.data?.data || { doctors: 0, patients: 0, services: 0 };
     } catch {

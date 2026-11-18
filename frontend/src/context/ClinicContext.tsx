@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import api from '../services/apiService';
 import { useAuth } from './AuthContext';
+import { getClinicTenantId, setClinicTenantId } from '../utils/authToken';
 
 export interface ClinicBranding {
   name: string;
@@ -19,6 +20,7 @@ interface ClinicContextType {
   isLoading: boolean;
   refreshClinic: () => Promise<void>;
   updateClinicState: (data: Partial<ClinicBranding>) => void;
+  switchClinic: (slug: string) => Promise<void>;
 }
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
@@ -47,7 +49,8 @@ export const ClinicProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
 
-  const fetchClinicProfile = async (slug: string) => {
+  const fetchClinicProfile = useCallback(async (slug: string) => {
+    if (!slug) return;
     try {
       setIsLoading(true);
       const response = await api.get(`/api/clinics/${slug}/profile`, { skipAuth: true } as any);
@@ -61,14 +64,20 @@ export const ClinicProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const refreshClinic = async () => {
-    const slug = user?.clinicId || clinic?.slug || 'default';
+  const switchClinic = useCallback(async (slug: string) => {
+    const target = (slug || 'default').trim();
+    setClinicTenantId(target);
+    await fetchClinicProfile(target);
+  }, [fetchClinicProfile]);
+
+  const refreshClinic = useCallback(async () => {
+    const slug = user?.clinicId || clinic?.slug || getClinicTenantId() || 'default';
     if (slug) {
       await fetchClinicProfile(slug);
     }
-  };
+  }, [user?.clinicId, clinic?.slug, fetchClinicProfile]);
 
   const updateClinicState = (data: Partial<ClinicBranding>) => {
     setClinic((prev) => {
@@ -79,15 +88,30 @@ export const ClinicProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     });
   };
 
+  // URL query check on mount: e.g. /login?clinic=nat-clinic or ?clinicId=nat-clinic
   useEffect(() => {
-    const slug = user?.clinicId;
-    if (slug && slug !== clinic?.slug) {
-      fetchClinicProfile(slug);
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlClinic = searchParams.get('clinic') || searchParams.get('clinicId');
+      if (urlClinic && urlClinic.trim()) {
+        const cleaned = urlClinic.trim().toLowerCase();
+        setClinicTenantId(cleaned);
+        fetchClinicProfile(cleaned);
+        return;
+      }
+    } catch {
+      // URL parsing fallback
     }
-  }, [user?.clinicId]);
+
+    // Otherwise check saved tenant or user clinic
+    const activeTenant = user?.clinicId || getClinicTenantId();
+    if (activeTenant && activeTenant !== 'default' && activeTenant !== clinic?.slug) {
+      fetchClinicProfile(activeTenant);
+    }
+  }, [user?.clinicId, fetchClinicProfile]);
 
   return (
-    <ClinicContext.Provider value={{ clinic, isLoading, refreshClinic, updateClinicState }}>
+    <ClinicContext.Provider value={{ clinic, isLoading, refreshClinic, updateClinicState, switchClinic }}>
       {children}
     </ClinicContext.Provider>
   );
