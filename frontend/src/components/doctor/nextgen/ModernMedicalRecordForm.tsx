@@ -4386,7 +4386,10 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
           printPatientHistory({
             patient: patientData,
             records: patientHistory.length > 0 ? patientHistory : [],
-            clinic,
+            clinic: {
+              ...clinic,
+              logo: clinic?.logo || '/assets/images/logo.jpg',
+            } as any,
             currentUser: user,
             specialtyFilter: 'All',
             allPrescriptions,
@@ -8014,6 +8017,60 @@ ${errorDetails ? `- Server response: ${JSON.stringify(errorDetails, null, 2)}` :
         }}
       >
         <Box sx={{ p: { xs: 1, sm: 2.5 } }}>
+          {/* Clinic Branding Top Bar */}
+          <Box
+            sx={{
+              mb: 1.5,
+              px: 2,
+              py: 1,
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.04)',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box
+                component="img"
+                src={clinic?.logo || '/assets/images/logo.jpg'}
+                alt={`${clinic?.name || 'New Life Clinic'} Logo`}
+                sx={{
+                  height: 38,
+                  maxWidth: 120,
+                  width: 'auto',
+                  objectFit: 'contain',
+                  borderRadius: '6px',
+                  bgcolor: '#ffffff',
+                  p: 0.5,
+                  border: '1px solid #e2e8f0',
+                }}
+                onError={(e: any) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+              <Box>
+                <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#1e3a8a', lineHeight: 1.2 }}>
+                  {clinic?.fullName || clinic?.name || 'New Life Clinic'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {clinic?.tagline || 'Electronic Medical Record & Clinical Encounter'}
+                </Typography>
+              </Box>
+            </Box>
+            <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 2 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                📍 {typeof clinic?.address === 'string' ? clinic.address : 'Addis Ababa, Ethiopia'}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                📞 {clinic?.contactPhone || '+251 911 000000'}
+              </Typography>
+            </Box>
+          </Box>
+
           {/* Patient Header */}
           {renderPatientHeader()}
 

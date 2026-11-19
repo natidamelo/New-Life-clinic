@@ -325,7 +325,7 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
   const clinicPhone = clinic?.contactPhone || clinic?.phone || '+251 911 000000 / +251 115 000000';
   const clinicEmail = clinic?.contactEmail || 'info@newlifeclinic.com';
   const clinicLicense = clinic?.licenseNumber ? `License: ${clinic.licenseNumber}` : 'Licensed Health Facility';
-  const clinicLogo = clinic?.logo;
+  const clinicLogo = clinic?.logo || '/assets/images/logo.jpg';
 
   // Doctor / Staff normalization
   const printedByDoctor = currentUser?.fullName
@@ -1360,7 +1360,8 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
     <header class="clinic-header">
       <div class="clinic-brand">
         ${clinicLogo ? `
-          <img src="${clinicLogo}" alt="Logo" class="clinic-logo" onerror="this.style.display='none'" />
+          <img src="${clinicLogo}" alt="Logo" class="clinic-logo" onerror="this.style.display='none'; if (this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
+          <div class="clinic-logo-placeholder" style="display: none;">➕</div>
         ` : `
           <div class="clinic-logo-placeholder">➕</div>
         `}

@@ -27,8 +27,8 @@ const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
 
 const DEFAULT_BRANDING: ClinicBranding = {
   name: 'New Life Clinic',
-  slug: 'default',
-  logo: null,
+  slug: 'new-life',
+  logo: '/assets/images/logo.jpg',
   fullName: 'New Life Medium Clinic PLC',
   tagline: 'Your Health, Our Commitment',
   address: 'Addis Ababa, Ethiopia',
@@ -41,7 +41,14 @@ export const ClinicProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [clinic, setClinic] = useState<ClinicBranding | null>(() => {
     try {
       const stored = localStorage.getItem('clinic_branding_data');
-      return stored ? JSON.parse(stored) : DEFAULT_BRANDING;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (!parsed.logo && parsed.slug !== 'nat-clinic') {
+          parsed.logo = '/assets/images/logo.jpg';
+        }
+        return parsed;
+      }
+      return DEFAULT_BRANDING;
     } catch {
       return DEFAULT_BRANDING;
     }
@@ -56,8 +63,12 @@ export const ClinicProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       const response = await api.get(`/api/clinics/${slug}/profile`, { skipAuth: true } as any);
       if (response.data?.success && response.data?.data) {
         const data = response.data.data;
-        setClinic(data);
-        localStorage.setItem('clinic_branding_data', JSON.stringify(data));
+        const normalized = {
+          ...data,
+          logo: data.logo || (data.slug === 'nat-clinic' ? null : '/assets/images/logo.jpg')
+        };
+        setClinic(normalized);
+        localStorage.setItem('clinic_branding_data', JSON.stringify(normalized));
       }
     } catch (error) {
       console.error('Error fetching clinic branding:', error);

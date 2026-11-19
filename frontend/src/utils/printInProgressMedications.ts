@@ -128,7 +128,7 @@ export const printInProgressMedicationReport = ({
   taskPaymentStatuses = {},
   clinicName = 'NEW LIFE CLINIC',
   clinicTagline = 'Compassionate Healthcare · Inpatient Nursing Station',
-  clinicLogo,
+  clinicLogo = '/assets/images/logo.jpg',
   filterDescription
 }: PrintReportOptions): void => {
   if (!tasks || tasks.length === 0) return;

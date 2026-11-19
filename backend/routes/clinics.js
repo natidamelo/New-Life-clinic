@@ -492,7 +492,7 @@ router.get('/:clinicRef/profile', async (req, res) => {
       data: {
         name: clinic.name,
         slug: clinic.slug,
-        logo: clinic.logo || null,
+        logo: clinic.logo || ((clinic.slug === 'new-life' || clinic.slug === 'default') ? '/assets/images/logo.jpg' : null),
         fullName: clinic.fullName || clinic.name,
         tagline: clinic.tagline || '',
         address: clinic.address || '',
@@ -546,7 +546,7 @@ router.put('/:clinicRef/profile', auth, async (req, res) => {
       data: {
         name: clinic.name,
         slug: clinic.slug,
-        logo: clinic.logo || null,
+        logo: clinic.logo || ((clinic.slug === 'new-life' || clinic.slug === 'default') ? '/assets/images/logo.jpg' : null),
         fullName: clinic.fullName || clinic.name,
         tagline: clinic.tagline || '',
         address: clinic.address || '',

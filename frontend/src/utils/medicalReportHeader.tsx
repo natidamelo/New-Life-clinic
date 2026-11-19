@@ -347,8 +347,9 @@ export function generateMedicalReportHeaderHTML(options: MedicalReportHeaderOpti
       ${showClinicHeader ? `
         <div class="med-clinic-bar">
           <div class="med-clinic-left">
-            ${clinic?.logo ? `
-              <img src="${clinic.logo}" alt="Logo" class="med-clinic-logo" onerror="this.style.display='none'" />
+            ${(clinic?.logo || '/assets/images/logo.jpg') ? `
+              <img src="${clinic?.logo || '/assets/images/logo.jpg'}" alt="Logo" class="med-clinic-logo" onerror="this.style.display='none'; if (this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
+              <div style="width:48px;height:48px;background:#1a365d;color:#fff;display:none;align-items:center;justify-content:center;font-weight:bold;font-size:20px;border-radius:4px;">${clinicName[0]}</div>
             ` : `
               <div style="width:48px;height:48px;background:#1a365d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:20px;border-radius:4px;">${clinicName[0]}</div>
             `}
