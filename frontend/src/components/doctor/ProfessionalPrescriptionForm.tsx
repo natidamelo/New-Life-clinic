@@ -3217,12 +3217,14 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                         }
                         
                         .clinic-logo {
-                            width: 40px;
-                            height: 40px;
+                            height: 56px;
+                            max-width: 140px;
+                            width: auto;
                             object-fit: contain;
                             flex-shrink: 0;
-                            border-radius: 8px;
-                            border: 2px solid rgba(255,255,255,0.3);
+                            border-radius: 6px;
+                            background: #ffffff;
+                            padding: 2px;
                         }
                         
                         .clinic-info-center {
@@ -3500,6 +3502,10 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                                  color: #475569 !important;
                              }
                              .prescription-header .clinic-logo {
+                                 height: 56px !important;
+                                 max-width: 140px !important;
+                                 width: auto !important;
+                                 object-fit: contain !important;
                                  border: 1px solid #cbd5e1 !important;
                              }
                              
@@ -3701,16 +3707,18 @@ const ProfessionalPrescriptionForm: React.FC<ProfessionalPrescriptionFormProps> 
                     {/* Header */}
                     <div className="mb-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <img
-                                src={clinic?.logo || LOGO_PATH}
-                                alt="Clinic Logo"
-                                className="w-10 h-10 rounded-full object-cover border border-border"
-                                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.onerror = null;
-                                    target.src = LOGO_FALLBACK;
-                                }}
-                            />
+                            <div className="h-12 min-w-[48px] max-w-[130px] rounded-md bg-white p-1 border border-border shadow-xs flex items-center justify-center">
+                                <img
+                                    src={clinic?.logo || LOGO_PATH}
+                                    alt="Clinic Logo"
+                                    className="h-full w-auto max-w-full object-contain"
+                                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.onerror = null;
+                                        target.src = LOGO_FALLBACK;
+                                    }}
+                                />
+                            </div>
                             <div>
                                 <h1 className="text-base font-semibold text-foreground leading-tight">{clinic?.fullName || clinic?.name || 'New Life Medium Clinic PLC'}</h1>
                                 <p className="text-xs text-muted-foreground">Create Prescription</p>

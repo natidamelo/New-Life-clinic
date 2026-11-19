@@ -755,29 +755,35 @@ export function buildPatientHistoryHTML(options: PrintPatientHistoryOptions): st
     .clinic-brand {
       display: flex;
       align-items: center;
-      gap: 12px;
-      flex: 1.2;
+      gap: 14px;
+      flex: 1.4;
     }
     .clinic-logo {
-      width: 52px;
-      height: 52px;
+      height: 64px;
+      max-width: 150px;
+      width: auto;
+      min-width: 54px;
       object-fit: contain;
-      border-radius: 5px;
-      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      padding: 2px;
       flex-shrink: 0;
+      image-rendering: -webkit-optimize-contrast;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.08));
     }
     .clinic-logo-placeholder {
-      width: 52px;
-      height: 52px;
+      width: 58px;
+      height: 58px;
       background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
       color: #ffffff;
       font-weight: 900;
-      font-size: 24px;
+      font-size: 26px;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 5px;
+      border-radius: 6px;
       flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
     }
     .clinic-name {
       font-size: 17px;

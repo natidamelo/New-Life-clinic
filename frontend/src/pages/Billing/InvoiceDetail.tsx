@@ -1389,12 +1389,14 @@ const InvoiceDetail: React.FC = () => {
   print-color-adjust: exact !important;
 }
 .std-invoice .clinic-logo {
-  width: 40px !important;
-  height: 40px !important;
+  height: 56px !important;
+  max-width: 140px !important;
+  width: auto !important;
   object-fit: contain !important;
   flex-shrink: 0 !important;
-  border-radius: 8px !important;
-  border: 2px solid rgba(255,255,255,0.3) !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  padding: 2px !important;
 }
 .std-invoice .clinic-info-center {
   flex: 1 !important;
@@ -1477,9 +1479,13 @@ const InvoiceDetail: React.FC = () => {
     line-height: 1.4 !important;
   }
   .std-invoice .clinic-logo {
-    width: 32px !important;
-    height: 32px !important;
-    border: 1px solid #cbd5e1 !important;
+    height: 52px !important;
+    max-width: 130px !important;
+    width: auto !important;
+    object-fit: contain !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    padding: 2px !important;
   }
   .std-invoice .header::after {
     display: none !important;

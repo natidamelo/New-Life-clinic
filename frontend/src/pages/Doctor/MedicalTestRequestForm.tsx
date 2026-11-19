@@ -846,10 +846,13 @@ const MedicalTestRequestForm: React.FC = () => {
               gap: 12px;
             }
             .clinic-logo {
-              width: 60px;
-              height: 60px;
+              height: 64px;
+              max-width: 150px;
+              width: auto;
               object-fit: contain;
               border-radius: 6px;
+              background: #ffffff;
+              padding: 2px;
               border: 1px solid #94a3b8;
             }
             .clinic-header-info {

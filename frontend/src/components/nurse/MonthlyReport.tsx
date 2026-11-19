@@ -403,11 +403,14 @@ const NurseReport: React.FC = () => {
             display: none !important;
           }
           .clinic-logo {
-            width: 40px !important;
-            height: 40px !important;
+            height: 56px !important;
+            max-width: 140px !important;
+            width: auto !important;
             object-fit: contain !important;
             flex-shrink: 0 !important;
-            border-radius: 8px !important;
+            border-radius: 6px !important;
+            background: #ffffff !important;
+            padding: 2px !important;
             border: 1px solid #cbd5e1 !important;
           }
           .clinic-info-center {

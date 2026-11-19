@@ -551,11 +551,13 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
             <SidebarHeader className="border-b border-sidebar-border pb-3">
               <div className="flex items-center gap-3 px-3 py-2">
                 <div className="relative flex-shrink-0">
-                  <img
-                    src={clinic?.logo || "/assets/images/logo.jpg"}
-                    alt={`${clinic?.name || "New Life Clinic"} logo`}
-                    className="h-9 w-9 rounded-xl object-cover shadow-sm ring-2 ring-sidebar-border"
-                  />
+                  <div className="h-11 min-w-[42px] max-w-[130px] rounded-lg bg-white/95 dark:bg-white/10 p-1 flex items-center justify-center shadow-sm ring-1 ring-sidebar-border">
+                    <img
+                      src={clinic?.logo || "/assets/images/logo.jpg"}
+                      alt={`${clinic?.name || "New Life Clinic"} logo`}
+                      className="h-full w-auto max-w-full object-contain"
+                    />
+                  </div>
                   <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-sidebar" />
                 </div>
                 <div className="flex flex-col overflow-hidden">

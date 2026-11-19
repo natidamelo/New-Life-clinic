@@ -5173,12 +5173,14 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                                 background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853);
                               }
                               .clinic-logo {
-                                width: 40px;
-                                height: 40px;
+                                height: 56px;
+                                max-width: 140px;
+                                width: auto;
                                 object-fit: contain;
                                 flex-shrink: 0;
-                                border-radius: 8px;
-                                border: 2px solid rgba(255,255,255,0.3);
+                                border-radius: 6px;
+                                background: #ffffff;
+                                padding: 2px;
                               }
                               .clinic-info-center {
                                 flex: 1;
@@ -5333,9 +5335,13 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                                   font-size: 8px !important;
                                 }
                                 .clinic-logo {
-                                  width: 32px;
-                                  height: 32px;
-                                  border: 1px solid #cbd5e1 !important;
+                                  height: 52px !important;
+                                  max-width: 130px !important;
+                                  width: auto !important;
+                                  object-fit: contain !important;
+                                  border-radius: 6px !important;
+                                  background: #ffffff !important;
+                                  padding: 2px !important;
                                 }
                                 .document-type-badge {
                                   padding: 4px 0 2px !important;
@@ -5569,12 +5575,14 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                     background: linear-gradient(90deg, #d4a853, #f0d78c, #d4a853);
                   }
                   .clinic-logo {
-                    width: 40px;
-                    height: 40px;
+                    height: 56px;
+                    max-width: 140px;
+                    width: auto;
                     object-fit: contain;
                     flex-shrink: 0;
-                    border-radius: 8px;
-                    border: 2px solid rgba(255,255,255,0.3);
+                    border-radius: 6px;
+                    background: #ffffff;
+                    padding: 2px;
                   }
                   .clinic-info-center {
                     flex: 1;
@@ -5705,6 +5713,10 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ initialTab = 'patient
                       color: #475569 !important;
                     }
                     .clinic-logo {
+                      height: 52px !important;
+                      max-width: 130px !important;
+                      width: auto !important;
+                      object-fit: contain !important;
                       border: 1px solid #cbd5e1 !important;
                     }
                   }

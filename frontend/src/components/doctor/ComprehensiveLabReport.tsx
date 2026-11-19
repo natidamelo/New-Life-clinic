@@ -121,12 +121,15 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
               color: rgba(255,255,255,0.65);
             }
             .clinic-logo {
-              width: 55px;
-              height: 55px;
+              height: 60px;
+              max-width: 140px;
+              width: auto;
+              min-width: 50px;
               object-fit: contain;
               margin-right: 15px;
-              border-radius: 8px;
-              border: 2px solid rgba(255,255,255,0.3);
+              border-radius: 6px;
+              background: #ffffff;
+              padding: 2px;
             }
             .report-header-right {
               text-align: right;
@@ -255,6 +258,10 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
                 color: #475569 !important;
               }
               .clinic-logo {
+                height: 60px !important;
+                max-width: 140px !important;
+                width: auto !important;
+                object-fit: contain !important;
                 border: 1px solid #cbd5e1 !important;
               }
               .report-header::after {
@@ -1815,10 +1822,10 @@ const ComprehensiveLabReport: React.FC<ComprehensiveLabReportProps> = ({ patient
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center bg-gray-50 shrink-0">
+          <div className="h-12 min-w-[48px] max-w-[130px] rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center bg-white p-1 shrink-0">
             <img
               src={clinic?.logo || LOGO_PATH}
-              className="w-9 h-9 object-contain"
+              className="h-full w-auto max-w-full object-contain"
               alt="Clinic Logo"
               onError={(e) => { const t = e.target as HTMLImageElement; t.onerror = null; t.src = LOGO_FALLBACK; }}
             />

@@ -367,21 +367,25 @@ const ImagingResultsViewer: React.FC<ImagingResultsViewerProps> = ({ order, onCl
             }
             
             .clinic-logo {
-              width: 40px;
-              height: 40px;
-              background: #2563eb;
-              border-radius: 50%;
+              height: 56px;
+              max-width: 140px;
+              width: auto;
+              min-width: 50px;
+              background: #ffffff;
+              border-radius: 6px;
               display: flex;
               align-items: center;
               justify-content: center;
               margin-right: 15px;
               overflow: hidden;
+              padding: 2px;
             }
             
             .clinic-logo-img {
-              width: 100%;
               height: 100%;
-              object-fit: cover;
+              width: auto;
+              max-width: 100%;
+              object-fit: contain;
             }
             
             .clinic-logo-fallback {
@@ -1056,12 +1060,14 @@ This is an official medical report - Confidential patient information
             display: none !important;
           }
           .clinic-logo {
-            width: 40px !important;
-            height: 40px !important;
+            height: 56px !important;
+            max-width: 140px !important;
+            width: auto !important;
             object-fit: contain !important;
             flex-shrink: 0 !important;
-            border-radius: 8px !important;
-            border: 1px solid #cbd5e1 !important;
+            border-radius: 6px !important;
+            background: #ffffff !important;
+            padding: 2px !important;
           }
           .clinic-info-center {
             flex: 1 !important;

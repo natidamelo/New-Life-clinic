@@ -152,11 +152,13 @@ const Header: React.FC = () => {
         <div className="flex items-center gap-2 min-w-0">
           <Link to="/" className="flex items-center flex-shrink-0">
             <div className="flex items-center">
-              <img
-                src={clinic?.logo || "/assets/images/logo.jpg"}
-                alt={`${clinic?.name || "New Life Clinic"} logo`}
-                className="h-8 w-8 rounded-full object-cover mr-2 ring-1 ring-black/10 flex-shrink-0"
-              />
+              <div className="h-10 min-w-[38px] max-w-[130px] rounded-lg bg-white/95 dark:bg-white/10 p-1 mr-2.5 flex items-center justify-center shadow-xs ring-1 ring-border/50 flex-shrink-0">
+                <img
+                  src={clinic?.logo || "/assets/images/logo.jpg"}
+                  alt={`${clinic?.name || "New Life Clinic"} logo`}
+                  className="h-full w-auto max-w-full object-contain"
+                />
+              </div>
               <div className="hidden sm:block">
                 <h1 className="text-lg font-bold text-foreground leading-tight">{clinic?.name || "New Life Clinic"}</h1>
                 <p className="text-xs text-muted-foreground">{clinic?.tagline || "Healthcare Center"}</p>

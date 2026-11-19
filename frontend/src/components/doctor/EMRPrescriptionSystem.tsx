@@ -391,12 +391,14 @@ const EMRPrescriptionSystem: React.FC = () => {
                   }
                   
                   .clinic-logo {
-                      width: 40px;
-                      height: 40px;
+                      height: 56px;
+                      max-width: 140px;
+                      width: auto;
                       object-fit: contain;
                       flex-shrink: 0;
-                      border-radius: 8px;
-                      border: 2px solid rgba(255,255,255,0.3);
+                      border-radius: 6px;
+                      background: #ffffff;
+                      padding: 2px;
                   }
                   
                   .clinic-info-center {
@@ -719,6 +721,10 @@ const EMRPrescriptionSystem: React.FC = () => {
                           color: #475569 !important;
                       }
                       .prescription-header .clinic-logo {
+                          height: 56px !important;
+                          max-width: 140px !important;
+                          width: auto !important;
+                          object-fit: contain !important;
                           border: 1px solid #cbd5e1 !important;
                       }
                       

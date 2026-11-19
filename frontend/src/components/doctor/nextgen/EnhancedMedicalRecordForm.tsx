@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getAuthToken } from '../../../utils/authToken';
 import { formatDisplayAge } from '../../../utils/formatters';
 import { MedicalRecordContext } from '../../../contexts/MedicalRecordContext';
+import { useClinic } from '../../../context/ClinicContext';
 import {
   Box,
   Paper,
@@ -278,6 +279,7 @@ const EnhancedMedicalRecordForm: React.FC<EnhancedMedicalRecordFormProps> = ({
   patientData: initialPatientData,
   recordData: initialRecordData
 }) => {
+  const { clinic } = useClinic();
   // Enhanced NHDD (National Health Data Dictionary) Diagnosis Database
   // NOW WITH FULL ICD-11 SUPPORT
   // Following WHO ICD-11 Classification System alongside NHDD and ICD-10
@@ -3989,14 +3991,18 @@ const EnhancedMedicalRecordForm: React.FC<EnhancedMedicalRecordFormProps> = ({
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Box
                   component="img"
-                  src={LOGO_PATH}
-                  alt="New Life Clinic Logo"
+                  src={clinic?.logo || LOGO_PATH}
+                  alt={`${clinic?.name || 'New Life Clinic'} Logo`}
                   sx={{
-                    height: 48,
-                    width: 48,
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    backgroundColor: 'background.paper',
+                    height: 52,
+                    minWidth: 48,
+                    maxWidth: 140,
+                    width: 'auto',
+                    borderRadius: '8px',
+                    objectFit: 'contain',
+                    backgroundColor: '#ffffff',
+                    p: 0.5,
+                    border: '1px solid #e2e8f0',
                     boxShadow: 1,
                     '&:hover': {
                       boxShadow: 2,
@@ -4020,7 +4026,7 @@ const EnhancedMedicalRecordForm: React.FC<EnhancedMedicalRecordFormProps> = ({
                       letterSpacing: '0.5px'
                     }}
                   >
-                    New Life Clinic
+                    {clinic?.name || 'New Life Clinic'}
                   </Typography>
                   <Typography 
                     variant="subtitle2" 

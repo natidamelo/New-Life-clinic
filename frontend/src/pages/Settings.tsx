@@ -824,7 +824,7 @@ const ClinicBrandingSettings: React.FC = () => {
           <div className="md:col-span-2">
             <label className="block text-sm font-semibold text-muted-foreground mb-1">Clinic Logo</label>
             <div className="mt-2 flex flex-col sm:flex-row items-center gap-4 p-4 border border-border/40 rounded-lg bg-muted/10">
-              <div className="flex-shrink-0 h-16 w-16 border border-border/60 rounded-lg flex items-center justify-center bg-primary-foreground overflow-hidden relative group">
+              <div className="flex-shrink-0 h-20 w-36 border border-border/60 rounded-lg flex items-center justify-center bg-white p-1.5 overflow-hidden relative group">
                 {formData.logo ? (
                   <>
                     <img src={formData.logo} alt="Clinic Logo" className="h-full w-full object-contain" />

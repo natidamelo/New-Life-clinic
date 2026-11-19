@@ -175,15 +175,17 @@ const Sidebar: React.FC<SidebarProps> = () => {
 
   return (
     <div className="w-64 h-screen flex flex-col bg-card border-r border-border">
-      <div className="p-6 flex items-center">
-        <img
-          src={clinic?.logo || "/assets/images/logo.jpg"}
-          alt={`${clinic?.name || "New Life Clinic"} logo`}
-          className="h-9 w-9 rounded-full object-cover mr-2 ring-1 ring-black/10"
-        />
-        <div>
-          <h1 className="text-xl font-bold text-foreground">{clinic?.name || "New Life Clinic"}</h1>
-          <p className="text-xs text-muted-foreground">{clinic?.tagline || "Healthcare Center"}</p>
+      <div className="p-5 flex items-center gap-3">
+        <div className="h-11 min-w-[42px] max-w-[130px] rounded-lg bg-white/95 dark:bg-white/10 p-1 flex items-center justify-center shadow-xs ring-1 ring-border/50 flex-shrink-0">
+          <img
+            src={clinic?.logo || "/assets/images/logo.jpg"}
+            alt={`${clinic?.name || "New Life Clinic"} logo`}
+            className="h-full w-auto max-w-full object-contain"
+          />
+        </div>
+        <div className="min-w-0">
+          <h1 className="text-lg font-bold text-foreground truncate">{clinic?.name || "New Life Clinic"}</h1>
+          <p className="text-xs text-muted-foreground truncate">{clinic?.tagline || "Healthcare Center"}</p>
         </div>
       </div>
 

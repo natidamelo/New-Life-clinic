@@ -1519,8 +1519,8 @@ const Login: React.FC = () => {
         }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setActiveTab('home')}>
-            <div className="h-10 w-10 rounded-xl flex items-center justify-center overflow-hidden bg-white border border-slate-200/50 shadow-sm group-hover:scale-105 transition-transform duration-300">
-              <img src={clinic?.logo || "/assets/images/logo.jpg"} alt={`${clinic?.name || CLINIC_INFO.name} Logo`} className="h-full w-full object-cover" />
+            <div className="h-12 min-w-[48px] max-w-[140px] px-1.5 py-1 rounded-xl flex items-center justify-center overflow-hidden bg-white border border-slate-200/60 shadow-sm group-hover:scale-105 transition-transform duration-300">
+              <img src={clinic?.logo || "/assets/images/logo.jpg"} alt={`${clinic?.name || CLINIC_INFO.name} Logo`} className="h-full w-auto max-w-full object-contain" />
             </div>
             <div>
               <span className="font-extrabold text-md tracking-tight uppercase text-ink dark:text-paper group-hover:text-pulse transition-colors duration-300">{clinic?.name || CLINIC_INFO.name}</span>
@@ -2930,8 +2930,8 @@ const Login: React.FC = () => {
             {/* Column 1: Clinic Info */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-3">
-                <div className="h-6 w-6 rounded-md overflow-hidden bg-white flex items-center justify-center border border-slate-200/20 shadow-sm">
-                  <img src={clinic?.logo || "/assets/images/logo.jpg"} alt={`${clinic?.name || CLINIC_INFO.name} Logo`} className="h-full w-full object-cover" />
+                <div className="h-9 min-w-[36px] max-w-[110px] px-1 py-0.5 rounded-lg overflow-hidden bg-white flex items-center justify-center border border-slate-200/50 shadow-sm">
+                  <img src={clinic?.logo || "/assets/images/logo.jpg"} alt={`${clinic?.name || CLINIC_INFO.name} Logo`} className="h-full w-auto max-w-full object-contain" />
                 </div>
                 <span className="font-extrabold text-sm uppercase tracking-tight text-ink dark:text-paper">{clinic?.name || CLINIC_INFO.name}</span>
               </div>

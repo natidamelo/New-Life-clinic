@@ -154,10 +154,16 @@ export function getMedicalReportHeaderStyles(): string {
       gap: 12px;
     }
     .med-clinic-logo {
-      width: 52px;
-      height: 52px;
+      height: 64px;
+      max-width: 150px;
+      width: auto;
+      min-width: 54px;
       object-fit: contain;
-      border-radius: 4px;
+      border-radius: 6px;
+      background: #ffffff;
+      padding: 2px;
+      image-rendering: -webkit-optimize-contrast;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.08));
     }
     .med-clinic-name {
       font-size: 17px;

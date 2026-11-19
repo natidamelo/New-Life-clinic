@@ -37,7 +37,9 @@ const DashboardLayout: React.FC = () => {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between h-16 px-4 bg-gradient-to-r from-teal-600 to-emerald-600 text-primary-foreground">
         <div className="flex items-center">
-          <img src={clinic?.logo || "/assets/images/logo.jpg"} alt={`${clinic?.name || "New Life Clinic"} logo`} className="h-8 w-8 rounded-full object-cover mr-3 ring-1 ring-white/40" />
+          <div className="h-10 min-w-[38px] max-w-[120px] rounded-md bg-white/95 p-1 mr-3 flex items-center justify-center shadow-xs ring-1 ring-white/60">
+            <img src={clinic?.logo || "/assets/images/logo.jpg"} alt={`${clinic?.name || "New Life Clinic"} logo`} className="h-full w-auto max-w-full object-contain" />
+          </div>
           <h1 className="text-lg font-semibold">{clinic?.name || "New Life Clinic"}</h1>
         </div>
         <button

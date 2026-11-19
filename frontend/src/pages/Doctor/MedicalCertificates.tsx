@@ -1057,10 +1057,13 @@ const MedicalCertificates: React.FC = () => {
                   z-index: 1;
                 }
                 .clinic-logo {
-                  height: 38px;
+                  height: 56px;
+                  max-width: 140px;
                   width: auto;
                   object-fit: contain;
-                  border-radius: 4px;
+                  border-radius: 6px;
+                  background: #ffffff;
+                  padding: 2px;
                 }
                 .clinic-details {
                   text-align: left;

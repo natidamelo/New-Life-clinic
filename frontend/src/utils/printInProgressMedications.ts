@@ -60,6 +60,7 @@ export interface PrintReportOptions {
   taskPaymentStatuses?: Record<string, any>;
   clinicName?: string;
   clinicTagline?: string;
+  clinicLogo?: string;
   filterDescription?: string;
 }
 
@@ -127,6 +128,7 @@ export const printInProgressMedicationReport = ({
   taskPaymentStatuses = {},
   clinicName = 'NEW LIFE CLINIC',
   clinicTagline = 'Compassionate Healthcare · Inpatient Nursing Station',
+  clinicLogo,
   filterDescription
 }: PrintReportOptions): void => {
   if (!tasks || tasks.length === 0) return;
@@ -608,6 +610,16 @@ export const printInProgressMedicationReport = ({
       display: flex;
       align-items: center;
       gap: 14px;
+    }
+    .clinic-logo-img {
+      height: 56px;
+      max-width: 140px;
+      width: auto;
+      object-fit: contain;
+      border-radius: 6px;
+      background: #ffffff;
+      padding: 2px;
+      border: 1px solid #cbd5e1;
     }
     .clinic-logo-icon {
       width: 46px;
@@ -1147,7 +1159,7 @@ export const printInProgressMedicationReport = ({
     <!-- Clinic Header -->
     <header class="clinic-header">
       <div class="clinic-brand">
-        <div class="clinic-logo-icon">➕</div>
+        ${clinicLogo ? `<img src="${escapeHtml(clinicLogo)}" alt="Clinic Logo" class="clinic-logo-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" /><div class="clinic-logo-icon" style="display:none;">➕</div>` : '<div class="clinic-logo-icon">➕</div>'}
         <div>
           <h1 class="clinic-name">${escapeHtml(clinicName)}</h1>
           <p class="clinic-tagline">${escapeHtml(clinicTagline)}</p>
