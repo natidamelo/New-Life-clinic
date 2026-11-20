@@ -293,12 +293,13 @@ const InvoiceList: React.FC = () => {
     setProcessingPayment(true);
     try {
       const mapMethod = (m: string) => {
+        if (m === 'telebirr') return 'telebirr';
         if (m.startsWith('bank_transfer')) return 'bank_transfer';
         if (['card','cash','insurance','other'].includes(m)) return m;
         return 'other';
       };
       const methodLabel: Record<string, string> = {
-        cash: 'Cash', card: 'Card', bank_transfer: 'Bank Transfer',
+        cash: 'Cash', telebirr: 'Telebirr', card: 'Card', bank_transfer: 'Bank Transfer',
         bank_transfer_dashen: 'Bank Transfer - Dashen', bank_transfer_abyssinia: 'Bank Transfer - Abyssinia',
         bank_transfer_cbe: 'Bank Transfer - CBE', insurance: 'Insurance', other: 'Other',
       };
@@ -741,6 +742,7 @@ const InvoiceList: React.FC = () => {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="telebirr">Telebirr</SelectItem>
                       <SelectItem value="card">Card (Credit/Debit)</SelectItem>
                       <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                       <SelectItem value="bank_transfer_dashen">Bank Transfer - Dashen Bank</SelectItem>

@@ -107,7 +107,7 @@ const PaymentSchema = new Schema({
   },
   method: {
     type: String,
-    enum: ['cash', 'card', 'bank_transfer', 'insurance', 'other'],
+    enum: ['cash', 'card', 'bank_transfer', 'telebirr', 'insurance', 'other'],
     required: true
   },
   reference: {
@@ -257,7 +257,7 @@ const MedicalInvoiceSchema = new Schema({
     },
     method: {
       type: String,
-      enum: ['cash', 'card', 'bank_transfer', 'insurance', 'other'],
+      enum: ['cash', 'card', 'bank_transfer', 'telebirr', 'insurance', 'other'],
       required: true
     },
     reference: String,
@@ -379,7 +379,7 @@ const MedicalInvoiceSchema = new Schema({
   // Additional information
   paymentMethod: {
     type: String,
-    enum: ['cash', 'card', 'bank_transfer', 'insurance', 'other']
+    enum: ['cash', 'card', 'bank_transfer', 'telebirr', 'insurance', 'other']
   },
   paymentNotes: {
     type: String
@@ -582,7 +582,7 @@ MedicalInvoiceSchema.pre('save', async function(next) {
         const envAllowsAutofill = (process.env.AUTO_CREATE_PAYMENT_RECORDS || 'true').toLowerCase() !== 'false';
         if (shouldAutofill && envAllowsAutofill) {
           const fallbackMethod = (process.env.DEFAULT_AUTO_PAYMENT_METHOD || 'cash').toLowerCase();
-          const normalizedFallback = ['cash', 'card', 'bank_transfer', 'insurance', 'other'].includes(fallbackMethod)
+          const normalizedFallback = ['cash', 'card', 'bank_transfer', 'telebirr', 'insurance', 'other'].includes(fallbackMethod)
             ? fallbackMethod
             : 'cash';
           const method = this.paymentMethod || normalizedFallback;

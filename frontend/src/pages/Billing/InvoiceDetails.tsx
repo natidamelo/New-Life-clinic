@@ -177,6 +177,7 @@ const InvoiceDetails: React.FC = () => {
         // Map frontend payment method values to backend values
         const mapPaymentMethod = (method: string) => {
           if (method.startsWith('bank_transfer')) return 'bank_transfer';
+          if (method === 'telebirr') return 'telebirr';
           if (method === 'card') return 'card';
           if (method === 'cash') return 'cash';
           if (method === 'insurance') return 'insurance';
@@ -189,6 +190,7 @@ const InvoiceDetails: React.FC = () => {
           if (method === 'bank_transfer_dashen') return 'Bank Transfer - Dashen Bank';
           if (method === 'bank_transfer_abyssinia') return 'Bank Transfer - Abyssinia Bank';
           if (method === 'bank_transfer_cbe') return 'Bank Transfer - Commercial Bank of Ethiopia';
+          if (method === 'telebirr') return 'Telebirr';
           if (method === 'card') return 'Credit/Debit Card';
           if (method === 'cash') return 'Cash';
           if (method === 'insurance') return 'Insurance';
@@ -211,6 +213,7 @@ const InvoiceDetails: React.FC = () => {
         // Map frontend payment method values to backend values
         const mapPaymentMethod = (method: string) => {
           if (method.startsWith('bank_transfer')) return 'bank_transfer';
+          if (method === 'telebirr') return 'telebirr';
           if (method === 'card') return 'card';
           if (method === 'cash') return 'cash';
           if (method === 'insurance') return 'insurance';
@@ -223,6 +226,7 @@ const InvoiceDetails: React.FC = () => {
           if (method === 'bank_transfer_dashen') return 'Bank Transfer - Dashen Bank';
           if (method === 'bank_transfer_abyssinia') return 'Bank Transfer - Abyssinia Bank';
           if (method === 'bank_transfer_cbe') return 'Bank Transfer - Commercial Bank of Ethiopia';
+          if (method === 'telebirr') return 'Telebirr';
           if (method === 'card') return 'Credit/Debit Card';
           if (method === 'cash') return 'Cash';
           if (method === 'insurance') return 'Insurance';
@@ -529,6 +533,7 @@ const InvoiceDetails: React.FC = () => {
                 margin="dense"
               >
                 <option value="cash">Cash</option>
+                <option value="telebirr">Telebirr</option>
                 <option value="card">Credit/Debit Card</option>
                 <option value="insurance">Insurance</option>
                 <option value="bank">Bank Transfer</option>

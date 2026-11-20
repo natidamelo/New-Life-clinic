@@ -16,6 +16,7 @@ interface RecordPaymentFormProps {
 
 const paymentMethods = [
   { value: 'Cash', label: 'Cash' },
+  { value: 'Telebirr', label: 'Telebirr' },
   { value: 'Card', label: 'Card' },
   { value: 'MobileMoney', label: 'Mobile Money' },
   { value: 'Insurance', label: 'Insurance' },

@@ -92,6 +92,7 @@ const ExtensionPaymentModal: React.FC<ExtensionPaymentModalProps> = ({
 
   const paymentMethods = [
     { value: 'cash', label: 'Cash' },
+    { value: 'telebirr', label: 'Telebirr' },
     { value: 'credit_card', label: 'Credit Card' },
     { value: 'debit_card', label: 'Debit Card' },
     { value: 'bank_transfer', label: 'Bank Transfer' },

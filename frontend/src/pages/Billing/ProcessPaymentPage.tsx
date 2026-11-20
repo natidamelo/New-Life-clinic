@@ -1561,6 +1561,7 @@ const ProcessPaymentPage = () => {
                                             <SelectTrigger><SelectValue placeholder="Select payment method"/></SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="cash">Cash</SelectItem>
+                                                <SelectItem value="telebirr">Telebirr</SelectItem>
                                                 <SelectItem value="card">Card</SelectItem>
                                                 <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                                                 <SelectItem value="bank_transfer_dashen">Bank Transfer - Dashen Bank</SelectItem>

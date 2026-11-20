@@ -904,6 +904,7 @@ const InvoiceDetail: React.FC = () => {
                             className="w-full max-w-md p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                           >
                             <option value="cash">Cash</option>
+                            <option value="telebirr">Telebirr</option>
                             <option value="insurance">Insurance</option>
                             <option value="card">Card</option>
                             <option value="bank_transfer">Bank Transfer</option>

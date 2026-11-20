@@ -4294,6 +4294,7 @@ const ReceptionDashboard: React.FC = () => {
                   onChange={(e) => setRenewalPaymentMethod(e.target.value)}
                 >
                   <option value="cash">Cash</option>
+                  <option value="telebirr">Telebirr</option>
                   <option value="card">Credit/Debit Card</option>
                   <option value="insurance">Insurance</option>
                   <option value="mobileMoney">Mobile Money</option>
@@ -4396,6 +4397,7 @@ const ReceptionDashboard: React.FC = () => {
                       className="w-full px-4 py-2.5 rounded-lg border border-border/40 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 text-sm"
                     >
                       <option value="Cash">Cash</option>
+                      <option value="Telebirr">Telebirr</option>
                       <option value="Credit Card">Credit Card</option>
                       <option value="Debit Card">Debit Card</option>
                       <option value="Bank Transfer">Bank Transfer</option>

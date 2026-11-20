@@ -19,7 +19,8 @@ import {
   ArrowRight,
   Shield,
   Building,
-  Coins
+  Coins,
+  Smartphone
 } from 'lucide-react';
 import api from '../../services/apiService';
 
@@ -99,6 +100,8 @@ const InvoiceAnalytics: React.FC<InvoiceAnalyticsProps> = ({ invoiceId }) => {
     switch (method.toLowerCase()) {
       case 'cash':
         return <Coins className="h-4 w-4 text-emerald-500" />;
+      case 'telebirr':
+        return <Smartphone className="h-4 w-4 text-sky-500" />;
       case 'card':
       case 'credit_card':
       case 'debit_card':
