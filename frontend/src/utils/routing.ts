@@ -39,6 +39,9 @@ export const getRoleBasedRoute = (role: string, user?: { role?: string; email?: 
       return '/app/imaging/dashboard';
     case 'pharmacist':
       return '/app/pharmacy';
+    case 'finance':
+    case 'accountant':
+    case 'billing':
     case 'cashier':
       return '/app/billing';
     // Handle legacy role names for backward compatibility

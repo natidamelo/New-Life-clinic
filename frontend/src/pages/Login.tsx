@@ -1097,6 +1097,17 @@ const Login: React.FC = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
+      const isFinanceRole =
+        user.role === 'finance' ||
+        user.role === 'accountant' ||
+        user.role === 'cashier' ||
+        user.role === 'billing';
+
+      if (isFinanceRole) {
+        navigate('/app/billing');
+        return;
+      }
+
       const isAdmin =
         user.role === 'admin' ||
         user.role === 'super_admin' ||
@@ -1182,6 +1193,18 @@ const Login: React.FC = () => {
         }
 
         const loggedInUser = result as UserType;
+        const isFinanceRole =
+          loggedInUser.role === 'finance' ||
+          loggedInUser.role === 'accountant' ||
+          loggedInUser.role === 'cashier' ||
+          loggedInUser.role === 'billing';
+
+        if (isFinanceRole) {
+          toast.success(`Welcome to Finance Center, ${loggedInUser.firstName || loggedInUser.name}!`);
+          navigate('/app/billing');
+          return;
+        }
+
         toast.success(`Welcome back, ${loggedInUser.firstName || loggedInUser.name}!`);
         const isAdmin =
           loggedInUser.role === 'admin' ||
@@ -1215,6 +1238,18 @@ const Login: React.FC = () => {
     setTwoFactorLoading(true);
     try {
       const loggedInUser = await verify2FA(twoFactorToken!, twoFactorCode);
+      const isFinanceRole =
+        loggedInUser.role === 'finance' ||
+        loggedInUser.role === 'accountant' ||
+        loggedInUser.role === 'cashier' ||
+        loggedInUser.role === 'billing';
+
+      if (isFinanceRole) {
+        toast.success(`Welcome to Finance Center, ${loggedInUser.firstName || loggedInUser.name}!`);
+        navigate('/app/billing');
+        return;
+      }
+
       const isAdmin =
         loggedInUser.role === 'admin' ||
         loggedInUser.role === 'super_admin' ||
@@ -2740,10 +2775,28 @@ const Login: React.FC = () => {
                     <div>
                       <div className="flex items-center gap-2 mb-3">
                         <div className={`h-0.5 w-10 rounded-full bg-gradient-to-r ${isDarkMode ? 'from-cyan-300 via-blue-300 to-indigo-300' : 'from-teal-500 to-cyan-500'}`} />
-                        <span className={`${isDarkMode ? 'text-cyan-300' : 'text-teal-600'} text-xs font-semibold uppercase tracking-widest`}>Secure Sign In</span>
+                        <span className={`${isDarkMode ? 'text-cyan-300' : 'text-teal-600'} text-xs font-semibold uppercase tracking-widest`}>Secure Clinic Portal</span>
                       </div>
-                      <h2 className={`text-[2rem] sm:text-[2.2rem] font-extrabold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Welcome back</h2>
-                      <p className={`text-[13px] mt-1.5 ${isDarkMode ? 'text-slate-300/75' : 'text-slate-500'}`}>Sign in to continue to your clinic workspace</p>
+                      <h2 className={`text-[2rem] sm:text-[2.2rem] font-extrabold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Sign In</h2>
+                      <p className={`text-[13px] mt-1.5 ${isDarkMode ? 'text-slate-300/75' : 'text-slate-500'}`}>
+                        Access your role workspace: Finance, Clinical, Reception, or Administration
+                      </p>
+
+                      {/* Role Guidance Pills */}
+                      <div className="flex flex-wrap gap-1.5 mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300">
+                          💼 Finance & Cashier
+                        </span>
+                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300">
+                          🩺 Doctors & Nurses
+                        </span>
+                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300">
+                          📋 Front Desk
+                        </span>
+                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-950/40 dark:text-violet-300">
+                          ⚡ Admin
+                        </span>
+                      </div>
                     </div>
 
                     {/* Form */}
@@ -2763,7 +2816,7 @@ const Login: React.FC = () => {
                             name="email"
                             type="text"
                             autoComplete="off"
-                            placeholder="dr.smith or admin@clinic.com"
+                            placeholder="finance@clinic.com, dr.smith, or admin"
                             {...formik.getFieldProps('email')}
                             style={inputStyle}
                             className={`auth-login-input w-full h-12 pl-10 pr-4 text-sm rounded-xl outline-none transition-all duration-200 ${

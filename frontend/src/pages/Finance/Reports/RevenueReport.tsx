@@ -1,13 +1,12 @@
 import React from 'react';
+import DailyFinancialReport from './DailyFinancialReport';
 
+/**
+ * Revenue Report
+ * Defaults to the comprehensive Daily Revenue & Reconciliation audit
+ */
 const RevenueReport: React.FC = () => {
-  return (
-    <div className="p-4">
-      <h2 className="text-xl font-semibold mb-3">Revenue Report</h2>
-      {/* Placeholder for revenue report display */}
-      <p>Display revenue data, potentially with charts and date filters.</p>
-    </div>
-  );
+  return <DailyFinancialReport />;
 };
 
-export default RevenueReport; 
+export default RevenueReport;

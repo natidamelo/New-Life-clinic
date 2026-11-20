@@ -24,13 +24,13 @@ import {
 } from 'lucide-react';
 
 // Sub-page components for unified tab view
+import DailyFinancialReport from '../Finance/Reports/DailyFinancialReport';
 import PatientCardSettings from '../Settings/PatientCardSettings';
 import StandardFinancialReport from '../Finance/Reports/StandardFinancialReport';
 import ExpenseManager from '../Finance/ExpenseManager';
 import ItemRevenueReport from './ItemRevenueReport';
 import BillingReports from './BillingReports';
 import DetailedBillingReport from './DetailedBillingReport';
-import PatientDemographics from './PatientDemographics';
 import AIAdvisorPanel from '../../components/Billing/AIAdvisorPanel';
 import InsurancePatientReport from './InsurancePatientReport';
 
@@ -115,19 +115,21 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const TABS = [
+  { key: 'daily',        label: 'Daily Report',         icon: <Calendar className="h-4 w-4" /> },
   { key: 'overview',     label: 'Overview',             icon: <Activity className="h-4 w-4" /> },
-  { key: 'cards',        label: 'Patient Cards',        icon: <CreditCard className="h-4 w-4" /> },
-  { key: 'financials',   label: 'Financials',           icon: <PieChart className="h-4 w-4" /> },
+  { key: 'financials',   label: 'Standard Financial',   icon: <PieChart className="h-4 w-4" /> },
   { key: 'expenses',     label: 'Operating Expenses',   icon: <DollarSign className="h-4 w-4" /> },
-  { key: 'medication',   label: 'Medication & Lab',     icon: <Pill className="h-4 w-4" /> },
-  { key: 'reports',      label: 'Basic Reports',        icon: <BarChart3 className="h-4 w-4" /> },
-  { key: 'detailed',     label: 'Detailed Reports',     icon: <Search className="h-4 w-4" /> },
+  { key: 'medication',   label: 'Med & Lab Revenue',    icon: <Pill className="h-4 w-4" /> },
+  { key: 'cards',        label: 'Patient Cards',        icon: <CreditCard className="h-4 w-4" /> },
   { key: 'insurance',    label: 'Insurance Report',     icon: <ShieldCheck className="h-4 w-4" /> },
-  { key: 'demographics', label: 'Demographics',         icon: <Users className="h-4 w-4" /> },
+  { key: 'reports',      label: 'Invoice Reports',      icon: <BarChart3 className="h-4 w-4" /> },
+  { key: 'detailed',     label: 'Detailed Audit',       icon: <Search className="h-4 w-4" /> },
+  { key: 'advisor',      label: 'AI Advisor',           icon: <Sparkles className="h-4 w-4" /> },
 ];
 
 const getTabFromPath = (pathname: string): string => {
   const path = pathname.toLowerCase();
+  if (path.includes('daily-report') || path.includes('daily')) return 'daily';
   if (path.includes('patient-cards') || path.includes('patient-card-settings')) return 'cards';
   if (path.includes('financial-report')) return 'financials';
   if (path.includes('expense-manager')) return 'expenses';
@@ -135,12 +137,13 @@ const getTabFromPath = (pathname: string): string => {
   if (path.includes('reports/detailed')) return 'detailed';
   if (path.includes('reports')) return 'reports';
   if (path.includes('insurance-report')) return 'insurance';
-  if (path.includes('patient-demographics')) return 'demographics';
+  if (path.includes('financial-advisor') || path.includes('advisor')) return 'advisor';
   return 'overview';
 };
 
 const getPathFromTab = (tab: string): string => {
   switch (tab) {
+    case 'daily':        return '/app/billing/daily-report';
     case 'cards':        return '/app/billing/patient-cards';
     case 'financials':   return '/app/billing/financial-report';
     case 'expenses':     return '/app/billing/expense-manager';
@@ -148,7 +151,7 @@ const getPathFromTab = (tab: string): string => {
     case 'reports':      return '/app/billing/reports';
     case 'detailed':     return '/app/billing/reports/detailed';
     case 'insurance':    return '/app/billing/insurance-report';
-    case 'demographics': return '/app/billing/patient-demographics';
+    case 'advisor':      return '/app/billing/financial-advisor';
     default:             return '/app/billing';
   }
 };
@@ -312,13 +315,11 @@ const BillingDashboard: React.FC = () => {
             </div>
 
             {/* ── Quick Navigation ─────────────────────────────────────────────── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <NavCard to="/app/billing/patient-cards"        icon={<CreditCard className="h-5 w-5 text-blue-600" />}    label="Manage Patient Cards"        sub="Card issuance & renewal"           color="bg-blue-50"    border="border-blue-100 hover:border-blue-300" />
-              <NavCard to="/app/billing/financial-report"     icon={<PieChart className="h-5 w-5 text-emerald-600" />}   label="Standard Financial Report"   sub="Executive summary & KPIs"          color="bg-emerald-50" border="border-emerald-100 hover:border-emerald-300" />
-              <NavCard to="/app/billing/item-revenue-report"  icon={<Pill className="h-5 w-5 text-indigo-600" />}        label="Medication & Lab Report"     sub="Per-item revenue by date & month"  color="bg-indigo-50"  border="border-indigo-100 hover:border-indigo-300" />
-              <NavCard to="/app/billing/reports"              icon={<BarChart3 className="h-5 w-5 text-violet-600" />}   label="Basic Billing Reports"       sub="Download CSV / PDF"                color="bg-violet-50"  border="border-violet-100 hover:border-violet-300" />
-              <NavCard to="/app/billing/reports/detailed"     icon={<Search className="h-5 w-5 text-orange-600" />}      label="Detailed Billing Reports"    sub="Per-invoice breakdown"             color="bg-orange-50"  border="border-orange-100 hover:border-orange-300" />
-              <NavCard to="/app/billing/patient-demographics" icon={<Users className="h-5 w-5 text-amber-600" />}        label="Patient Demographics"        sub="Population analytics"              color="bg-amber-50"   border="border-amber-100 hover:border-amber-300" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <NavCard to="/app/billing/daily-report"         icon={<Calendar className="h-5 w-5 text-emerald-600" />}   label="Daily Revenue Report"        sub="Today's cash & closing"            color="bg-emerald-50" border="border-emerald-100 hover:border-emerald-300" />
+              <NavCard to="/app/billing/financial-report"     icon={<PieChart className="h-5 w-5 text-blue-600" />}      label="Standard Financial Report"   sub="Executive P&L & AR aging"          color="bg-blue-50"    border="border-blue-100 hover:border-blue-300" />
+              <NavCard to="/app/billing/expense-manager"      icon={<DollarSign className="h-5 w-5 text-rose-600" />}    label="Operating Expenses"          sub="Rent, salaries & utilities"        color="bg-rose-50"    border="border-rose-100 hover:border-rose-300" />
+              <NavCard to="/app/billing/item-revenue-report"  icon={<Pill className="h-5 w-5 text-indigo-600" />}        label="Medication & Lab Revenue"    sub="Per-item sales breakdown"          color="bg-indigo-50"  border="border-indigo-100 hover:border-indigo-300" />
             </div>
 
             {/* ── Date Controls ────────────────────────────────────────────────── */}
@@ -579,6 +580,7 @@ const BillingDashboard: React.FC = () => {
           </div>
         )}
 
+        {activeTab === 'daily' && <DailyFinancialReport />}
         {activeTab === 'cards' && <PatientCardSettings />}
         {activeTab === 'financials' && <StandardFinancialReport />}
         {activeTab === 'expenses' && <ExpenseManager />}
@@ -586,7 +588,11 @@ const BillingDashboard: React.FC = () => {
         {activeTab === 'reports' && <BillingReports />}
         {activeTab === 'detailed' && <DetailedBillingReport />}
         {activeTab === 'insurance' && <InsurancePatientReport />}
-        {activeTab === 'demographics' && <PatientDemographics />}
+        {activeTab === 'advisor' && (
+          <div className="p-6 max-w-7xl mx-auto">
+            <AIAdvisorPanel currentMonthRevenue={stats?.totalRevenue ?? 0} />
+          </div>
+        )}
       </div>
     </div>
   );

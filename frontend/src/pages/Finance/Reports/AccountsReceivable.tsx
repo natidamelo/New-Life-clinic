@@ -1,13 +1,12 @@
 import React from 'react';
+import StandardFinancialReport from './StandardFinancialReport';
 
+/**
+ * Accounts Receivable Aging & Analysis
+ * Embedded within Standard Financial Statement
+ */
 const AccountsReceivable: React.FC = () => {
-  return (
-    <div className="p-4">
-      <h2 className="text-xl font-semibold mb-3">Accounts Receivable</h2>
-      {/* Placeholder for A/R report display */}
-      <p>Display outstanding invoices, aged receivables, etc.</p>
-    </div>
-  );
+  return <StandardFinancialReport />;
 };
 
-export default AccountsReceivable; 
+export default AccountsReceivable;

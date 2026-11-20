@@ -116,12 +116,14 @@ const receptionMenuItems = [
 ];
 
 const financeMenuItems = [
-  { path: '/app/billing', icon: DashboardIcon, label: 'Billing Dashboard' },
-  { path: '/app/packages', icon: HeartIcon, label: 'Health Packages' },
-  { path: '/app/billing/invoices', icon: CurrencyDollarIcon, label: 'Invoices' },
-  { path: '/app/billing/patient-cards', icon: CurrencyDollarIcon, label: 'Patient Cards' },
-  { path: '/app/billing/financial-advisor', icon: CurrencyDollarIcon, label: 'Financial Advisor' },
-  { path: '/app/reports/workload', icon: DocumentTextIcon, label: 'Workload Analytics' },
+  { path: '/app/billing', icon: DashboardIcon, label: 'Finance Center' },
+  { path: '/app/billing/daily-report', icon: Calendar, label: 'Daily Report' },
+  { path: '/app/billing/financial-report', icon: DocumentTextIcon, label: 'Standard Financial' },
+  { path: '/app/billing/invoices', icon: CurrencyDollarIcon, label: 'Invoices & Billing' },
+  { path: '/app/billing/expense-manager', icon: CurrencyDollarIcon, label: 'Operating Expenses' },
+  { path: '/app/billing/item-revenue-report', icon: DocumentMagnifyingGlassIcon, label: 'Item & Med Revenue' },
+  { path: '/app/billing/patient-cards', icon: CreditCardIcon, label: 'Patient Cards' },
+  { path: '/app/billing/financial-advisor', icon: DashboardIcon, label: 'AI Financial Advisor' },
   { path: '/app/profile', icon: UserCircleIcon, label: 'Profile' },
   { path: '/app/theme-settings', icon: CogIcon, label: 'Appearance' },
 ];
@@ -283,6 +285,9 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
           allSidebarPaths = imagingMenuItems.map(item => item.path);
           break;
         case 'finance':
+        case 'accountant':
+        case 'billing':
+        case 'cashier':
           allSidebarPaths = financeMenuItems.map(item => item.path);
           break;
         case 'mch':
@@ -520,6 +525,9 @@ const ShadcnSidebarLayout: React.FC<ShadcnSidebarProps> = ({ children }) => {
         currentMenuItems = imagingMenuItems;
         break;
       case 'finance':
+      case 'accountant':
+      case 'billing':
+      case 'cashier':
         currentMenuItems = financeMenuItems;
         break;
       case 'admin':
