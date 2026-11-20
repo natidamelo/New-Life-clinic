@@ -1,6 +1,7 @@
 // Professional Lab Report Template — Hospital-Grade Design
 // New Life Medium Clinic — Laboratory Report System
 import { generateMedicalReportHeaderHTML, getMedicalReportHeaderStyles, formatFileNo } from './medicalReportHeader';
+import { API_BASE_URL } from '../config';
 
 export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?: any) => {
   // ─── Result Flag Logic (H / L / Normal) ─────────────────────────
@@ -320,7 +321,12 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?:
     console.warn('Could not encode lab report payload:', err);
   }
 
-  const origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
+  let origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
+  // If running on localhost or loopback, mobile cameras cannot reach localhost.
+  // Default to the clinic's public production domain so printed paper QR codes work from any phone:
+  if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+    origin = 'https://new-life-clinic-4i51.vercel.app';
+  }
   // Clean short URL (only ~55 chars) creates a crisp, ultra-low density 29x29 module QR code
   // with large high-contrast dots that any mobile camera scans in milliseconds!
   const verificationUrl = `${origin}/verify-lab-report?c=${encodeURIComponent(reportId)}`;
@@ -380,17 +386,30 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?:
   };
 
   if (typeof fetch !== 'undefined') {
-    try {
-      fetch('/api/public/lab-reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(reportPayload)
-      }).then(res => {
-        if (!res.ok) console.error('[LabReport] Failed to save report to backend:', res.status, res.statusText);
-        else console.log('[LabReport] Report saved successfully:', verificationCode, reportId);
-      }).catch(err => console.error('[LabReport] Network error saving report:', err));
-    } catch (err) {
-      console.error('[LabReport] Error initiating report save:', err);
+    const endpointsToPost = [];
+    if (API_BASE_URL) {
+      endpointsToPost.push(`${API_BASE_URL}/api/public/lab-reports`);
+    } else {
+      endpointsToPost.push('/api/public/lab-reports');
+    }
+    // Also sync to cloud production Render backend so mobile phones scanning printed QR codes always find it
+    endpointsToPost.push('https://new-life-clinic.onrender.com/api/public/lab-reports');
+
+    const uniqueEndpoints = Array.from(new Set(endpointsToPost));
+
+    for (const endpoint of uniqueEndpoints) {
+      try {
+        fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reportPayload)
+        }).then(res => {
+          if (!res.ok) console.warn('[LabReport] Save response on', endpoint, res.status);
+          else console.log('[LabReport] Report saved successfully to:', endpoint);
+        }).catch(err => console.warn('[LabReport] Network save to', endpoint, ':', err));
+      } catch (err) {
+        console.warn('[LabReport] Error initiating report save:', err);
+      }
     }
   }
 

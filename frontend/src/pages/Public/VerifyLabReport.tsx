@@ -20,6 +20,7 @@ import {
   Lock
 } from 'lucide-react';
 import { generateProfessionalLabReportHTML } from '../../utils/labReportTemplate';
+import { API_BASE_URL } from '../../config';
 
 interface LabTestItem {
   testName: string;
@@ -129,16 +130,31 @@ export default function VerifyLabReport() {
 
     // 1. Try fetching from backend API if code is present
     if (codeParam) {
-      try {
-        const res = await fetch(`/api/public/lab-reports/${encodeURIComponent(codeParam)}`);
-        const json = await res.json();
-        if (json.success && json.data) {
-          setReport(json.data);
-          setLoading(false);
-          return;
+      const endpointsToTry = [];
+      if (API_BASE_URL) {
+        endpointsToTry.push(`${API_BASE_URL}/api/public/lab-reports/${encodeURIComponent(codeParam)}`);
+      }
+      endpointsToTry.push(`/api/public/lab-reports/${encodeURIComponent(codeParam)}`);
+      endpointsToTry.push(`https://new-life-clinic.onrender.com/api/public/lab-reports/${encodeURIComponent(codeParam)}`);
+
+      const uniqueEndpoints = Array.from(new Set(endpointsToTry));
+
+      for (const endpoint of uniqueEndpoints) {
+        try {
+          const res = await fetch(endpoint, {
+            headers: { 'Accept': 'application/json' }
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data) {
+              setReport(json.data);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (apiErr) {
+          console.warn(`API lookup failed on ${endpoint}:`, apiErr);
         }
-      } catch (apiErr) {
-        console.warn('API lookup failed, checking local cache:', apiErr);
       }
 
       // 2. Try full report payload from localStorage (saved when report was generated)
