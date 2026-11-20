@@ -20,7 +20,7 @@ import {
   DollarSign, Clock, CheckCircle2, AlertCircle, TrendingUp, TrendingDown,
   RefreshCw, CreditCard, BarChart3, BarChart2, Search, Users, Plus,
   FileText, Eye, ArrowUpRight, Wallet, Receipt, Activity, ChevronRight,
-  Calendar, Download, Banknote, ShieldCheck, PieChart, Pill
+  Calendar, Download, Banknote, ShieldCheck, PieChart, Pill, Sparkles
 } from 'lucide-react';
 
 // Sub-page components for unified tab view
