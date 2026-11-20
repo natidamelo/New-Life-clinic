@@ -371,6 +371,7 @@ export function generateMedicalReportHeaderHTML(options: MedicalReportHeaderOpti
         </div>
         <div class="med-qr-box">
           ${qrSvg}
+          <div style="font-size:7px;color:#334155;text-align:center;margin-top:2px;font-family:Arial,sans-serif;font-weight:700;letter-spacing:0.3px;text-transform:uppercase;">Scan to Verify</div>
         </div>
       </div>
 
@@ -475,10 +476,10 @@ export const MedicalReportHeaderReact: React.FC<MedicalReportHeaderOptions> = ({
             {reportTitle}
           </h2>
         </div>
-        <div 
-          className="flex-shrink-0 pl-3"
-          dangerouslySetInnerHTML={{ __html: qrSvg }}
-        />
+        <div className="flex-shrink-0 pl-3 flex flex-col items-center">
+          <div dangerouslySetInnerHTML={{ __html: qrSvg }} />
+          <span className="text-[9px] font-bold text-gray-700 uppercase tracking-tight mt-0.5">Scan to Verify</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

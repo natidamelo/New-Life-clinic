@@ -476,4 +476,109 @@ router.post('/book-appointment', async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Public Verified Lab Report Endpoints (for QR Code scanning & verification)
+// ─────────────────────────────────────────────────────────────────────────────
+const VerifiedLabReport = require('../models/VerifiedLabReport');
+const os = require('os');
+
+// Helper to get local network IP for mobile scanning compatibility
+function getNetworkIp() {
+  const networkInterfaces = os.networkInterfaces();
+  const preferredPatterns = [
+    /^10\./,
+    /^192\.168\./,
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./
+  ];
+
+  for (const pattern of preferredPatterns) {
+    for (const name in networkInterfaces) {
+      for (const iface of networkInterfaces[name] || []) {
+        if (iface.family === 'IPv4' && !iface.internal && pattern.test(iface.address)) {
+          return iface.address;
+        }
+      }
+    }
+  }
+
+  for (const name in networkInterfaces) {
+    for (const iface of networkInterfaces[name] || []) {
+      if (iface.family === 'IPv4' && !iface.internal && !iface.address.startsWith('169.254.')) {
+        return iface.address;
+      }
+    }
+  }
+
+  return 'localhost';
+}
+
+// GET /api/public/server-info - Get server network IP for mobile QR codes
+router.get('/server-info', (req, res) => {
+  const ip = getNetworkIp();
+  res.json({
+    success: true,
+    serverIp: ip,
+    port: process.env.PORT || 5002
+  });
+});
+
+// POST /api/public/lab-reports - Store or update a verified lab report snapshot
+router.post('/lab-reports', async (req, res) => {
+  try {
+    const reportData = req.body;
+    if (!reportData || !reportData.verificationCode) {
+      return res.status(400).json({ success: false, message: 'verificationCode is required' });
+    }
+
+    const report = await VerifiedLabReport.findOneAndUpdate(
+      { verificationCode: reportData.verificationCode.trim() },
+      { ...reportData, verificationCode: reportData.verificationCode.trim() },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
+    res.json({
+      success: true,
+      message: 'Verified lab report registered successfully',
+      data: report
+    });
+  } catch (error) {
+    console.error('Error saving verified lab report:', error);
+    res.status(500).json({ success: false, message: 'Failed to save verified lab report', error: error.message });
+  }
+});
+
+// GET /api/public/lab-reports/:code - Public verification endpoint to fetch report
+router.get('/lab-reports/:code', async (req, res) => {
+  try {
+    const { code } = req.params;
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Report code required' });
+    }
+
+    const report = await VerifiedLabReport.findOne({ 
+      verificationCode: { $regex: new RegExp(`^${code.trim()}$`, 'i') } 
+    });
+
+    if (!report) {
+      return res.status(404).json({
+        success: false,
+        message: 'No verified laboratory report found with this verification code.'
+      });
+    }
+
+    // Increment access stats
+    report.accessCount = (report.accessCount || 0) + 1;
+    report.lastAccessedAt = new Date();
+    await report.save();
+
+    res.json({
+      success: true,
+      data: report
+    });
+  } catch (error) {
+    console.error('Error retrieving verified lab report:', error);
+    res.status(500).json({ success: false, message: 'Error retrieving verified lab report', error: error.message });
+  }
+});
+
 module.exports = router;

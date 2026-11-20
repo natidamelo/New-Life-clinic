@@ -274,6 +274,106 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?:
   });
 
   const clinicName = clinic?.fullName || clinic?.name || 'New Life Medium Clinic';
+  const clinicAddress = typeof clinic?.address === 'string' ? clinic.address : (clinic?.address?.city || 'Lafto, beside Kebron Guest House');
+  const clinicPhone = clinic?.contactPhone || clinic?.phone || '+251925959219';
+
+  // ─── Verification URL & Mobile QR Payload ─────────────────────────
+  const compactPayload = {
+    c: verificationCode,
+    p: selectedPatient.patientName,
+    m: selectedPatient.patientId,
+    g: patientGender,
+    a: selectedPatient.age || '',
+    dob: selectedPatient.dob || selectedPatient.dateOfBirth,
+    pl: selectedPatient.patientLocation || (selectedPatient.status === 'Inpatient' ? 'Inpatient' : 'Walk-In'),
+    sl: clinic?.branch || 'Bole',
+    od: selectedPatient.tests?.[0]?.orderDate || selectedPatient.tests?.[0]?.requestDate || new Date().toISOString(),
+    rd: new Date().toISOString(),
+    tb: labTechName,
+    pb: pathologistName,
+    req: physicianName,
+    t: selectedPatient.tests.map((t: any) => ({
+      n: t.testName,
+      r: typeof t.results === 'object' && t.results?.results !== undefined ? t.results.results : (typeof t.results === 'string' ? t.results : JSON.stringify(t.results || '')),
+      u: t.unit || t.results?.unit || '',
+      nr: t.normalRange || t.results?.normalRange || '',
+      notes: t.notes || '',
+      f: getResultFlag(
+        typeof t.results === 'object' && t.results?.results !== undefined ? String(t.results.results) : String(t.results || ''),
+        t.normalRange || t.results?.normalRange || '',
+        patientGender
+      ).text,
+      s: t.status || 'Completed'
+    })),
+    notes: selectedPatient.tests.map((t: any) => t.notes).filter(Boolean).join('; '),
+    cl: {
+      n: clinicName,
+      p: clinicPhone,
+      a: clinicAddress
+    }
+  };
+
+  let encodedData = '';
+  try {
+    encodedData = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(compactPayload)))));
+  } catch (err) {
+    console.warn('Could not encode lab report payload:', err);
+  }
+
+  const origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
+  const verificationUrl = `${origin}/verify-lab-report?code=${encodeURIComponent(verificationCode)}${encodedData ? `&data=${encodedData}` : ''}`;
+
+  // Asynchronously register the report snapshot in the backend database
+  if (typeof fetch !== 'undefined') {
+    try {
+      fetch('/api/public/lab-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          verificationCode,
+          patientName: selectedPatient.patientName,
+          patientId: selectedPatient.patientId,
+          gender: patientGender,
+          age: selectedPatient.age,
+          dob: selectedPatient.dob || selectedPatient.dateOfBirth,
+          patientLocation: selectedPatient.patientLocation || (selectedPatient.status === 'Inpatient' ? 'Inpatient' : 'Walk-In'),
+          serviceLocation: clinic?.branch || 'Bole',
+          orderDate: selectedPatient.tests?.[0]?.orderDate || selectedPatient.tests?.[0]?.requestDate || new Date(),
+          doneDate: new Date(),
+          doneBy: labTechName,
+          requestedBy: physicianName,
+          reportDate: new Date(),
+          reportDoneBy: pathologistName + ' (Pathologist / Lab Director)',
+          tests: selectedPatient.tests.map((t: any) => ({
+            testName: t.testName,
+            results: t.results,
+            unit: t.unit || t.results?.unit || '',
+            normalRange: t.normalRange || t.results?.normalRange || '',
+            notes: t.notes || '',
+            flag: getResultFlag(
+              typeof t.results === 'object' && t.results?.results !== undefined ? String(t.results.results) : String(t.results || ''),
+              t.normalRange || t.results?.normalRange || '',
+              patientGender
+            ).text,
+            status: t.status || 'Completed'
+          })),
+          summary: {
+            totalTests: selectedPatient.tests.length,
+            parameters: totalParamCount,
+            abnormalCount
+          },
+          notes: selectedPatient.tests.map((t: any) => t.notes).filter(Boolean).join('; '),
+          clinic: {
+            name: clinicName,
+            fullName: clinic?.fullName || clinicName,
+            address: clinicAddress,
+            phone: clinicPhone,
+            branch: clinic?.branch || 'Bole'
+          }
+        })
+      }).catch(() => {});
+    } catch (_) {}
+  }
 
   // ─── Full HTML Document ───────────────────────────────────────────
   return `
@@ -815,7 +915,8 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?:
               requestedBy: physicianName,
               reportDateTime: new Date(),
               reportDoneBy: pathologistName + ' (Pathologist / Lab Director)'
-            }
+            },
+            qrCodeData: verificationUrl
           })}
 
           <!-- Summary Bar -->

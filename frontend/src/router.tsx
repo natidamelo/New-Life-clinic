@@ -104,6 +104,7 @@ const IPDManagement = lazy(() => import('./pages/Ward/IPDManagement'));
 const Procedures = lazy(() => import('./pages/Nurse/Procedures'));
 const MonthlyReportPage = lazy(() => import('./pages/Nurse/MonthlyReportPage'));
 const VerifyQR = lazy(() => import('./pages/VerifyQR'));
+const VerifyLabReport = lazy(() => import('./pages/Public/VerifyLabReport'));
 const LeaveRequest = lazy(() => import('./pages/LeaveRequest'));
 const EMRPrescriptions = lazy(() => import('./pages/Doctor/EMRPrescriptions'));
 const DepoInjectionManagement = lazy(() => import('./pages/DepoInjectionManagement'));
@@ -134,6 +135,16 @@ const router = createBrowserRouter([
   {
     path: "/verify-qr",
     element: <LazyWrapper><VerifyQR /></LazyWrapper>,
+    errorElement: <ErrorFallback />
+  },
+  {
+    path: "/verify-lab-report",
+    element: <LazyWrapper><VerifyLabReport /></LazyWrapper>,
+    errorElement: <ErrorFallback />
+  },
+  {
+    path: "/verify-report",
+    element: <LazyWrapper><VerifyLabReport /></LazyWrapper>,
     errorElement: <ErrorFallback />
   },
   {
