@@ -8,7 +8,7 @@ import {
   Calendar, RefreshCw, Printer, Download, DollarSign, CheckCircle2,
   Clock, AlertTriangle, TrendingUp, TrendingDown, CreditCard, Banknote,
   Search, Filter, Wallet, ArrowUpRight, ArrowDownRight, FileText,
-  ShieldCheck, Eye, ChevronRight, PieChart, Sparkles, User, Info
+  ShieldCheck, Eye, ChevronRight, PieChart, Activity, User, Info
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -264,7 +264,7 @@ export const DailyFinancialReport: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30 flex items-center gap-1.5 print:hidden">
-                <Sparkles className="h-3 w-3 text-cyan-400" /> Daily Financial Audit
+                <Activity className="h-3 w-3 text-cyan-400" /> Daily Financial Audit
               </span>
               {isToday && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">

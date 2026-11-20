@@ -20,7 +20,7 @@ import {
   DollarSign, Clock, CheckCircle2, AlertCircle, TrendingUp, TrendingDown,
   RefreshCw, CreditCard, BarChart3, BarChart2, Search, Users, Plus,
   FileText, Eye, ArrowUpRight, Wallet, Receipt, Activity, ChevronRight,
-  Calendar, Download, Banknote, ShieldCheck, PieChart, Pill, Sparkles
+  Calendar, Download, Banknote, ShieldCheck, PieChart, Pill
 } from 'lucide-react';
 
 // Sub-page components for unified tab view
@@ -124,7 +124,7 @@ const TABS = [
   { key: 'insurance',    label: 'Insurance Report',     icon: <ShieldCheck className="h-4 w-4" /> },
   { key: 'reports',      label: 'Invoice Reports',      icon: <BarChart3 className="h-4 w-4" /> },
   { key: 'detailed',     label: 'Detailed Audit',       icon: <Search className="h-4 w-4" /> },
-  { key: 'advisor',      label: 'AI Advisor',           icon: <Sparkles className="h-4 w-4" /> },
+  { key: 'advisor',      label: 'AI Advisor',           icon: <TrendingUp className="h-4 w-4" /> },
 ];
 
 const getTabFromPath = (pathname: string): string => {
