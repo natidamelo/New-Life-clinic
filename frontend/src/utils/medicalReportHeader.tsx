@@ -106,21 +106,25 @@ export function formatFileNo(mrn?: string, orderId?: string, fallback = '547758/
 /**
  * Generates pure vector SVG string for QR Code using qr.js
  */
-export function generateQRCodeSVG(text: string, size = 76): string {
+export function generateQRCodeSVG(text: string, size = 92): string {
   try {
-    const qrData = qr(text || 'NEW-LIFE-CLINIC', { errorCorrectLevel: qr.ErrorCorrectLevel.M });
+    // Level L provides highest contrast, lowest density and largest dots for instant scan
+    const qrData = qr(text || 'NEW-LIFE-CLINIC', { errorCorrectLevel: qr.ErrorCorrectLevel.L });
     const modules = qrData.modules;
     const count = modules.length;
+    // Quiet zone: 4 modules white margin ensures fast phone camera finder pattern lock
+    const margin = 4;
+    const total = count + margin * 2;
     let path = '';
     for (let r = 0; r < count; r++) {
       for (let c = 0; c < count; c++) {
         if (modules[r][c]) {
-          path += `M${c},${r}h1v1h-1z `;
+          path += `M${c + margin},${r + margin}h1v1h-1z `;
         }
       }
     }
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${count} ${count}" width="${size}" height="${size}" shape-rendering="crispEdges">
-      <rect width="${count}" height="${count}" fill="#ffffff"/>
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="${size}" height="${size}" shape-rendering="crispEdges">
+      <rect width="${total}" height="${total}" fill="#ffffff"/>
       <path d="${path}" fill="#000000"/>
     </svg>`;
   } catch (e) {
@@ -211,15 +215,19 @@ export function getMedicalReportHeaderStyles(): string {
     }
     .med-qr-box {
       flex-shrink: 0;
-      padding-left: 12px;
+      padding-left: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
     .med-qr-box svg {
       display: block;
-      width: 74px;
-      height: 74px;
-      border: 1px solid #718096;
+      width: 90px;
+      height: 90px;
       background: #ffffff;
-      padding: 2px;
+      padding: 3px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
     }
     .med-boxes-grid {
       display: grid;

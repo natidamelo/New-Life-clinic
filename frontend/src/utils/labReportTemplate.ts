@@ -321,7 +321,17 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?:
   }
 
   const origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
-  const verificationUrl = `${origin}/verify-lab-report?code=${encodeURIComponent(verificationCode)}${encodedData ? `&data=${encodedData}` : ''}`;
+  // Clean short URL (only ~55 chars) creates a crisp, ultra-low density 29x29 module QR code
+  // with large high-contrast dots that any mobile camera scans in milliseconds!
+  const verificationUrl = `${origin}/verify-lab-report?c=${encodeURIComponent(reportId)}`;
+
+  // Cache in localStorage for instant access
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(`lab_report_${reportId}`, JSON.stringify(compactPayload));
+      localStorage.setItem(`lab_report_${verificationCode}`, JSON.stringify(compactPayload));
+    } catch (_) {}
+  }
 
   // Asynchronously register the report snapshot in the backend database
   if (typeof fetch !== 'undefined') {
@@ -331,6 +341,7 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           verificationCode,
+          reportId,
           patientName: selectedPatient.patientName,
           patientId: selectedPatient.patientId,
           gender: patientGender,

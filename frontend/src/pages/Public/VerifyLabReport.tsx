@@ -138,8 +138,23 @@ export default function VerifyLabReport() {
           return;
         }
       } catch (apiErr) {
-        console.warn('API lookup failed, falling back to URL payload:', apiErr);
+        console.warn('API lookup failed, checking local cache:', apiErr);
       }
+
+      // Check localStorage cache for instant offline fallback
+      try {
+        const cached = localStorage.getItem(`lab_report_${codeParam}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(parsed)))));
+          const formatted = parseDataParam(encoded);
+          if (formatted) {
+            setReport(formatted);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (_) {}
     }
 
     // 2. Fall back to embedded URL data if API was not reached or failed

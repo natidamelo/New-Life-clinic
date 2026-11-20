@@ -9,6 +9,11 @@ const verifiedLabReportSchema = new mongoose.Schema(
       index: true,
       trim: true
     },
+    reportId: {
+      type: String,
+      index: true,
+      trim: true
+    },
     patientName: {
       type: String,
       required: true,

@@ -555,8 +555,13 @@ router.get('/lab-reports/:code', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Report code required' });
     }
 
+    const cleanCode = code.trim();
     const report = await VerifiedLabReport.findOne({ 
-      verificationCode: { $regex: new RegExp(`^${code.trim()}$`, 'i') } 
+      $or: [
+        { verificationCode: { $regex: new RegExp(`^${cleanCode}$`, 'i') } },
+        { verificationCode: { $regex: new RegExp(`${cleanCode}$`, 'i') } },
+        { reportId: { $regex: new RegExp(`^${cleanCode}$`, 'i') } }
+      ]
     });
 
     if (!report) {
