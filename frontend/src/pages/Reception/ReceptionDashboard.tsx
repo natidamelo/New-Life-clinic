@@ -38,6 +38,8 @@ import Spinner from '../../components/Spinner';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import patientService, { CreatePatientDto } from '../../services/patientService';
+import NameSpellCheckInput from '../../components/common/NameSpellCheckInput';
+import { saveNameToStorage } from '../../utils/nameDictionary';
 // Import Material UI components
 import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
@@ -120,6 +122,8 @@ interface QueuePatient extends Patient {
 interface NewPatientFormValues {
   firstName: string;
   lastName: string;
+  firstNameAmharic?: string;
+  lastNameAmharic?: string;
   age: string;
   gender: string;
   contactNumber: string;
@@ -393,6 +397,8 @@ const ReceptionDashboard: React.FC = () => {
   const validationSchema = Yup.object().shape({
     firstName: Yup.string().required('First name is required'),
     lastName: Yup.string().required('Last name is required'),
+    firstNameAmharic: Yup.string().nullable(),
+    lastNameAmharic: Yup.string().nullable(),
     age: Yup.number()
       .required('Age is required')
       .positive('Age must be positive')
@@ -2080,6 +2086,8 @@ const ReceptionDashboard: React.FC = () => {
     initialValues: {
       firstName: '',
       lastName: '',
+      firstNameAmharic: '',
+      lastNameAmharic: '',
       age: '',
       contactNumber: '',
       // Set defaults for fields not shown in simplified form
@@ -2104,6 +2112,8 @@ const ReceptionDashboard: React.FC = () => {
         const newPatientData: CreatePatientDto = {
           firstName: values.firstName,
           lastName: values.lastName,
+          firstNameAmharic: values.firstNameAmharic?.trim() || undefined,
+          lastNameAmharic: values.lastNameAmharic?.trim() || undefined,
           age: parseInt(values.age), // Backend expects age as number
           gender: values.gender,
           contactNumber: values.contactNumber,
@@ -2130,11 +2140,34 @@ const ReceptionDashboard: React.FC = () => {
           const selectedCardType = selectedCardTypeId ?
             cardTypes.find(card => card._id === selectedCardTypeId) : null;
 
-          // Show success notification
-          toast.success(`Patient ${values.firstName} ${values.lastName} registered successfully!`, {
+          // Show success notification with Amharic name if entered
+          const displayName = [
+            `${values.firstName} ${values.lastName}`.trim(),
+            values.firstNameAmharic || values.lastNameAmharic ? `(${values.firstNameAmharic || ''} ${values.lastNameAmharic || ''})`.trim() : ''
+          ].filter(Boolean).join(' ');
+
+          toast.success(`Patient ${displayName} registered successfully!`, {
             duration: 4000,
             position: 'top-right',
           });
+
+          // Remember names in local storage and database across both clinics
+          if (values.firstName) {
+            saveNameToStorage(values.firstName, 'first');
+            patientService.saveCustomName(values.firstName, 'first');
+          }
+          if (values.lastName) {
+            saveNameToStorage(values.lastName, 'last');
+            patientService.saveCustomName(values.lastName, 'last');
+          }
+          if (values.firstNameAmharic) {
+            saveNameToStorage(values.firstNameAmharic, 'first');
+            patientService.saveCustomName(values.firstNameAmharic, 'first');
+          }
+          if (values.lastNameAmharic) {
+            saveNameToStorage(values.lastNameAmharic, 'last');
+            patientService.saveCustomName(values.lastNameAmharic, 'last');
+          }
 
           // Close the dialog immediately
           setIsNewPatientModalOpen(false);
@@ -2146,7 +2179,7 @@ const ReceptionDashboard: React.FC = () => {
           fetchPatients(currentPage, limit);
 
           // Create notification message with card payment info if card was selected
-          let notificationMessage = `New patient ${values.firstName} ${values.lastName} has been registered`;
+          let notificationMessage = `New patient ${displayName} has been registered`;
           if (selectedCardType) {
             notificationMessage += ` with ${selectedCardType.name} card (ETB ${selectedCardType.price})`;
           }
@@ -3502,38 +3535,66 @@ const ReceptionDashboard: React.FC = () => {
             {registrationTab === 'new' && (
               <form onSubmit={formik.handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">First Name *</label>
-                    <input
-                      type="text"
-                      id="firstName"
-                      name="firstName"
-                      value={formik.values.firstName}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      className={`block w-full rounded-lg border ${formik.touched.firstName && formik.errors.firstName ? 'border-destructive/40 focus:ring-red-500' : 'border-border/40 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-3 py-2`}
-                      placeholder="Enter first name"
-                    />
-                    {formik.touched.firstName && formik.errors.firstName && (
-                      <p className="mt-1 text-xs text-destructive">{String(formik.errors.firstName)}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Last Name *</label>
-                    <input
-                      type="text"
-                      id="lastName"
-                      name="lastName"
-                      value={formik.values.lastName}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      className={`block w-full rounded-lg border ${formik.touched.lastName && formik.errors.lastName ? 'border-destructive/40 focus:ring-red-500' : 'border-border/40 focus:ring-blue-500'} shadow-sm focus:border-transparent focus:ring-2 transition-all px-3 py-2`}
-                      placeholder="Enter last name"
-                    />
-                    {formik.touched.lastName && formik.errors.lastName && (
-                      <p className="mt-1 text-xs text-destructive">{String(formik.errors.lastName)}</p>
-                    )}
-                  </div>
+                  <NameSpellCheckInput
+                    id="firstName"
+                    name="firstName"
+                    label="First Name"
+                    type="first"
+                    required
+                    value={formik.values.firstName}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    setFieldValue={formik.setFieldValue}
+                    placeholder="Enter first name"
+                    error={formik.errors.firstName as string}
+                    touched={formik.touched.firstName}
+                  />
+                  <NameSpellCheckInput
+                    id="lastName"
+                    name="lastName"
+                    label="Last Name"
+                    type="last"
+                    required
+                    value={formik.values.lastName}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    setFieldValue={formik.setFieldValue}
+                    placeholder="Enter last name"
+                    error={formik.errors.lastName as string}
+                    touched={formik.touched.lastName}
+                  />
+
+                  {/* Amharic Name Inputs */}
+                  <NameSpellCheckInput
+                    id="firstNameAmharic"
+                    name="firstNameAmharic"
+                    label="First Name in Amharic (የመጀመሪያ ስም)"
+                    type="first"
+                    isAmharic={true}
+                    helperText="የሕመምተኛውን ስም በአማርኛ (optional)"
+                    value={formik.values.firstNameAmharic || ''}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    setFieldValue={formik.setFieldValue}
+                    placeholder="ስም በአማርኛ (e.g. አበበ)"
+                    error={formik.errors.firstNameAmharic as string}
+                    touched={formik.touched.firstNameAmharic}
+                  />
+                  <NameSpellCheckInput
+                    id="lastNameAmharic"
+                    name="lastNameAmharic"
+                    label="Last Name in Amharic (የአባት ስም)"
+                    type="last"
+                    isAmharic={true}
+                    helperText="የአባት ስም በአማርኛ (optional)"
+                    value={formik.values.lastNameAmharic || ''}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    setFieldValue={formik.setFieldValue}
+                    placeholder="የአባት ስም በአማርኛ (e.g. ከበደ)"
+                    error={formik.errors.lastNameAmharic as string}
+                    touched={formik.touched.lastNameAmharic}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -3718,7 +3779,14 @@ const ReceptionDashboard: React.FC = () => {
                           {/* Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-sm">{patient.firstName} {patient.lastName}</span>
+                              <span className="font-semibold text-sm">
+                                {patient.firstName} {patient.lastName}
+                                {(patient.firstNameAmharic || patient.lastNameAmharic) && (
+                                  <span className="ml-1.5 text-xs text-muted-foreground font-normal">
+                                    ({[patient.firstNameAmharic, patient.lastNameAmharic].filter(Boolean).join(' ')})
+                                  </span>
+                                )}
+                              </span>
                               {isExpired ? (
                                 <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200">EXPIRED</span>
                               ) : isInGracePeriod ? (

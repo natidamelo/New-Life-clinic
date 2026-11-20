@@ -124,11 +124,13 @@ const Patients: React.FC = () => {
       }
 
       const fullName = `${patient.firstName || ''} ${patient.lastName || ''}`.toLowerCase();
+      const amharicFullName = `${patient.firstNameAmharic || ''} ${patient.lastNameAmharic || ''}`.toLowerCase();
       const patientId = String(patient.patientId || '').toLowerCase();
       const contact = String(patient.contactNumber || '').toLowerCase();
 
       return (
         fullName.includes(normalizedSearch) ||
+        amharicFullName.includes(normalizedSearch) ||
         patientId.includes(normalizedSearch) ||
         contact.includes(normalizedSearch)
       );
@@ -515,7 +517,14 @@ const Patients: React.FC = () => {
                     <tr key={patient.id} className={`border-b hover:bg-muted/10 ${patient.hidden ? 'opacity-60 bg-muted/10' : ''}`}>
                       <td className="py-4 px-6">{patient.patientId || `P00?`}</td>
                       <td className="py-4 px-6">
-                        {`${patient.firstName} ${patient.lastName}`}
+                        <div>
+                          <span className="font-medium">{`${patient.firstName} ${patient.lastName}`}</span>
+                          {(patient.firstNameAmharic || patient.lastNameAmharic) && (
+                            <span className="text-xs text-muted-foreground block font-normal">
+                              {[patient.firstNameAmharic, patient.lastNameAmharic].filter(Boolean).join(' ')}
+                            </span>
+                          )}
+                        </div>
                         {patient.hidden && <span className="ml-2 text-xs text-muted-foreground">(Archived)</span>}
                       </td>
                       <td className="py-4 px-6">{patient.contactNumber}</td>

@@ -2987,8 +2987,25 @@ const LabDashboard: React.FC = () => {
                             patientId: selectedPatient.patientId,
                             age: calcAge(patientDetails.dateOfBirth),
                             gender: patientDetails.gender || 'N/A',
+                            dob: patientDetails.dateOfBirth || null,
                             dateOfBirth: patientDetails.dateOfBirth ? new Date(patientDetails.dateOfBirth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A',
-                            tests: selectedPatient.tests.map(t => ({ testName: t.testName, results: t.results, normalRange: t.normalRange, notes: t.notes, orderedBy: t.orderedBy, requestDate: t.requestDate }))
+                            patientLocation: patientDetails.patientType === 'Inpatient' ? 'Inpatient' : 'Walk-In',
+                            status: patientDetails.patientType || 'Walk-In',
+                            physician: selectedPatient.tests[0]?.orderedBy || 'Referral',
+                            verifiedBy: user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : undefined,
+                            tests: selectedPatient.tests.map(t => ({ 
+                              testName: t.testName, 
+                              results: t.results, 
+                              normalRange: t.normalRange, 
+                              notes: t.notes, 
+                              orderedBy: t.orderedBy, 
+                              requestDate: t.requestDate,
+                              orderDate: t.requestDate,
+                              resultDate: t.resultDate,
+                              status: t.status,
+                              unit: (t as any).unit || undefined,
+                              serviceLocation: (clinic as any)?.branch || 'Bole'
+                            }))
                           };
                           const pw = window.open('', '_blank');
                           if (pw) { pw.document.write(generateProfessionalLabReportHTML(enhancedPatient, clinic)); pw.document.close(); pw.print(); }

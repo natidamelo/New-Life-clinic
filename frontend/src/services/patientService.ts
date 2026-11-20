@@ -27,6 +27,9 @@ export interface Patient {
   patientId: string;
   firstName: string;
   lastName: string;
+  firstNameAmharic?: string;
+  lastNameAmharic?: string;
+  fullNameAmharic?: string;
   name?: string; // Add name field for compatibility
   age: number;
   dateOfBirth: string;
@@ -152,6 +155,8 @@ export interface Patient {
 export interface CreatePatientDto {
   firstName: string;
   lastName: string;
+  firstNameAmharic?: string;
+  lastNameAmharic?: string;
   age: number;
   gender: string;
   contactNumber: string;
@@ -785,6 +790,14 @@ const patientService = {
     } catch (error) {
       console.warn('Could not fetch name suggestions from API:', error);
       return { firstNames: [], lastNames: [] };
+    }
+  },
+  saveCustomName: async (name: string, type: 'first' | 'last'): Promise<void> => {
+    try {
+      if (!name || typeof name !== 'string' || name.trim().length < 2) return;
+      await api.post('/api/patients/name-suggestions', { name: name.trim(), type });
+    } catch (error) {
+      console.warn('Could not save custom name to server:', error);
     }
   },
   searchPatients: async (query: string): Promise<Patient[]> => {

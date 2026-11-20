@@ -23,6 +23,16 @@ const patientSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  firstNameAmharic: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  lastNameAmharic: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   dateOfBirth: {
     type: Date,
     required: false
@@ -270,7 +280,20 @@ const patientSchema = new mongoose.Schema({
 
 // Virtual for full name
 patientSchema.virtual('fullName').get(function() {
-  return `${this.firstName} ${this.lastName}`;
+  const eng = `${this.firstName || ''} ${this.lastName || ''}`.trim();
+  if (eng) return eng;
+  if (this.firstNameAmharic || this.lastNameAmharic) {
+    return `${this.firstNameAmharic || ''} ${this.lastNameAmharic || ''}`.trim();
+  }
+  return '';
+});
+
+// Virtual for Amharic full name
+patientSchema.virtual('fullNameAmharic').get(function() {
+  if (this.firstNameAmharic || this.lastNameAmharic) {
+    return `${this.firstNameAmharic || ''} ${this.lastNameAmharic || ''}`.trim();
+  }
+  return '';
 });
 
 // Virtual for name (compatibility with frontend)
@@ -398,6 +421,7 @@ patientSchema.index({ status: 1 }); // For filtering by status
 patientSchema.index({ assignedDoctorId: 1 }); // For filtering by doctor
 patientSchema.index({ assignedNurseId: 1 }); // For filtering by nurse
 patientSchema.index({ firstName: 1, lastName: 1 }); // For name searches
+patientSchema.index({ firstNameAmharic: 1, lastNameAmharic: 1 }); // For Amharic name searches
 patientSchema.index({ 
   firstName: 'text', 
   lastName: 'text', 

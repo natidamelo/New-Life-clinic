@@ -73,28 +73,61 @@ router.get('/', auth, async (req, res) => {
 router.get('/name-suggestions', auth, async (req, res) => {
   try {
     const Patient = require('../models/Patient');
-    const [firstNames, lastNames] = await Promise.all([
+    const SystemSetting = require('../models/SystemSetting');
+
+    // Retrieve names from both clinics (collection-wide) plus saved custom names
+    const [
+      firstNames,
+      lastNames,
+      firstNamesAmharic,
+      lastNamesAmharic,
+      customFirstNames,
+      customLastNames
+    ] = await Promise.all([
       Patient.distinct('firstName', { firstName: { $exists: true, $ne: '' } }),
-      Patient.distinct('lastName', { lastName: { $exists: true, $ne: '' } })
+      Patient.distinct('lastName', { lastName: { $exists: true, $ne: '' } }),
+      Patient.distinct('firstNameAmharic', { firstNameAmharic: { $exists: true, $ne: '' } }),
+      Patient.distinct('lastNameAmharic', { lastNameAmharic: { $exists: true, $ne: '' } }),
+      SystemSetting.getValue('custom_first_names', []),
+      SystemSetting.getValue('custom_last_names', [])
     ]);
     
-    // Normalize casing (Title Case) and deduplicate
+    // Normalize casing (Title Case for Latin; preserve Amharic/Ge'ez text as-is)
+    const normalizeName = (n) => {
+      if (!n || typeof n !== 'string') return '';
+      const t = n.trim();
+      if (!t) return '';
+      // If it contains Ethiopic / Amharic characters, preserve exactly
+      if (/[\u1200-\u137F\u1380-\u139F\u2D80-\u2DDF\uAB00-\uAB2F]/.test(t)) {
+        return t;
+      }
+      return t.charAt(0).toUpperCase() + t.slice(1);
+    };
+
+    const combinedFirst = [
+      ...(Array.isArray(firstNames) ? firstNames : []),
+      ...(Array.isArray(firstNamesAmharic) ? firstNamesAmharic : []),
+      ...(Array.isArray(customFirstNames) ? customFirstNames : [])
+    ];
+
+    const combinedLast = [
+      ...(Array.isArray(lastNames) ? lastNames : []),
+      ...(Array.isArray(lastNamesAmharic) ? lastNamesAmharic : []),
+      ...(Array.isArray(customLastNames) ? customLastNames : [])
+    ];
+
     const cleanFirstNames = Array.from(new Set(
-      firstNames
-        .filter(n => typeof n === 'string' && n.trim().length > 1)
-        .map(n => {
-          const t = n.trim();
-          return t.charAt(0).toUpperCase() + t.slice(1);
-        })
+      combinedFirst
+        .filter(n => typeof n === 'string' && n.trim().length >= 2)
+        .map(normalizeName)
+        .filter(Boolean)
     )).sort();
 
     const cleanLastNames = Array.from(new Set(
-      lastNames
-        .filter(n => typeof n === 'string' && n.trim().length > 1)
-        .map(n => {
-          const t = n.trim();
-          return t.charAt(0).toUpperCase() + t.slice(1);
-        })
+      combinedLast
+        .filter(n => typeof n === 'string' && n.trim().length >= 2)
+        .map(normalizeName)
+        .filter(Boolean)
     )).sort();
 
     res.json({
@@ -109,6 +142,38 @@ router.get('/name-suggestions', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error fetching name suggestions',
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/patients/name-suggestions
+// @desc    Save a newly entered or custom patient name (English or Amharic) for future suggestions
+// @access  Private
+router.post('/name-suggestions', auth, async (req, res) => {
+  try {
+    const { name, type } = req.body;
+    if (!name || typeof name !== 'string' || name.trim().length < 2) {
+      return res.status(400).json({ success: false, message: 'Valid name is required' });
+    }
+    const cleanName = name.trim();
+    const key = type === 'last' ? 'custom_last_names' : 'custom_first_names';
+    const SystemSetting = require('../models/SystemSetting');
+    const existing = await SystemSetting.getValue(key, []);
+    const set = new Set(Array.isArray(existing) ? existing : []);
+    set.add(cleanName);
+    await SystemSetting.setValue(key, Array.from(set).sort(), `Custom remembered patient ${type || 'first'} names`, 'ui', req.user?._id);
+
+    res.json({
+      success: true,
+      message: 'Name remembered successfully',
+      data: { name: cleanName, type: type || 'first' }
+    });
+  } catch (error) {
+    console.error('Error saving name suggestion:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Could not save name suggestion',
       error: error.message
     });
   }
@@ -278,6 +343,13 @@ router.post('/', auth, async (req, res) => {
       };
     }
     
+    if (sanitizedData.firstNameAmharic) {
+      sanitizedData.firstNameAmharic = String(sanitizedData.firstNameAmharic).trim();
+    }
+    if (sanitizedData.lastNameAmharic) {
+      sanitizedData.lastNameAmharic = String(sanitizedData.lastNameAmharic).trim();
+    }
+    
     // Handle cardType field - normalize all frontend variants to a valid ObjectId string
     // Frontend may send selectedCardTypeId, cardType, or an object value from Select components
     console.log('🔍 [DEBUG] Original data received:', JSON.stringify(req.body, null, 2));
@@ -322,6 +394,8 @@ router.post('/', auth, async (req, res) => {
     // Duplicate check: same person by name and phone number
     const firstName = (sanitizedData.firstName || '').trim();
     const lastName = (sanitizedData.lastName || '').trim();
+    const firstNameAmharic = (sanitizedData.firstNameAmharic || '').trim();
+    const lastNameAmharic = (sanitizedData.lastNameAmharic || '').trim();
     const contactNumber = (sanitizedData.contactNumber || '').trim();
     const email = (sanitizedData.email || '').trim().toLowerCase();
     const faydaId = (sanitizedData.faydaId || '').trim();
@@ -332,6 +406,13 @@ router.post('/', auth, async (req, res) => {
         firstName: new RegExp('^' + firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i'),
         lastName: new RegExp('^' + lastName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i'),
         contactNumber: contactNumber // Phone must also match for it to be a duplicate
+      });
+    }
+    if (firstNameAmharic && lastNameAmharic && contactNumber) {
+      duplicateConditions.push({
+        firstNameAmharic: firstNameAmharic,
+        lastNameAmharic: lastNameAmharic,
+        contactNumber: contactNumber
       });
     }
     if (email) {
@@ -345,7 +426,7 @@ router.post('/', auth, async (req, res) => {
       const existing = await Patient.findOne({
         isActive: true,
         $or: duplicateConditions
-      }).select('firstName lastName contactNumber email patientId _id').lean();
+      }).select('firstName lastName firstNameAmharic lastNameAmharic contactNumber email patientId _id').lean();
       
       if (existing) {
         return res.status(409).json({
@@ -357,6 +438,8 @@ router.post('/', auth, async (req, res) => {
             patientId: existing.patientId,
             firstName: existing.firstName,
             lastName: existing.lastName,
+            firstNameAmharic: existing.firstNameAmharic,
+            lastNameAmharic: existing.lastNameAmharic,
             contactNumber: existing.contactNumber,
             email: existing.email
           }
@@ -368,6 +451,31 @@ router.post('/', auth, async (req, res) => {
     
     const patient = new Patient(sanitizedData);
     await patient.save();
+
+    // Automatically remember newly registered names (English & Amharic) across both clinics
+    try {
+      const SystemSetting = require('../models/SystemSetting');
+      const namesToSave = [
+        { name: patient.firstName, type: 'first' },
+        { name: patient.lastName, type: 'last' },
+        { name: patient.firstNameAmharic, type: 'first' },
+        { name: patient.lastNameAmharic, type: 'last' }
+      ];
+      for (const item of namesToSave) {
+        if (item.name && typeof item.name === 'string' && item.name.trim().length >= 2) {
+          const clean = item.name.trim();
+          const key = item.type === 'last' ? 'custom_last_names' : 'custom_first_names';
+          const existingList = await SystemSetting.getValue(key, []);
+          const set = new Set(Array.isArray(existingList) ? existingList : []);
+          if (!set.has(clean)) {
+            set.add(clean);
+            await SystemSetting.setValue(key, Array.from(set).sort(), `Custom remembered patient ${item.type} names`, 'ui', req.user?._id);
+          }
+        }
+      }
+    } catch (saveNameErr) {
+      console.warn('⚠️ Could not automatically remember registered names:', saveNameErr.message);
+    }
 
     // Send Telegram notification to assigned doctor for new patient registration
     try {
@@ -567,6 +675,8 @@ router.get('/search', auth, async (req, res) => {
       $or: [
         { firstName: { $regex: searchTerm, $options: 'i' } },
         { lastName: { $regex: searchTerm, $options: 'i' } },
+        { firstNameAmharic: { $regex: searchTerm, $options: 'i' } },
+        { lastNameAmharic: { $regex: searchTerm, $options: 'i' } },
         { patientId: { $regex: searchTerm, $options: 'i' } },
         { contactNumber: { $regex: searchTerm, $options: 'i' } },
         { 
@@ -577,12 +687,21 @@ router.get('/search', auth, async (req, res) => {
               options: 'i'
             }
           }
+        },
+        { 
+          $expr: {
+            $regexMatch: {
+              input: { $concat: [{ $ifNull: ['$firstNameAmharic', ''] }, ' ', { $ifNull: ['$lastNameAmharic', ''] }] },
+              regex: searchTerm,
+              options: 'i'
+            }
+          }
         }
       ]
     };
     
     const patients = await Patient.find(searchQuery)
-      .select('firstName lastName patientId age gender contactNumber cardType cardStatus cardIssueDate cardExpiryDate')
+      .select('firstName lastName firstNameAmharic lastNameAmharic patientId age gender contactNumber cardType cardStatus cardIssueDate cardExpiryDate')
       .populate('cardType', 'name price validityMonths description')
       .limit(20)
       .lean()

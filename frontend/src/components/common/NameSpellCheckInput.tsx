@@ -3,7 +3,10 @@ import { Check, Sparkles, Bookmark, User, Plus } from 'lucide-react';
 import {
   COMMON_ETHIOPIAN_FIRST_NAMES,
   COMMON_ETHIOPIAN_LAST_NAMES,
+  COMMON_AMHARIC_FIRST_NAMES,
+  COMMON_AMHARIC_LAST_NAMES,
   toTitleCase,
+  isAmharicText,
   getSavedNamesFromStorage,
   saveNameToStorage,
   getNameSuggestionsAndSpellCheck,
@@ -22,6 +25,8 @@ interface NameSpellCheckInputProps {
   label: string;
   value: string;
   type: 'first' | 'last';
+  isAmharic?: boolean;
+  helperText?: string;
   placeholder?: string;
   required?: boolean;
   error?: string;
@@ -38,6 +43,8 @@ export const NameSpellCheckInput: React.FC<NameSpellCheckInputProps> = ({
   label,
   value,
   type,
+  isAmharic = false,
+  helperText,
   placeholder = 'Enter name',
   required = false,
   error,
@@ -89,46 +96,51 @@ export const NameSpellCheckInput: React.FC<NameSpellCheckInputProps> = ({
     }
   }, [type]);
 
-  // Combine and deduplicate all candidate names with priority (saved > database > dictionary)
+  // Combine and deduplicate all candidate names with priority (saved > database > built-in dictionaries)
   const allCandidates = useMemo(() => {
     const list: { name: string; source: 'saved' | 'database' | 'common' }[] = [];
     const seen = new Set<string>();
 
+    const addName = (n: string, source: 'saved' | 'database' | 'common') => {
+      if (!n || typeof n !== 'string') return;
+      const clean = toTitleCase(n);
+      const lower = clean.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        list.push({ name: clean, source });
+      }
+    };
+
     // 1. Locally saved by receptionist
     for (const n of localSavedNames) {
-      const lower = n.toLowerCase();
-      if (!seen.has(lower)) {
-        seen.add(lower);
-        list.push({ name: n, source: 'saved' });
-      }
+      addName(n, 'saved');
     }
 
-    // 2. Existing patients in database
+    // 2. Existing patients in database (cross-clinic)
     for (const n of dbNames) {
-      const lower = n.toLowerCase();
-      if (!seen.has(lower)) {
-        seen.add(lower);
-        list.push({ name: n, source: 'database' });
-      }
+      addName(n, 'database');
     }
 
-    // 3. Built-in common Ethiopian & standard names
-    const dictionary = type === 'first' ? COMMON_ETHIOPIAN_FIRST_NAMES : COMMON_ETHIOPIAN_LAST_NAMES;
-    for (const n of dictionary) {
-      const lower = n.toLowerCase();
-      if (!seen.has(lower)) {
-        seen.add(lower);
-        list.push({ name: n, source: 'common' });
-      }
+    // 3. Built-in Amharic common names
+    const amharicDict = type === 'first' ? COMMON_AMHARIC_FIRST_NAMES : COMMON_AMHARIC_LAST_NAMES;
+    for (const n of amharicDict) {
+      addName(n, 'common');
+    }
+
+    // 4. Built-in Latin common names
+    const latinDict = type === 'first' ? COMMON_ETHIOPIAN_FIRST_NAMES : COMMON_ETHIOPIAN_LAST_NAMES;
+    for (const n of latinDict) {
+      addName(n, 'common');
     }
 
     return list;
   }, [localSavedNames, dbNames, type]);
 
   // Compute matching suggestions and spelling corrections
+  const preferredScript = isAmharic ? 'amharic' : 'auto';
   const { prefixMatches, spellingSuggestion, isExactMatch } = useMemo(() => {
-    return getNameSuggestionsAndSpellCheck(value, allCandidates, 7);
-  }, [value, allCandidates]);
+    return getNameSuggestionsAndSpellCheck(value, allCandidates, 8, preferredScript);
+  }, [value, allCandidates, preferredScript]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -147,7 +159,6 @@ export const NameSpellCheckInput: React.FC<NameSpellCheckInputProps> = ({
     if (setFieldValue) {
       setFieldValue(name, formatted, true);
     } else {
-      // Create synthetic event if setFieldValue not provided
       const event = {
         target: { name, value: formatted }
       } as React.ChangeEvent<HTMLInputElement>;
@@ -167,13 +178,14 @@ export const NameSpellCheckInput: React.FC<NameSpellCheckInputProps> = ({
     setTimeout(() => setJustAppliedSpelling(false), 2500);
   };
 
-  // Manually save current name to quick-select list
+  // Manually save current name to quick-select list (persists locally and cross-clinic to backend)
   const handleSaveCurrentName = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!value || value.trim().length < 2) return;
     const clean = toTitleCase(value);
     saveNameToStorage(clean, type);
+    patientService.saveCustomName(clean, type);
     setLocalSavedNames(getSavedNamesFromStorage(type));
     setJustSavedName(true);
     setTimeout(() => setJustSavedName(false), 2000);
@@ -296,6 +308,11 @@ export const NameSpellCheckInput: React.FC<NameSpellCheckInputProps> = ({
       {/* Error Message */}
       {hasError && (
         <p className="mt-1 text-xs text-destructive">{String(error)}</p>
+      )}
+
+      {/* Helper Text */}
+      {helperText && !hasError && (
+        <p className="mt-1 text-xs text-muted-foreground">{helperText}</p>
       )}
 
       {/* Spelling Check Suggestion ("Did you mean: ...?") */}

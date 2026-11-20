@@ -50,6 +50,8 @@ const isValidPhone = (value: string): boolean => {
 const validationSchema = Yup.object().shape({
   firstName: Yup.string().required('First name is required'),
   lastName: Yup.string().required('Last name is required'),
+  firstNameAmharic: Yup.string(),
+  lastNameAmharic: Yup.string(),
   age: Yup.number()
     .typeError('Age must be a number')
     .required('Age is required')
@@ -90,6 +92,8 @@ const RegisterPatient: React.FC = () => {
     initialValues: {
       firstName: '',
       lastName: '',
+      firstNameAmharic: '',
+      lastNameAmharic: '',
       age: '',
       ageUnit: 'years',
       gender: 'male',
@@ -123,6 +127,8 @@ const RegisterPatient: React.FC = () => {
         const newPatientData: CreatePatientDto = {
           firstName: values.firstName,
           lastName: values.lastName,
+          firstNameAmharic: values.firstNameAmharic?.trim() || undefined,
+          lastNameAmharic: values.lastNameAmharic?.trim() || undefined,
           age: normalizeAgeToYears(values.age, (values as any).ageUnit),
           gender: values.gender,
           contactNumber: values.contactNumber,
@@ -150,7 +156,12 @@ const RegisterPatient: React.FC = () => {
             cardTypes.find(card => card._id === values.selectedCardTypeId) : null;
           
           // Show success notification
-          toast.success(`Patient ${values.firstName} ${values.lastName} registered successfully!`, {
+          const displayName = [
+            `${values.firstName} ${values.lastName}`.trim(),
+            values.firstNameAmharic || values.lastNameAmharic ? `(${values.firstNameAmharic || ''} ${values.lastNameAmharic || ''})`.trim() : ''
+          ].filter(Boolean).join(' ');
+
+          toast.success(`Patient ${displayName} registered successfully!`, {
             duration: 4000,
             position: 'top-right',
           });
@@ -161,9 +172,23 @@ const RegisterPatient: React.FC = () => {
             console.error('Invoice creation failed:', registrationResponse.invoiceErrorDetail);
           }
           
-          // Save patient names to quick-select storage so reception can instantly select them next time
-          if (values.firstName) saveNameToStorage(values.firstName, 'first');
-          if (values.lastName) saveNameToStorage(values.lastName, 'last');
+          // Save patient names to quick-select storage and cross-clinic database so reception can instantly select them next time
+          if (values.firstName) {
+            saveNameToStorage(values.firstName, 'first');
+            patientService.saveCustomName(values.firstName, 'first');
+          }
+          if (values.lastName) {
+            saveNameToStorage(values.lastName, 'last');
+            patientService.saveCustomName(values.lastName, 'last');
+          }
+          if (values.firstNameAmharic) {
+            saveNameToStorage(values.firstNameAmharic, 'first');
+            patientService.saveCustomName(values.firstNameAmharic, 'first');
+          }
+          if (values.lastNameAmharic) {
+            saveNameToStorage(values.lastNameAmharic, 'last');
+            patientService.saveCustomName(values.lastNameAmharic, 'last');
+          }
 
           // Reset form
           resetForm();
@@ -363,6 +388,38 @@ const RegisterPatient: React.FC = () => {
               placeholder="Enter last name"
               error={formik.errors.lastName as string}
               touched={formik.touched.lastName}
+            />
+
+            {/* Amharic Name Inputs */}
+            <NameSpellCheckInput
+              id="firstNameAmharic"
+              name="firstNameAmharic"
+              label="First Name in Amharic (የመጀመሪያ ስም)"
+              type="first"
+              isAmharic={true}
+              helperText="የሕመምተኛውን ስም በአማርኛ (optional)"
+              value={formik.values.firstNameAmharic}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              setFieldValue={formik.setFieldValue}
+              placeholder="ስም በአማርኛ (e.g. አበበ)"
+              error={formik.errors.firstNameAmharic as string}
+              touched={formik.touched.firstNameAmharic}
+            />
+            <NameSpellCheckInput
+              id="lastNameAmharic"
+              name="lastNameAmharic"
+              label="Last Name in Amharic (የአባት ስም)"
+              type="last"
+              isAmharic={true}
+              helperText="የአባት ስም በአማርኛ (optional)"
+              value={formik.values.lastNameAmharic}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              setFieldValue={formik.setFieldValue}
+              placeholder="የአባት ስም በአማርኛ (e.g. ከበደ)"
+              error={formik.errors.lastNameAmharic as string}
+              touched={formik.touched.lastNameAmharic}
             />
 
             {existingPatientMatch && (
