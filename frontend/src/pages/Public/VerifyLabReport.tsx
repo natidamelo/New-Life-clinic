@@ -71,7 +71,7 @@ export default function VerifyLabReport() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   
-  const codeParam = searchParams.get('code') || searchParams.get('id') || '';
+  const codeParam = searchParams.get('c') || searchParams.get('code') || searchParams.get('id') || '';
   const dataParam = searchParams.get('data') || '';
 
   const [loading, setLoading] = useState(true);
@@ -141,7 +141,18 @@ export default function VerifyLabReport() {
         console.warn('API lookup failed, checking local cache:', apiErr);
       }
 
-      // Check localStorage cache for instant offline fallback
+      // 2. Try full report payload from localStorage (saved when report was generated)
+      try {
+        const fullCached = localStorage.getItem(`lab_report_full_${codeParam}`);
+        if (fullCached) {
+          const parsed = JSON.parse(fullCached);
+          setReport(parsed);
+          setLoading(false);
+          return;
+        }
+      } catch (_) {}
+
+      // 3. Try compact payload from localStorage
       try {
         const cached = localStorage.getItem(`lab_report_${codeParam}`);
         if (cached) {
@@ -157,7 +168,7 @@ export default function VerifyLabReport() {
       } catch (_) {}
     }
 
-    // 2. Fall back to embedded URL data if API was not reached or failed
+    // 4. Fall back to embedded URL data if API was not reached or failed
     if (dataParam) {
       const fallback = parseDataParam(dataParam);
       if (fallback) {
@@ -167,7 +178,7 @@ export default function VerifyLabReport() {
       }
     }
 
-    // 3. If neither worked
+    // 5. If nothing worked
     setError('Laboratory examination report could not be verified or was not found.');
     setLoading(false);
   };

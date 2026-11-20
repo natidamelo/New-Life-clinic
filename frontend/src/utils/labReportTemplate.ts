@@ -333,56 +333,73 @@ export const generateProfessionalLabReportHTML = (selectedPatient: any, clinic?:
     } catch (_) {}
   }
 
-  // Asynchronously register the report snapshot in the backend database
+  // Register the report snapshot in the backend database
+  // This MUST complete before the user scans the QR code
+  const reportPayload = {
+    verificationCode,
+    reportId,
+    patientName: selectedPatient.patientName,
+    patientId: selectedPatient.patientId,
+    gender: patientGender,
+    age: selectedPatient.age,
+    dob: selectedPatient.dob || selectedPatient.dateOfBirth,
+    patientLocation: selectedPatient.patientLocation || (selectedPatient.status === 'Inpatient' ? 'Inpatient' : 'Walk-In'),
+    serviceLocation: (clinic as any)?.branch || 'Bole',
+    orderDate: selectedPatient.tests?.[0]?.orderDate || selectedPatient.tests?.[0]?.requestDate || new Date(),
+    doneDate: new Date(),
+    doneBy: labTechName,
+    requestedBy: physicianName,
+    reportDate: new Date(),
+    reportDoneBy: pathologistName + ' (Pathologist / Lab Director)',
+    tests: selectedPatient.tests.map((t: any) => ({
+      testName: t.testName,
+      results: t.results,
+      unit: t.unit || t.results?.unit || '',
+      normalRange: t.normalRange || t.results?.normalRange || '',
+      notes: t.notes || '',
+      flag: getResultFlag(
+        typeof t.results === 'object' && t.results?.results !== undefined ? String(t.results.results) : String(t.results || ''),
+        t.normalRange || t.results?.normalRange || '',
+        patientGender
+      ).text,
+      status: t.status || 'Completed'
+    })),
+    summary: {
+      totalTests: selectedPatient.tests.length,
+      parameters: totalParamCount,
+      abnormalCount
+    },
+    notes: selectedPatient.tests.map((t: any) => t.notes).filter(Boolean).join('; '),
+    clinic: {
+      name: clinicName,
+      fullName: clinic?.fullName || clinicName,
+      address: clinicAddress,
+      phone: clinicPhone,
+      branch: (clinic as any)?.branch || 'Bole'
+    }
+  };
+
   if (typeof fetch !== 'undefined') {
     try {
       fetch('/api/public/lab-reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          verificationCode,
-          reportId,
-          patientName: selectedPatient.patientName,
-          patientId: selectedPatient.patientId,
-          gender: patientGender,
-          age: selectedPatient.age,
-          dob: selectedPatient.dob || selectedPatient.dateOfBirth,
-          patientLocation: selectedPatient.patientLocation || (selectedPatient.status === 'Inpatient' ? 'Inpatient' : 'Walk-In'),
-          serviceLocation: clinic?.branch || 'Bole',
-          orderDate: selectedPatient.tests?.[0]?.orderDate || selectedPatient.tests?.[0]?.requestDate || new Date(),
-          doneDate: new Date(),
-          doneBy: labTechName,
-          requestedBy: physicianName,
-          reportDate: new Date(),
-          reportDoneBy: pathologistName + ' (Pathologist / Lab Director)',
-          tests: selectedPatient.tests.map((t: any) => ({
-            testName: t.testName,
-            results: t.results,
-            unit: t.unit || t.results?.unit || '',
-            normalRange: t.normalRange || t.results?.normalRange || '',
-            notes: t.notes || '',
-            flag: getResultFlag(
-              typeof t.results === 'object' && t.results?.results !== undefined ? String(t.results.results) : String(t.results || ''),
-              t.normalRange || t.results?.normalRange || '',
-              patientGender
-            ).text,
-            status: t.status || 'Completed'
-          })),
-          summary: {
-            totalTests: selectedPatient.tests.length,
-            parameters: totalParamCount,
-            abnormalCount
-          },
-          notes: selectedPatient.tests.map((t: any) => t.notes).filter(Boolean).join('; '),
-          clinic: {
-            name: clinicName,
-            fullName: clinic?.fullName || clinicName,
-            address: clinicAddress,
-            phone: clinicPhone,
-            branch: clinic?.branch || 'Bole'
-          }
-        })
-      }).catch(() => {});
+        body: JSON.stringify(reportPayload)
+      }).then(res => {
+        if (!res.ok) console.error('[LabReport] Failed to save report to backend:', res.status, res.statusText);
+        else console.log('[LabReport] Report saved successfully:', verificationCode, reportId);
+      }).catch(err => console.error('[LabReport] Network error saving report:', err));
+    } catch (err) {
+      console.error('[LabReport] Error initiating report save:', err);
+    }
+  }
+
+  // Also store full payload in localStorage so the verification page can find it
+  // even when the backend lookup fails (e.g., phone on different network)
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(`lab_report_full_${reportId}`, JSON.stringify(reportPayload));
+      localStorage.setItem(`lab_report_full_${verificationCode}`, JSON.stringify(reportPayload));
     } catch (_) {}
   }
 
